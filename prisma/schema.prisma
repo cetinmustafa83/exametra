@@ -74,6 +74,9 @@ model School {
   badges             Badge[]
   studentBadges      StudentBadge[]
   newsletters        Newsletter[]
+  competitions       Competition[]
+  rewardClaims       RewardClaim[]
+  subjectTopics      SubjectTopic[]
   district           SchoolDistrict? @relation(fields: [districtId], references: [id])
   districtId         String?
 }
@@ -122,6 +125,10 @@ model User {
   eventRegistrations        EventRegistration[]
   awardedBadges             StudentBadge[]
   newsletters               Newsletter[]
+  competitionsCreated       Competition[]
+  competitionParticipations CompetitionParticipant[]
+  competitionClaims         RewardClaim[]
+  studentAnswers            StudentAnswer[]
 }
 
 model SchoolYear {
@@ -266,6 +273,8 @@ model Subject {
   homeworks           Homework[]
   timetableSlots      TimetableSlot[]
   resources           Resource[]
+  topics              SubjectTopic[]
+  competitions        Competition[]
 }
 
 model CompetencyTemplate {
@@ -850,7 +859,7 @@ model NotebookPage {
   notebookId  String
   pageNumber  Int
   title       String?
-  contentType String   @default("text") // text | drawing | mixed
+  contentType String   @default("text") // text | drawing | mixed | quiz | exercise | flashcard
   textContent String?  // markdown/rich text content
   drawingData String?  // JSON with strokes/paths for canvas
   background  String   @default("lined") // lined | grid | blank | dotted | music
@@ -1593,6 +1602,134 @@ model StudentBadge {
   @@map("student_badges")
 }
 
+// ─── Competition System ──────────────────────────────────────────────
+
+model Competition {
+  id              String   @id @default(cuid())
+  schoolId        String
+  title           String
+  description     String?
+  competitionType String   // "class" | "inter_class" | "inter_school"
+  category        String   // "academic" | "sports" | "creativity" | "citizenship" | "digital" | "reading" | "stem" | "other"
+  subjectId       String?  // optional subject link
+  status          String   @default("draft") // "draft" | "registration" | "active" | "completed" | "cancelled"
+  startDate       DateTime
+  endDate         DateTime
+  registrationDeadline DateTime?
+  maxParticipants Int?
+  scoringType     String   @default("points") // "points" | "rank" | "time" | "badge_count"
+  rules          String?  // markdown rules/description
+  isPublic       Boolean  @default(false) // visible to all schools?
+  isDemo         Boolean  @default(false)
+  createdById    String   // teacher/admin who created
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  deletedAt      DateTime?
+
+  school         School   @relation(fields: [schoolId], references: [id])
+  createdBy      User     @relation(fields: [createdById], references: [id])
+  subject        Subject? @relation(fields: [subjectId], references: [id])
+  participants   CompetitionParticipant[]
+  rewards        CompetitionReward[]
+  leaderboard    CompetitionLeaderboard[]
+  claims         RewardClaim[]
+
+  @@index([schoolId])
+  @@index([status])
+  @@index([competitionType])
+  @@index([startDate])
+  @@map("competitions")
+}
+
+model CompetitionParticipant {
+  id             String   @id @default(cuid())
+  competitionId  String
+  participantType String  // "student" | "class_group" | "school"
+  participantId  String   // studentId, classGroupId, or schoolId depending on type
+  userId         String?  // the student's userId (for individual participation)
+  registeredAt   DateTime @default(now())
+  score          Int      @default(0)
+  rank           Int?
+  isDisqualified Boolean  @default(false)
+  notes          String?
+  isDemo         Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  competition    Competition @relation(fields: [competitionId], references: [id], onDelete: Cascade)
+  user           User?       @relation(fields: [userId], references: [id])
+
+  @@unique([competitionId, participantType, participantId])
+  @@index([competitionId])
+  @@index([userId])
+  @@map("competition_participants")
+}
+
+model CompetitionReward {
+  id              String   @id @default(cuid())
+  competitionId   String
+  name            String
+  description     String?
+  rewardType      String   // "digital_code" | "badge" | "certificate" | "experience" | "physical"
+  rewardValue     String?  // promo code, badge ID, certificate URL, etc.
+  rewardProvider  String?  // "netflix" | "amazon" | "cinema" | "theater" | "concert" | "custom"
+  rankRequirement Int?     // minimum rank to receive (1=first place, etc.)
+  pointsRequired  Int?     // minimum points to receive
+  quantity        Int      @default(1) // how many available
+  claimedCount    Int      @default(0)
+  imageUrl        String?  // reward image
+  isDemo          Boolean  @default(false)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  competition     Competition @relation(fields: [competitionId], references: [id], onDelete: Cascade)
+  claims          RewardClaim[]
+
+  @@index([competitionId])
+  @@map("competition_rewards")
+}
+
+model CompetitionLeaderboard {
+  id             String   @id @default(cuid())
+  competitionId  String
+  participantType String  // "student" | "class_group" | "school"
+  participantId  String
+  participantName String  // denormalized for fast reads
+  score          Int      @default(0)
+  rank           Int?
+  updatedAt      DateTime @updatedAt
+
+  competition    Competition @relation(fields: [competitionId], references: [id], onDelete: Cascade)
+
+  @@unique([competitionId, participantType, participantId])
+  @@index([competitionId, rank])
+  @@map("competition_leaderboard")
+}
+
+model RewardClaim {
+  id              String   @id @default(cuid())
+  schoolId        String
+  competitionId   String
+  rewardId        String
+  userId          String   // student who claimed
+  claimedAt       DateTime @default(now())
+  code            String?  // the actual promo code (encrypted for DSGVO)
+  status          String   @default("pending") // "pending" | "claimed" | "expired" | "revoked"
+  expiresAt       DateTime?
+  notes           String?
+  isDemo          Boolean  @default(false)
+  createdAt       DateTime @default(now())
+
+  school          School   @relation(fields: [schoolId], references: [id])
+  user            User     @relation(fields: [userId], references: [id])
+  competition     Competition @relation(fields: [competitionId], references: [id])
+  reward          CompetitionReward @relation(fields: [rewardId], references: [id])
+
+  @@index([schoolId, userId])
+  @@index([competitionId])
+  @@map("reward_claims")
+}
+
 // ─── Newsletter / School Blog ──────────────────────────────────────
 
 model Newsletter {
@@ -1617,4 +1754,94 @@ model Newsletter {
 
   @@index([schoolId, isPublished, publishedAt])
   @@map("newsletters")
+}
+
+// ─── Learning Content (German Curriculum) ─────────────────────────────
+
+model SubjectTopic {
+  id          String   @id @default(cuid())
+  schoolId    String
+  subjectId   String
+  title       String
+  description String?
+  gradeLevel  String?  // "1" | "2" | "3" | "4" | "5" | "6" (German Grundschule)
+  curriculumCode String? // e.g., "DE-NRW-Math-1-01" (German state curriculum code)
+  sortOrder   Int      @default(0)
+  icon        String?  // Lucide icon name
+  color       String   @default("#10b981")
+  isDemo      Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  deletedAt   DateTime?
+
+  school     School   @relation(fields: [schoolId], references: [id])
+  subject    Subject  @relation(fields: [subjectId], references: [id])
+  lessons    SubjectLesson[]
+
+  @@index([schoolId, subjectId])
+  @@index([gradeLevel])
+  @@map("subject_topics")
+}
+
+model SubjectLesson {
+  id          String   @id @default(cuid())
+  topicId     String
+  title       String
+  description String?
+  lessonType  String   @default("explanation") // "explanation" | "exercise" | "quiz" | "flashcard" | "video_link"
+  content     String   // markdown content for the lesson
+  difficulty  String   @default("medium") // "easy" | "medium" | "hard"
+  sortOrder   Int      @default(0)
+  estimatedMinutes Int? // estimated time to complete
+  isDemo      Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  deletedAt   DateTime?
+
+  topic       SubjectTopic @relation(fields: [topicId], references: [id], onDelete: Cascade)
+  questions   LessonQuestion[]
+
+  @@index([topicId])
+  @@map("subject_lessons")
+}
+
+model LessonQuestion {
+  id          String   @id @default(cuid())
+  lessonId    String
+  questionType String  // "multiple_choice" | "true_false" | "fill_blank" | "short_answer" | "matching"
+  question    String   // the question text
+  options     String?  // JSON array of options for multiple choice
+  correctAnswer String // the correct answer(s)
+  explanation String?  // why this answer is correct
+  points      Int      @default(1)
+  sortOrder   Int      @default(0)
+  isDemo      Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  lesson      SubjectLesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  answers     StudentAnswer[]
+
+  @@index([lessonId])
+  @@map("lesson_questions")
+}
+
+model StudentAnswer {
+  id          String   @id @default(cuid())
+  questionId  String
+  studentId   String
+  answer      String   // the student's answer
+  isCorrect   Boolean?
+  timeTakenMs Int?     // how long the student took
+  attempts    Int      @default(1)
+  isDemo      Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  question    LessonQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  student     User           @relation(fields: [studentId], references: [id])
+
+  @@unique([questionId, studentId])
+  @@index([studentId])
+  @@map("student_answers")
 }

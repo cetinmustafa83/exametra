@@ -3067,3 +3067,482 @@ export function unpublishNewsletter(id: string): Promise<NewsletterData> {
 export function deleteNewsletter(id: string): Promise<{ success: boolean }> {
   return apiDelete<{ success: boolean }>(`/api/newsletters/${id}`);
 }
+
+/* ── Competition System ───────────────────────────────────────────── */
+
+export interface CompetitionData {
+  id: string;
+  schoolId: string;
+  title: string;
+  description: string | null;
+  competitionType: string;
+  category: string;
+  subjectId: string | null;
+  status: string;
+  startDate: string;
+  endDate: string;
+  registrationDeadline: string | null;
+  maxParticipants: number | null;
+  scoringType: string;
+  rules: string | null;
+  isPublic: boolean;
+  isDemo: boolean;
+  createdById: string;
+  createdAt: string;
+  updatedAt: string;
+  deletedAt: string | null;
+  school?: { id: string; name: string };
+  createdBy?: { id: string; firstName: string; lastName: string };
+  subject?: { id: string; name: string } | null;
+  _count?: { participants: number; rewards: number };
+}
+
+export interface CompetitionParticipantData {
+  id: string;
+  competitionId: string;
+  participantType: string;
+  participantId: string;
+  userId: string | null;
+  registeredAt: string;
+  score: number;
+  rank: number | null;
+  isDisqualified: boolean;
+  notes: string | null;
+  isDemo: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CompetitionRewardData {
+  id: string;
+  competitionId: string;
+  name: string;
+  description: string | null;
+  rewardType: string;
+  rewardValue: string | null;
+  rewardProvider: string | null;
+  rankRequirement: number | null;
+  pointsRequired: number | null;
+  quantity: number;
+  claimedCount: number;
+  imageUrl: string | null;
+  isDemo: boolean;
+  createdAt: string;
+  updatedAt: string;
+  _count?: { claims: number };
+}
+
+export interface CompetitionLeaderboardEntry {
+  id: string;
+  competitionId: string;
+  participantType: string;
+  participantId: string;
+  participantName: string;
+  score: number;
+  rank: number | null;
+  updatedAt: string;
+}
+
+export interface RewardClaimData {
+  id: string;
+  schoolId: string;
+  competitionId: string;
+  rewardId: string;
+  userId: string;
+  claimedAt: string;
+  code: string | null;
+  status: string;
+  expiresAt: string | null;
+  notes: string | null;
+  isDemo: boolean;
+  createdAt: string;
+  user?: { id: string; firstName: string; lastName: string };
+  competition?: { id: string; title: string; competitionType?: string };
+  reward?: { id: string; name: string; rewardType: string; rewardProvider: string | null; imageUrl: string | null };
+  school?: { id: string; name: string };
+}
+
+export function fetchCompetitions(
+  schoolId: string,
+  status?: string,
+  competitionType?: string,
+  category?: string,
+  limit?: number,
+  offset?: number
+): Promise<{ competitions: CompetitionData[]; total: number }> {
+  const params = new URLSearchParams({ schoolId });
+  if (status) params.set('status', status);
+  if (competitionType) params.set('competitionType', competitionType);
+  if (category) params.set('category', category);
+  if (limit) params.set('limit', String(limit));
+  if (offset) params.set('offset', String(offset));
+  return apiGet<{ competitions: CompetitionData[]; total: number }>(`/api/competitions?${params.toString()}`);
+}
+
+export function fetchPublicCompetitions(
+  limit?: number,
+  offset?: number
+): Promise<{ competitions: CompetitionData[]; total: number }> {
+  const params = new URLSearchParams({ isPublic: 'true' });
+  if (limit) params.set('limit', String(limit));
+  if (offset) params.set('offset', String(offset));
+  return apiGet<{ competitions: CompetitionData[]; total: number }>(`/api/competitions?${params.toString()}`);
+}
+
+export function fetchCompetition(id: string): Promise<CompetitionData> {
+  return apiGet<CompetitionData>(`/api/competitions/${id}`);
+}
+
+export function createCompetition(data: {
+  schoolId: string;
+  title: string;
+  description?: string | null;
+  competitionType: string;
+  category: string;
+  subjectId?: string | null;
+  status?: string;
+  startDate: string;
+  endDate: string;
+  registrationDeadline?: string | null;
+  maxParticipants?: number | null;
+  scoringType?: string;
+  rules?: string | null;
+  isPublic?: boolean;
+  isDemo?: boolean;
+}): Promise<CompetitionData> {
+  return apiPost<CompetitionData>('/api/competitions', data);
+}
+
+export function updateCompetition(id: string, data: Partial<{
+  title: string;
+  description: string | null;
+  competitionType: string;
+  category: string;
+  subjectId: string | null;
+  status: string;
+  startDate: string;
+  endDate: string;
+  registrationDeadline: string | null;
+  maxParticipants: number | null;
+  scoringType: string;
+  rules: string | null;
+  isPublic: boolean;
+}>): Promise<CompetitionData> {
+  return apiPut<CompetitionData>(`/api/competitions/${id}`, data);
+}
+
+export function deleteCompetition(id: string): Promise<{ success: boolean }> {
+  return apiDelete<{ success: boolean }>(`/api/competitions/${id}`);
+}
+
+export function registerCompetitionParticipant(
+  competitionId: string,
+  data: {
+    participantType: string;
+    participantId: string;
+    userId?: string | null;
+    notes?: string | null;
+  }
+): Promise<CompetitionParticipantData> {
+  return apiPost<CompetitionParticipantData>(`/api/competitions/${competitionId}`, {
+    action: 'register',
+    ...data,
+  });
+}
+
+export function updateCompetitionScore(
+  competitionId: string,
+  data: {
+    participantType: string;
+    participantId: string;
+    score: number;
+    isDisqualified?: boolean;
+    notes?: string | null;
+  }
+): Promise<CompetitionParticipantData> {
+  return apiPost<CompetitionParticipantData>(`/api/competitions/${competitionId}`, {
+    action: 'update_score',
+    ...data,
+  });
+}
+
+export function fetchCompetitionLeaderboard(
+  competitionId: string
+): Promise<{ leaderboard: CompetitionLeaderboardEntry[] }> {
+  return apiGet<{ leaderboard: CompetitionLeaderboardEntry[] }>(`/api/competitions/${competitionId}/leaderboard`);
+}
+
+export function fetchCompetitionRewards(
+  competitionId: string
+): Promise<{ rewards: CompetitionRewardData[] }> {
+  return apiGet<{ rewards: CompetitionRewardData[] }>(`/api/competitions/${competitionId}/rewards`);
+}
+
+export function createCompetitionReward(
+  competitionId: string,
+  data: {
+    name: string;
+    description?: string | null;
+    rewardType: string;
+    rewardValue?: string | null;
+    rewardProvider?: string | null;
+    rankRequirement?: number | null;
+    pointsRequired?: number | null;
+    quantity?: number;
+    imageUrl?: string | null;
+    isDemo?: boolean;
+  }
+): Promise<CompetitionRewardData> {
+  return apiPost<CompetitionRewardData>(`/api/competitions/${competitionId}/rewards`, data);
+}
+
+export function fetchRewardClaims(
+  schoolId?: string,
+  competitionId?: string,
+  status?: string
+): Promise<{ claims: RewardClaimData[] }> {
+  const params = new URLSearchParams();
+  if (schoolId) params.set('schoolId', schoolId);
+  if (competitionId) params.set('competitionId', competitionId);
+  if (status) params.set('status', status);
+  const query = params.toString();
+  return apiGet<{ claims: RewardClaimData[] }>(`/api/reward-claims${query ? `?${query}` : ''}`);
+}
+
+export function claimReward(data: {
+  competitionId: string;
+  rewardId: string;
+  code?: string | null;
+  expiresAt?: string | null;
+  notes?: string | null;
+  isDemo?: boolean;
+}): Promise<RewardClaimData> {
+  return apiPost<RewardClaimData>('/api/reward-claims', data);
+}
+
+/* ── Subject Topics (German Curriculum) ─────────────────────────────── */
+
+export interface SubjectTopicData {
+  id: string;
+  schoolId: string;
+  subjectId: string;
+  title: string;
+  description: string | null;
+  gradeLevel: string | null;
+  curriculumCode: string | null;
+  sortOrder: number;
+  icon: string | null;
+  color: string;
+  isDemo: boolean;
+  createdAt: string;
+  updatedAt: string;
+  deletedAt: string | null;
+  subject?: { id: string; name: string };
+  _count?: { lessons: number };
+}
+
+export function fetchSubjectTopics(params?: {
+  schoolId?: string;
+  subjectId?: string;
+  gradeLevel?: string;
+  curriculumCode?: string;
+}): Promise<SubjectTopicData[]> {
+  const searchParams = new URLSearchParams();
+  if (params?.schoolId) searchParams.set('schoolId', params.schoolId);
+  if (params?.subjectId) searchParams.set('subjectId', params.subjectId);
+  if (params?.gradeLevel) searchParams.set('gradeLevel', params.gradeLevel);
+  if (params?.curriculumCode) searchParams.set('curriculumCode', params.curriculumCode);
+  return apiGet<SubjectTopicData[]>(`/api/subject-topics?${searchParams.toString()}`);
+}
+
+export function fetchSubjectTopic(id: string): Promise<SubjectTopicData> {
+  return apiGet<SubjectTopicData>(`/api/subject-topics/${id}`);
+}
+
+export function createSubjectTopic(data: {
+  schoolId?: string;
+  subjectId: string;
+  title: string;
+  description?: string | null;
+  gradeLevel?: string | null;
+  curriculumCode?: string | null;
+  sortOrder?: number;
+  icon?: string | null;
+  color?: string;
+}): Promise<SubjectTopicData> {
+  return apiPost<SubjectTopicData>('/api/subject-topics', data);
+}
+
+export function updateSubjectTopic(id: string, data: Partial<{
+  title: string;
+  description: string | null;
+  gradeLevel: string | null;
+  curriculumCode: string | null;
+  sortOrder: number;
+  icon: string | null;
+  color: string;
+}>): Promise<SubjectTopicData> {
+  return apiPut<SubjectTopicData>(`/api/subject-topics/${id}`, data);
+}
+
+export function deleteSubjectTopic(id: string): Promise<{ message: string; id: string }> {
+  return apiDelete<{ message: string; id: string }>(`/api/subject-topics/${id}`);
+}
+
+/* ── Subject Lessons (German Curriculum) ────────────────────────────── */
+
+export interface SubjectLessonData {
+  id: string;
+  topicId: string;
+  title: string;
+  description: string | null;
+  lessonType: string;
+  content: string;
+  difficulty: string;
+  sortOrder: number;
+  estimatedMinutes: number | null;
+  isDemo: boolean;
+  createdAt: string;
+  updatedAt: string;
+  deletedAt: string | null;
+  _count?: { questions: number };
+  topic?: { id: string; title: string; schoolId: string; subjectId: string };
+  questions?: LessonQuestionData[];
+}
+
+export function fetchSubjectLessons(topicId: string, params?: {
+  lessonType?: string;
+  difficulty?: string;
+}): Promise<SubjectLessonData[]> {
+  const searchParams = new URLSearchParams({ topicId });
+  if (params?.lessonType) searchParams.set('lessonType', params.lessonType);
+  if (params?.difficulty) searchParams.set('difficulty', params.difficulty);
+  return apiGet<SubjectLessonData[]>(`/api/subject-lessons?${searchParams.toString()}`);
+}
+
+export function fetchSubjectLesson(id: string): Promise<SubjectLessonData> {
+  return apiGet<SubjectLessonData>(`/api/subject-lessons/${id}`);
+}
+
+export function createSubjectLesson(data: {
+  topicId: string;
+  title: string;
+  description?: string | null;
+  lessonType?: 'explanation' | 'exercise' | 'quiz' | 'flashcard' | 'video_link';
+  content: string;
+  difficulty?: 'easy' | 'medium' | 'hard';
+  sortOrder?: number;
+  estimatedMinutes?: number | null;
+}): Promise<SubjectLessonData> {
+  return apiPost<SubjectLessonData>('/api/subject-lessons', data);
+}
+
+export function updateSubjectLesson(id: string, data: Partial<{
+  title: string;
+  description: string | null;
+  lessonType: 'explanation' | 'exercise' | 'quiz' | 'flashcard' | 'video_link';
+  content: string;
+  difficulty: 'easy' | 'medium' | 'hard';
+  sortOrder: number;
+  estimatedMinutes: number | null;
+}>): Promise<SubjectLessonData> {
+  return apiPut<SubjectLessonData>(`/api/subject-lessons/${id}`, data);
+}
+
+export function deleteSubjectLesson(id: string): Promise<{ message: string; id: string }> {
+  return apiDelete<{ message: string; id: string }>(`/api/subject-lessons/${id}`);
+}
+
+/* ── Lesson Questions (German Curriculum) ───────────────────────────── */
+
+export interface LessonQuestionData {
+  id: string;
+  lessonId: string;
+  questionType: string;
+  question: string;
+  options: string | null;
+  correctAnswer: string;
+  explanation: string | null;
+  points: number;
+  sortOrder: number;
+  isDemo: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export function fetchLessonQuestions(lessonId: string, params?: {
+  questionType?: string;
+}): Promise<LessonQuestionData[]> {
+  const searchParams = new URLSearchParams({ lessonId });
+  if (params?.questionType) searchParams.set('questionType', params.questionType);
+  return apiGet<LessonQuestionData[]>(`/api/lesson-questions?${searchParams.toString()}`);
+}
+
+export function fetchLessonQuestion(id: string): Promise<LessonQuestionData> {
+  return apiGet<LessonQuestionData>(`/api/lesson-questions/${id}`);
+}
+
+export function createLessonQuestion(data: {
+  lessonId: string;
+  questionType: 'multiple_choice' | 'true_false' | 'fill_blank' | 'short_answer' | 'matching';
+  question: string;
+  options?: string | null;
+  correctAnswer: string;
+  explanation?: string | null;
+  points?: number;
+  sortOrder?: number;
+}): Promise<LessonQuestionData> {
+  return apiPost<LessonQuestionData>('/api/lesson-questions', data);
+}
+
+export function updateLessonQuestion(id: string, data: Partial<{
+  questionType: 'multiple_choice' | 'true_false' | 'fill_blank' | 'short_answer' | 'matching';
+  question: string;
+  options: string | null;
+  correctAnswer: string;
+  explanation: string | null;
+  points: number;
+  sortOrder: number;
+}>): Promise<LessonQuestionData> {
+  return apiPut<LessonQuestionData>(`/api/lesson-questions/${id}`, data);
+}
+
+export function deleteLessonQuestion(id: string): Promise<{ message: string; id: string }> {
+  return apiDelete<{ message: string; id: string }>(`/api/lesson-questions/${id}`);
+}
+
+/* ── Student Answers (German Curriculum) ────────────────────────────── */
+
+export interface StudentAnswerData {
+  id: string;
+  questionId: string;
+  studentId: string;
+  answer: string;
+  isCorrect: boolean | null;
+  timeTakenMs: number | null;
+  attempts: number;
+  isDemo: boolean;
+  createdAt: string;
+  updatedAt: string;
+  correctAnswer?: string;
+  explanation?: string | null;
+  question?: LessonQuestionData;
+}
+
+export function fetchStudentAnswers(params?: {
+  questionId?: string;
+  lessonId?: string;
+}): Promise<StudentAnswerData[]> {
+  const searchParams = new URLSearchParams();
+  if (params?.questionId) searchParams.set('questionId', params.questionId);
+  if (params?.lessonId) searchParams.set('lessonId', params.lessonId);
+  return apiGet<StudentAnswerData[]>(`/api/student-answers?${searchParams.toString()}`);
+}
+
+export function submitStudentAnswer(data: {
+  questionId: string;
+  answer: string;
+  timeTakenMs?: number | null;
+}): Promise<StudentAnswerData> {
+  return apiPost<StudentAnswerData>('/api/student-answers', data);
+}

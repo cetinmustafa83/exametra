@@ -16,6 +16,7 @@ import {
   Strikethrough, Type, Highlighter, GripVertical,
   Clock, History, ZoomIn, ZoomOut, Image as ImageIcon,
   Users as UsersIcon, Radio, MousePointer2,
+  ChevronRight, XCircle, Trophy, Zap, Flame, Dumbbell, Heart, RotateCcw, ArrowRight, Play,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -33,7 +34,8 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useAppStore } from '@/lib/store';
 import { t } from '@/lib/i18n';
-import { apiGet, apiPost, apiPut, apiDelete } from '@/lib/api';
+import { apiGet, apiPost, apiPut, apiDelete, fetchSubjectTopics, fetchSubjectTopic, fetchSubjectLessons, fetchSubjectLesson, fetchLessonQuestions, submitStudentAnswer } from '@/lib/api';
+import type { SubjectTopicData, SubjectLessonData, LessonQuestionData, StudentAnswerData } from '@/lib/api';
 import { toast } from 'sonner';
 import DrawingCanvas from '@/components/drawing-canvas';
 import { useNotebookCollaboration, type CursorData, type EditData } from '@/lib/websocket';
@@ -1869,6 +1871,1123 @@ function NotebookDetailView({
   );
 }
 
+// ─── Learn Tab — German Curriculum Learning Content ───────────────────
+
+const CURRICULUM_SUBJECTS = [
+  { key: 'math', labelKey: 'notebooks.subject_math', icon: Calculator, color: '#3b82f6', subjectName: 'Mathematik' },
+  { key: 'german', labelKey: 'notebooks.subject_german', icon: BookOpen, color: '#ef4444', subjectName: 'Deutsch' },
+  { key: 'science', labelKey: 'notebooks.subject_science', icon: FlaskConical, color: '#14b8a6', subjectName: 'Sachkunde' },
+  { key: 'english', labelKey: 'notebooks.subject_english', icon: Languages, color: '#f59e0b', subjectName: 'Englisch' },
+  { key: 'music', labelKey: 'notebooks.subject_music', icon: Music, color: '#10b981', subjectName: 'Musik' },
+  { key: 'art', labelKey: 'notebooks.subject_art', icon: Paintbrush, color: '#8b5cf6', subjectName: 'Kunst' },
+  { key: 'religion', labelKey: 'notebooks.subject_religion', icon: Heart, color: '#f97316', subjectName: 'Religion/Ethik' },
+  { key: 'pe', labelKey: 'notebooks.subject_pe', icon: Dumbbell, color: '#ec4899', subjectName: 'Sport' },
+];
+
+type LearnView = 'subjects' | 'topics' | 'lessons' | 'lesson-detail' | 'quiz';
+
+interface QuizState {
+  currentQuestionIndex: number;
+  selectedAnswer: string | null;
+  isAnswered: boolean;
+  isCorrect: boolean | null;
+  score: number;
+  answers: Array<{ questionId: string; answer: string; isCorrect: boolean | null; timeTakenMs: number }>;
+  startTime: number;
+  quizComplete: boolean;
+}
+
+function LearnTab({ schoolId, userId, subjects }: { schoolId: string; userId: string; subjects: Subject[] }) {
+  const [learnView, setLearnView] = useState<LearnView>('subjects');
+  const [selectedSubjectId, setSelectedSubjectId] = useState<string | null>(null);
+  const [selectedTopicId, setSelectedTopicId] = useState<string | null>(null);
+  const [selectedLessonId, setSelectedLessonId] = useState<string | null>(null);
+  const [lessonTab, setLessonTab] = useState<'explanation' | 'exercise' | 'quiz' | 'flashcard'>('explanation');
+
+  // Data state
+  const [topics, setTopics] = useState<SubjectTopicData[]>([]);
+  const [topicDetail, setTopicDetail] = useState<SubjectTopicData | null>(null);
+  const [lessons, setLessons] = useState<SubjectLessonData[]>([]);
+  const [lessonDetail, setLessonDetail] = useState<SubjectLessonData | null>(null);
+  const [questions, setQuestions] = useState<LessonQuestionData[]>([]);
+  const [studentAnswers, setStudentAnswers] = useState<StudentAnswerData[]>([]);
+  const [loadingData, setLoadingData] = useState(false);
+
+  // Quiz state
+  const [quizState, setQuizState] = useState<QuizState>({
+    currentQuestionIndex: 0,
+    selectedAnswer: null,
+    isAnswered: false,
+    isCorrect: null,
+    score: 0,
+    answers: [],
+    startTime: Date.now(),
+    quizComplete: false,
+  });
+
+  // Flashcard state
+  const [flashcardIndex, setFlashcardIndex] = useState(0);
+  const [flashcardFlipped, setFlashcardFlipped] = useState(false);
+
+  // Find matching subject from curriculum subjects
+  const selectedCurriculumSubject = CURRICULUM_SUBJECTS.find(
+    cs => subjects.some(s => s.id === selectedSubjectId && s.name.toLowerCase().includes(cs.subjectName.toLowerCase()))
+  );
+
+  // Load topics for a subject
+  const loadTopics = useCallback(async (subjectId: string) => {
+    setLoadingData(true);
+    try {
+      const data = await fetchSubjectTopics({ schoolId, subjectId });
+      setTopics(data);
+    } catch {
+      setTopics([]);
+    } finally {
+      setLoadingData(false);
+    }
+  }, [schoolId]);
+
+  // Load topic detail
+  const loadTopicDetail = useCallback(async (topicId: string) => {
+    setLoadingData(true);
+    try {
+      const data = await fetchSubjectTopic(topicId);
+      setTopicDetail(data);
+    } catch {
+      setTopicDetail(null);
+    } finally {
+      setLoadingData(false);
+    }
+  }, []);
+
+  // Load lessons for a topic
+  const loadLessons = useCallback(async (topicId: string) => {
+    setLoadingData(true);
+    try {
+      const data = await fetchSubjectLessons(topicId);
+      setLessons(data);
+    } catch {
+      setLessons([]);
+    } finally {
+      setLoadingData(false);
+    }
+  }, []);
+
+  // Load lesson detail
+  const loadLessonDetail = useCallback(async (lessonId: string) => {
+    setLoadingData(true);
+    try {
+      const data = await fetchSubjectLesson(lessonId);
+      setLessonDetail(data);
+      if (data.questions) {
+        setQuestions(data.questions);
+      }
+    } catch {
+      setLessonDetail(null);
+      setQuestions([]);
+    } finally {
+      setLoadingData(false);
+    }
+  }, []);
+
+  // Load questions for a lesson
+  const loadQuestions = useCallback(async (lessonId: string) => {
+    try {
+      const data = await fetchLessonQuestions(lessonId);
+      setQuestions(data);
+    } catch {
+      setQuestions([]);
+    }
+  }, []);
+
+  // Handle subject selection
+  const handleSelectSubject = useCallback((subjectId: string) => {
+    setSelectedSubjectId(subjectId);
+    setLearnView('topics');
+    loadTopics(subjectId);
+  }, [loadTopics]);
+
+  // Handle topic selection
+  const handleSelectTopic = useCallback((topicId: string) => {
+    setSelectedTopicId(topicId);
+    setLearnView('lessons');
+    loadLessons(topicId);
+    loadTopicDetail(topicId);
+  }, [loadLessons, loadTopicDetail]);
+
+  // Handle lesson selection
+  const handleSelectLesson = useCallback((lessonId: string, lessonType: string) => {
+    setSelectedLessonId(lessonId);
+    setLessonTab(lessonType as 'explanation' | 'exercise' | 'quiz' | 'flashcard');
+    setLearnView('lesson-detail');
+    loadLessonDetail(lessonId);
+  }, [loadLessonDetail]);
+
+  // Start quiz
+  const handleStartQuiz = useCallback(() => {
+    if (!selectedLessonId) return;
+    loadQuestions(selectedLessonId);
+    setLearnView('quiz');
+    setQuizState({
+      currentQuestionIndex: 0,
+      selectedAnswer: null,
+      isAnswered: false,
+      isCorrect: null,
+      score: 0,
+      answers: [],
+      startTime: Date.now(),
+      quizComplete: false,
+    });
+  }, [selectedLessonId, loadQuestions]);
+
+  // Handle quiz answer
+  const handleQuizAnswer = useCallback(async (answer: string) => {
+    if (!questions.length || quizState.isAnswered) return;
+    const currentQuestion = questions[quizState.currentQuestionIndex];
+    const isCorrect = answer === currentQuestion.correctAnswer;
+    const timeTakenMs = Date.now() - quizState.startTime;
+
+    setQuizState(prev => ({
+      ...prev,
+      selectedAnswer: answer,
+      isAnswered: true,
+      isCorrect,
+      score: isCorrect ? prev.score + currentQuestion.points : prev.score,
+      answers: [...prev.answers, { questionId: currentQuestion.id, answer, isCorrect, timeTakenMs }],
+    }));
+
+    // Submit answer to backend
+    try {
+      await submitStudentAnswer({
+        questionId: currentQuestion.id,
+        answer,
+        timeTakenMs,
+      });
+    } catch {
+      // non-critical
+    }
+  }, [questions, quizState]);
+
+  // Next question
+  const handleNextQuestion = useCallback(() => {
+    if (quizState.currentQuestionIndex >= questions.length - 1) {
+      setQuizState(prev => ({ ...prev, quizComplete: true }));
+    } else {
+      setQuizState(prev => ({
+        ...prev,
+        currentQuestionIndex: prev.currentQuestionIndex + 1,
+        selectedAnswer: null,
+        isAnswered: false,
+        isCorrect: null,
+        startTime: Date.now(),
+      }));
+    }
+  }, [questions, quizState]);
+
+  // Retry quiz
+  const handleRetryQuiz = useCallback(() => {
+    setQuizState({
+      currentQuestionIndex: 0,
+      selectedAnswer: null,
+      isAnswered: false,
+      isCorrect: null,
+      score: 0,
+      answers: [],
+      startTime: Date.now(),
+      quizComplete: false,
+    });
+  }, []);
+
+  // Navigate back
+  const handleLearnBack = useCallback(() => {
+    switch (learnView) {
+      case 'topics':
+        setLearnView('subjects');
+        setSelectedSubjectId(null);
+        break;
+      case 'lessons':
+        setLearnView('topics');
+        setSelectedTopicId(null);
+        break;
+      case 'lesson-detail':
+        setLearnView('lessons');
+        setSelectedLessonId(null);
+        break;
+      case 'quiz':
+        setLearnView('lesson-detail');
+        break;
+    }
+  }, [learnView]);
+
+  // Calculate progress for a topic
+  const getTopicProgress = useCallback((topic: SubjectTopicData): number => {
+    const lessonCount = topic._count?.lessons ?? 0;
+    if (lessonCount === 0) return 0;
+    return Math.min(100, Math.round((studentAnswers.filter(a => a.isCorrect).length / lessonCount) * 100));
+  }, [studentAnswers]);
+
+  // Get difficulty color
+  const getDifficultyColor = (difficulty: string) => {
+    switch (difficulty) {
+      case 'easy': return 'text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20 border-emerald-200 dark:border-emerald-800';
+      case 'medium': return 'text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800';
+      case 'hard': return 'text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800';
+      default: return 'text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-900/20 border-gray-200 dark:border-gray-800';
+    }
+  };
+
+  // Get lesson type icon
+  const getLessonTypeIcon = (type: string) => {
+    switch (type) {
+      case 'explanation': return BookOpen;
+      case 'exercise': return PenTool;
+      case 'quiz': return Trophy;
+      case 'flashcard': return Layers;
+      case 'video_link': return Play;
+      default: return BookOpen;
+    }
+  };
+
+  // ─── Subject Browser View ─────────────────────────────────────────
+  if (learnView === 'subjects') {
+    return (
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.1 }}>
+        {/* Environmental Banner */}
+        <div className="mb-6 rounded-xl overflow-hidden" style={{ background: 'linear-gradient(135deg, #059669, #10b981)' }}>
+          <div className="px-6 py-5 text-white">
+            <div className="flex items-center gap-3 mb-2">
+              <Leaf className="w-8 h-8" />
+              <h2 className="text-xl font-bold">{t('notebooks.papier_sparen')}</h2>
+            </div>
+            <p className="text-white/90 text-sm">{t('notebooks.digital_instead_paper')}</p>
+            <p className="text-white/80 text-xs mt-2">{t('notebooks.environment_tip')}</p>
+          </div>
+        </div>
+
+        <div className="mb-4">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2">
+            <GraduationCap className="w-5 h-5 text-emerald-500" />
+            {t('notebooks.learn')}
+          </h2>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{t('notebooks.curriculum')}</p>
+        </div>
+
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
+          {CURRICULUM_SUBJECTS.map((subject, idx) => {
+            const SubjectIcon = subject.icon;
+            // Find matching subject from school subjects
+            const matchingSubject = subjects.find(s =>
+              s.name.toLowerCase().includes(subject.subjectName.toLowerCase()) ||
+              subject.key === 'math' && s.name.toLowerCase().includes('mathematik') ||
+              subject.key === 'german' && s.name.toLowerCase().includes('deutsch') ||
+              subject.key === 'science' && (s.name.toLowerCase().includes('sachkunde') || s.name.toLowerCase().includes('heimat')) ||
+              subject.key === 'english' && s.name.toLowerCase().includes('englisch') ||
+              subject.key === 'music' && s.name.toLowerCase().includes('musik') ||
+              subject.key === 'art' && s.name.toLowerCase().includes('kunst') ||
+              subject.key === 'religion' && (s.name.toLowerCase().includes('religion') || s.name.toLowerCase().includes('ethik')) ||
+              subject.key === 'pe' && (s.name.toLowerCase().includes('sport') || s.name.toLowerCase().includes('bewegung'))
+            );
+            const topicCount = matchingSubject ? topics.filter(tp => tp.subjectId === matchingSubject.id).length : 0;
+
+            return (
+              <motion.div
+                key={subject.key}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: idx * 0.05 }}
+              >
+                <Card
+                  className="relative overflow-hidden cursor-pointer group transition-all duration-300 hover:shadow-lg border-0 min-h-[160px]"
+                  style={{ boxShadow: `3px 3px 10px rgba(0,0,0,0.12)` }}
+                  onClick={() => matchingSubject ? handleSelectSubject(matchingSubject.id) : toast.info(t('notebooks.subject_topic'))}
+                >
+                  <div
+                    className="h-24 flex items-center justify-center relative"
+                    style={{ background: `linear-gradient(135deg, ${subject.color}, ${subject.color}cc)` }}
+                  >
+                    <SubjectIcon className="w-10 h-10 text-white/90 drop-shadow-md" />
+                    <div className="absolute left-0 top-0 bottom-0 w-2.5 opacity-80" style={{ background: `linear-gradient(90deg, ${subject.color}99, ${subject.color}66)` }} />
+                  </div>
+                  <CardContent className="p-4 space-y-2">
+                    <div className="font-semibold text-sm text-gray-900 dark:text-gray-100">
+                      {t(subject.labelKey)}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Badge variant="outline" className="text-xs gap-1">
+                        <BookOpen className="w-3 h-3" />
+                        {topicCount} {t('notebooks.topics')}
+                      </Badge>
+                    </div>
+                    <div className="flex items-center gap-1.5 text-xs text-emerald-600 dark:text-emerald-400">
+                      <Leaf className="w-3 h-3" />
+                      <span>{t('notebooks.environment_tip').substring(0, 40)}...</span>
+                    </div>
+                  </CardContent>
+                </Card>
+              </motion.div>
+            );
+          })}
+        </div>
+      </motion.div>
+    );
+  }
+
+  // ─── Topic List View ──────────────────────────────────────────────
+  if (learnView === 'topics') {
+    const subjectName = subjects.find(s => s.id === selectedSubjectId)?.name ?? '';
+    return (
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.1 }}>
+        <div className="flex items-center gap-3 mb-6">
+          <Button variant="ghost" size="sm" onClick={handleLearnBack} className="min-h-[44px] min-w-[44px]">
+            <ChevronLeft className="w-5 h-5" />
+          </Button>
+          <div className="flex-1">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2">
+              {selectedCurriculumSubject && (() => { const I = selectedCurriculumSubject.icon; return <I className="w-5 h-5" style={{ color: selectedCurriculumSubject.color }} />; })()}
+              {subjectName}
+            </h2>
+            <p className="text-sm text-gray-500 dark:text-gray-400">{t('notebooks.topics')}</p>
+          </div>
+          <div className="flex items-center gap-1.5 text-xs text-emerald-600 dark:text-emerald-400">
+            <Leaf className="w-3.5 h-3.5" />
+            <span>{t('notebooks.digital_instead_paper')}</span>
+          </div>
+        </div>
+
+        {loadingData ? (
+          <div className="flex items-center justify-center py-20">
+            <div className="flex items-center gap-3">
+              <div className="h-6 w-6 animate-spin rounded-full border-2 border-emerald-500 border-t-transparent" />
+              <span className="text-gray-500">{t('notebooks.loading')}</span>
+            </div>
+          </div>
+        ) : topics.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-20 gap-4">
+            <GraduationCap className="w-16 h-16 text-gray-300 dark:text-gray-600" />
+            <p className="text-gray-500 dark:text-gray-400 text-lg">{t('notebooks.no_notebooks')}</p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {topics.map((topic, idx) => {
+              const progress = getTopicProgress(topic);
+              const lessonCount = topic._count?.lessons ?? 0;
+              return (
+                <motion.div
+                  key={topic.id}
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: idx * 0.05 }}
+                >
+                  <Card
+                    className="cursor-pointer group transition-all duration-300 hover:shadow-md border border-gray-200 dark:border-gray-700"
+                    onClick={() => handleSelectTopic(topic.id)}
+                  >
+                    <CardContent className="p-4">
+                      <div className="flex items-center gap-4">
+                        <div
+                          className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0"
+                          style={{ backgroundColor: topic.color || '#10b981' }}
+                        >
+                          {topic.icon ? (() => { const Ic = ICON_MAP[topic.icon] ?? BookOpen; return <Ic className="w-6 h-6 text-white" />; })() : <BookOpen className="w-6 h-6 text-white" />}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="font-semibold text-gray-900 dark:text-gray-100">{topic.title}</div>
+                          <div className="flex items-center gap-2 mt-1 flex-wrap">
+                            {topic.gradeLevel && (
+                              <Badge variant="outline" className="text-xs gap-1">
+                                <GraduationCap className="w-3 h-3" />
+                                {t('notebooks.grade_level')} {topic.gradeLevel}
+                              </Badge>
+                            )}
+                            {topic.curriculumCode && (
+                              <Badge variant="secondary" className="text-xs font-mono">
+                                {topic.curriculumCode}
+                              </Badge>
+                            )}
+                            <Badge variant="outline" className="text-xs gap-1">
+                              <BookOpen className="w-3 h-3" />
+                              {lessonCount} {t('notebooks.lessons')}
+                            </Badge>
+                          </div>
+                          {/* Progress bar */}
+                          <div className="mt-2 flex items-center gap-2">
+                            <div className="flex-1 h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                              <div
+                                className="h-full bg-emerald-500 rounded-full transition-all duration-500"
+                                style={{ width: `${progress}%` }}
+                              />
+                            </div>
+                            <span className="text-xs text-gray-500 dark:text-gray-400 shrink-0">{progress}%</span>
+                          </div>
+                        </div>
+                        <ChevronRight className="w-5 h-5 text-gray-400 dark:text-gray-500 group-hover:text-emerald-500 transition-colors shrink-0" />
+                      </div>
+                    </CardContent>
+                  </Card>
+                </motion.div>
+              );
+            })}
+          </div>
+        )}
+      </motion.div>
+    );
+  }
+
+  // ─── Lesson List View ─────────────────────────────────────────────
+  if (learnView === 'lessons') {
+    return (
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.1 }}>
+        <div className="flex items-center gap-3 mb-6">
+          <Button variant="ghost" size="sm" onClick={handleLearnBack} className="min-h-[44px] min-w-[44px]">
+            <ChevronLeft className="w-5 h-5" />
+          </Button>
+          <div className="flex-1">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2">
+              <BookOpen className="w-5 h-5 text-emerald-500" />
+              {topicDetail?.title ?? t('notebooks.topics')}
+            </h2>
+            <p className="text-sm text-gray-500 dark:text-gray-400">{t('notebooks.lessons')}</p>
+          </div>
+          {topicDetail?.curriculumCode && (
+            <Badge variant="secondary" className="text-xs font-mono">{topicDetail.curriculumCode}</Badge>
+          )}
+        </div>
+
+        {loadingData ? (
+          <div className="flex items-center justify-center py-20">
+            <div className="flex items-center gap-3">
+              <div className="h-6 w-6 animate-spin rounded-full border-2 border-emerald-500 border-t-transparent" />
+              <span className="text-gray-500">{t('notebooks.loading')}</span>
+            </div>
+          </div>
+        ) : lessons.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-20 gap-4">
+            <BookOpen className="w-16 h-16 text-gray-300 dark:text-gray-600" />
+            <p className="text-gray-500 dark:text-gray-400 text-lg">{t('notebooks.no_notebooks')}</p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {lessons.map((lesson, idx) => {
+              const LessonIcon = getLessonTypeIcon(lesson.lessonType);
+              const questionCount = lesson._count?.questions ?? 0;
+              const difficultyClass = getDifficultyColor(lesson.difficulty);
+              return (
+                <motion.div
+                  key={lesson.id}
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: idx * 0.05 }}
+                >
+                  <Card
+                    className="cursor-pointer group transition-all duration-300 hover:shadow-md border border-gray-200 dark:border-gray-700"
+                    onClick={() => handleSelectLesson(lesson.id, lesson.lessonType)}
+                  >
+                    <CardContent className="p-4">
+                      <div className="flex items-center gap-4">
+                        <div className="w-10 h-10 rounded-lg bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center shrink-0">
+                          <LessonIcon className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="font-semibold text-gray-900 dark:text-gray-100">{lesson.title}</div>
+                          <div className="flex items-center gap-2 mt-1 flex-wrap">
+                            <Badge className={`text-xs border ${difficultyClass}`}>
+                              {t(`notebooks.${lesson.difficulty}`)}
+                            </Badge>
+                            {lesson.lessonType && (
+                              <Badge variant="outline" className="text-xs gap-1">
+                                <LessonIcon className="w-3 h-3" />
+                                {t(`notebooks.${lesson.lessonType === 'exercise' ? 'exercises' : lesson.lessonType === 'flashcard' ? 'flashcards' : lesson.lessonType}`)}
+                              </Badge>
+                            )}
+                            {questionCount > 0 && (
+                              <Badge variant="outline" className="text-xs gap-1">
+                                {t('notebooks.question')} {questionCount}
+                              </Badge>
+                            )}
+                            {lesson.estimatedMinutes && (
+                              <Badge variant="outline" className="text-xs gap-1">
+                                <Clock className="w-3 h-3" />
+                                {lesson.estimatedMinutes} min
+                              </Badge>
+                            )}
+                          </div>
+                          {lesson.description && (
+                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 line-clamp-2">{lesson.description}</p>
+                          )}
+                        </div>
+                        <ChevronRight className="w-5 h-5 text-gray-400 dark:text-gray-500 group-hover:text-emerald-500 transition-colors shrink-0" />
+                      </div>
+                    </CardContent>
+                  </Card>
+                </motion.div>
+              );
+            })}
+          </div>
+        )}
+      </motion.div>
+    );
+  }
+
+  // ─── Lesson Detail View ───────────────────────────────────────────
+  if (learnView === 'lesson-detail' && lessonDetail) {
+    const lessonTypeTabs = [
+      { key: 'explanation' as const, icon: BookOpen, labelKey: 'notebooks.exercises' },
+      { key: 'exercise' as const, icon: PenTool, labelKey: 'notebooks.exercises' },
+      { key: 'quiz' as const, icon: Trophy, labelKey: 'notebooks.quiz' },
+      { key: 'flashcard' as const, icon: Layers, labelKey: 'notebooks.flashcards' },
+    ];
+
+    return (
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.1 }}>
+        <div className="flex items-center gap-3 mb-4">
+          <Button variant="ghost" size="sm" onClick={handleLearnBack} className="min-h-[44px] min-w-[44px]">
+            <ChevronLeft className="w-5 h-5" />
+          </Button>
+          <div className="flex-1 min-w-0">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 truncate">{lessonDetail.title}</h2>
+            <div className="flex items-center gap-2 mt-1">
+              <Badge className={`text-xs border ${getDifficultyColor(lessonDetail.difficulty)}`}>
+                {t(`notebooks.${lessonDetail.difficulty}`)}
+              </Badge>
+              {lessonDetail.estimatedMinutes && (
+                <Badge variant="outline" className="text-xs gap-1">
+                  <Clock className="w-3 h-3" />
+                  {lessonDetail.estimatedMinutes} min
+                </Badge>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Lesson tab navigation */}
+        <div className="flex items-center gap-2 mb-4 overflow-x-auto pb-2">
+          {lessonTypeTabs.map(tab => {
+            const TabIcon = tab.icon;
+            return (
+              <button
+                key={tab.key}
+                onClick={() => setLessonTab(tab.key)}
+                className={`px-4 py-2 rounded-full text-sm font-medium min-h-[44px] transition-all whitespace-nowrap ${
+                  lessonTab === tab.key
+                    ? 'bg-emerald-600 text-white shadow-md'
+                    : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'
+                }`}
+              >
+                <TabIcon className="w-4 h-4 inline mr-1.5" />
+                {t(tab.labelKey)}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Lesson content */}
+        <Card className="border border-gray-200 dark:border-gray-700">
+          <CardContent className="p-6">
+            {lessonTab === 'explanation' && (
+              <div className="prose prose-sm dark:prose-invert max-w-none">
+                <div
+                  className="text-gray-700 dark:text-gray-300 whitespace-pre-wrap leading-relaxed"
+                  dangerouslySetInnerHTML={{ __html: lessonDetail.content || `<p>${t('notebooks.no_notebooks_desc')}</p>` }}
+                />
+              </div>
+            )}
+
+            {lessonTab === 'exercise' && (
+              <div className="space-y-4">
+                {questions.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-8 gap-3">
+                    <PenTool className="w-10 h-10 text-gray-300 dark:text-gray-600" />
+                    <p className="text-gray-500 dark:text-gray-400 text-sm">{t('notebooks.no_notebooks')}</p>
+                  </div>
+                ) : (
+                  questions.filter(q => q.questionType === 'fill_blank' || q.questionType === 'short_answer').map((q, idx) => (
+                    <ExerciseQuestion key={q.id} question={q} index={idx} />
+                  ))
+                )}
+                {questions.filter(q => q.questionType === 'fill_blank' || q.questionType === 'short_answer').length === 0 && questions.length > 0 && (
+                  <div className="text-center py-8">
+                    <p className="text-gray-500 dark:text-gray-400 text-sm">{t('notebooks.no_notebooks')}</p>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {lessonTab === 'quiz' && (
+              <div className="flex flex-col items-center justify-center py-8 gap-4">
+                <Trophy className="w-16 h-16 text-emerald-500" />
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">{t('notebooks.quiz')}</h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                  {questions.length} {t('notebooks.question')}
+                </p>
+                <Button
+                  onClick={handleStartQuiz}
+                  disabled={questions.length === 0}
+                  className="min-h-[44px] bg-emerald-600 hover:bg-emerald-700"
+                >
+                  <Zap className="w-4 h-4 mr-2" />
+                  {t('notebooks.quiz')}
+                </Button>
+                {questions.length === 0 && (
+                  <p className="text-xs text-gray-400">{t('notebooks.no_notebooks')}</p>
+                )}
+              </div>
+            )}
+
+            {lessonTab === 'flashcard' && (
+              <div className="flex flex-col items-center justify-center py-8 gap-4">
+                {questions.length === 0 ? (
+                  <>
+                    <Layers className="w-16 h-16 text-gray-300 dark:text-gray-600" />
+                    <p className="text-gray-500 dark:text-gray-400">{t('notebooks.no_notebooks')}</p>
+                  </>
+                ) : (
+                  <>
+                    <div
+                      className="w-full max-w-md min-h-[240px] rounded-xl border-2 border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-6 cursor-pointer flex items-center justify-center transition-all duration-300 hover:shadow-lg"
+                      style={{ perspective: '1000px' }}
+                      onClick={() => setFlashcardFlipped(!flashcardFlipped)}
+                    >
+                      <AnimatePresence mode="wait">
+                        {!flashcardFlipped ? (
+                          <motion.div
+                            key="front"
+                            initial={{ rotateY: 90, opacity: 0 }}
+                            animate={{ rotateY: 0, opacity: 1 }}
+                            exit={{ rotateY: -90, opacity: 0 }}
+                            transition={{ duration: 0.3 }}
+                            className="text-center"
+                          >
+                            <BookOpen className="w-8 h-8 text-emerald-500 mx-auto mb-3" />
+                            <p className="text-gray-900 dark:text-gray-100 font-semibold text-lg">
+                              {questions[flashcardIndex]?.question}
+                            </p>
+                            <p className="text-xs text-gray-400 mt-2">{t('notebooks.answer')}</p>
+                          </motion.div>
+                        ) : (
+                          <motion.div
+                            key="back"
+                            initial={{ rotateY: 90, opacity: 0 }}
+                            animate={{ rotateY: 0, opacity: 1 }}
+                            exit={{ rotateY: -90, opacity: 0 }}
+                            transition={{ duration: 0.3 }}
+                            className="text-center"
+                          >
+                            <CheckCircle2 className="w-8 h-8 text-emerald-500 mx-auto mb-3" />
+                            <p className="text-emerald-600 dark:text-emerald-400 font-semibold text-lg">
+                              {questions[flashcardIndex]?.correctAnswer}
+                            </p>
+                            {questions[flashcardIndex]?.explanation && (
+                              <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
+                                {questions[flashcardIndex].explanation}
+                              </p>
+                            )}
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </div>
+                    <div className="flex items-center gap-4 mt-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => { setFlashcardFlipped(false); setFlashcardIndex(Math.max(0, flashcardIndex - 1)); }}
+                        disabled={flashcardIndex === 0}
+                        className="min-h-[44px]"
+                      >
+                        <ChevronLeft className="w-4 h-4 mr-1" />
+                        {t('action.back')}
+                      </Button>
+                      <span className="text-sm text-gray-500 dark:text-gray-400">
+                        {flashcardIndex + 1} / {questions.length}
+                      </span>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => { setFlashcardFlipped(false); setFlashcardIndex(Math.min(questions.length - 1, flashcardIndex + 1)); }}
+                        disabled={flashcardIndex >= questions.length - 1}
+                        className="min-h-[44px]"
+                      >
+                        {t('action.next')}
+                        <ChevronRight className="w-4 h-4 ml-1" />
+                      </Button>
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Environmental tip */}
+        <div className="mt-4 flex items-center gap-2 px-4 py-3 bg-emerald-50 dark:bg-emerald-900/20 rounded-lg text-emerald-700 dark:text-emerald-300 text-sm">
+          <Leaf className="w-4 h-4 shrink-0" />
+          <span>{t('notebooks.environment_tip')}</span>
+        </div>
+      </motion.div>
+    );
+  }
+
+  // ─── Quiz View ────────────────────────────────────────────────────
+  if (learnView === 'quiz') {
+    const currentQuestion = questions[quizState.currentQuestionIndex];
+    const totalQuestions = questions.length;
+    const progressPercent = totalQuestions > 0 ? ((quizState.currentQuestionIndex + (quizState.quizComplete ? 1 : 0)) / totalQuestions) * 100 : 0;
+
+    // Quiz complete screen
+    if (quizState.quizComplete) {
+      const maxScore = questions.reduce((sum, q) => sum + q.points, 0);
+      const percentage = maxScore > 0 ? Math.round((quizState.score / maxScore) * 100) : 0;
+      const isGood = percentage >= 70;
+
+      return (
+        <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}>
+          <div className="flex items-center gap-3 mb-6">
+            <Button variant="ghost" size="sm" onClick={handleLearnBack} className="min-h-[44px] min-w-[44px]">
+              <ChevronLeft className="w-5 h-5" />
+            </Button>
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">{t('notebooks.quiz')}</h2>
+          </div>
+
+          <Card className="border border-gray-200 dark:border-gray-700">
+            <CardContent className="p-6 text-center">
+              <motion.div
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                transition={{ type: 'spring', stiffness: 200, delay: 0.2 }}
+              >
+                {isGood ? (
+                  <Trophy className="w-16 h-16 text-emerald-500 mx-auto mb-4" />
+                ) : (
+                  <Flame className="w-16 h-16 text-amber-500 mx-auto mb-4" />
+                )}
+              </motion.div>
+
+              <h3 className={`text-2xl font-bold ${isGood ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400'}`}>
+                {isGood ? t('notebooks.well_done') : t('notebooks.keep_practicing')}
+              </h3>
+
+              <div className="mt-6 grid grid-cols-2 gap-4 max-w-sm mx-auto">
+                <div className="bg-emerald-50 dark:bg-emerald-900/20 rounded-xl p-4">
+                  <div className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">{quizState.score}</div>
+                  <div className="text-xs text-emerald-600 dark:text-emerald-400">{t('notebooks.score')}</div>
+                </div>
+                <div className="bg-amber-50 dark:bg-amber-900/20 rounded-xl p-4">
+                  <div className="text-2xl font-bold text-amber-600 dark:text-amber-400">{percentage}%</div>
+                  <div className="text-xs text-amber-600 dark:text-amber-400">{t('notebooks.mastery')}</div>
+                </div>
+              </div>
+
+              <div className="mt-6 flex items-center justify-center gap-4">
+                <Button
+                  onClick={handleRetryQuiz}
+                  className="min-h-[44px] bg-emerald-600 hover:bg-emerald-700"
+                >
+                  <RotateCcw className="w-4 h-4 mr-2" />
+                  {t('notebooks.try_again')}
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={handleLearnBack}
+                  className="min-h-[44px]"
+                >
+                  <ArrowRight className="w-4 h-4 mr-2" />
+                  {t('action.back')}
+                </Button>
+              </div>
+
+              {/* Environmental message */}
+              <div className="mt-6 flex items-center gap-2 justify-center text-emerald-600 dark:text-emerald-400 text-sm">
+                <Leaf className="w-4 h-4" />
+                <span>{t('notebooks.environment_tip')}</span>
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+      );
+    }
+
+    // Active quiz question
+    if (!currentQuestion) {
+      return (
+        <div className="flex flex-col items-center justify-center py-20 gap-4">
+          <Trophy className="w-16 h-16 text-gray-300 dark:text-gray-600" />
+          <p className="text-gray-500 dark:text-gray-400">{t('notebooks.no_notebooks')}</p>
+          <Button onClick={handleLearnBack} className="min-h-[44px] bg-emerald-600 hover:bg-emerald-700">
+            {t('action.back')}
+          </Button>
+        </div>
+      );
+    }
+
+    // Parse options from JSON string
+    let options: string[] = [];
+    try {
+      const parsed = currentQuestion.options ? JSON.parse(currentQuestion.options) : [];
+      options = Array.isArray(parsed) ? parsed : [];
+    } catch {
+      options = currentQuestion.options ? currentQuestion.options.split(',').map(o => o.trim()) : [];
+    }
+
+    return (
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+        <div className="flex items-center gap-3 mb-4">
+          <Button variant="ghost" size="sm" onClick={handleLearnBack} className="min-h-[44px] min-w-[44px]">
+            <ChevronLeft className="w-5 h-5" />
+          </Button>
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">{t('notebooks.quiz')}</h2>
+          <div className="flex-1" />
+          <span className="text-sm text-gray-500 dark:text-gray-400">
+            {t('notebooks.question')} {quizState.currentQuestionIndex + 1}/{totalQuestions}
+          </span>
+        </div>
+
+        {/* Progress bar */}
+        <div className="h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden mb-6">
+          <motion.div
+            className="h-full bg-emerald-500 rounded-full"
+            initial={{ width: 0 }}
+            animate={{ width: `${progressPercent}%` }}
+            transition={{ duration: 0.5 }}
+          />
+        </div>
+
+        <Card className="border border-gray-200 dark:border-gray-700">
+          <CardContent className="p-6">
+            {/* Question */}
+            <div className="mb-6">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+                {currentQuestion.question}
+              </h3>
+              {currentQuestion.questionType === 'true_false' && (
+                <Badge variant="outline" className="mt-2 text-xs">Wahr / Falsch</Badge>
+              )}
+            </div>
+
+            {/* Answer options */}
+            <div className="space-y-3">
+              {options.map((option, idx) => {
+                const isSelected = quizState.selectedAnswer === option;
+                const isCorrectOption = quizState.isAnswered && option === currentQuestion.correctAnswer;
+                const isWrongSelection = quizState.isAnswered && isSelected && option !== currentQuestion.correctAnswer;
+
+                let optionClass = 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:border-emerald-300 dark:hover:border-emerald-600 hover:bg-emerald-50/50 dark:hover:bg-emerald-900/10';
+                if (isCorrectOption) {
+                  optionClass = 'border-emerald-500 bg-emerald-50 dark:bg-emerald-900/20 ring-2 ring-emerald-500/30';
+                } else if (isWrongSelection) {
+                  optionClass = 'border-red-500 bg-red-50 dark:bg-red-900/20 ring-2 ring-red-500/30';
+                } else if (isSelected && !quizState.isAnswered) {
+                  optionClass = 'border-emerald-500 bg-emerald-50 dark:bg-emerald-900/20 ring-2 ring-emerald-500/30';
+                }
+
+                return (
+                  <motion.button
+                    key={idx}
+                    onClick={() => !quizState.isAnswered && handleQuizAnswer(option)}
+                    disabled={quizState.isAnswered}
+                    className={`w-full text-left p-4 rounded-xl border-2 transition-all min-h-[48px] ${optionClass} ${quizState.isAnswered ? 'cursor-default' : 'cursor-pointer'}`}
+                    whileTap={!quizState.isAnswered ? { scale: 0.98 } : {}}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold shrink-0 ${
+                        isCorrectOption
+                          ? 'bg-emerald-500 text-white'
+                          : isWrongSelection
+                            ? 'bg-red-500 text-white'
+                            : isSelected
+                              ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400'
+                              : 'bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400'
+                      }`}>
+                        {isCorrectOption ? <CheckCircle2 className="w-5 h-5" /> : isWrongSelection ? <XCircle className="w-5 h-5" /> : String.fromCharCode(65 + idx)}
+                      </div>
+                      <span className={`font-medium ${
+                        isCorrectOption ? 'text-emerald-700 dark:text-emerald-300' : isWrongSelection ? 'text-red-700 dark:text-red-300' : 'text-gray-700 dark:text-gray-300'
+                      }`}>
+                        {option}
+                      </span>
+                    </div>
+                  </motion.button>
+                );
+              })}
+            </div>
+
+            {/* Feedback after answering */}
+            <AnimatePresence>
+              {quizState.isAnswered && (
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  className="mt-6"
+                >
+                  <div className={`p-4 rounded-xl ${
+                    quizState.isCorrect
+                      ? 'bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800'
+                      : 'bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800'
+                  }`}>
+                    <div className="flex items-center gap-2 mb-2">
+                      {quizState.isCorrect ? (
+                        <CheckCircle2 className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+                      ) : (
+                        <XCircle className="w-5 h-5 text-red-600 dark:text-red-400" />
+                      )}
+                      <span className={`font-semibold ${quizState.isCorrect ? 'text-emerald-700 dark:text-emerald-300' : 'text-red-700 dark:text-red-300'}`}>
+                        {quizState.isCorrect ? t('notebooks.correct') : t('notebooks.incorrect')}
+                      </span>
+                    </div>
+                    {currentQuestion.explanation && (
+                      <p className="text-sm text-gray-600 dark:text-gray-400">{currentQuestion.explanation}</p>
+                    )}
+                    {!quizState.isCorrect && (
+                      <p className="text-sm text-emerald-600 dark:text-emerald-400 mt-1">
+                        {t('notebooks.correct')}: {currentQuestion.correctAnswer}
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="mt-4 flex justify-end">
+                    <Button
+                      onClick={handleNextQuestion}
+                      className="min-h-[44px] bg-emerald-600 hover:bg-emerald-700"
+                    >
+                      {quizState.currentQuestionIndex >= totalQuestions - 1 ? t('notebooks.score') : t('notebooks.next_question')}
+                      <ChevronRight className="w-4 h-4 ml-1" />
+                    </Button>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </CardContent>
+        </Card>
+
+        {/* Environmental tip */}
+        <div className="mt-4 flex items-center gap-2 px-4 py-3 bg-emerald-50 dark:bg-emerald-900/20 rounded-lg text-emerald-700 dark:text-emerald-300 text-sm">
+          <Leaf className="w-4 h-4 shrink-0" />
+          <span>{t('notebooks.environment_tip')}</span>
+        </div>
+      </motion.div>
+    );
+  }
+
+  // Fallback
+  return null;
+}
+
+// ─── Exercise Question Component ─────────────────────────────────────
+
+function ExerciseQuestion({ question, index }: { question: LessonQuestionData; index: number }) {
+  const [answer, setAnswer] = useState('');
+  const [submitted, setSubmitted] = useState(false);
+  const [isCorrect, setIsCorrect] = useState<boolean | null>(null);
+
+  const handleSubmit = async () => {
+    if (!answer.trim()) return;
+    const correct = answer.trim().toLowerCase() === question.correctAnswer.trim().toLowerCase();
+    setIsCorrect(correct);
+    setSubmitted(true);
+
+    try {
+      await submitStudentAnswer({
+        questionId: question.id,
+        answer: answer.trim(),
+        timeTakenMs: null,
+      });
+    } catch {
+      // non-critical
+    }
+  };
+
+  const handleRetry = () => {
+    setAnswer('');
+    setSubmitted(false);
+    setIsCorrect(null);
+  };
+
+  return (
+    <Card className="border border-gray-200 dark:border-gray-700">
+      <CardContent className="p-4">
+        <div className="flex items-start gap-3">
+          <div className="w-8 h-8 rounded-full bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center text-sm font-bold text-emerald-600 dark:text-emerald-400 shrink-0">
+            {index + 1}
+          </div>
+          <div className="flex-1">
+            <p className="font-medium text-gray-900 dark:text-gray-100 mb-3">{question.question}</p>
+            {question.questionType === 'fill_blank' ? (
+              <div className="flex items-center gap-2">
+                <Input
+                  value={answer}
+                  onChange={(e) => { setAnswer(e.target.value); if (submitted) { setSubmitted(false); setIsCorrect(null); } }}
+                  placeholder={t('notebooks.answer') + '...'}
+                  disabled={submitted}
+                  className="min-h-[44px] flex-1"
+                />
+                {!submitted ? (
+                  <Button onClick={handleSubmit} disabled={!answer.trim()} className="min-h-[44px] bg-emerald-600 hover:bg-emerald-700 shrink-0">
+                    {t('action.confirm')}
+                  </Button>
+                ) : (
+                  <Button onClick={handleRetry} variant="outline" className="min-h-[44px] shrink-0">
+                    <RotateCcw className="w-4 h-4 mr-1" />
+                    {t('notebooks.try_again')}
+                  </Button>
+                )}
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <Textarea
+                  value={answer}
+                  onChange={(e) => { setAnswer(e.target.value); if (submitted) { setSubmitted(false); setIsCorrect(null); } }}
+                  placeholder={t('notebooks.answer') + '...'}
+                  disabled={submitted}
+                  className="min-h-[80px]"
+                />
+                {!submitted ? (
+                  <Button onClick={handleSubmit} disabled={!answer.trim()} className="min-h-[44px] bg-emerald-600 hover:bg-emerald-700">
+                    {t('action.confirm')}
+                  </Button>
+                ) : (
+                  <Button onClick={handleRetry} variant="outline" className="min-h-[44px]">
+                    <RotateCcw className="w-4 h-4 mr-1" />
+                    {t('notebooks.try_again')}
+                  </Button>
+                )}
+              </div>
+            )}
+            {submitted && (
+              <motion.div
+                initial={{ opacity: 0, y: 5 }}
+                animate={{ opacity: 1, y: 0 }}
+                className={`mt-3 p-3 rounded-lg ${
+                  isCorrect
+                    ? 'bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800'
+                    : 'bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800'
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  {isCorrect ? (
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                  ) : (
+                    <XCircle className="w-4 h-4 text-red-600 dark:text-red-400" />
+                  )}
+                  <span className={`text-sm font-medium ${isCorrect ? 'text-emerald-700 dark:text-emerald-300' : 'text-red-700 dark:text-red-300'}`}>
+                    {isCorrect ? t('notebooks.correct') : t('notebooks.incorrect')}
+                  </span>
+                </div>
+                {!isCorrect && (
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                    {t('notebooks.correct')}: {question.correctAnswer}
+                  </p>
+                )}
+                {question.explanation && (
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">{question.explanation}</p>
+                )}
+              </motion.div>
+            )}
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 // ─── Main View ───────────────────────────────────────────────────────
 
 export default function NotebooksView() {
@@ -1887,7 +3006,7 @@ export default function NotebooksView() {
   const [subjectFilter, setSubjectFilter] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedNotebook, setSelectedNotebook] = useState<Notebook | null>(null);
-  const [activeTab, setActiveTab] = useState<'all' | 'shared' | 'templates'>('all');
+  const [activeTab, setActiveTab] = useState<'all' | 'shared' | 'templates' | 'learn'>('all');
   const [sharedNotebooksFromApi, setSharedNotebooksFromApi] = useState<Notebook[]>([]);
   const [shareConfirmNotebook, setShareConfirmNotebook] = useState<Notebook | null>(null);
 
@@ -2367,6 +3486,17 @@ export default function NotebooksView() {
             <Sparkles className="w-4 h-4 inline mr-1.5" />
             {t('notebooks.tab_templates')}
           </button>
+          <button
+            onClick={() => { setActiveTab('learn'); setSubjectFilter('all'); }}
+            className={`px-4 py-2 rounded-full text-sm font-medium min-h-[44px] transition-all ${
+              activeTab === 'learn'
+                ? 'bg-emerald-600 text-white shadow-md'
+                : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'
+            }`}
+          >
+            <GraduationCap className="w-4 h-4 inline mr-1.5" />
+            {t('notebooks.learn')}
+          </button>
         </div>
       </motion.div>
 
@@ -2454,6 +3584,9 @@ export default function NotebooksView() {
               <span className="text-gray-500">{t('notebooks.loading')}</span>
             </div>
           </div>
+        ) : activeTab === 'learn' ? (
+          /* Learn Tab */
+          <LearnTab schoolId={schoolId} userId={currentUser?.id ?? ''} subjects={subjects} />
         ) : activeTab === 'templates' ? (
           /* Templates Tab */
           <motion.div

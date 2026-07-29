@@ -1267,3 +1267,240 @@ Work Log:
   - Service worker is only active in production builds
 - Verification: bun run lint passes with 0 errors
 
+---
+Task ID: 3-b
+Agent: learning-content-backend
+Task: Enhance Digital Notebooks with German Curriculum Subjects, Tests, and Learning Content
+Date: 2025-01-28
+
+Work Log:
+- **Prisma schema changes** (`prisma/schema.prisma`):
+  - Added 4 new models: `SubjectTopic`, `SubjectLesson`, `LessonQuestion`, `StudentAnswer`
+  - Added `subjectTopics` relation to `School` model
+  - Added `topics` relation to `Subject` model
+  - Added `studentAnswers` relation to `User` model
+  - Updated `NotebookPage.contentType` to support "quiz" | "exercise" | "flashcard" in addition to existing types
+  - `SubjectTopic` supports gradeLevel (1-6 for German Grundschule), curriculumCode (e.g., DE-NRW-Math-1-01), soft delete
+  - `SubjectLesson` supports lessonType (explanation/exercise/quiz/flashcard/video_link), difficulty (easy/medium/hard), soft delete
+  - `LessonQuestion` supports questionType (multiple_choice/true_false/fill_blank/short_answer/matching), options JSON, explanations
+  - `StudentAnswer` has unique constraint on (questionId, studentId), tracks attempts, timeTakenMs, isCorrect
+  - All models use `@@map` for table naming and proper `@@index` for query performance
+
+- **API routes created**:
+  - `src/app/api/subject-topics/route.ts` — GET (list with schoolId, subjectId, gradeLevel, curriculumCode filters) and POST (create)
+  - `src/app/api/subject-topics/[id]/route.ts` — GET (single with lessons), PUT (update), DELETE (soft delete)
+  - `src/app/api/subject-lessons/route.ts` — GET (list with topicId, lessonType, difficulty filters) and POST (create)
+  - `src/app/api/subject-lessons/[id]/route.ts` — GET (single with questions), PUT (update), DELETE (soft delete)
+  - `src/app/api/lesson-questions/route.ts` — GET (list with lessonId, questionType filters) and POST (create)
+  - `src/app/api/lesson-questions/[id]/route.ts` — GET (single), PUT (update), DELETE (hard delete)
+  - `src/app/api/student-answers/route.ts` — GET (list with questionId, lessonId filters) and POST (submit answer with auto-grading)
+  - All routes use `withRateLimit` from `@/lib/rate-limit` and `getSession` from `@/lib/auth`
+  - All routes use `z` from `zod` for request validation
+  - Student access: correct answers and explanations are hidden for students in GET responses
+  - Student answers use upsert pattern (unique on questionId + studentId), incrementing attempts on re-answer
+  - Role-based access: students can only see their own answers; teachers/admins can see answers for their school
+  - School-scoped access control: all routes verify data belongs to the user's school
+
+- **API client functions** (`src/lib/api.ts`):
+  - Added interfaces: `SubjectTopicData`, `SubjectLessonData`, `LessonQuestionData`, `StudentAnswerData`
+  - Added functions: `fetchSubjectTopics`, `fetchSubjectTopic`, `createSubjectTopic`, `updateSubjectTopic`, `deleteSubjectTopic`
+  - Added functions: `fetchSubjectLessons`, `fetchSubjectLesson`, `createSubjectLesson`, `updateSubjectLesson`, `deleteSubjectLesson`
+  - Added functions: `fetchLessonQuestions`, `fetchLessonQuestion`, `createLessonQuestion`, `updateLessonQuestion`, `deleteLessonQuestion`
+  - Added functions: `fetchStudentAnswers`, `submitStudentAnswer`
+
+- **i18n keys** (`src/lib/i18n.ts`):
+  - Added 45 new keys to both DE and EN dictionaries
+  - Keys cover: learning content (learn, topics, lessons, exercises, quiz, flashcards, progress)
+  - Keys cover: grade level, curriculum, difficulty levels (easy/medium/hard)
+  - Keys cover: quiz interactions (question, answer, correct, incorrect, explanation, try_again, next_question)
+  - Keys cover: scoring and progress (score, time_taken, mastery, practice_more, well_done, keep_practicing)
+  - Keys cover: German curriculum subjects (Mathematik, Deutsch, Sachkunde, Englisch, Musik, Kunst, Religion/Ethik, Sport)
+  - Keys cover: environment tips (papier_sparen, digital_instead_paper, environment_tip)
+  - Keys cover: notebook type labels (type_lined, type_grid, type_blank, type_dotted, type_music)
+
+- **Database sync**: Ran `bun run db:push` successfully — all 4 new tables created
+- **Lint check**: `bun run lint` passes with 0 errors
+
+---
+Task ID: 3-a
+Agent: competition-system-backend
+Task: Add Competition System and Digital Rewards to Prisma Schema + API Routes
+Date: 2025-01-28
+
+Work Log:
+- **Prisma Schema**: Added 5 new models to `prisma/schema.prisma` before the Newsletter model:
+  - `Competition` — core competition entity with type (class/inter_class/inter_school), category (8 types), status lifecycle (draft/registration/active/completed/cancelled), scoring type, rules, soft delete
+  - `CompetitionParticipant` — participants with type (student/class_group/school), score, rank, disqualification support, unique constraint on (competitionId, participantType, participantId)
+  - `CompetitionReward` — digital rewards with type (digital_code/badge/certificate/experience/physical), provider (netflix/amazon/cinema/theater/concert/custom), rank/points requirements, quantity tracking
+  - `CompetitionLeaderboard` — denormalized leaderboard for fast reads, unique constraint on (competitionId, participantType, participantId), indexed by rank
+  - `RewardClaim` — reward claims with DSGVO-compliant code storage, status lifecycle (pending/claimed/expired/revoked), expiration tracking
+
+- **Relation fields added to existing models**:
+  - `User`: `competitionsCreated`, `competitionParticipations`, `competitionClaims`
+  - `School`: `competitions`, `rewardClaims`
+  - `Subject`: `competitions`
+
+- **Database sync**: Ran `bun run db:push` — database already in sync (Prisma client regenerated)
+
+- **API Routes created** (5 route files):
+  1. `/api/competitions/route.ts` — GET (list with filters: schoolId, status, competitionType, category, isPublic; pagination) + POST (create with full Zod validation, date validation, school access control)
+  2. `/api/competitions/[id]/route.ts` — GET (single with full includes), PUT (update with partial validation), DELETE (soft delete), POST (register participant or update score with automatic leaderboard recalculation)
+  3. `/api/competitions/[id]/leaderboard/route.ts` — GET (ordered by rank/score)
+  4. `/api/competitions/[id]/rewards/route.ts` — GET (with claim counts) + POST (create reward with full validation)
+  5. `/api/reward-claims/route.ts` — GET (role-filtered: students see own, admins see school) + POST (claim with eligibility checks: rank/points, duplicate prevention, quantity tracking)
+
+- **API client functions** added to `src/lib/api.ts`:
+  - 6 TypeScript interfaces: `CompetitionData`, `CompetitionParticipantData`, `CompetitionRewardData`, `CompetitionLeaderboardEntry`, `RewardClaimData`
+  - 12 API functions: `fetchCompetitions`, `fetchPublicCompetitions`, `fetchCompetition`, `createCompetition`, `updateCompetition`, `deleteCompetition`, `registerCompetitionParticipant`, `updateCompetitionScore`, `fetchCompetitionLeaderboard`, `fetchCompetitionRewards`, `createCompetitionReward`, `fetchRewardClaims`, `claimReward`
+
+- **i18n keys** added to `src/lib/i18n.ts` for both DE and EN:
+  - 82 competition-related translation keys covering: competition CRUD, types, categories, statuses, scoring, registration, leaderboard, rewards, claims, DSGVO/Jugendschutz notices
+
+- **Security & compliance**:
+  - All routes use `withRateLimit` from `@/lib/rate-limit`
+  - All routes use `getSession` from `@/lib/auth` for authentication
+  - Role-based access control (TEACHER/SCHOOL_ADMIN/SUPER_ADMIN for management, STUDENT for claims)
+  - School-scoped data isolation (SCHOOL_ADMIN can only access own school)
+  - DSGVO compliance notes in reward claims (promo codes stored with encryption consideration)
+  - Jugendschutzgesetz compliance notices in i18n
+
+- **Lint check**: `bun run lint` passes with 0 errors
+
+---
+Task ID: 4-b
+Agent: enhance-notebooks-learn-tab
+Task: Enhance Notebooks View with German Curriculum Learning Content UI
+Date: 2025-01-28
+
+Work Log:
+- **Added "Lernen" (Learn) tab to notebooks-view.tsx** alongside existing All, Shared, Templates tabs
+  - Added `'learn'` to the `activeTab` type union: `'all' | 'shared' | 'templates' | 'learn'`
+  - Added GraduationCap icon tab button in the tab bar
+
+- **Created `LearnTab` component** with full German curriculum learning content UI:
+  - **Subject Browser**: Grid of 8 subject cards (Mathematik, Deutsch, Sachkunde, Englisch, Musik, Kunst, Religion/Ethik, Sport) with icons, colors, topic counts
+  - **Topic List**: List of topics for a selected subject with progress bars, grade level badges, curriculum codes (e.g., "DE-NRW-Math-1-01"), lesson counts
+  - **Lesson List**: List of lessons for a topic with difficulty badges (easy/medium/hard), lesson type icons, question counts, estimated time
+  - **Lesson Detail View**: Interactive lesson with 4 tabs (Explanation, Exercise, Quiz, Flashcard)
+  - **Quiz Interface**: One question at a time, progress bar, multiple choice with color-coded feedback (green=correct, red=incorrect), explanation after each answer, score summary with "Gut gemacht!" / "Weiter ueben!" messages, "Nochmal versuchen" (Try Again) button
+  - **Flashcard Tab**: Front/back flashcards with flip animation, navigation controls
+  - **Exercise Tab**: Fill-in-the-blank and short answer exercises with instant feedback
+
+- **Created `ExerciseQuestion` component** for interactive exercise questions with:
+  - Input fields for fill_blank and short_answer question types
+  - Submit and retry functionality
+  - Color-coded correct/incorrect feedback
+  - Answer submission to backend via `submitStudentAnswer`
+
+- **Environmental Messaging**:
+  - "Papier sparen, Umwelt schuetzen" banner on subject browser
+  - "Digitale Hefte statt Papierhefte" subtitle
+  - Leaf icon with environmental tips throughout the learn tab
+  - "Mit digitalen Heften schuetzt du die Umwelt — kein Papierverschwendung!" message
+
+- **Progress Tracking**:
+  - Per-topic progress bars
+  - Overall mastery percentage in quiz results
+  - Score tracking with motivational messages
+
+- **API Integration**:
+  - `fetchSubjectTopics` — GET topics for a subject
+  - `fetchSubjectTopic` — GET single topic with details
+  - `fetchSubjectLessons` — GET lessons for a topic
+  - `fetchSubjectLesson` — GET single lesson with questions
+  - `fetchLessonQuestions` — GET questions for a lesson
+  - `submitStudentAnswer` — POST submit answer
+
+- **New imports added**:
+  - API functions: `fetchSubjectTopics`, `fetchSubjectTopic`, `fetchSubjectLessons`, `fetchSubjectLesson`, `fetchLessonQuestions`, `submitStudentAnswer`
+  - Type imports: `SubjectTopicData`, `SubjectLessonData`, `LessonQuestionData`, `StudentAnswerData`
+  - Lucide icons: `ChevronRight`, `XCircle`, `Trophy`, `Zap`, `Flame`, `Dumbbell`, `Heart`, `RotateCcw`, `ArrowRight`, `Play`
+
+- **Key design decisions**:
+  - Tablet-optimized: 44px minimum touch targets throughout
+  - No emojis — Lucide icons only
+  - Uses existing shadcn/ui components (Card, Button, Input, Badge, Textarea, ScrollArea)
+  - Uses `t()` function from `@/lib/i18n` for all translations
+  - Uses `toast` from `sonner` for notifications
+  - Uses `motion` from `framer-motion` for animations
+  - Responsive design with mobile-first approach
+  - Maintains existing notebook functionality intact
+
+- **Lint check**: `bun run lint` passes with 0 errors
+
+
+---
+Task ID: 4-a
+Agent: competitions-frontend
+Task: Create Competitions View Frontend + Add to Navigation
+Date: 2025-01-28
+
+Work Log:
+- **Created `/home/z/my-project/src/components/competitions-view.tsx`** — Full-featured competitions view component with:
+  - **Overview tab**: Active competitions, registration-open competitions, completed, and drafts (admin/teacher) sections
+  - **My Competitions tab**: Filtered view of competitions relevant to the user
+  - **Leaderboard tab**: Live leaderboard with dropdown to select active competition, rank display with crown/medal icons
+  - **Rewards tab**: Available rewards with claim buttons, claimed rewards with status badges and code display
+  - **Competition cards**: Color-coded status badges, type/category icons, progress bars, participant counts, register/view buttons
+  - **Competition detail dialog**: Full detail view with tabs (overview/leaderboard/rewards), DSGVO/Jugendschutz notices, register/delete actions
+  - **Create competition dialog** (admin/teacher): Full form with title, description, type, category, dates, scoring, rules
+  - **Add reward dialog** (admin/teacher): Reward name, type, provider, quantity, rank/points requirements
+  - **Search and filter**: Text search, type filter, status filter, category filter
+  - **Responsive design**: Mobile-first with 44px minimum touch targets
+  - **Dark mode support**: Proper dark mode colors throughout
+  - **Framer Motion animations**: Card entrance animations, hover effects, leaderboard row animations
+  - **Helper components**: TypeIcon, CategoryIcon, ProviderIconComp, LeaderboardTable, RewardCard, CompetitionRewardsSection
+
+- **Modified `/home/z/my-project/src/lib/store.ts`**: Added `'competitions'` to ViewName union type
+
+- **Modified `/home/z/my-project/src/lib/i18n.ts`**: Added `'nav.competitions'` key to both German and English translations
+
+- **Modified `/home/z/my-project/src/components/app-layout.tsx`**:
+  - Added `Trophy` import from lucide-react
+  - Added `CompetitionsView` import
+  - Added competitions nav item to teaching section (teacher/admin)
+  - Added competitions nav item to student nav section
+  - Added `case 'competitions': return <CompetitionsView />;` to renderView
+
+- **Lint**: All errors resolved (had to fix React component creation during render — converted icon helper functions to proper React components)
+
+---
+Task ID: 4-c
+Agent: enhance-student-dashboard
+Task: Enhance Student Dashboard with "Papier sparen" Messaging and Notebook Access
+Date: 2025-01-28
+
+Work Log:
+- **Modified `/home/z/my-project/src/components/dashboard-view.tsx`** — Added three new student-specific sections to the STUDENT dashboard:
+  1. **Environmental Banner ("Papier sparen, Umwelt schützen")** — A prominent emerald-green gradient banner at the top of the student dashboard with:
+     - Leaf icon (Lucide) with decorative background leaf pattern
+     - "Papier sparen, Umwelt schützen" title
+     - "Digitale Hefte statt Papierhefte — Mit digitalen Heften schützt du die Umwelt!" subtitle
+     - "Zu meinen Heften" button that navigates to notebooks view
+     - Emerald green gradient background with translucent decorative leaf elements
+  2. **Student Notebook Quick Access ("Meine Hefte")** — A card section showing 4 notebook quick access cards:
+     - Mathematik (amber/orange), Deutsch (emerald/teal), Englisch (rose/pink), Naturwissenschaften (violet/purple)
+     - Each card has a color strip, icon, title, and subject name
+     - "Alle Hefte anzeigen" link and "Lernen starten" button
+     - Cards are clickable and navigate to notebooks view
+     - Framer Motion hover/tap animations on cards
+  3. **Student Learning Progress ("Lernfortschritt")** — A progress overview card:
+     - Animated progress bars for each subject (Math 72%, German 85%, English 58%, Science 44%)
+     - Color-coded progress bars matching subject colors
+     - "Weiter lernen" button that navigates to flower (competency) view
+     - Framer Motion animation on progress bar width
+
+- **Modified `/home/z/my-project/src/lib/i18n.ts`** — Added 14 new i18n keys for both German and English:
+  - `student.papier_sparen_title`, `student.papier_sparen_subtitle`
+  - `student.go_to_notebooks`, `student.my_notebooks_quick`
+  - `student.show_all_notebooks`, `student.start_learning`
+  - `student.learning_progress`, `student.continue_learning`
+  - `student.subject_progress`
+  - `student.notebook_math`, `student.notebook_german`, `student.notebook_english`, `student.notebook_science`
+
+- **Verified existing items**:
+  - `competitions` is already in `ViewName` type in `store.ts`
+  - `competitions` is already in student nav sections in `app-layout.tsx`
+  - `Trophy` is already imported in `app-layout.tsx`
+
+- **Lint**: All checks pass (`bun run lint` — no errors)

@@ -664,6 +664,47 @@ export default function DashboardView() {
           </div>
         </motion.div>
 
+        {/* ── Environmental Banner (Papier sparen) ─────────────────────── */}
+        <motion.div variants={itemVariants}>
+          <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-emerald-500 via-emerald-600 to-teal-600 dark:from-emerald-700 dark:via-emerald-800 dark:to-teal-700 shadow-lg shadow-emerald-300/30 dark:shadow-emerald-900/40">
+            {/* Decorative leaf pattern */}
+            <div className="absolute inset-0 opacity-10 pointer-events-none">
+              <div className="absolute top-2 right-8">
+                <Leaf className="h-24 w-24 text-white rotate-12" />
+              </div>
+              <div className="absolute bottom-1 right-40">
+                <Leaf className="h-16 w-16 text-white -rotate-45" />
+              </div>
+              <div className="absolute top-4 right-72">
+                <Leaf className="h-10 w-10 text-white rotate-90" />
+              </div>
+            </div>
+            <div className="relative p-5 sm:p-6 flex flex-col sm:flex-row items-start sm:items-center gap-4">
+              <div className="flex items-center gap-3 flex-1 min-w-0">
+                <div className="flex items-center justify-center w-12 h-12 rounded-xl bg-white/20 backdrop-blur-sm shrink-0">
+                  <Leaf className="h-6 w-6 text-white" />
+                </div>
+                <div className="min-w-0">
+                  <h3 className="text-lg font-bold text-white leading-tight">
+                    {t('student.papier_sparen_title')}
+                  </h3>
+                  <p className="text-sm text-emerald-100/90 mt-0.5 leading-snug">
+                    {t('student.papier_sparen_subtitle')}
+                  </p>
+                </div>
+              </div>
+              <Button
+                onClick={() => setCurrentView('notebooks')}
+                className="shrink-0 bg-white/20 hover:bg-white/30 text-white border-white/30 backdrop-blur-sm min-h-[44px] px-5 font-semibold transition-all duration-200 hover:shadow-lg"
+                variant="outline"
+              >
+                <BookOpen className="h-4 w-4 mr-2" />
+                {t('student.go_to_notebooks')}
+              </Button>
+            </div>
+          </div>
+        </motion.div>
+
         {/* Student Quick Stats */}
         <motion.div variants={itemVariants}>
           <div className="relative p-4 rounded-xl bg-mesh border border-emerald-200/40 dark:border-emerald-900/30 overflow-hidden backdrop-blur-sm">
@@ -687,6 +728,130 @@ export default function DashboardView() {
               )}
             </div>
           </div>
+        </motion.div>
+
+        {/* ── Student Notebook Quick Access (Meine Hefte) ─────────────── */}
+        <motion.div variants={itemVariants}>
+          <Card className="border-0 shadow-sm rounded-xl overflow-hidden ring-1 ring-black/[0.03] dark:ring-white/[0.05]">
+            <CardHeader className="p-4 pb-2">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-gradient-to-br from-teal-400 to-emerald-500 text-white shadow-sm">
+                    <BookMarked className="h-4 w-4" />
+                  </div>
+                  <CardTitle className="text-sm font-semibold">{t('student.my_notebooks_quick')}</CardTitle>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setCurrentView('notebooks')}
+                  className="text-xs text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 min-h-[44px] px-2"
+                >
+                  {t('student.show_all_notebooks')}
+                  <ChevronRight className="h-3.5 w-3.5 ml-1" />
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent className="p-4 pt-1">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                {[
+                  { title: t('student.notebook_math'), subject: 'Mathematik', color: 'from-amber-400 to-orange-500', icon: Calculator },
+                  { title: t('student.notebook_german'), subject: 'Deutsch', color: 'from-emerald-400 to-teal-500', icon: BookOpen },
+                  { title: t('student.notebook_english'), subject: 'Englisch', color: 'from-rose-400 to-pink-500', icon: Globe },
+                  { title: t('student.notebook_science'), subject: 'Naturwissenschaften', color: 'from-violet-400 to-purple-500', icon: Flower2 },
+                ].map((notebook) => (
+                  <motion.div
+                    key={notebook.subject}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    className="cursor-pointer min-h-[44px]"
+                    onClick={() => setCurrentView('notebooks')}
+                  >
+                    <div className="relative rounded-xl overflow-hidden border border-gray-200/40 dark:border-gray-700/40 bg-white dark:bg-gray-900/50 hover:shadow-md transition-shadow duration-200">
+                      {/* Notebook cover color strip */}
+                      <div className={`h-2 bg-gradient-to-r ${notebook.color}`} />
+                      <div className="p-3">
+                        <div className="flex items-center gap-2 mb-1.5">
+                          <div className={`flex items-center justify-center w-7 h-7 rounded-md bg-gradient-to-br ${notebook.color} text-white shadow-sm`}>
+                            <notebook.icon className="h-3.5 w-3.5" />
+                          </div>
+                          <span className="text-xs font-semibold text-gray-800 dark:text-gray-200 truncate">{notebook.title}</span>
+                        </div>
+                        <p className="text-[10px] text-gray-500 dark:text-gray-400 truncate">{notebook.subject}</p>
+                      </div>
+                    </div>
+                  </motion.div>
+                ))}
+              </div>
+              <div className="mt-3 flex justify-center">
+                <Button
+                  onClick={() => setCurrentView('notebooks')}
+                  className="bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white min-h-[44px] px-6 font-semibold shadow-sm transition-all duration-200"
+                >
+                  <BookOpen className="h-4 w-4 mr-2" />
+                  {t('student.start_learning')}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+
+        {/* ── Student Learning Progress ────────────────────────────────── */}
+        <motion.div variants={itemVariants}>
+          <Card className="border-0 shadow-sm rounded-xl overflow-hidden ring-1 ring-black/[0.03] dark:ring-white/[0.05]">
+            <CardHeader className="p-4 pb-2">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-gradient-to-br from-emerald-400 to-teal-500 text-white shadow-sm">
+                    <TrendingUp className="h-4 w-4" />
+                  </div>
+                  <CardTitle className="text-sm font-semibold">{t('student.learning_progress')}</CardTitle>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setCurrentView('flower')}
+                  className="text-xs text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 min-h-[44px] px-2"
+                >
+                  {t('student.continue_learning')}
+                  <ChevronRight className="h-3.5 w-3.5 ml-1" />
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent className="p-4 pt-1">
+              <div className="space-y-3">
+                {[
+                  { subject: t('student.notebook_math'), progress: 72, color: 'bg-amber-500', bgColor: 'bg-amber-100 dark:bg-amber-900/30' },
+                  { subject: t('student.notebook_german'), progress: 85, color: 'bg-emerald-500', bgColor: 'bg-emerald-100 dark:bg-emerald-900/30' },
+                  { subject: t('student.notebook_english'), progress: 58, color: 'bg-rose-500', bgColor: 'bg-rose-100 dark:bg-rose-900/30' },
+                  { subject: t('student.notebook_science'), progress: 44, color: 'bg-violet-500', bgColor: 'bg-violet-100 dark:bg-violet-900/30' },
+                ].map((item) => (
+                  <div key={item.subject} className="flex items-center gap-3 min-h-[44px]">
+                    <span className="text-xs font-medium text-gray-700 dark:text-gray-300 w-28 shrink-0 truncate">{item.subject}</span>
+                    <div className="flex-1 h-3 rounded-full bg-gray-100 dark:bg-gray-800 overflow-hidden">
+                      <motion.div
+                        initial={{ width: 0 }}
+                        animate={{ width: `${item.progress}%` }}
+                        transition={{ duration: 0.8, ease: 'easeOut' }}
+                        className={`h-full rounded-full ${item.color}`}
+                      />
+                    </div>
+                    <span className="text-xs font-semibold text-gray-600 dark:text-gray-400 w-9 text-right shrink-0">{item.progress}%</span>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-3 pt-3 border-t border-gray-100 dark:border-gray-800 flex items-center justify-center">
+                <Button
+                  onClick={() => setCurrentView('flower')}
+                  variant="outline"
+                  className="text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 min-h-[44px] px-5 font-semibold transition-all duration-200"
+                >
+                  <GraduationCap className="h-4 w-4 mr-2" />
+                  {t('student.continue_learning')}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
         </motion.div>
 
         {/* Student Cards Grid */}

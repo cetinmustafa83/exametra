@@ -57,6 +57,7 @@ import {
   Briefcase,
   Clock as ClockIcon,
   Library as LibraryIcon,
+  Trophy,
 } from 'lucide-react';
 import {
   Sidebar,
@@ -150,6 +151,7 @@ import HomeworkView from './homework-view';
 import PortfolioView from './portfolio-view';
 import TimetableView from './timetable-view';
 import ResourceLibraryView from './resource-library-view';
+import CompetitionsView from './competitions-view';
 
 // Dynamic imports for heavy components with loading skeletons
 const AnalyticsView = dynamic(() => import('./analytics-view'), {
@@ -207,6 +209,7 @@ const navSections: NavSection[] = [
       { key: 'portfolio', icon: Briefcase, labelKey: 'nav.portfolio' },
       { key: 'timetable', icon: ClockIcon, labelKey: 'nav.timetable' },
       { key: 'resources', icon: LibraryIcon, labelKey: 'nav.resources' },
+      { key: 'competitions', icon: Trophy, labelKey: 'nav.competitions' },
     ],
   },
   {
@@ -233,6 +236,7 @@ const studentNavSections: NavSection[] = [
       { key: 'attendance', icon: CalendarCheck, labelKey: 'nav.student_attendance' },
       { key: 'portfolio', icon: Briefcase, labelKey: 'nav.portfolio' },
       { key: 'calendar', icon: CalendarIconNav, labelKey: 'nav.calendar' },
+      { key: 'competitions', icon: Trophy, labelKey: 'nav.competitions' },
     ],
   },
 ];
@@ -376,6 +380,7 @@ function renderView(view: ViewName) {
     case 'portfolio': return <PortfolioView />;
     case 'timetable': return <TimetableView />;
     case 'resources': return <ResourceLibraryView />;
+    case 'competitions': return <CompetitionsView />;
     default: return <DashboardView />;
   }
 }

@@ -578,7 +578,7 @@ export default function PortfolioView() {
               />
             </div>
             <div className="flex items-center justify-between">
-              <Label className="text-xs font-medium">{entry.isPublic ? t('portfolio.public') : t('portfolio.private')}</Label>
+              <Label className="text-xs font-medium">{form.isPublic ? t('portfolio.public') : t('portfolio.private')}</Label>
               <div className="flex items-center gap-2">
                 <EyeOff className="h-4 w-4 text-gray-400" />
                 <Switch
