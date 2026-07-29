@@ -667,7 +667,7 @@ function BadgeManagementTab() {
               <Select value={awardForm.studentId} onValueChange={(v) => setAwardForm(f => ({ ...f, studentId: v }))}>
                 <SelectTrigger><SelectValue placeholder={t('action.select')} /></SelectTrigger>
                 <SelectContent className="max-h-48">
-                  {studentsList.map(s => <SelectItem key={s.id} value={s.id}>{s.firstName} {s.lastName}</SelectItem>)}
+                  {students.map(s => <SelectItem key={s.id} value={s.id}>{s.firstName} {s.lastName}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>

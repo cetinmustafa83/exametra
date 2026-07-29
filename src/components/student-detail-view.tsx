@@ -629,13 +629,13 @@ export default function StudentDetailView() {
     const schoolId = currentUser.schoolId;
     async function loadBadges() {
       try {
-        const progress = await fetchBadgeProgress(schoolId, currentStudentId);
+        const progress = await fetchBadgeProgress(schoolId, currentStudentId!);
         setBadgeProgress(progress);
       } catch { /* ignore */ }
     }
     async function loadEarnedBadges() {
       try {
-        const data = await fetchStudentBadges(schoolId, currentStudentId);
+        const data = await fetchStudentBadges(schoolId, currentStudentId!);
         setEarnedBadges(data);
       } catch { /* ignore */ }
     }
@@ -1729,7 +1729,7 @@ export default function StudentDetailView() {
               {(() => {
                 const comparisonData = selfAssessments.map((sa) => {
                   const teacherEntry = data?.progressEntries.find(
-                    (pe) => pe.competencyId === sa.competencyId
+                    (pe) => pe.competency.id === sa.competencyId
                   );
                   return {
                     competency: sa.competency.code.length > 12 ? sa.competency.code.slice(0, 12) : sa.competency.code,
@@ -1763,7 +1763,7 @@ export default function StudentDetailView() {
               {/* Self-assessment list */}
               <div className="space-y-2 max-h-96 overflow-y-auto scrollbar-education">
                 {selfAssessments.map((sa, i) => {
-                  const teacherEntry = data?.progressEntries.find((pe) => pe.competencyId === sa.competencyId);
+                  const teacherEntry = data?.progressEntries.find((pe) => pe.competency.id === sa.competencyId);
                   const gap = teacherEntry ? sa.selfLevel - teacherEntry.masteryLevelValue : null;
                   return (
                     <motion.div
@@ -2046,12 +2046,12 @@ export default function StudentDetailView() {
                 const compIds = new Set<string>();
                 peerByCompetency.forEach((pa) => { if (pa.competencyId) compIds.add(pa.competencyId); });
                 selfByCompetency.forEach((sa) => compIds.add(sa.competencyId));
-                teacherByCompetency.forEach((pe) => compIds.add(pe.competencyId));
+                teacherByCompetency.forEach((pe) => compIds.add(pe.competency.id));
 
                 const comparisonData = Array.from(compIds).slice(0, 8).map((cId) => {
                   const peerLevels = peerByCompetency.filter((pa) => pa.competencyId === cId).map((pa) => pa.level!);
                   const selfEntry = selfByCompetency.find((sa) => sa.competencyId === cId);
-                  const teacherEntry = teacherByCompetency.find((pe) => pe.competencyId === cId);
+                  const teacherEntry = teacherByCompetency.find((pe) => pe.competency.id === cId);
                   const code = peerLevels.length > 0
                     ? (peerByCompetency.find((pa) => pa.competencyId === cId)?.competency?.code ?? cId.slice(0, 8))
                     : selfEntry?.competency?.code ?? teacherEntry?.competency?.code ?? cId.slice(0, 8);
@@ -2895,7 +2895,7 @@ export default function StudentDetailView() {
                 </SelectTrigger>
                 <SelectContent>
                   {data?.progressEntries.map((pe) => (
-                    <SelectItem key={pe.competencyId} value={pe.competencyId}>
+                    <SelectItem key={pe.competency.id} value={pe.competency.id}>
                       {pe.competency.code} — {pe.competency.title}
                     </SelectItem>
                   ))}
@@ -3038,7 +3038,7 @@ export default function StudentDetailView() {
                 <SelectContent>
                   <SelectItem value="none">—</SelectItem>
                   {data?.progressEntries.map((pe) => (
-                    <SelectItem key={pe.competencyId} value={pe.competencyId}>
+                    <SelectItem key={pe.competency.id} value={pe.competency.id}>
                       {pe.competency.code} — {pe.competency.title}
                     </SelectItem>
                   ))}
@@ -3175,7 +3175,7 @@ export default function StudentDetailView() {
                 </SelectTrigger>
                 <SelectContent>
                   {data?.progressEntries.map((pe) => (
-                    <SelectItem key={pe.competencyId} value={pe.competencyId}>
+                    <SelectItem key={pe.competency.id} value={pe.competency.id}>
                       {pe.competency.code} — {pe.competency.title}
                     </SelectItem>
                   ))}
@@ -3412,7 +3412,7 @@ export default function StudentDetailView() {
                   className="mt-1"
                 />
                 <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                  {locale === 'de' ? 'Geben Sie eine URL für das Schülerfoto ein.' : 'Enter a URL for the student photo.'}
+                  {useAppStore.getState().locale === 'de' ? 'Geben Sie eine URL für das Schülerfoto ein.' : 'Enter a URL for the student photo.'}
                 </p>
               </div>
             </div>
@@ -3429,9 +3429,9 @@ export default function StudentDetailView() {
                   setAvatarUploadOpen(false);
                   setAvatarUrlInput('');
                   // Reload student detail
-                  if (studentId) {
-                    const fresh = await fetchStudentDetail(studentId);
-                    setStudent(fresh);
+                  if (currentStudentId) {
+                    const fresh = await fetchStudentDetail(currentStudentId);
+                    setData(fresh);
                   }
                 } catch (err) {
                   toast.error(err instanceof Error ? err.message : t('error.generic'));

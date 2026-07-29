@@ -3,7 +3,7 @@
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Map,
+  Map as MapIcon,
   Plus,
   Pencil,
   Trash2,
@@ -372,7 +372,7 @@ export default function CurriculumCoverageView() {
       >
         <div className="flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white shadow-lg">
-            <Map className="h-5 w-5" />
+            <MapIcon className="h-5 w-5" />
           </div>
           <div>
             <h1 className="text-2xl font-bold bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">
@@ -501,7 +501,7 @@ export default function CurriculumCoverageView() {
               className="flex flex-col items-center justify-center py-16 text-center"
             >
               <div className="h-16 w-16 rounded-2xl bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center mb-4">
-                <Map className="h-8 w-8 text-emerald-500" />
+                <MapIcon className="h-8 w-8 text-emerald-500" />
               </div>
               <h3 className="text-lg font-semibold mb-2">{t('curriculum.empty_title')}</h3>
               <p className="text-muted-foreground max-w-md mb-6">{t('curriculum.empty_desc')}</p>

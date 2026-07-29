@@ -121,7 +121,7 @@ export async function GET(request: Request) {
         teacher: { select: { id: true, firstName: true, lastName: true } },
         records: {
           include: {
-            student: { select: { id: true, firstName: true, lastName: true } },
+            student: { select: { id: true, firstName: true, lastName: true, avatarUrl: true } },
           },
           orderBy: { student: { lastName: 'asc' } },
         },
@@ -237,7 +237,7 @@ export async function POST(request: Request) {
         teacher: { select: { id: true, firstName: true, lastName: true } },
         records: {
           include: {
-            student: { select: { id: true, firstName: true, lastName: true } },
+            student: { select: { id: true, firstName: true, lastName: true, avatarUrl: true } },
           },
           orderBy: { student: { lastName: 'asc' } },
         },
@@ -341,7 +341,7 @@ export async function PUT(request: Request) {
         teacher: { select: { id: true, firstName: true, lastName: true } },
         records: {
           include: {
-            student: { select: { id: true, firstName: true, lastName: true } },
+            student: { select: { id: true, firstName: true, lastName: true, avatarUrl: true } },
           },
           orderBy: { student: { lastName: 'asc' } },
         },

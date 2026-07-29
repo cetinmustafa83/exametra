@@ -582,7 +582,7 @@ export interface Report {
   status: string;
   pdfFilePath: string | null;
   includesGrades: boolean;
-  student: { id: string; firstName: string; lastName: string };
+  student: { id: string; firstName: string; lastName: string; avatarUrl: string | null };
   classGroup: { id: string; name: string; gradeLevel: number };
   schoolYear: { id: string; label: string };
   generatedByUser: { id: string; firstName: string; lastName: string };
@@ -890,7 +890,7 @@ export function downloadCsvExport(params: {
   classGroupId?: string;
   schoolYearId?: string;
   schoolId?: string;
-  format?: 'csv' | 'json';
+  format?: 'csv' | 'json' | 'pdf';
   dateFrom?: string;
   dateTo?: string;
 }): void {
@@ -1141,6 +1141,8 @@ export interface StudentDetailData {
     lastName: string;
     dateOfBirth: string | null;
     externalId: string | null;
+    avatarUrl: string | null;
+    avatarInitials: string | null;
     createdAt: string;
     school: { id: string; name: string };
     enrollments: Array<{
@@ -1548,7 +1550,7 @@ export interface AttendanceRecord {
   status: AttendanceStatus;
   arrivalTime: string | null;
   comment: string | null;
-  student: { id: string; firstName: string; lastName: string };
+  student: { id: string; firstName: string; lastName: string; avatarUrl: string | null };
 }
 
 export interface AttendanceSession {

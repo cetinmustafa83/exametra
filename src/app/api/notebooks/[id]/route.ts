@@ -58,7 +58,13 @@ const updateNotebookSchema = z.object({
   title: z.string().min(1).max(200).optional(),
   description: z.string().max(1000).optional().nullable(),
   notebookType: z
-    .enum(['lined', 'grid', 'blank', 'dotted', 'music', 'calligraphy'])
+    .enum([
+      'lined', 'grid', 'blank', 'dotted', 'music', 'calligraphy',
+      // German curriculum types
+      'deutschheft', 'matheheft', 'sachbuch', 'musikheft',
+      'kunstheft', 'englischheft', 'geschichtsheft', 'religionsheft',
+      'sachkundeheft',
+    ])
     .optional(),
   color: z.string().optional(),
   icon: z.string().optional().nullable(),

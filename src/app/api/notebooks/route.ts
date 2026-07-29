@@ -150,7 +150,13 @@ const createNotebookSchema = z.object({
   title: z.string().min(1).max(200),
   description: z.string().max(1000).optional().nullable(),
   notebookType: z
-    .enum(['lined', 'grid', 'blank', 'dotted', 'music', 'calligraphy'])
+    .enum([
+      'lined', 'grid', 'blank', 'dotted', 'music', 'calligraphy',
+      // German curriculum types
+      'deutschheft', 'matheheft', 'sachbuch', 'musikheft',
+      'kunstheft', 'englischheft', 'geschichtsheft', 'religionsheft',
+      'sachkundeheft',
+    ])
     .default('lined'),
   color: z.string().default('#10b981'),
   icon: z.string().optional().nullable(),

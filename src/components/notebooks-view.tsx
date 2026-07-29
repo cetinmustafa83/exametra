@@ -204,13 +204,23 @@ const SECTION_COLORS = [
 
 // ─── Constants ───────────────────────────────────────────────────────
 
-const NOTEBOOK_TYPES: Array<{ key: string; icon: React.ElementType; labelKey: string; descKey: string }> = [
+const NOTEBOOK_TYPES: Array<{ key: string; icon: React.ElementType; labelKey: string; descKey: string; isCurriculum?: boolean }> = [
   { key: 'lined', icon: AlignLeft, labelKey: 'notebooks.type_lined', descKey: 'notebooks.type_lined_desc' },
   { key: 'grid', icon: Grid3X3, labelKey: 'notebooks.type_grid', descKey: 'notebooks.type_grid_desc' },
   { key: 'blank', icon: File, labelKey: 'notebooks.type_blank', descKey: 'notebooks.type_blank_desc' },
   { key: 'dotted', icon: MoreHorizontal, labelKey: 'notebooks.type_dotted', descKey: 'notebooks.type_dotted_desc' },
   { key: 'music', icon: Music, labelKey: 'notebooks.type_music', descKey: 'notebooks.type_music_desc' },
   { key: 'calligraphy', icon: PenTool, labelKey: 'notebooks.type_calligraphy', descKey: 'notebooks.type_calligraphy_desc' },
+  // German curriculum notebook types
+  { key: 'deutschheft', icon: BookOpen, labelKey: 'notebooks.type_deutschheft', descKey: 'notebooks.type_deutschheft_desc', isCurriculum: true },
+  { key: 'matheheft', icon: Calculator, labelKey: 'notebooks.type_matheheft', descKey: 'notebooks.type_matheheft_desc', isCurriculum: true },
+  { key: 'sachbuch', icon: FlaskConical, labelKey: 'notebooks.type_sachbuch', descKey: 'notebooks.type_sachbuch_desc', isCurriculum: true },
+  { key: 'musikheft', icon: Music, labelKey: 'notebooks.type_musikheft', descKey: 'notebooks.type_musikheft_desc', isCurriculum: true },
+  { key: 'kunstheft', icon: Paintbrush, labelKey: 'notebooks.type_kunstheft', descKey: 'notebooks.type_kunstheft_desc', isCurriculum: true },
+  { key: 'englischheft', icon: Languages, labelKey: 'notebooks.type_englischheft', descKey: 'notebooks.type_englischheft_desc', isCurriculum: true },
+  { key: 'geschichtsheft', icon: BookMarked, labelKey: 'notebooks.type_geschichtsheft', descKey: 'notebooks.type_geschichtsheft_desc', isCurriculum: true },
+  { key: 'religionsheft', icon: Heart, labelKey: 'notebooks.type_religionsheft', descKey: 'notebooks.type_religionsheft_desc', isCurriculum: true },
+  { key: 'sachkundeheft', icon: Book, labelKey: 'notebooks.type_sachkundeheft', descKey: 'notebooks.type_sachkundeheft_desc', isCurriculum: true },
 ];
 
 const COVER_COLORS = [
@@ -392,6 +402,150 @@ const NOTEBOOK_TEMPLATES: NotebookTemplate[] = [
       { title: 'Weltreligionen', content: '# Weltreligionen\n\n| Religion | Gruender | Heilige Schrift |\n|----------|----------|----------------|\n| Christentum | Jesus | Bibel |\n| Islam | Mohammed | Koran |\n| Judentum | Moses | Tora |\n| Buddhismus | Buddha | Tripitaka |\n| Hinduismus | - | Veden |\n' },
     ],
   },
+  // ─── German Curriculum Notebook Types ──────────────────────────────────
+  {
+    key: 'deutschheft',
+    titleKey: 'notebooks.type_deutschheft',
+    descKey: 'notebooks.type_deutschheft_desc',
+    notebookType: 'deutschheft',
+    color: '#dc2626',
+    icon: 'BookOpen',
+    iconComponent: BookOpen,
+    pages: [
+      { title: 'Aufsaetze', content: '# Aufsaetze\n\n**Einleitung:**\n\n**Hauptteil:**\n\n**Schluss:**\n\n' },
+      { title: 'Lesetagebuch', content: '# Lesetagebuch\n\n| Datum | Buch | Seiten | Meine Meinung |\n|-------|------|--------|---------------|\n| | | | |\n' },
+      { title: 'Grammatik', content: '# Grammatik\n\n**Wortart:** \n\n**Regel:** \n\n**Beispiele:**\n1. \n2. \n3. \n' },
+      { title: 'Rechtschreibung', content: '# Rechtschreibung\n\n| Falsch | Richtig | Regel |\n|--------|---------|-------|\n| | | |\n' },
+      { title: 'Kreatives Schreiben', content: '# Kreatives Schreiben\n\n**Freies Schreiben:**\n\n' },
+      { title: 'Textanalyse', content: '# Textanalyse\n\n**Titel:** \n\n**Autor:** \n\n**Textsorte:** \n\n**Zusammenfassung:**\n\n**Sprachliche Mittel:**\n\n' },
+    ],
+  },
+  {
+    key: 'matheheft',
+    titleKey: 'notebooks.type_matheheft',
+    descKey: 'notebooks.type_matheheft_desc',
+    notebookType: 'matheheft',
+    color: '#3b82f6',
+    icon: 'Hash',
+    iconComponent: Calculator,
+    pages: [
+      { title: 'Aufgaben', content: '# Aufgaben\n\n1. \n2. \n3. \n' },
+      { title: 'Rechnungen', content: '# Rechnungen\n\n' },
+      { title: 'Formeln', content: '# Formeln\n\n| Name | Formel |\n|------|--------|\n| Flaeche Rechteck | A = a · b |\n| Umfang Rechteck | U = 2·(a+b) |\n| Flaeche Dreieck | A = ½ · g · h |\n' },
+      { title: 'Geometrie', content: '# Geometrie\n\n' },
+      { title: 'Ergebnisse', content: '# Ergebnisse\n\n' },
+      { title: 'Kontrolle', content: '# Kontrolle\n\n| Aufgabe | Ergebnis | Richtig? |\n|---------|----------|----------|\n| 1 | | |\n| 2 | | |\n| 3 | | |\n' },
+    ],
+  },
+  {
+    key: 'sachbuch',
+    titleKey: 'notebooks.type_sachbuch',
+    descKey: 'notebooks.type_sachbuch_desc',
+    notebookType: 'sachbuch',
+    color: '#14b8a6',
+    icon: 'Book',
+    iconComponent: FlaskConical,
+    pages: [
+      { title: 'Versuche', content: '# Versuche\n\n**Fragestellung:**\n\n**Vermutung:**\n\n**Durchfuehrung:**\n\n**Beobachtung:**\n\n**Ergebnis:**\n' },
+      { title: 'Beobachtungen', content: '# Beobachtungen\n\n' },
+      { title: 'Ergebnisse', content: '# Ergebnisse\n\n' },
+      { title: 'Versuchsprotokoll', content: '# Versuchsprotokoll\n\nDatum:\n\nMaterial:\n\n' },
+      { title: 'Fragen', content: '# Fragen\n\n' },
+    ],
+  },
+  {
+    key: 'musikheft',
+    titleKey: 'notebooks.type_musikheft',
+    descKey: 'notebooks.type_musikheft_desc',
+    notebookType: 'musikheft',
+    color: '#10b981',
+    icon: 'Music',
+    iconComponent: Music,
+    pages: [
+      { title: 'Noten', content: '' },
+      { title: 'Rhythmus', content: '# Rhythmus\n\n' },
+      { title: 'Melodie', content: '# Melodie\n\n' },
+      { title: 'Harmonie', content: '# Harmonie\n\n' },
+      { title: 'Komposition', content: '# Komposition\n\n' },
+    ],
+  },
+  {
+    key: 'kunstheft',
+    titleKey: 'notebooks.type_kunstheft',
+    descKey: 'notebooks.type_kunstheft_desc',
+    notebookType: 'kunstheft',
+    color: '#8b5cf6',
+    icon: 'Palette',
+    iconComponent: Paintbrush,
+    pages: [
+      { title: 'Skizzen', content: '' },
+      { title: 'Farbstudien', content: '' },
+      { title: 'Komposition', content: '' },
+      { title: 'Perspektive', content: '' },
+      { title: 'Portfolio', content: '' },
+    ],
+  },
+  {
+    key: 'englischheft',
+    titleKey: 'notebooks.type_englischheft',
+    descKey: 'notebooks.type_englischheft_desc',
+    notebookType: 'englischheft',
+    color: '#f59e0b',
+    icon: 'Globe',
+    iconComponent: Languages,
+    pages: [
+      { title: 'Vocabulary', content: '# Vocabulary\n\n| English | Deutsch |\n|---------|--------|\n| | |\n| | |\n' },
+      { title: 'Grammar', content: '# Grammar\n\n' },
+      { title: 'Reading', content: '# Reading\n\n' },
+      { title: 'Writing', content: '# Writing\n\n' },
+      { title: 'Exercises', content: '# Exercises\n\n' },
+    ],
+  },
+  {
+    key: 'geschichtsheft',
+    titleKey: 'notebooks.type_geschichtsheft',
+    descKey: 'notebooks.type_geschichtsheft_desc',
+    notebookType: 'geschichtsheft',
+    color: '#92400e',
+    icon: 'BookMarked',
+    iconComponent: BookMarked,
+    pages: [
+      { title: 'Zeitstrahl', content: '# Zeitstrahl\n\n| Jahr | Ereignis |\n|------|----------|\n| | |\n' },
+      { title: 'Quellenanalyse', content: '# Quellenanalyse\n\n**Quellenart:**\n\n**Entstehungszeit:**\n\n**Verfasser:**\n\n**Aussage:**\n\n**Historischer Kontext:**\n\n' },
+      { title: 'Begriffe', content: '# Begriffe\n\n| Begriff | Definition |\n|---------|------------|\n| | |\n' },
+      { title: 'Ursachen und Wirkungen', content: '# Ursachen und Wirkungen\n\n**Ursachen:**\n1. \n2. \n\n**Wirkungen:**\n1. \n2. \n' },
+    ],
+  },
+  {
+    key: 'religionsheft',
+    titleKey: 'notebooks.type_religionsheft',
+    descKey: 'notebooks.type_religionsheft_desc',
+    notebookType: 'religionsheft',
+    color: '#f97316',
+    icon: 'Heart',
+    iconComponent: Heart,
+    pages: [
+      { title: 'Bibelstellen', content: '# Bibelstellen\n\n| Stelle | Text | Bedeutung |\n|--------|------|----------|\n| | | |\n' },
+      { title: 'Gedanken', content: '# Gedanken\n\n' },
+      { title: 'Ethik', content: '# Ethik\n\n**Situation:**\n\n**Verschiedene Sichtweisen:**\n\n**Meine Meinung:**\n\n' },
+      { title: 'Weltreligionen', content: '# Weltreligionen\n\n| Religion | Gruender | Heilige Schrift |\n|----------|----------|----------------|\n| Christentum | Jesus | Bibel |\n| Islam | Mohammed | Koran |\n| Judentum | Moses | Tora |\n| Buddhismus | Buddha | Tripitaka |\n| Hinduismus | - | Veden |\n' },
+    ],
+  },
+  {
+    key: 'sachkundeheft',
+    titleKey: 'notebooks.type_sachkundeheft',
+    descKey: 'notebooks.type_sachkundeheft_desc',
+    notebookType: 'sachkundeheft',
+    color: '#0d9488',
+    icon: 'Book',
+    iconComponent: Book,
+    pages: [
+      { title: 'Thema', content: '# Sachkunde\n\n**Thema:**\n\n**Was ich weiss:**\n\n**Was ich gelernt habe:**\n\n' },
+      { title: 'Beobachtungen', content: '# Beobachtungen\n\n| Datum | Was ich beobachtet habe |\n|-------|------------------------|\n| | |\n' },
+      { title: 'Zeichnung', content: '' },
+      { title: 'Zusammenfassung', content: '# Zusammenfassung\n\n' },
+    ],
+  },
 ];
 
 // ─── CSS Background Patterns ─────────────────────────────────────────
@@ -399,12 +553,26 @@ const NOTEBOOK_TEMPLATES: NotebookTemplate[] = [
 function getPageBackgroundCSS(type: string): React.CSSProperties {
   switch (type) {
     case 'lined':
+    case 'deutschheft': // German/Language notebook - lined paper with margin
+    case 'englischheft': // English notebook - lined paper
+    case 'religionsheft': // Religion/Ethics notebook - lined paper
       return {
         backgroundImage: `repeating-linear-gradient(0deg, transparent, transparent 31px, #d1d5db 31px, #d1d5db 32px)`,
         backgroundSize: '100% 32px',
         backgroundPosition: '0 16px',
       };
+    case 'deutschheft_margin': // Deutschheft with margin line
+      return {
+        backgroundImage: `
+          repeating-linear-gradient(0deg, transparent, transparent 31px, #d1d5db 31px, #d1d5db 32px),
+          linear-gradient(90deg, transparent 60px, #e5e7eb 60px, #e5e7eb 62px, transparent 62px)
+        `,
+        backgroundSize: '100% 32px, 100% 100%',
+        backgroundPosition: '0 16px, 0 0',
+      };
     case 'grid':
+    case 'matheheft': // Math notebook - grid/dotted paper
+    case 'sachbuch': // Science notebook - grid paper
       return {
         backgroundImage: `
           repeating-linear-gradient(0deg, transparent, transparent 31px, #d1d5db 31px, #d1d5db 32px),
@@ -418,6 +586,7 @@ function getPageBackgroundCSS(type: string): React.CSSProperties {
         backgroundSize: '24px 24px',
       };
     case 'music':
+    case 'musikheft': // Music notebook - music staff lines
       return {
         backgroundImage: `
           repeating-linear-gradient(0deg, transparent, transparent 7px, #d1d5db 7px, #d1d5db 8px),
@@ -438,7 +607,25 @@ function getPageBackgroundCSS(type: string): React.CSSProperties {
         backgroundPosition: '0 16px',
       };
     case 'blank':
+    case 'kunstheft': // Art notebook - blank paper
       return {};
+    case 'geschichtsheft': // History notebook - lined with timeline accent
+      return {
+        backgroundImage: `
+          repeating-linear-gradient(0deg, transparent, transparent 31px, #d1d5db 31px, #d1d5db 32px),
+          linear-gradient(90deg, #f5f3ff 0px, #f5f3ff 40px, transparent 40px)
+        `,
+        backgroundSize: '100% 32px, 100% 100%',
+        backgroundPosition: '0 16px, 0 0',
+      };
+    case 'sachkundeheft': // General studies - lined with drawing space
+      return {
+        backgroundImage: `
+          repeating-linear-gradient(0deg, transparent, transparent 31px, #d1d5db 31px, #d1d5db 32px)
+        `,
+        backgroundSize: '100% 32px',
+        backgroundPosition: '0 16px',
+      };
     default:
       return {};
   }
@@ -810,6 +997,22 @@ function NotebookCard({
             <span>{t('notebooks.eco_tip')}</span>
           </div>
 
+          {/* Curriculum badge for German curriculum types */}
+          {typeInfo.isCurriculum && (
+            <div className="flex items-center gap-1.5 text-xs text-amber-600 dark:text-amber-400 pt-0.5">
+              <Bookmark className="w-3 h-3" />
+              <span>{t('notebooks.curriculum_badge')}</span>
+            </div>
+          )}
+
+          {/* Eco-friendly badge */}
+          <div className="flex items-center gap-1.5 pt-0.5">
+            <Badge className="bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 border-0 text-[10px] px-1.5 py-0">
+              <Leaf className="w-2.5 h-2.5 mr-0.5" />
+              {t('notebooks.eco_badge')}
+            </Badge>
+          </div>
+
           {/* Action buttons — only show for own notebooks, not shared */}
           {!isShared && (
             <div className="flex items-center gap-1 pt-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex-wrap">
@@ -956,8 +1159,9 @@ function CreateNotebookDialog({
           {/* Notebook Type - Visual Selector */}
           <div className="space-y-2">
             <Label>{t('notebooks.field_type')}</Label>
+            {/* Base types */}
             <div className="grid grid-cols-3 gap-2">
-              {NOTEBOOK_TYPES.map((nt) => {
+              {NOTEBOOK_TYPES.filter(nt => !nt.isCurriculum).map((nt) => {
                 const NtIcon = nt.icon;
                 const isSelected = notebookType === nt.key;
                 return (
@@ -975,6 +1179,33 @@ function CreateNotebookDialog({
                   </button>
                 );
               })}
+            </div>
+            {/* German curriculum types */}
+            <div className="mt-3">
+              <Label className="text-xs text-amber-600 dark:text-amber-400 flex items-center gap-1 mb-2">
+                <Bookmark className="w-3 h-3" />
+                {t('notebooks.curriculum_badge')}
+              </Label>
+              <div className="grid grid-cols-3 gap-2">
+                {NOTEBOOK_TYPES.filter(nt => nt.isCurriculum).map((nt) => {
+                  const NtIcon = nt.icon;
+                  const isSelected = notebookType === nt.key;
+                  return (
+                    <button
+                      key={nt.key}
+                      onClick={() => setNotebookType(nt.key)}
+                      className={`flex flex-col items-center gap-1 p-3 rounded-xl border-2 transition-all min-h-[64px] ${
+                        isSelected
+                          ? 'border-amber-500 bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-300'
+                          : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:border-amber-300'
+                      }`}
+                    >
+                      <NtIcon className="w-5 h-5" />
+                      <span className="text-xs font-medium">{t(nt.labelKey)}</span>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           </div>
 
@@ -2065,7 +2296,7 @@ function NotebookDetailView({
         <div className="w-64 border-r border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50 flex flex-col">
           <div className="p-3 space-y-2">
             <Button
-              onClick={onAddPage}
+              onClick={() => onAddPage()}
               className="w-full min-h-[44px] bg-emerald-600 hover:bg-emerald-700"
               size="sm"
             >
@@ -2518,7 +2749,7 @@ function NotebookDetailView({
               <p className="text-gray-500 dark:text-gray-400 text-lg">
                 {t('notebooks.no_notebooks_desc')}
               </p>
-              <Button onClick={onAddPage} className="min-h-[44px] bg-emerald-600 hover:bg-emerald-700">
+              <Button onClick={() => onAddPage()} className="min-h-[44px] bg-emerald-600 hover:bg-emerald-700">
                 <Plus className="w-4 h-4 mr-1" />
                 {t('notebooks.add_page')}
               </Button>
@@ -3806,6 +4037,12 @@ export default function NotebooksView() {
     [notebooks]
   );
 
+  // Tree calculation: ~8000 sheets of paper per tree, so 50 pages per notebook
+  const treesSaved = useMemo(
+    () => Math.max(0, totalPaperSaved / 8000),
+    [totalPaperSaved]
+  );
+
   // Handlers
   // BUG FIX: Call loadData() instead of just appending to local state
   const handleCreate = useCallback(async (data: Partial<Notebook>) => {
@@ -3989,7 +4226,7 @@ export default function NotebooksView() {
       const newNotebook = await apiPost<Notebook>('/api/notebooks', {
         schoolId,
         ownerId: currentUser?.id ?? '',
-        ownerType: 'TEACHER',
+        ownerType: currentUser?.role === 'STUDENT' ? 'STUDENT' : 'TEACHER',
         title: t(template.titleKey),
         description: t(template.descKey),
         notebookType: template.notebookType,
@@ -4134,7 +4371,7 @@ export default function NotebooksView() {
           </div>
 
           {/* Stats */}
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 flex-wrap">
             <Card className="px-3 py-2 border-0 shadow-sm bg-emerald-50 dark:bg-emerald-900/20">
               <div className="text-xs text-emerald-600 dark:text-emerald-400">{t('notebooks.total_notebooks')}</div>
               <div className="text-lg font-bold text-emerald-700 dark:text-emerald-300">{activeNotebooks.length}</div>
@@ -4145,6 +4382,14 @@ export default function NotebooksView() {
                 {totalPaperSaved} {t('notebooks.pages_unit')}
               </div>
             </Card>
+            {treesSaved > 0 && (
+              <Card className="px-3 py-2 border-0 shadow-sm bg-amber-50 dark:bg-amber-900/20">
+                <div className="text-xs text-amber-600 dark:text-amber-400">{t('notebooks.trees_saved')}</div>
+                <div className="text-lg font-bold text-amber-700 dark:text-amber-300">
+                  {treesSaved < 1 ? treesSaved.toFixed(2) : treesSaved.toFixed(1)} {t('notebooks.trees_unit')}
+                </div>
+              </Card>
+            )}
           </div>
 
           {/* Search */}
@@ -4601,7 +4846,7 @@ export default function NotebooksView() {
 
       {/* Eco footer bar */}
       <div className="bg-emerald-50 dark:bg-emerald-900/20 border-t border-emerald-200 dark:border-emerald-800 px-4 sm:px-6 py-3">
-        <div className="flex items-center gap-3 text-emerald-700 dark:text-emerald-300 text-sm">
+        <div className="flex items-center gap-3 text-emerald-700 dark:text-emerald-300 text-sm flex-wrap">
           <Leaf className="w-5 h-5" />
           <span>
             {t('notebooks.eco_total', {
@@ -4609,6 +4854,14 @@ export default function NotebooksView() {
               pages: totalPaperSaved,
             })}
           </span>
+          {treesSaved > 0 && (
+            <>
+              <Separator orientation="vertical" className="h-4 bg-emerald-300 dark:bg-emerald-700" />
+              <span className="text-xs flex items-center gap-1">
+                {t('notebooks.trees_saved_message', { count: treesSaved < 1 ? treesSaved.toFixed(2) : treesSaved.toFixed(1) })}
+              </span>
+            </>
+          )}
           <Separator orientation="vertical" className="h-4 bg-emerald-300 dark:bg-emerald-700" />
           <span className="text-xs">{t('notebooks.eco_message')}</span>
         </div>

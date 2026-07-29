@@ -557,7 +557,7 @@ export default function TimetableView() {
                                     draggable
                                     onDragStart={() => handleDragStart(cellSlot.id)}
                                     onDragEnd={handleDragEnd}
-                                    className={`rounded-md p-2 cursor-pointer min-h-[44px] flex flex-col gap-0.5 border ${cellSlot.isBreak ? BREAK_COLOR : getSubjectColor(cellSlot.subject?.name)}`}
+                                    className={`rounded-md p-2 cursor-pointer min-h-[44px] flex flex-col gap-0.5 border ${cellSlot.isBreak ? BREAK_COLOR : getSubjectColor(cellSlot.subject?.name ?? null)}`}
                                     onClick={() => {
                                       setEditSlot(cellSlot);
                                       setDialogDay(day);

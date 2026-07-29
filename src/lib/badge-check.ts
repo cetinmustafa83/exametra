@@ -197,7 +197,7 @@ async function checkBadgeRequirement(
       const attendanceRecords = await db.attendanceRecord.findMany({
         where: {
           studentId,
-          schoolId,
+          student: { schoolId },
           status: 'PRESENT',
           session: { date: { gte: thirtyDaysAgo } },
         },
@@ -211,7 +211,7 @@ async function checkBadgeRequirement(
       const progressEntries = await db.learningProgressEntry.findMany({
         where: {
           studentId,
-          schoolId,
+          student: { schoolId },
           masteryLevelValue: { gte: threshold },
         },
       });
@@ -225,7 +225,7 @@ async function checkBadgeRequirement(
       const count = await db.learningProgressEntry.count({
         where: {
           studentId,
-          schoolId,
+          student: { schoolId },
           date: { gte: oneMonthAgo },
         },
       });
@@ -253,15 +253,14 @@ async function checkBadgeRequirement(
         case 'Notebook Champion': {
           const count = await db.notebookPage.count({
             where: {
-              notebook: { schoolId },
-              notebook: { createdById: studentId },
+              notebook: { schoolId, ownerId: studentId },
             },
           });
           return count >= threshold;
         }
         case 'Drawing Artist': {
           const count = await db.drawing.count({
-            where: { schoolId, createdById: studentId },
+            where: { schoolId, ownerId: studentId },
           });
           return count >= threshold;
         }
@@ -297,7 +296,7 @@ async function checkBadgeRequirement(
         case 'Eco Warrior': {
           // Awarded if student has at least 1 notebook
           const count = await db.notebook.count({
-            where: { schoolId, createdById: studentId },
+            where: { schoolId, ownerId: studentId },
           });
           return count >= threshold;
         }
@@ -339,7 +338,17 @@ export async function getBadgeProgress(
   });
   const earnedBadgeMap = new Map(earnedBadges.map(eb => [eb.badgeId, eb.awardedAt]));
 
-  const results = [];
+  const results: Array<{
+    badgeId: string;
+    name: string;
+    icon: string;
+    color: string;
+    category: string;
+    earned: boolean;
+    progress: number;
+    current: number;
+    target: number;
+  }> = [];
 
   for (const badge of badges) {
     const earned = earnedBadgeMap.has(badge.id);
@@ -382,7 +391,7 @@ async function getCurrentProgress(
       return db.attendanceRecord.count({
         where: {
           studentId,
-          schoolId,
+          student: { schoolId },
           status: 'PRESENT',
           session: { date: { gte: thirtyDaysAgo } },
         },
@@ -390,7 +399,7 @@ async function getCurrentProgress(
     }
     case 'mastery_level': {
       const entries = await db.learningProgressEntry.findMany({
-        where: { studentId, schoolId },
+        where: { studentId, student: { schoolId } },
         orderBy: { masteryLevelValue: 'desc' },
         take: 1,
       });
@@ -400,7 +409,7 @@ async function getCurrentProgress(
       const oneMonthAgo = new Date();
       oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
       return db.learningProgressEntry.count({
-        where: { studentId, schoolId, date: { gte: oneMonthAgo } },
+        where: { studentId, student: { schoolId }, date: { gte: oneMonthAgo } },
       });
     }
     case 'behavior_count': {
@@ -411,9 +420,9 @@ async function getCurrentProgress(
     case 'custom': {
       switch (badge.name) {
         case 'Notebook Champion':
-          return db.notebookPage.count({ where: { notebook: { schoolId, createdById: studentId } } });
+          return db.notebookPage.count({ where: { notebook: { schoolId, ownerId: studentId } } });
         case 'Drawing Artist':
-          return db.drawing.count({ where: { schoolId, createdById: studentId } });
+          return db.drawing.count({ where: { schoolId, ownerId: studentId } });
         case 'Homework Hero':
           return db.homeworkSubmission.count({ where: { studentId, homework: { schoolId }, status: 'SUBMITTED' } });
         case 'Team Player':
@@ -421,7 +430,7 @@ async function getCurrentProgress(
         case 'Goal Achiever':
           return db.learningGoal.count({ where: { studentId, schoolId, status: 'COMPLETED' } });
         case 'Eco Warrior':
-          return db.notebook.count({ where: { schoolId, createdById: studentId } });
+          return db.notebook.count({ where: { schoolId, ownerId: studentId } });
         default:
           return 0;
       }

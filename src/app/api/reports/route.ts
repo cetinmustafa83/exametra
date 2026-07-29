@@ -43,7 +43,7 @@ export async function GET(request: Request) {
       where,
       orderBy: { generatedAt: 'desc' },
       include: {
-        student: { select: { id: true, firstName: true, lastName: true } },
+        student: { select: { id: true, firstName: true, lastName: true, avatarUrl: true } },
         classGroup: { select: { id: true, name: true, gradeLevel: true } },
         schoolYear: { select: { id: true, label: true } },
         generatedByUser: {
@@ -116,7 +116,7 @@ export async function POST(request: Request) {
           : undefined,
       },
       include: {
-        student: { select: { id: true, firstName: true, lastName: true } },
+        student: { select: { id: true, firstName: true, lastName: true, avatarUrl: true } },
         classGroup: { select: { id: true, name: true } },
         schoolYear: { select: { id: true, label: true } },
         generatedByUser: {
@@ -186,7 +186,7 @@ export async function PUT(request: Request) {
       where: { id },
       data: updateData,
       include: {
-        student: { select: { id: true, firstName: true, lastName: true } },
+        student: { select: { id: true, firstName: true, lastName: true, avatarUrl: true } },
         classGroup: { select: { id: true, name: true, gradeLevel: true } },
         schoolYear: { select: { id: true, label: true } },
         generatedByUser: {
