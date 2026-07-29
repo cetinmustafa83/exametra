@@ -1,6 +1,52 @@
 # CompetenceTrack — Project Worklog
 
 ---
+Task ID: 15
+Agent: round14-self-assessment-learning-goals-portfolio-homework-announcements
+Task: Self-Assessment, Learning Goals, Portfolio, Homework, Announcements
+
+Work Log:
+- Verified 5 new Prisma models: SelfAssessment, LearningGoal, PortfolioEntry, Homework, HomeworkSubmission, Announcement
+- SelfAssessment: schoolId, studentId, competencyId, classGroupId, selfLevel (1-6), confidence (1-5), reflection, evidence, goalId
+- LearningGoal: schoolId, studentId, competencyId, title, description, targetLevel, currentLevel, deadline, status (active/completed/abandoned), progress (0-100)
+- PortfolioEntry: schoolId, studentId, title, description, entryType (artwork/writing/project/presentation/achievement/reflection), competencyId, content, mediaUrls, notebookPageId, drawingId, isPublic, tags
+- Homework: schoolId, classGroupId, subjectId, teacherId, title, description, dueDate, homeworkType (assignment/reading/project/practice/research), maxPoints, attachments, isPublished
+- HomeworkSubmission: homeworkId, studentId, content, attachments, status (pending/submitted/graded/late), score, feedback, submittedAt, gradedAt
+- Announcement: schoolId, authorId, title, content, priority (low/normal/high/urgent), targetAudience (all/teachers/students/parents/class), classGroupId, isPinned, expiresAt
+- Added relations to School, User, ClassGroup, Student, Subject, Competency models
+- Ran db:push: schema already in sync
+- New API routes:
+  - Self-Assessments: GET/POST /api/self-assessments, GET/PUT/DELETE /api/self-assessments/[id]
+  - Learning Goals: GET/POST /api/learning-goals, GET/PUT/DELETE /api/learning-goals/[id]
+  - Portfolio: GET/POST /api/portfolio, GET/PUT/DELETE /api/portfolio/[id]
+  - Homework: GET/POST /api/homework, GET/PUT/DELETE /api/homework/[id]
+  - Homework Submissions: GET/POST /api/homework/[id]/submissions, GET/PUT/DELETE /api/homework/[id]/submissions/[submissionId]
+  - Announcements: GET/POST /api/announcements, GET/PUT/DELETE /api/announcements/[id]
+- New views: homework-view.tsx, portfolio-view.tsx
+- New navigation items: homework (BookCheck icon), portfolio (Briefcase icon)
+- Added ViewName types: 'homework', 'portfolio'
+- Announcement Banner component in app-layout.tsx with priority colors, dismiss functionality, localStorage persistence
+- Added student nav items: homework, portfolio
+- Enhanced dashboard-view.tsx with self-assessment, learning goals, homework, and announcements widgets
+- Enhanced student-detail-view.tsx with self-assessment, learning goals, portfolio tabs
+- 170+ new i18n keys for DE and EN (self-assessment, learning-goals, portfolio, homework, announcements)
+- Ran bun run lint: 0 errors
+- Ran bun run db:push: schema already in sync
+- Checked dev server log: server running, no errors
+- Checked for duplicate i18n keys: 2491 keys in DE, 2491 keys in EN, no duplicates found
+
+Stage Summary:
+- All 5 new Prisma models (SelfAssessment, LearningGoal, PortfolioEntry, Homework, HomeworkSubmission, Announcement) created and synced
+- All 6 API route groups created with full CRUD operations
+- 2 new views created: homework-view.tsx, portfolio-view.tsx
+- Announcement Banner integrated into app-layout.tsx
+- Dashboard enhanced with new widgets
+- Student detail view enhanced with self-assessment and learning goals tabs
+- 170+ new i18n keys added (no duplicates)
+- Current status: Round 14 complete
+- Next phase priorities: Parent portal, mobile responsiveness, performance optimization, data export/import
+
+---
 Task ID: 14
 Agent: reports-scheduling-multi-school
 Task: Report Scheduling + Multi-School District Support
@@ -569,3 +615,77 @@ Stage Summary:
 - API rate limiting with configurable presets protecting auth, data, and heavy operation endpoints
 - Rate limit admin monitoring in settings view
 - 8 new files, 11 modified files, 0 lint errors
+
+---
+Task ID: 16
+Agent: homework-announcements
+Task: Homework Management + Announcements + Styling
+
+Work Log:
+- Added Homework and HomeworkSubmission Prisma models with all required fields and relations
+- Added Announcement Prisma model with priority, targetAudience, isPinned, expiresAt fields
+- Added relations to School (homeworks, announcements), User (homeworks, announcements), ClassGroup (homeworks, announcements), Subject (homeworks), Student (homeworkSubmissions) models
+- Ran db:push successfully to sync database schema
+- Created Homework API routes: GET/POST /api/homework, GET/PUT/DELETE /api/homework/[id]
+- Created Homework Submission API routes: GET/POST /api/homework/[id]/submissions, PUT/DELETE /api/homework/[id]/submissions/[submissionId]
+- Created Announcement API routes: GET/POST /api/announcements, GET/PUT/DELETE /api/announcements/[id]
+- Added 'homework' to ViewName type in store.ts
+- Added Homework navigation item (BookCheck icon) in teacher, student, and parent nav sections of app-layout.tsx
+- Added HomeworkView import and renderView case in app-layout.tsx
+- Created homework-view.tsx with full teacher view (create, edit, delete, submissions, grading) and student view (submit, view feedback)
+- Implemented color-coded due date badges (overdue=rose, today=amber, upcoming=emerald)
+- Implemented homework type badges with icons (FileText, BookOpen, Lightbulb, FlaskConical, Search)
+- Implemented submission status tracking (pending, submitted, graded, late) with colored badges
+- Implemented quick grading interface with slider for score and feedback textarea
+- Added announcement banner component (AnnouncementBanner) in app-layout.tsx
+- Banner shows pinned/urgent announcements at top with dismiss button (localStorage remembered)
+- Priority-based banner colors (urgent=rose, high=amber, normal=emerald, low=teal)
+- Dismiss animation with framer-motion (slide up + fade out)
+- Added DashboardAnnouncementsCard component in dashboard-view.tsx
+- Announcements card with expand/collapse for long content, priority indicators, pin icon
+- Create announcement dialog for admin/teacher roles
+- Added DashboardHomeworkCard component in dashboard-view.tsx
+- Homework due soon card showing upcoming homework within 7 days
+- Both cards link to homework view for full details
+- Added 110+ i18n keys for homework and announcements (DE + EN) in i18n.ts
+- Added global CSS classes: .announcement-banner, .homework-card, .priority-urgent/high/normal/low, .due-overdue/today/upcoming
+- All components use 44px minimum touch targets for tablet
+- ESLint passes with 0 errors
+
+Stage Summary:
+- Full homework management CRUD with teacher/student views
+- Homework submission workflow with grading interface
+- Announcement system with priority-based banner and dashboard card
+- 8 new API route files, 1 new view component, 2 new dashboard sub-components
+- 110+ i18n keys added for DE and EN
+- Global CSS classes for homework and announcement styling
+- 0 lint errors
+
+---
+Task ID: 15
+Agent: self-assessment-portfolio
+Task: Student Self-Assessment + Portfolio System + Learning Goals
+
+Work Log:
+- Added SelfAssessment, LearningGoal, PortfolioEntry Prisma models to schema.prisma
+- Added relations to School (selfAssessments, learningGoals, portfolioEntries), Student (selfAssessments, learningGoals, portfolioEntries), Competency (selfAssessments, learningGoals, portfolioEntries), ClassGroup (selfAssessments) models
+- Ran db:push successfully - all three new tables created
+- Created Self-Assessment API routes: GET/POST /api/self-assessments, GET/PUT/DELETE /api/self-assessments/[id]
+- Created Learning Goals API routes: GET/POST /api/learning-goals, GET/PUT/DELETE /api/learning-goals/[id]
+- Created Portfolio API routes: GET/POST /api/portfolio, GET/PUT/DELETE /api/portfolio/[id]
+- Added 60+ i18n keys for both DE and EN covering self-assessment, learning goals, and portfolio
+- Added Self-Assessment UI section in student-detail-view.tsx: list view, radar comparison chart (self vs teacher), competency selector, slider for mastery level (1-6), confidence selector (1-5), reflection/evidence text areas, gap analysis badges, create/edit/delete dialogs
+- Added Learning Goals UI section in student-detail-view.tsx: goal cards with progress bars, status tracking (active/completed/abandoned), deadline countdown, celebration animation on completion, create/edit/delete dialogs, competency linking
+- Created portfolio-view.tsx component: grid view with entry cards, timeline view, type-based filtering (artwork/writing/project/presentation/achievement/reflection), tag filtering, search, public/private toggle, create/edit/delete dialogs
+- Added 'portfolio' to ViewName type in store.ts
+- Added Portfolio navigation in app-layout.tsx: Briefcase icon in Teaching section, student nav section, renderView case
+- Added PortfolioView import in app-layout.tsx
+- Ran bun run lint: no errors
+
+Stage Summary:
+- Three new Prisma models (SelfAssessment, LearningGoal, PortfolioEntry) with full CRUD API routes
+- Self-Assessment section in student-detail-view with radar chart comparison, gap analysis, dialog CRUD
+- Learning Goals section in student-detail-view with progress tracking, deadline countdown, celebration animation
+- Portfolio view as standalone page with grid/timeline views, type/tag filtering, public/private toggle
+- Portfolio nav item with Briefcase icon added to Teaching section and Student nav
+- 60+ new i18n keys in both DE and EN

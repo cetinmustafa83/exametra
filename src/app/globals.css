@@ -186,6 +186,76 @@
     background-size: 24px 24px;
   }
 
+  /* Announcement banner styling */
+  .announcement-banner {
+    transition: all 0.3s ease;
+  }
+  .announcement-banner:hover {
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  }
+
+  /* Homework card styling */
+  .homework-card {
+    transition: all 0.2s ease;
+  }
+  .homework-card:hover {
+    transform: translateY(-1px);
+  }
+
+  /* Priority color classes */
+  .priority-urgent {
+    border-color: oklch(0.577 0.245 27.325);
+    background-color: oklch(0.95 0.05 27);
+  }
+  .priority-high {
+    border-color: oklch(0.72 0.19 85);
+    background-color: oklch(0.95 0.05 85);
+  }
+  .priority-normal {
+    border-color: oklch(0.55 0.17 155);
+    background-color: oklch(0.95 0.05 155);
+  }
+  .priority-low {
+    border-color: oklch(0.53 0.14 175);
+    background-color: oklch(0.95 0.05 175);
+  }
+  .dark .priority-urgent {
+    border-color: oklch(0.577 0.245 27.325);
+    background-color: oklch(0.18 0.05 27);
+  }
+  .dark .priority-high {
+    border-color: oklch(0.72 0.19 85);
+    background-color: oklch(0.18 0.05 85);
+  }
+  .dark .priority-normal {
+    border-color: oklch(0.55 0.17 155);
+    background-color: oklch(0.18 0.05 155);
+  }
+  .dark .priority-low {
+    border-color: oklch(0.53 0.14 175);
+    background-color: oklch(0.18 0.05 175);
+  }
+
+  /* Due date color classes */
+  .due-overdue {
+    border-color: oklch(0.577 0.245 27.325);
+  }
+  .due-today {
+    border-color: oklch(0.72 0.19 85);
+  }
+  .due-upcoming {
+    border-color: oklch(0.55 0.17 155);
+  }
+  .dark .due-overdue {
+    border-color: oklch(0.577 0.245 27.325);
+  }
+  .dark .due-today {
+    border-color: oklch(0.72 0.19 85);
+  }
+  .dark .due-upcoming {
+    border-color: oklch(0.55 0.17 155);
+  }
+
   /* Smooth transitions for all interactive elements */
   .interactive-transition {
     transition: all 0.2s ease-out;

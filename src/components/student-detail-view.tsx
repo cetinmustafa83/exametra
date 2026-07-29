@@ -17,6 +17,7 @@ import {
   Printer, ChevronRight, Sparkles, MessageSquare, Grid3X3, Trophy, Flag, Zap,
   Rocket, Target, PenLine, Pencil, Home, ClipboardList, Star, BarChart3,
   LucideIcon, Download, FileSpreadsheet, FileDown, Heart, Users as UsersIcon,
+  Eye, Plus, Trash2, Clock, CheckCircle2, XCircle, SlidersHorizontal, Lightbulb,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -34,9 +35,58 @@ import {
 } from '@/components/ui/tooltip';
 import { useAppStore, type CurrentUser } from '@/lib/store';
 import { t } from '@/lib/i18n';
-import { fetchStudentDetail, getReportPdfUrl, type StudentDetailData, fetchParentLinks, type ParentStudentLinkData } from '@/lib/api';
+import { fetchStudentDetail, getReportPdfUrl, type StudentDetailData, fetchParentLinks, type ParentStudentLinkData, apiGet, apiPost, apiPut, apiDelete } from '@/lib/api';
 import { toast } from 'sonner';
 import TeacherNotesSection from './teacher-notes-section';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Slider } from '@/components/ui/slider';
+import { Label } from '@/components/ui/label';
+import { Progress } from '@/components/ui/progress';
+
+// ─── Self-Assessment & Learning Goal Types ────────────────────────────────
+interface SelfAssessmentData {
+  id: string;
+  schoolId: string;
+  studentId: string;
+  competencyId: string;
+  classGroupId: string | null;
+  selfLevel: number;
+  confidence: number | null;
+  reflection: string | null;
+  evidence: string | null;
+  goalId: string | null;
+  isDemo: boolean;
+  createdAt: string;
+  updatedAt: string;
+  deletedAt: string | null;
+  student: { id: string; firstName: string; lastName: string };
+  competency: { id: string; code: string; title: string };
+  classGroup: { id: string; name: string } | null;
+  goal: { id: string; title: string; status: string } | null;
+}
+
+interface LearningGoalData {
+  id: string;
+  schoolId: string;
+  studentId: string;
+  competencyId: string | null;
+  title: string;
+  description: string | null;
+  targetLevel: number | null;
+  currentLevel: number | null;
+  deadline: string | null;
+  status: string;
+  progress: number;
+  isDemo: boolean;
+  createdAt: string;
+  updatedAt: string;
+  deletedAt: string | null;
+  student: { id: string; firstName: string; lastName: string };
+  competency: { id: string; code: string; title: string } | null;
+  selfAssessments: { id: string; selfLevel: number; confidence: number | null; createdAt: string }[];
+}
 
 // ─── Journey Timeline Time Filter State ─────────────────────────────────
 type JourneyTimeRange = '30' | '90' | 'all';
@@ -349,6 +399,17 @@ export default function StudentDetailView() {
   const [selectedFlowerSubjectId, setSelectedFlowerSubjectId] = useState<string>('');
   const [timeRange, setTimeRange] = useState<JourneyTimeRange>('all');
 
+  // Self-Assessment & Learning Goals state
+  const [selfAssessments, setSelfAssessments] = useState<SelfAssessmentData[]>([]);
+  const [learningGoals, setLearningGoals] = useState<LearningGoalData[]>([]);
+  const [saDialogOpen, setSaDialogOpen] = useState(false);
+  const [saEditId, setSaEditId] = useState<string | null>(null);
+  const [saForm, setSaForm] = useState({ competencyId: '', selfLevel: 3, confidence: 3, reflection: '', evidence: '', goalId: '' });
+  const [lgDialogOpen, setLgDialogOpen] = useState(false);
+  const [lgEditId, setLgEditId] = useState<string | null>(null);
+  const [lgForm, setLgForm] = useState({ title: '', description: '', competencyId: '', targetLevel: 4, currentLevel: 1, deadline: '', status: 'active', progress: 0 });
+  const [goalCelebration, setGoalCelebration] = useState<string | null>(null);
+
   // Load parent links for parent users
   useEffect(() => {
     if (isParent && currentUser?.id) {
@@ -385,6 +446,26 @@ export default function StudentDetailView() {
     load();
     return () => { cancelled = true; };
   }, [currentStudentId]);
+
+  // Load self-assessments and learning goals
+  useEffect(() => {
+    if (!currentStudentId || !currentUser?.schoolId) return;
+    const schoolId = currentUser.schoolId;
+    async function loadSA() {
+      try {
+        const data = await apiGet<SelfAssessmentData[]>(`/api/self-assessments?schoolId=${schoolId}&studentId=${currentStudentId}`);
+        setSelfAssessments(data);
+      } catch { /* ignore */ }
+    }
+    async function loadLG() {
+      try {
+        const data = await apiGet<LearningGoalData[]>(`/api/learning-goals?schoolId=${schoolId}&studentId=${currentStudentId}`);
+        setLearningGoals(data);
+      } catch { /* ignore */ }
+    }
+    loadSA();
+    loadLG();
+  }, [currentStudentId, currentUser?.schoolId]);
 
   if (loading) {
     return (
@@ -1234,6 +1315,584 @@ export default function StudentDetailView() {
           </Card>
         )}
       </div>
+
+      {/* ─── Self-Assessment Section ─────────────────────────────────── */}
+      <Card className="border-0 shadow-sm rounded-xl border-l-3 border-l-cyan-500 overflow-hidden">
+        <CardHeader className="pb-3 pt-6 bg-gradient-to-r from-cyan-50/50 to-transparent dark:from-cyan-900/10 dark:to-transparent">
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <CardTitle className="text-lg font-bold flex items-center gap-2">
+              <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-cyan-100 dark:bg-cyan-900/30 text-cyan-600 dark:text-cyan-400">
+                <Eye className="h-4 w-4" />
+              </div>
+              {t('self_assessment.title')}
+              <Badge className="bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-300 text-xs font-medium">
+                {selfAssessments.length}
+              </Badge>
+            </CardTitle>
+            <Button
+              variant="outline"
+              size="sm"
+              className="rounded-xl border-cyan-300 dark:border-cyan-700 text-cyan-700 dark:text-cyan-300 min-h-[44px]"
+              onClick={() => {
+                setSaEditId(null);
+                setSaForm({ competencyId: '', selfLevel: 3, confidence: 3, reflection: '', evidence: '', goalId: '' });
+                setSaDialogOpen(true);
+              }}
+            >
+              <Plus className="h-4 w-4 mr-1" />
+              {t('self_assessment.add_new')}
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {selfAssessments.length === 0 ? (
+            <div className="text-center py-8">
+              <Eye className="h-8 w-8 text-cyan-400 dark:text-cyan-500 mx-auto mb-2" />
+              <p className="text-gray-500 dark:text-gray-400">{t('self_assessment.no_assessments')}</p>
+            </div>
+          ) : (
+            <>
+              {/* Comparison radar chart */}
+              {(() => {
+                const comparisonData = selfAssessments.map((sa) => {
+                  const teacherEntry = data?.progressEntries.find(
+                    (pe) => pe.competencyId === sa.competencyId
+                  );
+                  return {
+                    competency: sa.competency.code.length > 12 ? sa.competency.code.slice(0, 12) : sa.competency.code,
+                    self: sa.selfLevel,
+                    teacher: teacherEntry ? teacherEntry.masteryLevelValue : 0,
+                  };
+                }).filter((d) => d.teacher > 0);
+                if (comparisonData.length < 3) return null;
+                return (
+                  <div className="mb-6">
+                    <p className="text-xs font-semibold text-gray-600 dark:text-gray-400 mb-3 uppercase tracking-wider">{t('self_assessment.comparison_chart')}</p>
+                    <div className="h-64">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <RadarChart data={comparisonData}>
+                          <PolarGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                          <PolarAngleAxis dataKey="competency" tick={{ fontSize: 10, fill: '#6b7280' }} />
+                          <PolarRadiusAxis domain={[0, 6]} tick={{ fontSize: 9 }} />
+                          <Radar name={t('self_assessment.self')} dataKey="self" stroke="#06b6d4" fill="#06b6d4" fillOpacity={0.2} />
+                          <Radar name={t('self_assessment.teacher')} dataKey="teacher" stroke="#f59e0b" fill="#f59e0b" fillOpacity={0.2} />
+                          <Tooltip />
+                        </RadarChart>
+                      </ResponsiveContainer>
+                    </div>
+                    <div className="flex items-center justify-center gap-6 mt-2">
+                      <span className="flex items-center gap-1.5 text-xs text-gray-500"><span className="w-3 h-3 rounded-full bg-cyan-400 inline-block" />{t('self_assessment.self')}</span>
+                      <span className="flex items-center gap-1.5 text-xs text-gray-500"><span className="w-3 h-3 rounded-full bg-amber-400 inline-block" />{t('self_assessment.teacher')}</span>
+                    </div>
+                  </div>
+                );
+              })()}
+              {/* Self-assessment list */}
+              <div className="space-y-2 max-h-96 overflow-y-auto scrollbar-education">
+                {selfAssessments.map((sa, i) => {
+                  const teacherEntry = data?.progressEntries.find((pe) => pe.competencyId === sa.competencyId);
+                  const gap = teacherEntry ? sa.selfLevel - teacherEntry.masteryLevelValue : null;
+                  return (
+                    <motion.div
+                      key={sa.id}
+                      initial={{ opacity: 0, y: 6 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: i * 0.04 }}
+                      className="p-3 rounded-xl bg-gradient-to-r from-cyan-50/40 to-transparent dark:from-cyan-900/10 dark:to-transparent border border-cyan-200/30 dark:border-cyan-900/20"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="text-sm font-semibold text-gray-900 dark:text-gray-100">{sa.competency.code} — {sa.competency.title}</span>
+                            <Badge className="bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-300 text-xs">{t('self_assessment.level')}: {sa.selfLevel}/6</Badge>
+                            {sa.confidence && (
+                              <Badge className="bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300 text-xs">{t('self_assessment.confidence')}: {sa.confidence}/5</Badge>
+                            )}
+                            {gap !== null && (
+                              <Badge className={`${Math.abs(gap) <= 1 ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300' : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300'} text-xs`}>
+                                {t('self_assessment.gap')}: {gap > 0 ? '+' : ''}{gap.toFixed(1)}
+                              </Badge>
+                            )}
+                          </div>
+                          {sa.reflection && (
+                            <p className="text-xs text-gray-600 dark:text-gray-400 mt-1 italic">&ldquo;{sa.reflection}&rdquo;</p>
+                          )}
+                          {sa.evidence && (
+                            <p className="text-xs text-cyan-600 dark:text-cyan-400 mt-0.5"><Lightbulb className="h-3 w-3 inline mr-1" />{sa.evidence}</p>
+                          )}
+                          <p className="text-[10px] text-gray-400 mt-1">{new Date(sa.createdAt).toLocaleDateString()}</p>
+                        </div>
+                        <div className="flex gap-1 shrink-0">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="rounded-lg min-h-[44px] min-w-[44px]"
+                            onClick={() => {
+                              setSaEditId(sa.id);
+                              setSaForm({
+                                competencyId: sa.competencyId,
+                                selfLevel: sa.selfLevel,
+                                confidence: sa.confidence ?? 3,
+                                reflection: sa.reflection ?? '',
+                                evidence: sa.evidence ?? '',
+                                goalId: sa.goalId ?? '',
+                              });
+                              setSaDialogOpen(true);
+                            }}
+                          >
+                            <Pencil className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="rounded-lg text-red-500 hover:text-red-700 min-h-[44px] min-w-[44px]"
+                            onClick={async () => {
+                              try {
+                                await apiDelete(`/api/self-assessments/${sa.id}`);
+                                setSelfAssessments((prev) => prev.filter((a) => a.id !== sa.id));
+                                toast.success(t('action.delete'));
+                              } catch { toast.error(t('error.generic')); }
+                            }}
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+                      </div>
+                    </motion.div>
+                  );
+                })}
+              </div>
+            </>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* ─── Learning Goals Section ─────────────────────────────────── */}
+      <Card className="border-0 shadow-sm rounded-xl border-l-3 border-l-orange-500 overflow-hidden">
+        <CardHeader className="pb-3 pt-6 bg-gradient-to-r from-orange-50/50 to-transparent dark:from-orange-900/10 dark:to-transparent">
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <CardTitle className="text-lg font-bold flex items-center gap-2">
+              <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400">
+                <Target className="h-4 w-4" />
+              </div>
+              {t('learning_goal.title')}
+              <Badge className="bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300 text-xs font-medium">
+                {learningGoals.filter((g) => g.status === 'active').length}
+              </Badge>
+            </CardTitle>
+            <Button
+              variant="outline"
+              size="sm"
+              className="rounded-xl border-orange-300 dark:border-orange-700 text-orange-700 dark:text-orange-300 min-h-[44px]"
+              onClick={() => {
+                setLgEditId(null);
+                setLgForm({ title: '', description: '', competencyId: '', targetLevel: 4, currentLevel: 1, deadline: '', status: 'active', progress: 0 });
+                setLgDialogOpen(true);
+              }}
+            >
+              <Plus className="h-4 w-4 mr-1" />
+              {t('learning_goal.add_new')}
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {learningGoals.length === 0 ? (
+            <div className="text-center py-8">
+              <Target className="h-8 w-8 text-orange-400 dark:text-orange-500 mx-auto mb-2" />
+              <p className="text-gray-500 dark:text-gray-400">{t('learning_goal.no_goals')}</p>
+            </div>
+          ) : (
+            <div className="space-y-3 max-h-96 overflow-y-auto scrollbar-education">
+              {learningGoals.map((goal, i) => {
+                const daysLeft = goal.deadline ? Math.ceil((new Date(goal.deadline).getTime() - Date.now()) / (1000 * 60 * 60 * 24)) : null;
+                const isOverdue = daysLeft !== null && daysLeft < 0;
+                const statusColor = goal.status === 'completed' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300' : goal.status === 'abandoned' ? 'bg-gray-100 text-gray-700 dark:bg-gray-900/30 dark:text-gray-300' : isOverdue ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300' : 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300';
+                const statusLabel = goal.status === 'completed' ? t('learning_goal.completed') : goal.status === 'abandoned' ? t('learning_goal.abandoned') : t('learning_goal.active');
+                return (
+                  <motion.div
+                    key={goal.id}
+                    initial={{ opacity: 0, y: 6 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: i * 0.04 }}
+                    className="p-4 rounded-xl bg-gradient-to-r from-orange-50/40 to-transparent dark:from-orange-900/10 dark:to-transparent border border-orange-200/30 dark:border-orange-900/20"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-sm font-semibold text-gray-900 dark:text-gray-100">{goal.title}</span>
+                          <Badge className={`text-xs ${statusColor}`}>
+                            {goal.status === 'completed' ? <CheckCircle2 className="h-3 w-3 mr-1" /> : goal.status === 'abandoned' ? <XCircle className="h-3 w-3 mr-1" /> : <Clock className="h-3 w-3 mr-1" />}
+                            {statusLabel}
+                          </Badge>
+                          {goal.competency && (
+                            <Badge variant="outline" className="text-xs">{goal.competency.code}</Badge>
+                          )}
+                        </div>
+                        {goal.description && (
+                          <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">{goal.description}</p>
+                        )}
+                        {/* Progress bar */}
+                        <div className="mt-2">
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-[10px] text-gray-500 dark:text-gray-400">{t('learning_goal.progress')}</span>
+                            <span className="text-[10px] font-bold text-orange-600 dark:text-orange-400">{goal.progress}%</span>
+                          </div>
+                          <Progress value={goal.progress} className="h-2" />
+                        </div>
+                        {/* Level indicators */}
+                        <div className="flex items-center gap-4 mt-2 text-xs text-gray-500 dark:text-gray-400">
+                          {goal.currentLevel !== null && (
+                            <span>{t('learning_goal.current_level')}: <strong className="text-gray-700 dark:text-gray-300">{goal.currentLevel}</strong></span>
+                          )}
+                          {goal.targetLevel !== null && (
+                            <span>{t('learning_goal.target_level')}: <strong className="text-gray-700 dark:text-gray-300">{goal.targetLevel}</strong></span>
+                          )}
+                          {daysLeft !== null && (
+                            <span className={isOverdue ? 'text-red-500 font-semibold' : 'text-orange-500'}>
+                              {isOverdue ? t('learning_goal.overdue') : `${daysLeft} ${t('learning_goal.days_left')}`}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex gap-1 shrink-0">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="rounded-lg min-h-[44px] min-w-[44px]"
+                          onClick={() => {
+                            setLgEditId(goal.id);
+                            setLgForm({
+                              title: goal.title,
+                              description: goal.description ?? '',
+                              competencyId: goal.competencyId ?? '',
+                              targetLevel: goal.targetLevel ?? 4,
+                              currentLevel: goal.currentLevel ?? 1,
+                              deadline: goal.deadline ? new Date(goal.deadline).toISOString().split('T')[0] : '',
+                              status: goal.status,
+                              progress: goal.progress,
+                            });
+                            setLgDialogOpen(true);
+                          }}
+                        >
+                          <Pencil className="h-3.5 w-3.5" />
+                        </Button>
+                        {goal.status === 'active' && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="rounded-lg text-emerald-600 hover:text-emerald-700 min-h-[44px] min-w-[44px]"
+                            onClick={async () => {
+                              try {
+                                await apiPut(`/api/learning-goals/${goal.id}`, { status: 'completed', progress: 100 });
+                                setLearningGoals((prev) => prev.map((g) => g.id === goal.id ? { ...g, status: 'completed', progress: 100 } : g));
+                                setGoalCelebration(goal.id);
+                                setTimeout(() => setGoalCelebration(null), 3000);
+                                toast.success(t('learning_goal.celebration'));
+                              } catch { toast.error(t('error.generic')); }
+                            }}
+                          >
+                            <CheckCircle2 className="h-3.5 w-3.5" />
+                          </Button>
+                        )}
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="rounded-lg text-red-500 hover:text-red-700 min-h-[44px] min-w-[44px]"
+                          onClick={async () => {
+                            try {
+                              await apiDelete(`/api/learning-goals/${goal.id}`);
+                              setLearningGoals((prev) => prev.filter((g) => g.id !== goal.id));
+                              toast.success(t('action.delete'));
+                            } catch { toast.error(t('error.generic')); }
+                          }}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    </div>
+                    {/* Celebration overlay */}
+                    {goalCelebration === goal.id && (
+                      <motion.div
+                        initial={{ opacity: 0, scale: 0.8 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="mt-2 p-2 rounded-lg bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 text-xs font-bold text-center"
+                      >
+                        {t('learning_goal.celebration')}
+                      </motion.div>
+                    )}
+                  </motion.div>
+                );
+              })}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* ─── Self-Assessment Dialog ───────────────────────────────── */}
+      <Dialog open={saDialogOpen} onOpenChange={setSaDialogOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>{saEditId ? t('self_assessment.edit') : t('self_assessment.create')}</DialogTitle>
+            <DialogDescription>{t('self_assessment.title')}</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div>
+              <Label className="text-xs font-medium">{t('self_assessment.competency')}</Label>
+              <Select value={saForm.competencyId} onValueChange={(v) => setSaForm((f) => ({ ...f, competencyId: v }))}>
+                <SelectTrigger className="h-10 rounded-lg mt-1">
+                  <SelectValue placeholder={t('self_assessment.competency')} />
+                </SelectTrigger>
+                <SelectContent>
+                  {data?.progressEntries.map((pe) => (
+                    <SelectItem key={pe.competencyId} value={pe.competencyId}>
+                      {pe.competency.code} — {pe.competency.title}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label className="text-xs font-medium">{t('self_assessment.self_level')} ({saForm.selfLevel}/6)</Label>
+              <Slider
+                value={[saForm.selfLevel]}
+                onValueChange={([v]) => setSaForm((f) => ({ ...f, selfLevel: v }))}
+                min={1}
+                max={6}
+                step={1}
+                className="mt-2"
+              />
+              <div className="flex justify-between text-[10px] text-gray-400 mt-1">
+                <span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span>
+              </div>
+            </div>
+            <div>
+              <Label className="text-xs font-medium">{t('self_assessment.confidence')} ({saForm.confidence}/5)</Label>
+              <Slider
+                value={[saForm.confidence]}
+                onValueChange={([v]) => setSaForm((f) => ({ ...f, confidence: v }))}
+                min={1}
+                max={5}
+                step={1}
+                className="mt-2"
+              />
+              <div className="flex justify-between text-[10px] text-gray-400 mt-1">
+                <span>1</span><span>2</span><span>3</span><span>4</span><span>5</span>
+              </div>
+            </div>
+            <div>
+              <Label className="text-xs font-medium">{t('self_assessment.reflection')}</Label>
+              <Textarea
+                value={saForm.reflection}
+                onChange={(e) => setSaForm((f) => ({ ...f, reflection: e.target.value }))}
+                className="mt-1 rounded-lg"
+                rows={3}
+                placeholder={t('self_assessment.reflection')}
+              />
+            </div>
+            <div>
+              <Label className="text-xs font-medium">{t('self_assessment.evidence')}</Label>
+              <Textarea
+                value={saForm.evidence}
+                onChange={(e) => setSaForm((f) => ({ ...f, evidence: e.target.value }))}
+                className="mt-1 rounded-lg"
+                rows={2}
+                placeholder={t('self_assessment.evidence')}
+              />
+            </div>
+            {learningGoals.length > 0 && (
+              <div>
+                <Label className="text-xs font-medium">{t('learning_goal.title')}</Label>
+                <Select value={saForm.goalId} onValueChange={(v) => setSaForm((f) => ({ ...f, goalId: v }))}>
+                  <SelectTrigger className="h-10 rounded-lg mt-1">
+                    <SelectValue placeholder={t('learning_goal.title')} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">—</SelectItem>
+                    {learningGoals.filter((g) => g.status === 'active').map((g) => (
+                      <SelectItem key={g.id} value={g.id}>{g.title}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" className="rounded-xl min-h-[44px]" onClick={() => setSaDialogOpen(false)}>{t('action.cancel')}</Button>
+            <Button
+              className="rounded-xl bg-cyan-600 hover:bg-cyan-700 text-white min-h-[44px]"
+              onClick={async () => {
+                if (!saForm.competencyId) { toast.error(t('self_assessment.competency')); return; }
+                try {
+                  const payload = {
+                    schoolId: currentUser?.schoolId,
+                    studentId: currentStudentId,
+                    competencyId: saForm.competencyId,
+                    selfLevel: saForm.selfLevel,
+                    confidence: saForm.confidence,
+                    reflection: saForm.reflection || null,
+                    evidence: saForm.evidence || null,
+                    goalId: saForm.goalId && saForm.goalId !== 'none' ? saForm.goalId : null,
+                  };
+                  if (saEditId) {
+                    const updated = await apiPut<SelfAssessmentData>(`/api/self-assessments/${saEditId}`, payload);
+                    setSelfAssessments((prev) => prev.map((a) => a.id === saEditId ? updated : a));
+                  } else {
+                    const created = await apiPost<SelfAssessmentData>('/api/self-assessments', payload);
+                    setSelfAssessments((prev) => [created, ...prev]);
+                  }
+                  setSaDialogOpen(false);
+                  toast.success(saEditId ? t('action.save') : t('action.create'));
+                } catch { toast.error(t('error.generic')); }
+              }}
+            >
+              {saEditId ? t('action.save') : t('action.create')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ─── Learning Goal Dialog ───────────────────────────────── */}
+      <Dialog open={lgDialogOpen} onOpenChange={setLgDialogOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>{lgEditId ? t('learning_goal.edit') : t('learning_goal.create')}</DialogTitle>
+            <DialogDescription>{t('learning_goal.title')}</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div>
+              <Label className="text-xs font-medium">{t('learning_goal.goal_title')}</Label>
+              <Input
+                value={lgForm.title}
+                onChange={(e) => setLgForm((f) => ({ ...f, title: e.target.value }))}
+                className="mt-1 rounded-lg"
+                placeholder={t('learning_goal.goal_title')}
+              />
+            </div>
+            <div>
+              <Label className="text-xs font-medium">{t('learning_goal.description')}</Label>
+              <Textarea
+                value={lgForm.description}
+                onChange={(e) => setLgForm((f) => ({ ...f, description: e.target.value }))}
+                className="mt-1 rounded-lg"
+                rows={2}
+                placeholder={t('learning_goal.description')}
+              />
+            </div>
+            <div>
+              <Label className="text-xs font-medium">{t('self_assessment.competency')}</Label>
+              <Select value={lgForm.competencyId} onValueChange={(v) => setLgForm((f) => ({ ...f, competencyId: v }))}>
+                <SelectTrigger className="h-10 rounded-lg mt-1">
+                  <SelectValue placeholder={t('self_assessment.competency')} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">—</SelectItem>
+                  {data?.progressEntries.map((pe) => (
+                    <SelectItem key={pe.competencyId} value={pe.competencyId}>
+                      {pe.competency.code} — {pe.competency.title}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label className="text-xs font-medium">{t('learning_goal.current_level')}</Label>
+                <Slider
+                  value={[lgForm.currentLevel]}
+                  onValueChange={([v]) => setLgForm((f) => ({ ...f, currentLevel: v }))}
+                  min={1}
+                  max={6}
+                  step={1}
+                  className="mt-2"
+                />
+                <p className="text-xs text-center mt-1 text-gray-500">{lgForm.currentLevel}/6</p>
+              </div>
+              <div>
+                <Label className="text-xs font-medium">{t('learning_goal.target_level')}</Label>
+                <Slider
+                  value={[lgForm.targetLevel]}
+                  onValueChange={([v]) => setLgForm((f) => ({ ...f, targetLevel: v }))}
+                  min={1}
+                  max={6}
+                  step={1}
+                  className="mt-2"
+                />
+                <p className="text-xs text-center mt-1 text-gray-500">{lgForm.targetLevel}/6</p>
+              </div>
+            </div>
+            <div>
+              <Label className="text-xs font-medium">{t('learning_goal.deadline')}</Label>
+              <Input
+                type="date"
+                value={lgForm.deadline}
+                onChange={(e) => setLgForm((f) => ({ ...f, deadline: e.target.value }))}
+                className="mt-1 rounded-lg"
+              />
+            </div>
+            <div>
+              <Label className="text-xs font-medium">{t('learning_goal.progress')} ({lgForm.progress}%)</Label>
+              <Slider
+                value={[lgForm.progress]}
+                onValueChange={([v]) => setLgForm((f) => ({ ...f, progress: v }))}
+                min={0}
+                max={100}
+                step={5}
+                className="mt-2"
+              />
+            </div>
+            {lgEditId && (
+              <div>
+                <Label className="text-xs font-medium">{t('learning_goal.status')}</Label>
+                <Select value={lgForm.status} onValueChange={(v) => setLgForm((f) => ({ ...f, status: v }))}>
+                  <SelectTrigger className="h-10 rounded-lg mt-1">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="active">{t('learning_goal.active')}</SelectItem>
+                    <SelectItem value="completed">{t('learning_goal.completed')}</SelectItem>
+                    <SelectItem value="abandoned">{t('learning_goal.abandoned')}</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" className="rounded-xl min-h-[44px]" onClick={() => setLgDialogOpen(false)}>{t('action.cancel')}</Button>
+            <Button
+              className="rounded-xl bg-orange-600 hover:bg-orange-700 text-white min-h-[44px]"
+              onClick={async () => {
+                if (!lgForm.title) { toast.error(t('learning_goal.goal_title')); return; }
+                try {
+                  const payload = {
+                    schoolId: currentUser?.schoolId,
+                    studentId: currentStudentId,
+                    title: lgForm.title,
+                    description: lgForm.description || null,
+                    competencyId: lgForm.competencyId && lgForm.competencyId !== 'none' ? lgForm.competencyId : null,
+                    targetLevel: lgForm.targetLevel,
+                    currentLevel: lgForm.currentLevel,
+                    deadline: lgForm.deadline || null,
+                    status: lgForm.status,
+                    progress: lgForm.progress,
+                  };
+                  if (lgEditId) {
+                    const updated = await apiPut<LearningGoalData>(`/api/learning-goals/${lgEditId}`, payload);
+                    setLearningGoals((prev) => prev.map((g) => g.id === lgEditId ? updated : g));
+                  } else {
+                    const created = await apiPost<LearningGoalData>('/api/learning-goals', payload);
+                    setLearningGoals((prev) => [created, ...prev]);
+                  }
+                  setLgDialogOpen(false);
+                  toast.success(lgEditId ? t('action.save') : t('action.create'));
+                } catch { toast.error(t('error.generic')); }
+              }}
+            >
+              {lgEditId ? t('action.save') : t('action.create')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

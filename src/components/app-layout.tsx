@@ -52,6 +52,9 @@ import {
   UserCheck,
   BarChart3,
   Trash2,
+  BookCheck,
+  Megaphone,
+  Briefcase,
 } from 'lucide-react';
 import {
   Sidebar,
@@ -101,6 +104,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { useAppStore, type ViewName } from '@/lib/store';
 import { t } from '@/lib/i18n';
 import { fetchSchoolYears, fetchStudents, fetchClasses, fetchDBNotifications, markAllNotificationsRead, markSingleNotificationRead, type SchoolYear, type Student, type ClassGroup, type DBNotification, type DBNotificationData } from '@/lib/api';
+import { apiGet } from '@/lib/api';
 import OnboardingTour, { isOnboardingCompleted } from '@/components/onboarding-tour';
 import KeyboardShortcutsDialog from '@/components/keyboard-shortcuts-dialog';
 import {
@@ -139,6 +143,8 @@ import RubricLibraryView from './rubric-library-view';
 import CommentBankView from './comment-bank-view';
 import NotebooksView from './notebooks-view';
 import DrawingView from './drawing-view';
+import HomeworkView from './homework-view';
+import PortfolioView from './portfolio-view';
 
 type NavItem = { key: ViewName; icon: React.ElementType; labelKey: string };
 type NavSection = { id: string; labelKey: string; items: NavItem[] };
@@ -169,10 +175,12 @@ const navSections: NavSection[] = [
       { key: 'lesson-plans', icon: CalendarDays, labelKey: 'nav.lesson_plans' },
       { key: 'parents', icon: Mail, labelKey: 'nav.parents' },
       { key: 'behavior', icon: Shield, labelKey: 'nav.behavior' },
+      { key: 'homework', icon: BookCheck, labelKey: 'nav.homework' },
       { key: 'rubrics', icon: Ruler, labelKey: 'nav.rubrics' },
       { key: 'comments', icon: MessageSquareText, labelKey: 'nav.comments' },
       { key: 'notebooks', icon: BookOpen, labelKey: 'nav.notebooks' },
       { key: 'drawing', icon: Palette, labelKey: 'nav.drawing' },
+      { key: 'portfolio', icon: Briefcase, labelKey: 'nav.portfolio' },
     ],
   },
   {
@@ -195,7 +203,9 @@ const studentNavSections: NavSection[] = [
       { key: 'notebooks', icon: BookOpen, labelKey: 'nav.student_notebooks' },
       { key: 'flower', icon: Flower2, labelKey: 'nav.student_competencies' },
       { key: 'grading', icon: Calculator, labelKey: 'nav.student_grades' },
+      { key: 'homework', icon: BookCheck, labelKey: 'nav.homework' },
       { key: 'attendance', icon: CalendarCheck, labelKey: 'nav.student_attendance' },
+      { key: 'portfolio', icon: Briefcase, labelKey: 'nav.portfolio' },
       { key: 'calendar', icon: CalendarIconNav, labelKey: 'nav.calendar' },
     ],
   },
@@ -214,6 +224,103 @@ const parentNavSections: NavSection[] = [
     ],
   },
 ];
+
+/* ── Announcement Banner ────────────────────────────────────────── */
+
+interface AnnouncementItem {
+  id: string;
+  title: string;
+  content: string;
+  priority: string;
+  isPinned: boolean;
+  author: { id: string; firstName: string; lastName: string };
+  classGroup: { id: string; name: string } | null;
+  createdAt: string;
+}
+
+function getPriorityColor(priority: string): string {
+  switch (priority) {
+    case 'urgent': return 'bg-rose-50 border-rose-300 dark:bg-rose-950/50 dark:border-rose-800';
+    case 'high': return 'bg-amber-50 border-amber-300 dark:bg-amber-950/50 dark:border-amber-800';
+    case 'normal': return 'bg-emerald-50 border-emerald-300 dark:bg-emerald-950/50 dark:border-emerald-800';
+    case 'low': return 'bg-teal-50 border-teal-300 dark:bg-teal-950/50 dark:border-teal-800';
+    default: return 'bg-emerald-50 border-emerald-300 dark:bg-emerald-950/50 dark:border-emerald-800';
+  }
+}
+
+function getPriorityIcon(priority: string) {
+  switch (priority) {
+    case 'urgent': return AlertTriangle;
+    case 'high': return Info;
+    default: return Megaphone;
+  }
+}
+
+function AnnouncementBanner({ schoolId }: { schoolId: string | null }) {
+  const [announcements, setAnnouncements] = useState<AnnouncementItem[]>([]);
+  const [dismissed, setDismissed] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem('ct_dismissed_announcements');
+      if (stored) setDismissed(new Set(JSON.parse(stored)));
+    } catch { /* ignore */ }
+  }, []);
+
+  useEffect(() => {
+    if (!schoolId) return;
+    apiGet<AnnouncementItem[]>(`/api/announcements?schoolId=${schoolId}&isPinned=true&limit=5`)
+      .then((data) => setAnnouncements(data))
+      .catch(() => {});
+  }, [schoolId]);
+
+  const visibleAnnouncements = announcements.filter((a) => !dismissed.has(a.id));
+
+  const handleDismiss = (id: string) => {
+    const newDismissed = new Set(dismissed);
+    newDismissed.add(id);
+    setDismissed(newDismissed);
+    try {
+      localStorage.setItem('ct_dismissed_announcements', JSON.stringify([...newDismissed]));
+    } catch { /* ignore */ }
+  };
+
+  if (visibleAnnouncements.length === 0) return null;
+
+  return (
+    <div className="space-y-0">
+      <AnimatePresence>
+        {visibleAnnouncements.map((announcement) => {
+          const PriorityIcon = getPriorityIcon(announcement.priority);
+          return (
+            <motion.div
+              key={announcement.id}
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.3 }}
+              className={`announcement-banner border-b px-4 py-2 flex items-center gap-3 ${getPriorityColor(announcement.priority)}`}
+            >
+              <PriorityIcon className="h-4 w-4 shrink-0" />
+              <div className="flex-1 min-w-0">
+                <span className="font-semibold text-sm">{announcement.title}</span>
+                <span className="text-sm text-muted-foreground ml-2 hidden sm:inline">{announcement.content.slice(0, 100)}{announcement.content.length > 100 ? '...' : ''}</span>
+              </div>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 shrink-0 min-h-[44px] min-w-[44px]"
+                onClick={() => handleDismiss(announcement.id)}
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </motion.div>
+          );
+        })}
+      </AnimatePresence>
+    </div>
+  );
+}
 
 function renderView(view: ViewName) {
   switch (view) {
@@ -239,6 +346,8 @@ function renderView(view: ViewName) {
     case 'comments': return <CommentBankView />;
     case 'notebooks': return <NotebooksView />;
     case 'drawing': return <DrawingView />;
+    case 'homework': return <HomeworkView />;
+    case 'portfolio': return <PortfolioView />;
     default: return <DashboardView />;
   }
 }
@@ -775,6 +884,8 @@ export default function AppLayout() {
       </Sidebar>
 
       <SidebarInset>
+        {/* Announcement Banner */}
+        <AnnouncementBanner schoolId={currentUser?.schoolId ?? null} />
         <header className="flex h-14 items-center gap-2 border-b border-emerald-200/50 dark:border-emerald-900/30 bg-white dark:bg-gray-950 backdrop-blur-sm px-4 sticky top-0 z-10 shadow-sm shadow-emerald-100/50 dark:shadow-emerald-900/10">
           <SidebarTrigger className="-ml-1 h-10 w-10 hover:bg-emerald-100 dark:hover:bg-emerald-900/20 shrink-0" />
           <Separator orientation="vertical" className="h-6 bg-emerald-200/50 dark:bg-emerald-900/30 shrink-0" />

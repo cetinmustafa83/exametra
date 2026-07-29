@@ -30,6 +30,7 @@ import {
   PartyPopper,
   Lightbulb,
   ChevronRight,
+  ChevronDown,
   RefreshCw,
   GraduationCap,
   UserCheck,
@@ -47,6 +48,11 @@ import {
   Calendar as CalendarIconNav,
   BookMarked,
   Heart,
+  BookCheck,
+  Megaphone,
+  Pin,
+  X,
+  Send,
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -55,6 +61,25 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
+import { Textarea } from '@/components/ui/textarea';
+import { Input } from '@/components/ui/input';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog';
+import { toast } from 'sonner';
 import {
   Tooltip,
   TooltipContent,
@@ -64,6 +89,7 @@ import {
 import { useAppStore, type ViewName, type CurrentUser } from '@/lib/store';
 import { t } from '@/lib/i18n';
 import { fetchDashboard, type DashboardData, getStoredNotifications, type AppNotification, addNotification, markNotificationsRead, fetchParentLinks, type ParentStudentLinkData, fetchStudents } from '@/lib/api';
+import { apiGet, apiPost } from '@/lib/api';
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -1727,6 +1753,15 @@ export default function DashboardView() {
         </Card>
       </motion.div>
 
+      {/* ===== ANNOUNCEMENTS & HOMEWORK DUE ===== */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Announcements Card */}
+        <DashboardAnnouncementsCard currentUser={currentUser} locale={locale} />
+
+        {/* Homework Due Soon Card */}
+        <DashboardHomeworkCard currentUser={currentUser} locale={locale} />
+      </div>
+
       {/* ===== PAPER SAVED & ENVIRONMENTAL SECTION ===== */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Paper Saved Counter */}
@@ -1809,6 +1844,361 @@ export default function DashboardView() {
           </Card>
         </motion.div>
       </div>
+    </motion.div>
+  );
+}
+
+/* ── Dashboard Announcements Card ──────────────────────────────── */
+
+interface DashboardAnnouncement {
+  id: string;
+  title: string;
+  content: string;
+  priority: string;
+  isPinned: boolean;
+  targetAudience: string;
+  author: { id: string; firstName: string; lastName: string };
+  classGroup: { id: string; name: string } | null;
+  createdAt: string;
+}
+
+function DashboardAnnouncementsCard({ currentUser, locale }: { currentUser: CurrentUser | null; locale: string }) {
+  const setCurrentView = useAppStore((s) => s.setCurrentView);
+  const [announcements, setAnnouncements] = useState<DashboardAnnouncement[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [expanded, setExpanded] = useState<string | null>(null);
+  const [createOpen, setCreateOpen] = useState(false);
+  const [createForm, setCreateForm] = useState({ title: '', content: '', priority: 'normal', targetAudience: 'all' });
+  const [creating, setCreating] = useState(false);
+
+  const isTeacherOrAdmin = currentUser?.role === 'TEACHER' || currentUser?.role === 'SCHOOL_ADMIN' || currentUser?.role === 'SUPER_ADMIN';
+
+  useEffect(() => {
+    if (!currentUser?.schoolId) return;
+    apiGet<DashboardAnnouncement[]>(`/api/announcements?schoolId=${currentUser.schoolId}&limit=5`)
+      .then((data) => { setAnnouncements(data); setLoading(false); })
+      .catch(() => setLoading(false));
+  }, [currentUser?.schoolId]);
+
+  const handleCreate = async () => {
+    if (!currentUser?.schoolId || !createForm.title || !createForm.content) return;
+    setCreating(true);
+    try {
+      await apiPost('/api/announcements', {
+        schoolId: currentUser.schoolId,
+        title: createForm.title,
+        content: createForm.content,
+        priority: createForm.priority,
+        targetAudience: createForm.targetAudience,
+      });
+      toast.success(t('announcement.create_success'));
+      setCreateOpen(false);
+      setCreateForm({ title: '', content: '', priority: 'normal', targetAudience: 'all' });
+      // Reload
+      const data = await apiGet<DashboardAnnouncement[]>(`/api/announcements?schoolId=${currentUser.schoolId}&limit=5`);
+      setAnnouncements(data);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : t('announcement.create_error'));
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  const getPriorityBorder = (priority: string) => {
+    switch (priority) {
+      case 'urgent': return 'border-l-rose-500';
+      case 'high': return 'border-l-amber-500';
+      case 'normal': return 'border-l-emerald-500';
+      case 'low': return 'border-l-teal-500';
+      default: return 'border-l-emerald-500';
+    }
+  };
+
+  const getPriorityBadge = (priority: string) => {
+    switch (priority) {
+      case 'urgent': return 'bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300';
+      case 'high': return 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300';
+      case 'normal': return 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300';
+      case 'low': return 'bg-teal-100 text-teal-700 dark:bg-teal-950 dark:text-teal-300';
+      default: return 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300';
+    }
+  };
+
+  const relativeTime = (dateStr: string) => {
+    const now = new Date();
+    const date = new Date(dateStr);
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / (1000 * 60));
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+    if (diffMins < 1) return locale === 'de' ? 'Gerade eben' : 'Just now';
+    if (diffMins < 60) return locale === 'de' ? `Vor ${diffMins} Min.` : `${diffMins}m ago`;
+    if (diffHours < 24) return locale === 'de' ? `Vor ${diffHours} Std.` : `${diffHours}h ago`;
+    if (diffDays === 1) return t('date.yesterday');
+    if (diffDays < 7) return t('date.days_ago', { count: diffDays });
+    return date.toLocaleDateString(locale === 'de' ? 'de-DE' : 'en-GB', { day: '2-digit', month: 'short' });
+  };
+
+  return (
+    <motion.div variants={itemVariants}>
+      <Card className="border-0 shadow-sm rounded-xl border-l-3 border-l-rose-500 overflow-hidden transition-shadow duration-200 hover:shadow-md ring-1 ring-black/[0.03] dark:ring-white/[0.05]">
+        <CardHeader className="pb-3 pt-6 bg-gradient-to-r from-rose-50/50 to-transparent dark:from-rose-900/10 dark:to-transparent">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-lg flex items-center gap-2">
+              <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-rose-100 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400">
+                <Megaphone className="h-4 w-4" />
+              </div>
+              {t('announcement.title')}
+            </CardTitle>
+            {isTeacherOrAdmin && (
+              <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+                <DialogTrigger asChild>
+                  <Button size="sm" variant="outline" className="min-h-[44px] text-rose-600 dark:text-rose-400 border-rose-200/50 dark:border-rose-900/30 hover:bg-rose-50 dark:hover:bg-rose-900/20">
+                    <Plus className="h-3 w-3 mr-1" /> {t('announcement.create')}
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="max-w-md">
+                  <DialogHeader>
+                    <DialogTitle>{t('announcement.create_title')}</DialogTitle>
+                    <DialogDescription>{t('announcement.create_description')}</DialogDescription>
+                  </DialogHeader>
+                  <div className="space-y-4 py-4">
+                    <div className="space-y-2">
+                      <Label>{t('announcement.field_title')}</Label>
+                      <Input value={createForm.title} onChange={(e) => setCreateForm({ ...createForm, title: e.target.value })} placeholder={t('announcement.field_title_placeholder')} />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>{t('announcement.field_content')}</Label>
+                      <Textarea value={createForm.content} onChange={(e) => setCreateForm({ ...createForm, content: e.target.value })} placeholder={t('announcement.field_content_placeholder')} rows={4} />
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label>{t('announcement.field_priority')}</Label>
+                        <Select value={createForm.priority} onValueChange={(v) => setCreateForm({ ...createForm, priority: v })}>
+                          <SelectTrigger className="min-h-[44px]"><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="low">{t('announcement.priority_low')}</SelectItem>
+                            <SelectItem value="normal">{t('announcement.priority_normal')}</SelectItem>
+                            <SelectItem value="high">{t('announcement.priority_high')}</SelectItem>
+                            <SelectItem value="urgent">{t('announcement.priority_urgent')}</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label>{t('announcement.field_target')}</Label>
+                        <Select value={createForm.targetAudience} onValueChange={(v) => setCreateForm({ ...createForm, targetAudience: v })}>
+                          <SelectTrigger className="min-h-[44px]"><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="all">{t('announcement.target_all')}</SelectItem>
+                            <SelectItem value="teachers">{t('announcement.target_teachers')}</SelectItem>
+                            <SelectItem value="students">{t('announcement.target_students')}</SelectItem>
+                            <SelectItem value="parents">{t('announcement.target_parents')}</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                  </div>
+                  <DialogFooter>
+                    <Button variant="outline" onClick={() => setCreateOpen(false)} className="min-h-[44px]">{t('action.cancel')}</Button>
+                    <Button onClick={handleCreate} disabled={creating} className="min-h-[44px]">{creating ? t('announcement.creating') : t('action.create')}</Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+            )}
+          </div>
+        </CardHeader>
+        <CardContent>
+          {loading ? (
+            <div className="space-y-3">
+              {[1, 2, 3].map((i) => <Skeleton key={i} className="h-16 w-full" />)}
+            </div>
+          ) : announcements.length === 0 ? (
+            <div className="text-center py-8">
+              <div className="flex items-center justify-center w-16 h-16 rounded-2xl bg-rose-100 dark:bg-rose-900/20 mx-auto mb-4">
+                <Megaphone className="h-8 w-8 text-rose-400 dark:text-rose-500" />
+              </div>
+              <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">{t('announcement.no_announcements')}</p>
+            </div>
+          ) : (
+            <div className="space-y-2 max-h-96 overflow-y-auto scrollbar-education pr-1">
+              {announcements.map((ann) => (
+                <motion.div
+                  key={ann.id}
+                  className={`rounded-xl border-l-3 ${getPriorityBorder(ann.priority)} p-3 bg-gray-50/50 dark:bg-gray-800/30 hover:bg-gray-100/50 dark:hover:bg-gray-800/50 transition-colors cursor-pointer`}
+                  onClick={() => setExpanded(expanded === ann.id ? null : ann.id)}
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-center gap-2 min-w-0">
+                      {ann.isPinned && <Pin className="h-3.5 w-3.5 text-rose-500 shrink-0" />}
+                      <p className="text-sm font-semibold text-gray-900 dark:text-gray-100 truncate">{ann.title}</p>
+                    </div>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <Badge className={`text-[10px] ${getPriorityBadge(ann.priority)}`}>{t(`announcement.priority_${ann.priority}`)}</Badge>
+                      {expanded === ann.id ? <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" /> : <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />}
+                    </div>
+                  </div>
+                  <AnimatePresence>
+                    {expanded === ann.id && (
+                      <motion.div
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: 'auto', opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        transition={{ duration: 0.2 }}
+                        className="overflow-hidden"
+                      >
+                        <p className="text-sm text-gray-600 dark:text-gray-400 mt-2 whitespace-pre-wrap">{ann.content}</p>
+                        <div className="flex items-center gap-2 mt-2 text-xs text-muted-foreground">
+                          <span>{ann.author.firstName} {ann.author.lastName}</span>
+                          <span className="text-border">|</span>
+                          <span>{relativeTime(ann.createdAt)}</span>
+                          {ann.classGroup && (
+                            <>
+                              <span className="text-border">|</span>
+                              <span>{ann.classGroup.name}</span>
+                            </>
+                          )}
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                  {expanded !== ann.id && (
+                    <p className="text-xs text-muted-foreground mt-1 line-clamp-1">{ann.content}</p>
+                  )}
+                </motion.div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </motion.div>
+  );
+}
+
+/* ── Dashboard Homework Due Card ───────────────────────────────── */
+
+interface DashboardHomework {
+  id: string;
+  title: string;
+  dueDate: string;
+  homeworkType: string;
+  maxPoints: number | null;
+  classGroup: { id: string; name: string; gradeLevel: number };
+  subject: { id: string; name: string } | null;
+  teacher: { id: string; firstName: string; lastName: string };
+  _count?: { submissions: number };
+}
+
+function DashboardHomeworkCard({ currentUser, locale }: { currentUser: CurrentUser | null; locale: string }) {
+  const setCurrentView = useAppStore((s) => s.setCurrentView);
+  const [homeworks, setHomeworks] = useState<DashboardHomework[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!currentUser?.schoolId) return;
+    const now = new Date();
+    const weekFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+    apiGet<DashboardHomework[]>(`/api/homework?schoolId=${currentUser.schoolId}&dueDateFrom=${now.toISOString()}&dueDateTo=${weekFromNow.toISOString()}&isPublished=true`)
+      .then((data) => { setHomeworks(data); setLoading(false); })
+      .catch(() => setLoading(false));
+  }, [currentUser?.schoolId]);
+
+  const getDueDateStatus = (dueDate: string): 'overdue' | 'today' | 'upcoming' => {
+    const now = new Date();
+    const due = new Date(dueDate);
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const dueDay = new Date(due.getFullYear(), due.getMonth(), due.getDate());
+    if (dueDay < today) return 'overdue';
+    if (dueDay.getTime() === today.getTime()) return 'today';
+    return 'upcoming';
+  };
+
+  const getDueDateColor = (status: 'overdue' | 'today' | 'upcoming') => {
+    switch (status) {
+      case 'overdue': return 'bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300';
+      case 'today': return 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300';
+      case 'upcoming': return 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300';
+    }
+  };
+
+  const getDueDateLabel = (dueDate: string) => {
+    const status = getDueDateStatus(dueDate);
+    const due = new Date(dueDate);
+    const now = new Date();
+    const diffMs = due.getTime() - now.getTime();
+    const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+    if (status === 'overdue') return t('homework.overdue_days', { days: Math.abs(diffDays) });
+    if (status === 'today') return t('homework.due_today');
+    if (diffDays === 1) return t('homework.due_tomorrow');
+    return t('homework.due_in_days', { days: diffDays });
+  };
+
+  return (
+    <motion.div variants={itemVariants}>
+      <Card className="border-0 shadow-sm rounded-xl border-l-3 border-l-amber-500 overflow-hidden transition-shadow duration-200 hover:shadow-md ring-1 ring-black/[0.03] dark:ring-white/[0.05]">
+        <CardHeader className="pb-3 pt-6 bg-gradient-to-r from-amber-50/50 to-transparent dark:from-amber-900/10 dark:to-transparent">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-lg flex items-center gap-2">
+              <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400">
+                <BookCheck className="h-4 w-4" />
+              </div>
+              {t('homework.due_soon')}
+            </CardTitle>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setCurrentView('homework')}
+              className="min-h-[44px] text-amber-600 dark:text-amber-400 border-amber-200/50 dark:border-amber-900/30 hover:bg-amber-50 dark:hover:bg-amber-900/20"
+            >
+              {t('homework.view_all')} <ArrowUpRight className="h-3 w-3 ml-1" />
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {loading ? (
+            <div className="space-y-3">
+              {[1, 2, 3].map((i) => <Skeleton key={i} className="h-16 w-full" />)}
+            </div>
+          ) : homeworks.length === 0 ? (
+            <div className="text-center py-8">
+              <div className="flex items-center justify-center w-16 h-16 rounded-2xl bg-amber-100 dark:bg-amber-900/20 mx-auto mb-4">
+                <BookCheck className="h-8 w-8 text-amber-400 dark:text-amber-500" />
+              </div>
+              <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">{t('homework.no_due_soon')}</p>
+            </div>
+          ) : (
+            <div className="space-y-2 max-h-96 overflow-y-auto scrollbar-education pr-1">
+              {homeworks.slice(0, 6).map((hw) => {
+                const dueStatus = getDueDateStatus(hw.dueDate);
+                return (
+                  <motion.div
+                    key={hw.id}
+                    whileHover={{ scale: 1.01, x: 2 }}
+                    transition={{ duration: 0.15 }}
+                    className="flex items-center justify-between p-3 rounded-xl bg-gray-50/50 dark:bg-gray-800/30 border border-gray-100/60 dark:border-gray-800/40 hover:border-amber-200/60 dark:hover:border-amber-800/30 transition-colors cursor-pointer"
+                    onClick={() => setCurrentView('homework')}
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-gradient-to-br from-amber-400 to-amber-500 text-white text-xs font-bold shadow-sm shrink-0">
+                        <BookCheck className="h-4 w-4" />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold text-gray-900 dark:text-gray-100 truncate">{hw.title}</p>
+                        <p className="text-[11px] text-gray-500 dark:text-gray-400 truncate">
+                          {hw.classGroup.name}{hw.subject ? ` | ${hw.subject.name}` : ''}
+                        </p>
+                      </div>
+                    </div>
+                    <Badge className={`text-xs shrink-0 ${getDueDateColor(dueStatus)}`}>
+                      <Clock className="h-3 w-3 mr-1" />
+                      {getDueDateLabel(hw.dueDate)}
+                    </Badge>
+                  </motion.div>
+                );
+              })}
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </motion.div>
   );
 }

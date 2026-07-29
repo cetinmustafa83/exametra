@@ -44,6 +44,11 @@ model School {
   backups            Backup[]
   behaviorInterventions BehaviorIntervention[]
   reportSchedules    ReportSchedule[]
+  homeworks          Homework[]
+  announcements      Announcement[]
+  selfAssessments    SelfAssessment[]
+  learningGoals      LearningGoal[]
+  portfolioEntries   PortfolioEntry[]
   district           SchoolDistrict? @relation(fields: [districtId], references: [id])
   districtId         String?
 }
@@ -84,6 +89,8 @@ model User {
   calendarEvents            CalendarEvent[]
   parentLinks               ParentStudentLink[]
   assignedInterventions     BehaviorIntervention[] @relation("InterventionAssignee")
+  homeworks                 Homework[]
+  announcements             Announcement[]
 }
 
 model SchoolYear {
@@ -130,6 +137,9 @@ model ClassGroup {
   drawings            Drawing[]
   calendarEvents      CalendarEvent[]
   reportSchedules     ReportSchedule[]
+  homeworks           Homework[]
+  announcements       Announcement[]
+  selfAssessments     SelfAssessment[]
 }
 
 model ClassGroupTeacher {
@@ -168,6 +178,10 @@ model Student {
   behaviorIncidents     BehaviorIncident[]
   behaviorInterventions BehaviorIntervention[]
   parentStudentLinks    ParentStudentLink[]
+  homeworkSubmissions   HomeworkSubmission[]
+  selfAssessments       SelfAssessment[]
+  learningGoals         LearningGoal[]
+  portfolioEntries      PortfolioEntry[]
 }
 
 model Enrollment {
@@ -206,6 +220,7 @@ model Subject {
   drawings            Drawing[]
   calendarEvents      CalendarEvent[]
   curriculumStandards CurriculumStandard[]
+  homeworks           Homework[]
 }
 
 model CompetencyTemplate {
@@ -254,6 +269,9 @@ model Competency {
   learningProgressEntries LearningProgressEntry[]
   assessmentCompetencyLinks AssessmentCompetencyLink[]
   curriculumStandardLinks CurriculumStandardLink[]
+  selfAssessments       SelfAssessment[]
+  learningGoals         LearningGoal[]
+  portfolioEntries      PortfolioEntry[]
 }
 
 model MasteryLevelDefinition {
@@ -1054,4 +1072,169 @@ model SchoolDistrict {
   schools     School[]
 
   @@map("school_districts")
+}
+
+// ─── Homework Management ──────────────────────────────────────────
+
+model Homework {
+  id              String   @id @default(cuid())
+  schoolId        String
+  classGroupId    String
+  subjectId       String?
+  teacherId       String
+  title           String
+  description     String?
+  dueDate         DateTime
+  homeworkType    String   @default("assignment") // assignment, reading, project, practice, research
+  maxPoints       Float?
+  attachments     String?  // JSON array of attachment URLs
+  isPublished     Boolean  @default(true)
+  isDemo          Boolean  @default(false)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  deletedAt       DateTime?
+
+  school          School   @relation(fields: [schoolId], references: [id])
+  classGroup      ClassGroup @relation(fields: [classGroupId], references: [id])
+  subject         Subject? @relation(fields: [subjectId], references: [id])
+  teacher         User     @relation(fields: [teacherId], references: [id])
+  submissions     HomeworkSubmission[]
+
+  @@index([schoolId, classGroupId, dueDate])
+  @@map("homework")
+}
+
+model HomeworkSubmission {
+  id              String   @id @default(cuid())
+  homeworkId      String
+  studentId       String
+  content         String?  // text submission
+  attachments     String?  // JSON array of attachment URLs
+  status          String   @default("pending") // pending, submitted, graded, late
+  score           Float?
+  feedback        String?
+  submittedAt     DateTime?
+  gradedAt        DateTime?
+  isDemo          Boolean  @default(false)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  deletedAt       DateTime?
+
+  homework        Homework @relation(fields: [homeworkId], references: [id], onDelete: Cascade)
+  student         Student  @relation(fields: [studentId], references: [id])
+
+  @@unique([homeworkId, studentId])
+  @@index([homeworkId, status])
+  @@map("homework_submissions")
+}
+
+// ─── Announcements ────────────────────────────────────────────────
+
+model Announcement {
+  id              String   @id @default(cuid())
+  schoolId        String
+  authorId        String
+  title           String
+  content         String
+  priority        String   @default("normal") // low, normal, high, urgent
+  targetAudience  String   @default("all") // all, teachers, students, parents, class
+  classGroupId    String?  // if target is specific class
+  isPinned        Boolean  @default(false)
+  expiresAt       DateTime?
+  isDemo          Boolean  @default(false)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  deletedAt       DateTime?
+
+  school          School   @relation(fields: [schoolId], references: [id])
+  author          User     @relation(fields: [authorId], references: [id])
+  classGroup      ClassGroup? @relation(fields: [classGroupId], references: [id])
+
+  @@index([schoolId, createdAt])
+  @@map("announcements")
+}
+
+// ─── Student Self-Assessment ──────────────────────────────────────────
+
+model SelfAssessment {
+  id              String   @id @default(cuid())
+  schoolId        String
+  studentId       String
+  competencyId    String
+  classGroupId    String?
+  selfLevel       Int      // 1-6 self-assessed mastery
+  confidence      Int?     // 1-5 confidence level
+  reflection      String?  // student's self-reflection text
+  evidence        String?  // what evidence supports this assessment
+  goalId          String?  // linked learning goal
+  isDemo          Boolean  @default(false)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  deletedAt       DateTime?
+
+  school          School       @relation(fields: [schoolId], references: [id])
+  student         Student      @relation(fields: [studentId], references: [id])
+  competency      Competency   @relation(fields: [competencyId], references: [id])
+  classGroup      ClassGroup?  @relation(fields: [classGroupId], references: [id])
+  goal            LearningGoal? @relation(fields: [goalId], references: [id])
+
+  @@index([schoolId, studentId])
+  @@map("self_assessments")
+}
+
+// ─── Learning Goals ────────────────────────────────────────────────
+
+model LearningGoal {
+  id              String   @id @default(cuid())
+  schoolId        String
+  studentId       String
+  competencyId    String?
+  title           String
+  description     String?
+  targetLevel     Int?     // target mastery level
+  currentLevel    Int?     // current mastery level
+  deadline        DateTime?
+  status          String   @default("active") // active, completed, abandoned
+  progress        Int      @default(0) // 0-100
+  isDemo          Boolean  @default(false)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  deletedAt       DateTime?
+
+  school          School       @relation(fields: [schoolId], references: [id])
+  student         Student      @relation(fields: [studentId], references: [id])
+  competency      Competency?  @relation(fields: [competencyId], references: [id])
+  selfAssessments SelfAssessment[]
+
+  @@index([schoolId, studentId, status])
+  @@map("learning_goals")
+}
+
+// ─── Portfolio Entries ──────────────────────────────────────────────
+
+model PortfolioEntry {
+  id              String   @id @default(cuid())
+  schoolId        String
+  studentId       String
+  title           String
+  description     String?
+  entryType       String   // "artwork", "writing", "project", "presentation", "achievement", "reflection"
+  competencyId    String?
+  content         String?  // text content or description
+  mediaUrls       String?  // JSON array of media URLs
+  notebookPageId  String?  // link to notebook page
+  drawingId       String?  // link to drawing
+  isPublic        Boolean  @default(false)
+  tags            String?  // JSON array of tags
+  isDemo          Boolean  @default(false)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  deletedAt       DateTime?
+
+  school          School       @relation(fields: [schoolId], references: [id])
+  student         Student      @relation(fields: [studentId], references: [id])
+  competency      Competency?  @relation(fields: [competencyId], references: [id])
+
+  @@index([schoolId, studentId])
+  @@map("portfolio_entries")
 }
