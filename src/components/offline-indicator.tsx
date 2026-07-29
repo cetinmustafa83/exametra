@@ -179,6 +179,9 @@ export function useServiceWorker() {
   useEffect(() => {
     if (typeof window === 'undefined') return;
     if (!('serviceWorker' in navigator)) return;
+    // Skip service worker registration during development to avoid stale
+    // Turbopack chunk caching ("module factory is not available" errors)
+    if (process.env.NODE_ENV === 'development') return;
 
     async function registerSW() {
       try {

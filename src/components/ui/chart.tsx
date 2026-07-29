@@ -78,12 +78,9 @@ const ChartStyle = ({ id, config }: { id: string; config: ChartConfig }) => {
     return null
   }
 
-  return (
-    <style
-      dangerouslySetInnerHTML={{
-        __html: Object.entries(THEMES)
-          .map(
-            ([theme, prefix]) => `
+  const cssText = Object.entries(THEMES)
+    .map(
+      ([theme, prefix]) => `
 ${prefix} [data-chart=${id}] {
 ${colorConfig
   .map(([key, itemConfig]) => {
@@ -95,11 +92,12 @@ ${colorConfig
   .join("\n")}
 }
 `
-          )
-          .join("\n"),
-      }}
-    />
-  )
+    )
+    .join("\n")
+
+  // Use ref to set textContent instead of dangerouslySetInnerHTML to avoid
+  // React 19 "Encountered a script tag" warning for style elements
+  return <style ref={(el) => { if (el) el.textContent = cssText }} />
 }
 
 const ChartTooltip = RechartsPrimitive.Tooltip

@@ -23,8 +23,11 @@ setInterval(() => {
 // ─── Preset Limits ────────────────────────────────────────────────────
 
 export const RATE_LIMITS = {
-  // Auth endpoints: 20 requests per minute (allows retries & multiple tabs)
-  auth: { limit: 20, windowMs: 60 * 1000 },
+  // Auth POST endpoints: 30 requests per minute (allows retries & multiple tabs)
+  auth: { limit: 30, windowMs: 60 * 1000 },
+
+  // Auth GET endpoint: 120 requests per minute (high frequency, low cost)
+  authGet: { limit: 120, windowMs: 60 * 1000 },
 
   // Data read endpoints: 60 requests per minute (generous)
   dataRead: { limit: 60, windowMs: 60 * 1000 },

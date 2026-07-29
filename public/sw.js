@@ -1,8 +1,8 @@
 // CompetenceTrack — Service Worker for PWA Offline Support
-const CACHE_NAME = 'competencetrack-v2';
-const STATIC_CACHE = 'competencetrack-static-v2';
-const DATA_CACHE = 'competencetrack-data-v2';
-const OFFLINE_CACHE = 'competencetrack-offline-v2';
+const CACHE_NAME = 'competencetrack-v3';
+const STATIC_CACHE = 'competencetrack-static-v3';
+const DATA_CACHE = 'competencetrack-data-v3';
+const OFFLINE_CACHE = 'competencetrack-offline-v3';
 
 // Static assets to cache on install
 const STATIC_ASSETS = [
@@ -80,13 +80,20 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Static assets (CSS, JS, images) — CacheFirst strategy
-  // But use NetworkFirst for JS/CSS from Next.js dev server (_next/) to avoid stale module factories
+  // Never cache /_next/ paths — Turbopack recompiles frequently and cached chunks
+  // cause "module factory is not available" errors. Always fetch from network.
+  if (url.pathname.startsWith('/_next/')) {
+    event.respondWith(
+      fetch(request).catch(() => new Response('Offline', { status: 503 }))
+    );
+    return;
+  }
+
+  // Static assets (CSS, JS, images) from other origins — CacheFirst strategy
   if (
     url.pathname.endsWith('.css') ||
     url.pathname.endsWith('.js')
   ) {
-    // Always use NetworkFirst for JS/CSS to avoid stale Turbopack chunks
     event.respondWith(networkFirstStrategy(request, STATIC_CACHE));
     return;
   }

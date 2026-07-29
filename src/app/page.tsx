@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { useAppStore } from '@/lib/store';
 import { fetchCurrentUser } from '@/lib/api';
 import AuthView from '@/components/auth-view';
@@ -10,8 +10,13 @@ export default function Home() {
   const currentUser = useAppStore((s) => s.currentUser);
   const isLoadingAuth = useAppStore((s) => s.isLoadingAuth);
   const setCurrentUser = useAppStore((s) => s.setCurrentUser);
+  const hasCheckedRef = useRef(false);
 
   useEffect(() => {
+    // Prevent duplicate auth checks: only run once per component lifecycle
+    if (hasCheckedRef.current) return;
+    hasCheckedRef.current = true;
+
     async function checkAuth() {
       try {
         const user = await fetchCurrentUser();

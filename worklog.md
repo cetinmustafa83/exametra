@@ -1,6 +1,35 @@
 # CompetenceTrack — Project Worklog
 
 ---
+Task ID: 1
+Agent: fix-auth-500-and-session-issues
+Task: Fix Auth 500 Errors and Session Persistence Issues
+Date: 2025-01-28
+
+Work Log:
+- **Session persistence fix** (`src/lib/auth.ts` + `src/app/api/auth/route.ts`):
+  - Root cause: `cookies().set()` from `next/headers` may not reliably propagate the `Set-Cookie` header to the `NextResponse` body in Next.js App Router route handlers.
+  - Fix: Added `response.cookies.set()` on the `NextResponse` object for login, register, and logout actions, guaranteeing the cookie is sent.
+  - Added `isSecureRequest(request)` helper that checks `x-forwarded-proto: https` header (for HTTPS proxies like sslip.io) in addition to `NODE_ENV === 'production'` to determine the `Secure` cookie flag.
+  - Exported `SESSION_COOKIE_NAME`, `SESSION_COOKIE_MAX_AGE`, and `getSessionCookieOptions()` from `auth.ts` so the route handler can set cookies on the response with consistent options.
+  - `createSession()` now accepts an optional `secure` parameter.
+
+- **Excessive GET /api/auth 401 polling fix** (`src/app/page.tsx`):
+  - Added a `useRef(false)` guard (`hasCheckedRef`) to the auth-check `useEffect` so it only fires once per component lifecycle, preventing duplicate or repeated calls.
+
+- **Rate limit increase** (`src/lib/rate-limit.ts` + `src/app/api/auth/route.ts`):
+  - Auth POST rate limit: 20 → 30 req/min.
+  - Auth GET rate limit: 60 → 120 req/min (in both the `RATE_LIMITS.authGet` preset and the inline `checkRateLimit` call in the GET handler).
+  - Added `authGet` preset to `RATE_LIMITS` for future use.
+
+- **Better error handling** (`src/app/api/auth/route.ts`):
+  - POST catch block now distinguishes Zod validation errors, Prisma/database errors, and generic errors, returning specific messages and status codes.
+  - GET catch block now includes the error message in the response body for debugging.
+  - Error logs use `Auth POST error:` and `Auth GET error:` prefixes for easier log filtering.
+
+- Verification: `bun run lint` — 0 errors ✓
+
+---
 Task ID: 26
 Agent: bug-fix-auth-500-script-tag-dynamic-import-rate-limit
 Task: Bug Fixes — Auth 500, Script Tag Sanitization, Dynamic Import SSR, Rate Limit, Demo Credentials
@@ -1207,4 +1236,34 @@ Work Log:
   - bun run db:push: Database already in sync
   - bun run lint: 0 errors
   - Dev server running without errors
+
+---
+Task ID: 2
+Agent: fix-script-tag-warning-module-factory-error
+Task: Fix Script Tag Warning and Module Factory Error
+Date: 2025-01-27
+
+Work Log:
+- Fixed script tag warning in chart.tsx:
+  - Replaced `<style dangerouslySetInnerHTML={{...}}>` with `<style ref={(el) => { if (el) el.textContent = cssText }} />` in the ChartStyle component
+  - This avoids React 19's "Encountered a script tag" warning that is triggered for style elements using dangerouslySetInnerHTML
+  - The ref-based approach sets textContent synchronously during the commit phase, so no FOUC occurs
+- Improved sanitizeHtml function in utils.ts:
+  - Replaced the fragile `[^<]*` regex pattern with `[\s\S]*?` (non-greedy, matches any character including newlines)
+  - Added handling for unclosed `<script>` tags (no closing tag)
+  - Added handling for self-closing `<script />` tags
+  - Added removal of `<noscript>` tags (may contain script-like content)
+  - Added removal of `<link>` tags (could load external scripts)
+  - Added removal of `<meta>` tags with http-equiv="refresh" (could redirect)
+  - Updated iframe, object regex patterns to use `[\s\S]*?` for multi-line support
+- Fixed module factory error in service worker:
+  - Bumped cache version from v2 to v3 to force cache invalidation
+  - Added a dedicated `/_next/` path check that uses NetworkOnly strategy (never caches)
+  - This prevents stale Turbopack chunks from being served, which cause "module factory is not available" errors
+  - Comment explains why /_next/ paths must never be cached
+- Updated offline-indicator.tsx useServiceWorker hook:
+  - Added `process.env.NODE_ENV === 'development'` check to skip service worker registration during development
+  - This prevents the service worker from interfering with Turbopack's hot module replacement
+  - Service worker is only active in production builds
+- Verification: bun run lint passes with 0 errors
 

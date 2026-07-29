@@ -7,6 +7,9 @@ import {
   createSession,
   getSession,
   clearSession,
+  isSecureRequest,
+  SESSION_COOKIE_NAME,
+  getSessionCookieOptions,
 } from '@/lib/auth';
 import { withRateLimit, checkRateLimit, getRateLimitKey, getRateLimitHeaders, createRateLimitResponse } from '@/lib/rate-limit';
 
@@ -60,9 +63,13 @@ export const POST = withRateLimit(async function POST(request: Request) {
         );
       }
 
-      await createSession(user.id);
+      const secure = isSecureRequest(request);
+      await createSession(user.id, secure);
 
-      return NextResponse.json({
+      // Also set cookie on the response object to guarantee the Set-Cookie
+      // header is included. In some Next.js App Router scenarios, cookies().set()
+      // alone may not propagate to the NextResponse body.
+      const response = NextResponse.json({
         id: user.id,
         email: user.email,
         firstName: user.firstName,
@@ -72,6 +79,8 @@ export const POST = withRateLimit(async function POST(request: Request) {
         locale: user.locale,
         isDemo: user.isDemo,
       });
+      response.cookies.set(SESSION_COOKIE_NAME, user.id, getSessionCookieOptions(secure));
+      return response;
     }
 
     // ── Register ──
@@ -108,9 +117,10 @@ export const POST = withRateLimit(async function POST(request: Request) {
         },
       });
 
-      await createSession(user.id);
+      const secure = isSecureRequest(request);
+      await createSession(user.id, secure);
 
-      return NextResponse.json(
+      const response = NextResponse.json(
         {
           id: user.id,
           email: user.email,
@@ -123,28 +133,56 @@ export const POST = withRateLimit(async function POST(request: Request) {
         },
         { status: 201 }
       );
+      response.cookies.set(SESSION_COOKIE_NAME, user.id, getSessionCookieOptions(secure));
+      return response;
     }
 
     // ── Logout ──
     if (action === 'logout') {
       await clearSession();
-      return NextResponse.json({ message: 'Logged out' });
+
+      const response = NextResponse.json({ message: 'Logged out' });
+      response.cookies.delete(SESSION_COOKIE_NAME);
+      return response;
     }
 
     return NextResponse.json({ error: 'Unknown action' }, { status: 400 });
   } catch (error) {
-    console.error('Auth error:', error);
+    console.error('Auth POST error:', error);
+
+    // Return more specific error info for debugging
+    const message =
+      error instanceof Error ? error.message : 'Unknown error';
+    const isZod = error instanceof z.ZodError;
+    const isPrisma =
+      error instanceof Error &&
+      (error.message.includes('Prisma') || error.constructor.name.includes('Prisma'));
+
+    if (isZod) {
+      return NextResponse.json(
+        { error: 'Validation error', details: (error as z.ZodError).issues },
+        { status: 400 }
+      );
+    }
+
+    if (isPrisma) {
+      return NextResponse.json(
+        { error: 'Database error', detail: message },
+        { status: 500 }
+      );
+    }
+
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: 'Internal server error', detail: message },
       { status: 500 }
     );
   }
 }, 'auth');
 
 export async function GET(request: Request) {
-  // Apply rate limit for auth check endpoint
+  // Apply rate limit for auth check endpoint — 120 per minute
   const key = getRateLimitKey(request);
-  const result = checkRateLimit(key, 60, 60 * 1000); // 60 per minute for GET
+  const result = checkRateLimit(key, 120, 60 * 1000);
 
   if (!result.allowed) {
     const rateLimitResponse = createRateLimitResponse(result);
@@ -167,9 +205,11 @@ export async function GET(request: Request) {
     }
     return response;
   } catch (error) {
-    console.error('Auth me error:', error);
+    console.error('Auth GET error:', error);
+    const message =
+      error instanceof Error ? error.message : 'Unknown error';
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: 'Internal server error', detail: message },
       { status: 500 }
     );
   }

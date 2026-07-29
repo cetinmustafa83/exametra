@@ -3,8 +3,33 @@ import { cookies } from 'next/headers';
 import { Prisma } from '@prisma/client';
 import { db } from '@/lib/db';
 
-const SESSION_COOKIE_NAME = 'ct_session';
-const SESSION_COOKIE_MAX_AGE = 60 * 60 * 24 * 7; // 7 days
+export const SESSION_COOKIE_NAME = 'ct_session';
+export const SESSION_COOKIE_MAX_AGE = 60 * 60 * 24 * 7; // 7 days
+
+/**
+ * Determine whether the Secure flag should be set on cookies.
+ * Returns true when:
+ *  - NODE_ENV is production, OR
+ *  - the request came through an HTTPS proxy (x-forwarded-proto: https)
+ */
+export function isSecureRequest(request: Request): boolean {
+  if (process.env.NODE_ENV === 'production') return true;
+  const forwarded = request.headers.get('x-forwarded-proto');
+  return forwarded === 'https';
+}
+
+/**
+ * Returns the cookie options object for the session cookie.
+ */
+export function getSessionCookieOptions(secure: boolean) {
+  return {
+    httpOnly: true,
+    secure,
+    sameSite: 'lax' as const,
+    maxAge: SESSION_COOKIE_MAX_AGE,
+    path: '/',
+  };
+}
 
 export async function hashPassword(password: string): Promise<string> {
   const salt = await bcrypt.genSalt(10);
@@ -18,15 +43,10 @@ export async function verifyPassword(
   return bcrypt.compare(password, hash);
 }
 
-export async function createSession(userId: string): Promise<void> {
+export async function createSession(userId: string, secure?: boolean): Promise<void> {
   const cookieStore = await cookies();
-  cookieStore.set(SESSION_COOKIE_NAME, userId, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
-    maxAge: SESSION_COOKIE_MAX_AGE,
-    path: '/',
-  });
+  const cookieSecure = secure ?? (process.env.NODE_ENV === 'production');
+  cookieStore.set(SESSION_COOKIE_NAME, userId, getSessionCookieOptions(cookieSecure));
 }
 
 const sessionUserSelect = Prisma.validator<Prisma.UserSelect>()({
