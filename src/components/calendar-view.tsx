@@ -1,0 +1,773 @@
+'use client';
+
+import React, { useEffect, useMemo, useState, useCallback } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import {
+  Calendar as CalendarIcon,
+  ChevronLeft,
+  ChevronRight,
+  ClipboardCheck,
+  CalendarCheck,
+  TrendingUp,
+  FileText,
+  BookOpen,
+  Loader2,
+  AlertCircle,
+  Clock,
+} from 'lucide-react';
+import {
+  format,
+  startOfMonth,
+  endOfMonth,
+  startOfWeek,
+  endOfWeek,
+  addDays,
+  isSameDay,
+  isSameMonth,
+  isToday as isDateToday,
+  parseISO,
+  addMonths,
+  addDays as dateAddDays,
+  differenceInCalendarDays,
+  isWithinInterval,
+} from 'date-fns';
+import { de as deLocale, enUS as enLocale } from 'date-fns/locale';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetDescription,
+} from '@/components/ui/sheet';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from '@/components/ui/dialog';
+import {
+  Drawer,
+  DrawerContent,
+  DrawerHeader,
+  DrawerTitle,
+  DrawerDescription,
+} from '@/components/ui/drawer';
+import { useAppStore } from '@/lib/store';
+import { t } from '@/lib/i18n';
+import { fetchCalendarEvents, type CalendarEvent, type CalendarEventType } from '@/lib/api';
+import { toast } from 'sonner';
+
+/* ── Event type visual config ─────────────────────────────────────── */
+
+type TypeConfig = {
+  icon: React.ElementType;
+  labelKey: string;
+  chipBg: string;
+  chipText: string;
+  dotClass: string;
+  ringClass: string;
+};
+
+const TYPE_CONFIG: Record<CalendarEventType, TypeConfig> = {
+  assessment: {
+    icon: ClipboardCheck,
+    labelKey: 'calendar.event_types.assessment',
+    chipBg: 'bg-amber-100 dark:bg-amber-900/30',
+    chipText: 'text-amber-700 dark:text-amber-300',
+    dotClass: 'bg-amber-500',
+    ringClass: 'ring-amber-300 dark:ring-amber-700',
+  },
+  attendance: {
+    icon: CalendarCheck,
+    labelKey: 'calendar.event_types.attendance',
+    chipBg: 'bg-emerald-100 dark:bg-emerald-900/30',
+    chipText: 'text-emerald-700 dark:text-emerald-300',
+    dotClass: 'bg-emerald-500',
+    ringClass: 'ring-emerald-300 dark:ring-emerald-700',
+  },
+  progress: {
+    icon: TrendingUp,
+    labelKey: 'calendar.event_types.progress',
+    chipBg: 'bg-teal-100 dark:bg-teal-900/30',
+    chipText: 'text-teal-700 dark:text-teal-300',
+    dotClass: 'bg-teal-500',
+    ringClass: 'ring-teal-300 dark:ring-teal-700',
+  },
+  report: {
+    icon: FileText,
+    labelKey: 'calendar.event_types.report',
+    chipBg: 'bg-violet-100 dark:bg-violet-900/30',
+    chipText: 'text-violet-700 dark:text-violet-300',
+    dotClass: 'bg-violet-500',
+    ringClass: 'ring-violet-300 dark:ring-violet-700',
+  },
+  lesson: {
+    icon: BookOpen,
+    labelKey: 'calendar.event_types.lesson',
+    chipBg: 'bg-rose-100 dark:bg-rose-900/30',
+    chipText: 'text-rose-700 dark:text-rose-300',
+    dotClass: 'bg-rose-500',
+    ringClass: 'ring-rose-300 dark:ring-rose-700',
+  },
+};
+
+const ALL_TYPES: CalendarEventType[] = ['assessment', 'attendance', 'progress', 'report', 'lesson'];
+
+/* ── helpers ──────────────────────────────────────────────────────── */
+
+function getMonthLabel(date: Date, locale: 'de' | 'en'): string {
+  const localeObj = locale === 'de' ? deLocale : enLocale;
+  return format(date, 'MMMM yyyy', { locale: localeObj });
+}
+
+function getWeekdayLabels(locale: 'de' | 'en'): string[] {
+  const localeObj = locale === 'de' ? deLocale : enLocale;
+  // Monday-first weekday header
+  const base = startOfWeek(new Date(), { weekStartsOn: 1 });
+  return Array.from({ length: 7 }, (_, i) =>
+    format(dateAddDays(base, i), 'EEEEEE', { locale: localeObj })
+  );
+}
+
+function buildMonthGrid(monthDate: Date): Date[] {
+  const start = startOfWeek(startOfMonth(monthDate), { weekStartsOn: 1 });
+  const end = endOfWeek(endOfMonth(monthDate), { weekStartsOn: 1 });
+  const days: Date[] = [];
+  let cursor = start;
+  while (cursor <= end) {
+    days.push(cursor);
+    cursor = dateAddDays(cursor, 1);
+  }
+  return days;
+}
+
+function formatDayLong(date: Date, locale: 'de' | 'en'): string {
+  const localeObj = locale === 'de' ? deLocale : enLocale;
+  return format(date, 'EEEE, d. MMMM yyyy', { locale: localeObj });
+}
+
+/* ── Sub-components ───────────────────────────────────────────────── */
+
+function EventDetailContent({ event }: { event: CalendarEvent }) {
+  const cfg = TYPE_CONFIG[event.type];
+  const Icon = cfg.icon;
+  const meta = event.meta as Record<string, unknown>;
+
+  const rows: Array<{ key: string; value: string | number | null | undefined }> = [];
+  if (typeof meta.subject === 'string' && meta.subject) rows.push({ key: 'calendar.meta.subject', value: meta.subject });
+  if (typeof meta.classGroup === 'string' && meta.classGroup) rows.push({ key: 'calendar.meta.class', value: meta.classGroup });
+  if (typeof meta.assessmentType === 'string' && meta.assessmentType) rows.push({ key: 'calendar.meta.type', value: meta.assessmentType });
+  if (typeof meta.period === 'string' && meta.period) rows.push({ key: 'calendar.meta.period', value: meta.period });
+  if (typeof meta.status === 'string' && meta.status) rows.push({ key: 'calendar.meta.status', value: meta.status });
+  if (typeof meta.studentName === 'string' && meta.studentName) rows.push({ key: 'calendar.meta.student', value: meta.studentName });
+  if (typeof meta.weight === 'number') rows.push({ key: 'calendar.meta.weight', value: meta.weight });
+  if (typeof meta.maxScore === 'number') rows.push({ key: 'calendar.meta.max_score', value: meta.maxScore });
+  if (typeof meta.includesGrades === 'boolean') rows.push({ key: 'calendar.meta.includes_grades', value: meta.includesGrades ? 'Ja' : 'Nein' });
+  if (typeof meta.count === 'number') rows.push({ key: 'calendar.meta.count', value: meta.count });
+
+  // Attendance rates
+  if (typeof meta.rate === 'number') rows.push({ key: 'calendar.meta.rate', value: `${meta.rate}%` });
+  if (typeof meta.present === 'number') rows.push({ key: 'calendar.meta.present', value: meta.present });
+  if (typeof meta.absent === 'number') rows.push({ key: 'calendar.meta.absent', value: meta.absent });
+  if (typeof meta.excused === 'number') rows.push({ key: 'calendar.meta.excused', value: meta.excused });
+  if (typeof meta.late === 'number') rows.push({ key: 'calendar.meta.late', value: meta.late });
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center gap-2">
+        <div className={`flex items-center justify-center w-8 h-8 rounded-lg ${cfg.chipBg} ${cfg.chipText} shrink-0`}>
+          <Icon className="h-4 w-4" />
+        </div>
+        <div className="min-w-0">
+          <p className="font-semibold text-gray-900 dark:text-gray-100 text-sm leading-tight truncate">
+            {event.title}
+          </p>
+          <p className={`text-xs ${cfg.chipText} font-medium`}>
+            {t(cfg.labelKey)}
+          </p>
+        </div>
+      </div>
+      {rows.length > 0 && (
+        <dl className="grid grid-cols-1 gap-1 pt-1 border-t border-gray-100 dark:border-gray-800">
+          {rows.map((row, idx) => (
+            <div key={idx} className="flex justify-between gap-3 text-xs">
+              <dt className="text-gray-500 dark:text-gray-400">{t(row.key)}</dt>
+              <dd className="font-medium text-gray-900 dark:text-gray-100 text-right">
+                {String(row.value)}
+              </dd>
+            </div>
+          ))}
+        </dl>
+      )}
+      {event.type === 'progress' && Array.isArray(meta.classGroups) && meta.classGroups.length > 0 && (
+        <div className="flex flex-wrap gap-1 pt-1">
+          {(meta.classGroups as string[]).map((g) => (
+            <Badge key={g} variant="outline" className="bg-teal-50/60 dark:bg-teal-900/20 text-teal-700 dark:text-teal-300 border-teal-200/60 dark:border-teal-900/30 text-[10px]">
+              {g}
+            </Badge>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ── Main component ───────────────────────────────────────────────── */
+
+export default function CalendarView() {
+  const currentUser = useAppStore((s) => s.currentUser);
+  const locale = useAppStore((s) => s.locale);
+  const localeCode = (locale === 'en' ? 'en' : 'de') as 'de' | 'en';
+
+  // Month state — defaults to today
+  const [monthDate, setMonthDate] = useState<Date>(() => startOfMonth(new Date()));
+  const [events, setEvents] = useState<CalendarEvent[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // Selected day (opens sheet)
+  const [selectedDay, setSelectedDay] = useState<Date | null>(null);
+  // Selected event (opens popover) — keyed by event id
+  const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
+
+  // Detect mobile (for bottom drawer vs side sheet)
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const mql = window.matchMedia('(max-width: 768px)');
+    const update = () => setIsMobile(mql.matches);
+    update();
+    mql.addEventListener('change', update);
+    return () => mql.removeEventListener('change', update);
+  }, []);
+
+  // Fetch events when month or school changes
+  const monthKey = useMemo(() => format(monthDate, 'yyyy-MM'), [monthDate]);
+
+  const loadEvents = useCallback(async () => {
+    if (!currentUser?.schoolId) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetchCalendarEvents(currentUser.schoolId, monthKey);
+      setEvents(res.events ?? []);
+    } catch (err) {
+      console.error('Calendar fetch failed:', err);
+      setError(t('calendar.error'));
+      toast.error(t('calendar.error'));
+    } finally {
+      setLoading(false);
+    }
+  }, [currentUser?.schoolId, monthKey]);
+
+  useEffect(() => {
+    loadEvents();
+  }, [loadEvents]);
+
+  // Group events by YYYY-MM-DD for quick lookup
+  const eventsByDay = useMemo(() => {
+    const map = new Map<string, CalendarEvent[]>();
+    for (const e of events) {
+      const arr = map.get(e.date) ?? [];
+      arr.push(e);
+      map.set(e.date, arr);
+    }
+    return map;
+  }, [events]);
+
+  // Upcoming events (next 5 from today, regardless of current month view)
+  const upcomingEvents = useMemo(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const weekEnd = dateAddDays(today, 7);
+    return events
+      .filter((e) => {
+        const d = parseISO(e.date);
+        return (d >= today || isSameDay(d, today)) && d <= weekEnd;
+      })
+      .sort((a, b) => a.date.localeCompare(b.date))
+      .slice(0, 5);
+  }, [events]);
+
+  // Build month grid
+  const days = useMemo(() => buildMonthGrid(monthDate), [monthDate]);
+  const weekdayLabels = useMemo(() => getWeekdayLabels(localeCode), [localeCode]);
+
+  const handlePrev = useCallback(() => setMonthDate((d) => addMonths(d, -1)), []);
+  const handleNext = useCallback(() => setMonthDate((d) => addMonths(d, 1)), []);
+  const handleToday = useCallback(() => setMonthDate(startOfMonth(new Date())), []);
+
+  const selectedDayEvents = useMemo(() => {
+    if (!selectedDay) return [];
+    const key = format(selectedDay, 'yyyy-MM-dd');
+    return eventsByDay.get(key) ?? [];
+  }, [selectedDay, eventsByDay]);
+
+  return (
+    <div className="space-y-6 pb-6">
+      {/* Header */}
+      <motion.div
+        initial={{ opacity: 0, y: 6 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.25 }}
+        className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3"
+      >
+        <div className="flex items-center gap-3">
+          <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-400 to-teal-500 text-white shadow-lg shadow-emerald-300/40 dark:shadow-emerald-900/40 shrink-0">
+            <CalendarIcon className="h-5 w-5" />
+          </div>
+          <div>
+            <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-gray-100 leading-tight">
+              {t('calendar.title')}
+            </h1>
+            <p className="text-sm text-gray-500 dark:text-gray-400">
+              {t('calendar.subtitle')}
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2 flex-wrap">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleToday}
+            className="border-emerald-200/60 dark:border-emerald-900/30 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-50 dark:hover:bg-emerald-900/20"
+          >
+            <CalendarIcon className="h-4 w-4 mr-1.5" />
+            {t('calendar.today')}
+          </Button>
+          <div className="flex items-center gap-1 rounded-lg border border-emerald-200/60 dark:border-emerald-900/30 bg-white dark:bg-gray-800/50 p-0.5">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 text-gray-600 dark:text-gray-300"
+              onClick={handlePrev}
+              aria-label="Previous month"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <span className="px-2 min-w-[140px] text-center text-sm font-semibold text-gray-900 dark:text-gray-100 capitalize">
+              {getMonthLabel(monthDate, localeCode)}
+            </span>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 text-gray-600 dark:text-gray-300"
+              onClick={handleNext}
+              aria-label="Next month"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+      </motion.div>
+
+      {/* Legend */}
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.3, delay: 0.05 }}
+        className="flex flex-wrap items-center gap-2 px-3 py-2 rounded-lg bg-gradient-to-r from-emerald-50/60 to-teal-50/40 dark:from-emerald-950/20 dark:to-teal-950/10 border border-emerald-100/60 dark:border-emerald-900/30"
+      >
+        <span className="text-xs font-semibold uppercase tracking-wider text-emerald-700/70 dark:text-emerald-400/60 mr-1">
+          {t('calendar.legend')}:
+        </span>
+        {ALL_TYPES.map((type) => {
+          const cfg = TYPE_CONFIG[type];
+          const Icon = cfg.icon;
+          return (
+            <Badge
+              key={type}
+              variant="outline"
+              className={`gap-1 ${cfg.chipBg} ${cfg.chipText} border-transparent opacity-80 cursor-default select-none`}
+            >
+              <Icon className="h-3 w-3" />
+              <span className="text-[11px] font-medium">{t(cfg.labelKey)}</span>
+            </Badge>
+          );
+        })}
+      </motion.div>
+
+      {/* Calendar grid */}
+      <motion.div
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3, delay: 0.1 }}
+      >
+        <Card className="overflow-hidden border-emerald-100/60 dark:border-emerald-900/30 shadow-sm">
+          <CardContent className="p-2 sm:p-3">
+            {/* Weekday header */}
+            <div className="grid grid-cols-7 mb-1">
+              {weekdayLabels.map((label) => (
+                <div
+                  key={label}
+                  className="text-center text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-emerald-700/70 dark:text-emerald-400/60 py-1.5"
+                >
+                  {label}
+                </div>
+              ))}
+            </div>
+
+            {/* Day cells */}
+            <div className="grid grid-cols-7 gap-1">
+              {days.map((day, idx) => {
+                const dayKey = format(day, 'yyyy-MM-dd');
+                const dayEvents = eventsByDay.get(dayKey) ?? [];
+                const inMonth = isSameMonth(day, monthDate);
+                const isToday = isDateToday(day);
+                const maxVisible = 3;
+                const visibleEvents = dayEvents.slice(0, maxVisible);
+                const overflow = dayEvents.length - maxVisible;
+
+                return (
+                  <motion.div
+                    key={idx}
+                    initial={{ opacity: 0, scale: 0.97 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ duration: 0.18, delay: Math.min(idx * 0.005, 0.15) }}
+                    onClick={() => dayEvents.length > 0 && setSelectedDay(day)}
+                    className={`relative min-h-[80px] p-1 rounded-md border transition-all ${
+                      inMonth
+                        ? 'bg-white dark:bg-gray-900/40 border-gray-100 dark:border-gray-800'
+                        : 'bg-gray-50/60 dark:bg-gray-900/20 border-transparent'
+                    } ${
+                      dayEvents.length > 0 && inMonth
+                        ? 'cursor-pointer hover:shadow-md hover:border-emerald-200 dark:hover:border-emerald-800/60 hover:-translate-y-0.5'
+                        : ''
+                    } ${isToday ? 'ring-2 ring-emerald-500 ring-offset-1 ring-offset-white dark:ring-offset-gray-950' : ''}`}
+                  >
+                    {/* Day number */}
+                    <div className="flex items-center justify-between mb-0.5">
+                      <span
+                        className={`text-[11px] sm:text-xs font-semibold ${
+                          isToday
+                            ? 'flex items-center justify-center w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-emerald-500 text-white'
+                            : inMonth
+                            ? 'text-gray-700 dark:text-gray-300'
+                            : 'text-gray-300 dark:text-gray-600'
+                        }`}
+                      >
+                        {format(day, 'd')}
+                      </span>
+                      {dayEvents.length > 0 && inMonth && (
+                        <span className="text-[9px] sm:text-[10px] text-gray-400 dark:text-gray-500 font-medium">
+                          {dayEvents.length}
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Empty cell placeholder */}
+                    {inMonth && dayEvents.length === 0 && (
+                      <span className="text-[9px] text-gray-300 dark:text-gray-600 select-none">—</span>
+                    )}
+
+                    {/* Event chips */}
+                    <div className="space-y-0.5">
+                      {visibleEvents.map((ev) => {
+                        const cfg = TYPE_CONFIG[ev.type];
+                        const Icon = cfg.icon;
+                        return (
+                          <button
+                            key={`${ev.type}-${ev.id}`}
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedEvent(ev);
+                            }}
+                            className={`w-full max-w-full overflow-hidden text-left ${cfg.chipBg} ${cfg.chipText} rounded px-1 py-0.5 flex items-center gap-1 hover:opacity-80 transition-opacity focus:outline-none focus-visible:ring-1 ${cfg.ringClass}`}
+                            title={ev.title}
+                          >
+                            <Icon className="h-2.5 w-2.5 shrink-0 hidden sm:block" />
+                            <span className="min-w-0 text-[9px] sm:text-[10px] font-medium leading-tight line-clamp-2 break-words text-ellipsis overflow-hidden">
+                              {ev.title}
+                            </span>
+                          </button>
+                        );
+                      })}
+                      {overflow > 0 && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedDay(day);
+                          }}
+                          className="w-full text-left text-[9px] sm:text-[10px] text-gray-500 dark:text-gray-400 hover:text-emerald-600 dark:hover:text-emerald-400 font-medium px-1 py-0.5 transition-colors"
+                        >
+                          {t('calendar.more_events', { count: overflow })}
+                        </button>
+                      )}
+                    </div>
+                  </motion.div>
+                );
+              })}
+            </div>
+
+            {/* Empty + Loading + Error states */}
+            {loading && (
+              <div className="mt-3 flex items-center justify-center gap-2 py-3 text-xs text-emerald-700/70 dark:text-emerald-400/60">
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                {t('calendar.loading')}
+              </div>
+            )}
+            {error && !loading && (
+              <div className="mt-3 flex items-center justify-center gap-2 py-3 text-xs text-red-600 dark:text-red-400">
+                <AlertCircle className="h-3.5 w-3.5" />
+                {error}
+              </div>
+            )}
+            {!loading && !error && events.length === 0 && (
+              <div className="mt-3 flex flex-col items-center justify-center gap-1 py-6 text-center">
+                <CalendarIcon className="h-8 w-8 text-emerald-300/60 dark:text-emerald-700/50 mb-1" />
+                <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                  {t('calendar.no_events')}
+                </p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  {t('calendar.no_events_desc')}
+                </p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </motion.div>
+
+      {/* Upcoming this week */}
+      <motion.div
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3, delay: 0.15 }}
+      >
+        <Card className="border-emerald-100/60 dark:border-emerald-900/30 shadow-sm">
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center gap-2 text-base font-semibold text-gray-900 dark:text-gray-100">
+              <Clock className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+              {t('calendar.upcoming_week')}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {upcomingEvents.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-6 text-center">
+                <Clock className="h-7 w-7 text-emerald-300/60 dark:text-emerald-700/50 mb-1" />
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  {t('calendar.no_upcoming')}
+                </p>
+              </div>
+            ) : (
+              <ul className="space-y-1.5">
+                <AnimatePresence>
+                  {upcomingEvents.map((ev, idx) => {
+                    const cfg = TYPE_CONFIG[ev.type];
+                    const Icon = cfg.icon;
+                    const evDate = parseISO(ev.date);
+                    const relativeDays = differenceInCalendarDays(evDate, new Date());
+                    const relativeLabel =
+                      relativeDays === 0
+                        ? localeCode === 'de'
+                          ? 'Heute'
+                          : 'Today'
+                        : relativeDays === 1
+                        ? localeCode === 'de'
+                          ? 'Morgen'
+                          : 'Tomorrow'
+                        : format(evDate, 'EEE, d. MMM', {
+                            locale: localeCode === 'de' ? deLocale : enLocale,
+                          });
+                    return (
+                      <motion.li
+                        key={`${ev.type}-${ev.id}`}
+                        initial={{ opacity: 0, x: -8 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ duration: 0.2, delay: idx * 0.04 }}
+                      >
+                        <button
+                          type="button"
+                          onClick={() => setSelectedEvent(ev)}
+                          className="w-full text-left flex items-center gap-3 p-2 rounded-lg hover:bg-emerald-50/60 dark:hover:bg-emerald-900/10 transition-colors group"
+                        >
+                          <div className={`flex items-center justify-center w-9 h-9 rounded-lg ${cfg.chipBg} ${cfg.chipText} shrink-0`}>
+                            <Icon className="h-4 w-4" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
+                              {ev.title}
+                            </p>
+                            <p className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1.5">
+                              <span className={`inline-flex items-center gap-1 ${cfg.chipText} font-medium`}>
+                                {t(cfg.labelKey)}
+                              </span>
+                              <span aria-hidden>·</span>
+                              <span>{relativeLabel}</span>
+                            </p>
+                          </div>
+                          <ChevronRight className="h-4 w-4 text-gray-300 dark:text-gray-600 opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
+                        </button>
+                      </motion.li>
+                    );
+                  })}
+                </AnimatePresence>
+              </ul>
+            )}
+          </CardContent>
+        </Card>
+      </motion.div>
+
+      {/* Day Events Sheet (desktop) / Drawer (mobile) */}
+      {isMobile ? (
+        <Drawer
+          open={!!selectedDay}
+          onOpenChange={(open) => !open && setSelectedDay(null)}
+        >
+          <DrawerContent className="max-h-[85vh]">
+            <DrawerHeader className="pb-2">
+              <DrawerTitle className="text-base font-semibold text-gray-900 dark:text-gray-100 capitalize">
+                {selectedDay ? formatDayLong(selectedDay, localeCode) : ''}
+              </DrawerTitle>
+              <DrawerDescription className="sr-only">
+                {t('calendar.day_events', { date: selectedDay ? formatDayLong(selectedDay, localeCode) : '' })}
+              </DrawerDescription>
+            </DrawerHeader>
+            <div className="px-4 pb-6 overflow-y-auto max-h-[60vh] scrollbar-education">
+              {selectedDayEvents.length === 0 ? (
+                <p className="text-center text-sm text-gray-500 dark:text-gray-400 py-6">
+                  {t('calendar.no_day_events')}
+                </p>
+              ) : (
+                <ul className="space-y-2">
+                  {selectedDayEvents.map((ev) => {
+                    const cfg = TYPE_CONFIG[ev.type];
+                    const Icon = cfg.icon;
+                    return (
+                      <li key={`${ev.type}-${ev.id}`}>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSelectedEvent(ev);
+                          }}
+                          className="w-full text-left p-3 rounded-lg border border-gray-100 dark:border-gray-800 hover:border-emerald-200 dark:hover:border-emerald-800 hover:bg-emerald-50/40 dark:hover:bg-emerald-900/10 transition-colors"
+                        >
+                          <div className="flex items-start gap-2.5">
+                            <div className={`flex items-center justify-center w-8 h-8 rounded-lg ${cfg.chipBg} ${cfg.chipText} shrink-0`}>
+                              <Icon className="h-4 w-4" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                                {ev.title}
+                              </p>
+                              <p className={`text-xs ${cfg.chipText} font-medium`}>
+                                {t(cfg.labelKey)}
+                              </p>
+                            </div>
+                            <ChevronRight className="h-4 w-4 text-gray-300 dark:text-gray-600 shrink-0" />
+                          </div>
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </div>
+          </DrawerContent>
+        </Drawer>
+      ) : (
+        <Sheet
+          open={!!selectedDay}
+          onOpenChange={(open) => !open && setSelectedDay(null)}
+        >
+          <SheetContent
+            side="right"
+            className="w-full sm:max-w-md overflow-y-auto"
+          >
+            <SheetHeader className="pb-2">
+              <SheetTitle className="text-base font-semibold text-gray-900 dark:text-gray-100 capitalize">
+                {selectedDay ? formatDayLong(selectedDay, localeCode) : ''}
+              </SheetTitle>
+              <SheetDescription>
+                {t('calendar.day_events', {
+                  date: selectedDay ? format(selectedDay, 'yyyy-MM-dd') : '',
+                })}
+              </SheetDescription>
+            </SheetHeader>
+            <div className="px-4 pb-6">
+              {selectedDayEvents.length === 0 ? (
+                <p className="text-center text-sm text-gray-500 dark:text-gray-400 py-6">
+                  {t('calendar.no_day_events')}
+                </p>
+              ) : (
+                <ul className="space-y-2">
+                  {selectedDayEvents.map((ev) => {
+                    const cfg = TYPE_CONFIG[ev.type];
+                    const Icon = cfg.icon;
+                    return (
+                      <li key={`${ev.type}-${ev.id}`}>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSelectedEvent(ev);
+                          }}
+                          className="w-full text-left p-3 rounded-lg border border-gray-100 dark:border-gray-800 hover:border-emerald-200 dark:hover:border-emerald-800 hover:bg-emerald-50/40 dark:hover:bg-emerald-900/10 transition-colors"
+                        >
+                          <div className="flex items-start gap-2.5">
+                            <div className={`flex items-center justify-center w-8 h-8 rounded-lg ${cfg.chipBg} ${cfg.chipText} shrink-0`}>
+                              <Icon className="h-4 w-4" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                                {ev.title}
+                              </p>
+                              <p className={`text-xs ${cfg.chipText} font-medium`}>
+                                {t(cfg.labelKey)}
+                              </p>
+                            </div>
+                            <ChevronRight className="h-4 w-4 text-gray-300 dark:text-gray-600 shrink-0" />
+                          </div>
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </div>
+          </SheetContent>
+        </Sheet>
+      )}
+
+      {/* Event detail dialog */}
+      <Dialog
+        open={!!selectedEvent}
+        onOpenChange={(open) => !open && setSelectedEvent(null)}
+      >
+        <DialogContent
+          className="max-w-sm p-4 rounded-2xl border-emerald-100/60 dark:border-emerald-900/30"
+          aria-describedby={undefined}
+        >
+          <DialogHeader className="pb-1">
+            <DialogTitle className="flex items-center justify-between gap-2 text-base font-semibold text-gray-900 dark:text-gray-100">
+              <span className="capitalize">
+                {selectedEvent ? formatDayLong(parseISO(selectedEvent.date), localeCode) : ''}
+              </span>
+            </DialogTitle>
+            <DialogDescription className="sr-only">
+              {selectedEvent ? t('calendar.day_events', { date: selectedEvent.date }) : ''}
+            </DialogDescription>
+          </DialogHeader>
+          {selectedEvent ? (
+            <div className="pt-1">
+              <EventDetailContent event={selectedEvent} />
+              <div className="mt-3 flex justify-end">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setSelectedEvent(null)}
+                  className="border-emerald-200/60 dark:border-emerald-900/30 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-50 dark:hover:bg-emerald-900/20"
+                >
+                  {t('calendar.close')}
+                </Button>
+              </div>
+            </div>
+          ) : null}
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}

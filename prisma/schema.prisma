@@ -1,0 +1,713 @@
+// CompetenceTrack — Full Database Schema
+// SQLite via Prisma ORM | UUIDs for portability | UTC timestamps
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Core Organizational Entities ───────────────────────────────────
+
+model School {
+  id        String   @id @default(cuid())
+  name      String
+  schoolType String  // ELEMENTARY, MIDDLE, GYMNASIUM, OTHER
+  country   String   @default("DE")
+  timezone  String   @default("Europe/Berlin")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users           User[]
+  schoolYears     SchoolYear[]
+  classGroups     ClassGroup[]
+  students        Student[]
+  subjects        Subject[]
+  competencyTemplates CompetencyTemplate[]
+  gradingSchemes  GradingScheme[]
+  auditLogs       AuditLog[]
+  dataExportRequests DataExportRequest[]
+  behaviorCategories BehaviorCategory[]
+  behaviorIncidents  BehaviorIncident[]
+  rubrics            Rubric[]
+  commentCategories  CommentCategory[]
+  commentBankEntries CommentBankEntry[]
+}
+
+model User {
+  id              String   @id @default(cuid())
+  schoolId        String?
+  email           String   @unique
+  passwordHash    String
+  firstName       String
+  lastName        String
+  role            String   @default("TEACHER") // TEACHER, SCHOOL_ADMIN, SUPER_ADMIN, STUDENT, PARENT
+  locale          String   @default("de")
+  twoFactorSecret String?
+  isDemo          Boolean  @default(false)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  deletedAt       DateTime?
+
+  school           School?           @relation(fields: [schoolId], references: [id])
+  classGroupTeachers ClassGroupTeacher[]
+  learningProgressEntries LearningProgressEntry[]
+  assessments     Assessment[]
+  generatedReports Report[]
+  auditLogs       AuditLog[]
+  dataExportRequests DataExportRequest[]
+  teacherNotes    TeacherNote[]
+  attendanceSessions AttendanceSession[]
+  lessonPlans     LessonPlan[]
+  parentMessagesSent ParentMessage[]
+  behaviorIncidentsLogged   BehaviorIncident[] @relation("BehaviorLogger")
+  behaviorIncidentsResolved BehaviorIncident[] @relation("BehaviorResolver")
+  rubrics                   Rubric[]
+  commentBankEntries        CommentBankEntry[]
+}
+
+model SchoolYear {
+  id        String   @id @default(cuid())
+  schoolId  String
+  label     String   // e.g. "2025/2026"
+  startDate DateTime
+  endDate   DateTime
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  school      School     @relation(fields: [schoolId], references: [id])
+  classGroups ClassGroup[]
+  enrollments Enrollment[]
+  computedGrades ComputedGrade[]
+  reports     Report[]
+}
+
+model ClassGroup {
+  id           String   @id @default(cuid())
+  schoolId     String
+  schoolYearId String
+  name         String   // e.g. "3a"
+  gradeLevel   Int
+  schoolType   String   @default("ELEMENTARY")
+  seatingOrder String?  // JSON array of student IDs
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  school              School              @relation(fields: [schoolId], references: [id])
+  schoolYear          SchoolYear          @relation(fields: [schoolYearId], references: [id])
+  teachers            ClassGroupTeacher[]
+  enrollments         Enrollment[]
+  classCompetencyAssignments ClassCompetencyAssignment[]
+  assessments         Assessment[]
+  learningProgressEntries LearningProgressEntry[]
+  gradingSchemes      GradingScheme[]
+  computedGrades      ComputedGrade[]
+  reports             Report[]
+  attendanceSessions  AttendanceSession[]
+  lessonPlans         LessonPlan[]
+  behaviorIncidents   BehaviorIncident[]
+}
+
+model ClassGroupTeacher {
+  id           String @id @default(cuid())
+  classGroupId String
+  userId       String
+  role         String @default("SUBJECT_TEACHER") // HOMEROOM_TEACHER, SUBJECT_TEACHER
+
+  classGroup ClassGroup @relation(fields: [classGroupId], references: [id])
+  user       User       @relation(fields: [userId], references: [id])
+
+  @@unique([classGroupId, userId])
+}
+
+model Student {
+  id          String    @id @default(cuid())
+  schoolId    String
+  firstName   String
+  lastName    String
+  dateOfBirth DateTime?
+  externalId  String?   // for import matching
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+
+  school                School                @relation(fields: [schoolId], references: [id])
+  enrollments           Enrollment[]
+  learningProgressEntries LearningProgressEntry[]
+  assessmentResults     AssessmentResult[]
+  computedGrades        ComputedGrade[]
+  reports               Report[]
+  teacherNotes          TeacherNote[]
+  attendanceRecords     AttendanceRecord[]
+  parentContacts        ParentContact[]
+  parentMessages        ParentMessage[]
+  behaviorIncidents     BehaviorIncident[]
+}
+
+model Enrollment {
+  id           String    @id @default(cuid())
+  studentId    String
+  classGroupId String
+  schoolYearId String
+  startDate    DateTime
+  endDate      DateTime? // null = still enrolled
+
+  student     Student     @relation(fields: [studentId], references: [id])
+  classGroup  ClassGroup  @relation(fields: [classGroupId], references: [id])
+  schoolYear  SchoolYear  @relation(fields: [schoolYearId], references: [id])
+}
+
+// ─── Subject & Competency Structure ────────────────────────────────
+
+model Subject {
+  id           String @id @default(cuid())
+  schoolId     String? // null = global/template
+  name         String
+  gradeLevelMin Int   @default(1)
+  gradeLevelMax Int   @default(13)
+
+  school              School?              @relation(fields: [schoolId], references: [id])
+  competencyTemplates CompetencyTemplate[]
+  assessments         Assessment[]
+  classCompetencyAssignments ClassCompetencyAssignment[]
+  gradingSchemes      GradingScheme[]
+  computedGrades      ComputedGrade[]
+  attendanceSessions  AttendanceSession[]
+  lessonPlans         LessonPlan[]
+  rubrics             Rubric[]
+  commentBankEntries  CommentBankEntry[]
+}
+
+model CompetencyTemplate {
+  id               String  @id @default(cuid())
+  name             String
+  description      String?
+  subjectId        String?
+  schoolType       String  @default("ELEMENTARY")
+  gradeLevelMin    Int     @default(1)
+  gradeLevelMax    Int     @default(4)
+  isGlobalTemplate Boolean @default(false)
+  createdByUserId  String?
+  version          Int     @default(1)
+  schoolId         String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  subject              Subject?              @relation(fields: [subjectId], references: [id])
+  school               School?               @relation(fields: [schoolId], references: [id])
+  categories           CompetencyCategory[]
+  classCompetencyAssignments ClassCompetencyAssignment[]
+}
+
+model CompetencyCategory {
+  id                  String  @id @default(cuid())
+  competencyTemplateId String
+  name                String
+  order               Int     @default(0)
+  color               String? // hex color for chart petals
+
+  competencyTemplate CompetencyTemplate @relation(fields: [competencyTemplateId], references: [id])
+  competencies       Competency[]
+  reportSections     ReportSection[]
+}
+
+model Competency {
+  id          String  @id @default(cuid())
+  categoryId  String
+  code        String  // e.g. "D.3.LES.01"
+  title       String
+  description String?
+  order       Int     @default(0)
+
+  category              CompetencyCategory     @relation(fields: [categoryId], references: [id])
+  masteryLevelDefinitions MasteryLevelDefinition[]
+  learningProgressEntries LearningProgressEntry[]
+  assessmentCompetencyLinks AssessmentCompetencyLink[]
+}
+
+model MasteryLevelDefinition {
+  id           String  @id @default(cuid())
+  competencyId String
+  levelValue   Int     // e.g. 1-4
+  label        String  // e.g. "noch nicht erreicht", "entwickelt sich", "kompetent", "weit entwickelt"
+  description  String?
+
+  competency Competency @relation(fields: [competencyId], references: [id])
+}
+
+model ClassCompetencyAssignment {
+  id                  String @id @default(cuid())
+  classGroupId        String
+  subjectId           String
+  competencyTemplateId String
+  schoolYearId        String
+  clonedTemplateId    String? // if customized, points to the school's cloned copy
+
+  classGroup         ClassGroup         @relation(fields: [classGroupId], references: [id])
+  subject            Subject            @relation(fields: [subjectId], references: [id])
+  competencyTemplate CompetencyTemplate @relation(fields: [competencyTemplateId], references: [id])
+
+  @@unique([classGroupId, subjectId, schoolYearId])
+}
+
+// ─── Progress Tracking & Assessment ────────────────────────────────
+
+model LearningProgressEntry {
+  id              String   @id @default(cuid())
+  studentId       String
+  competencyId    String
+  teacherId       String
+  classGroupId    String
+  date            DateTime
+  masteryLevelValue Int
+  note            String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  student     Student     @relation(fields: [studentId], references: [id])
+  competency  Competency  @relation(fields: [competencyId], references: [id])
+  teacher     User        @relation(fields: [teacherId], references: [id])
+  classGroup  ClassGroup  @relation(fields: [classGroupId], references: [id])
+}
+
+model Assessment {
+  id           String   @id @default(cuid())
+  classGroupId String
+  subjectId    String
+  teacherId    String
+  title        String
+  date         DateTime
+  type         String   @default("TEST") // TEST, ORAL, PROJECT, HOMEWORK, OTHER
+  maxScore     Float?
+  weight       Float    @default(1.0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  classGroup           ClassGroup           @relation(fields: [classGroupId], references: [id])
+  subject              Subject              @relation(fields: [subjectId], references: [id])
+  teacher              User                 @relation(fields: [teacherId], references: [id])
+  assessmentCompetencyLinks AssessmentCompetencyLink[]
+  assessmentResults    AssessmentResult[]
+}
+
+model AssessmentCompetencyLink {
+  id           String @id @default(cuid())
+  assessmentId String
+  competencyId String
+  weight       Float  @default(1.0)
+
+  assessment Assessment @relation(fields: [assessmentId], references: [id])
+  competency Competency @relation(fields: [competencyId], references: [id])
+
+  @@unique([assessmentId, competencyId])
+}
+
+model AssessmentResult {
+  id               String  @id @default(cuid())
+  assessmentId     String
+  studentId        String
+  score            Float?
+  masteryLevelValue Int?
+  note             String?
+
+  assessment Assessment @relation(fields: [assessmentId], references: [id])
+  student    Student    @relation(fields: [studentId], references: [id])
+
+  @@unique([assessmentId, studentId])
+}
+
+// ─── Grading ───────────────────────────────────────────────────────
+
+model GradingScheme {
+  id              String @id @default(cuid())
+  classGroupId    String?
+  subjectId       String?
+  schoolId        String?
+  name            String
+  type            String @default("NUMERIC_GRADE") // NUMERIC_GRADE, VERBAL_FEEDBACK, COMBINED
+  scaleDefinition String // JSON: e.g. {"min":1,"max":6,"labels":{"1":"sehr gut","6":"ungenügend"}}
+
+  classGroup     ClassGroup?     @relation(fields: [classGroupId], references: [id])
+  subject        Subject?        @relation(fields: [subjectId], references: [id])
+  school         School?         @relation(fields: [schoolId], references: [id])
+  gradingWeightRules GradingWeightRule[]
+}
+
+model GradingWeightRule {
+  id              String @id @default(cuid())
+  gradingSchemeId String
+  sourceType      String // LEARNING_PROGRESS, ASSESSMENT
+  targetRef       String? // competencyId, assessmentId, or categoryId
+  weightPercent   Float  @default(50.0)
+
+  gradingScheme GradingScheme @relation(fields: [gradingSchemeId], references: [id])
+}
+
+model ComputedGrade {
+  id              String   @id @default(cuid())
+  studentId       String
+  subjectId       String
+  classGroupId    String
+  schoolYearId    String
+  period          String   @default("Semester 1")
+  computedValue   Float
+  computedAt      DateTime @default(now())
+  isFinalized     Boolean  @default(false)
+  overriddenValue Float?
+  overrideReason  String?
+
+  student     Student     @relation(fields: [studentId], references: [id])
+  subject     Subject     @relation(fields: [subjectId], references: [id])
+  classGroup  ClassGroup  @relation(fields: [classGroupId], references: [id])
+  schoolYear  SchoolYear  @relation(fields: [schoolYearId], references: [id])
+}
+
+// ─── Reporting ─────────────────────────────────────────────────────
+
+model Report {
+  id              String   @id @default(cuid())
+  studentId       String
+  classGroupId    String
+  schoolYearId    String
+  period          String
+  generatedByUserId String
+  generatedAt     DateTime @default(now())
+  status          String   @default("DRAFT") // DRAFT, FINAL
+  pdfFilePath     String?
+  includesGrades  Boolean  @default(false)
+
+  student        Student     @relation(fields: [studentId], references: [id])
+  classGroup     ClassGroup  @relation(fields: [classGroupId], references: [id])
+  schoolYear     SchoolYear  @relation(fields: [schoolYearId], references: [id])
+  generatedByUser User       @relation(fields: [generatedByUserId], references: [id])
+  sections       ReportSection[]
+}
+
+model ReportSection {
+  id                  String  @id @default(cuid())
+  reportId            String
+  competencyCategoryId String?
+  generatedText       String
+  order               Int     @default(0)
+
+  report            Report             @relation(fields: [reportId], references: [id])
+  competencyCategory CompetencyCategory? @relation(fields: [competencyCategoryId], references: [id])
+}
+
+// ─── Auditing & Compliance ─────────────────────────────────────────
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  userId     String?
+  schoolId   String?
+  action     String
+  entityType String
+  entityId   String?
+  timestamp  DateTime @default(now())
+  metadata   String?  // JSON
+
+  user  User?  @relation(fields: [userId], references: [id])
+  school School? @relation(fields: [schoolId], references: [id])
+}
+
+model DataExportRequest {
+  id            String    @id @default(cuid())
+  requestedByUserId String
+  schoolId      String?
+  scope         String    // STUDENT, CLASS, SCHOOL
+  scopeId       String?   // studentId, classGroupId, or schoolId
+  status        String    @default("PENDING") // PENDING, PROCESSING, COMPLETED, FAILED
+  filePath      String?
+  requestedAt   DateTime  @default(now())
+  completedAt   DateTime?
+
+  requestedByUser User @relation(fields: [requestedByUserId], references: [id])
+  school          School? @relation(fields: [schoolId], references: [id])
+}
+
+// ─── Attendance Tracking ────────────────────────────────────────────
+
+model AttendanceSession {
+  id           String   @id @default(cuid())
+  classGroupId String
+  teacherId    String
+  date         DateTime
+  subjectId    String?
+  period       String?  // e.g. "1. Stunde", "Morning"
+  status       String   @default("OPEN") // OPEN, COMPLETED
+  note         String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  classGroup   ClassGroup  @relation(fields: [classGroupId], references: [id])
+  teacher      User        @relation(fields: [teacherId], references: [id])
+  subject      Subject?    @relation(fields: [subjectId], references: [id])
+  records      AttendanceRecord[]
+
+  @@index([classGroupId, date])
+}
+
+model AttendanceRecord {
+  id               String  @id @default(cuid())
+  sessionId        String
+  studentId        String
+  status           String  @default("PRESENT") // PRESENT, ABSENT, EXCUSED, LATE
+  arrivalTime      String? // for LATE status, e.g. "08:25"
+  comment          String?
+
+  session          AttendanceSession @relation(fields: [sessionId], references: [id])
+  student          Student           @relation(fields: [studentId], references: [id])
+
+  @@unique([sessionId, studentId])
+  @@index([studentId])
+}
+
+// ─── Teacher Notes ─────────────────────────────────────────────────
+
+model TeacherNote {
+  id          String   @id @default(cuid())
+  studentId   String
+  teacherId   String
+  category    String   // GENERAL, BEHAVIOR, ACADEMIC, INTERVENTION, PARENT_CONTACT
+  content     String
+  isPrivate   Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  student     Student  @relation(fields: [studentId], references: [id])
+  teacher     User     @relation(fields: [teacherId], references: [id])
+
+  @@index([studentId])
+  @@index([teacherId])
+}
+
+// ─── Lesson Planning ────────────────────────────────────────────────
+
+model LessonPlan {
+  id            String   @id @default(cuid())
+  teacherId     String
+  classGroupId  String
+  subjectId     String?
+  title         String
+  description   String?
+  date          DateTime
+  durationMin   Int      @default(45)
+  status        String   @default("draft") // draft|scheduled|completed|cancelled
+  objectives    String? // JSON array of strings
+  materials     String? // JSON array of strings
+  homework      String?
+  reflection    String?
+  linkedCompetencyIds String? // JSON array of competency IDs
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  teacher       User       @relation(fields: [teacherId], references: [id])
+  classGroup    ClassGroup @relation(fields: [classGroupId], references: [id])
+  subject       Subject?   @relation(fields: [subjectId], references: [id])
+
+  @@index([teacherId])
+  @@index([classGroupId])
+  @@index([date])
+}
+
+// ─── Parent Communication ──────────────────────────────────────────
+
+model ParentContact {
+  id               String   @id @default(cuid())
+  studentId        String
+  firstName        String
+  lastName         String
+  email            String?
+  phone            String?
+  relationship     String   @default("parent") // parent|guardian|emergency
+  preferredContact String   @default("email") // email|phone|both
+  preferredLanguage String  @default("de")
+  notes            String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  student     Student        @relation(fields: [studentId], references: [id])
+  messages    ParentMessage[]
+
+  @@index([studentId])
+  @@unique([studentId, email])
+}
+
+model ParentMessage {
+  id           String   @id @default(cuid())
+  parentId     String
+  teacherId    String
+  studentId    String
+  subject      String
+  body         String
+  category     String   @default("general") // general|progress|assessment|behavior|attendance|event
+  priority     String   @default("normal") // low|normal|high|urgent
+  status       String   @default("sent") // draft|sent|delivered|read|replied
+  readAt       DateTime?
+  reply        String?
+  replyAt      DateTime?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  parent       ParentContact @relation(fields: [parentId], references: [id])
+  teacher      User          @relation(fields: [teacherId], references: [id])
+  student      Student       @relation(fields: [studentId], references: [id])
+
+  @@index([teacherId])
+  @@index([parentId])
+  @@index([studentId])
+  @@index([createdAt])
+}
+
+// ─── Behavior Tracking ─────────────────────────────────────────────
+
+model BehaviorCategory {
+  id        String   @id @default(cuid())
+  schoolId  String
+  school    School   @relation(fields: [schoolId], references: [id])
+  name      String
+  color     String   // hex color, e.g. "#10b981"
+  valence   String   // "positive" | "negative" | "neutral"
+  icon      String?  // emoji
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  incidents BehaviorIncident[]
+
+  @@unique([schoolId, name])
+  @@index([schoolId])
+}
+
+model BehaviorIncident {
+  id           String   @id @default(cuid())
+  studentId    String
+  student      Student  @relation(fields: [studentId], references: [id])
+  teacherId    String
+  teacher      User     @relation("BehaviorLogger", fields: [teacherId], references: [id])
+  classGroupId String?
+  classGroup   ClassGroup? @relation(fields: [classGroupId], references: [id])
+  schoolId     String
+  school       School   @relation(fields: [schoolId], references: [id])
+  categoryId   String
+  category     BehaviorCategory @relation(fields: [categoryId], references: [id])
+  date         DateTime
+  severity     String   // "minor" | "moderate" | "major"
+  description  String
+  location     String?  // e.g., "Klassenzimmer", "Pausenhof", "Flur"
+  followUpAction String? // e.g., "Elterngespräch", "Nachsitzen", "Lob im Kreis"
+  resolved     Boolean  @default(false)
+  resolvedAt   DateTime?
+  resolvedById String?
+  resolvedBy   User?    @relation("BehaviorResolver", fields: [resolvedById], references: [id])
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([studentId, date])
+  @@index([classGroupId, date])
+  @@index([schoolId, date])
+  @@index([teacherId])
+}
+
+// ─── Rubric Library ────────────────────────────────────────────────
+
+model Rubric {
+  id          String   @id @default(cuid())
+  schoolId    String
+  school      School   @relation(fields: [schoolId], references: [id])
+  teacherId   String
+  teacher     User     @relation(fields: [teacherId], references: [id])
+  subjectId   String?
+  subject     Subject? @relation(fields: [subjectId], references: [id])
+  title       String
+  description String?
+  type        String   @default("ANALYTIC") // ANALYTIC | HOLISTIC
+  maxPoints   Int      @default(100)
+  isPublic    Boolean  @default(false) // shared across school
+  version     Int      @default(1)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  criteria RubricCriterion[]
+
+  @@index([schoolId])
+  @@index([teacherId])
+  @@index([subjectId])
+}
+
+model RubricCriterion {
+  id          String   @id @default(cuid())
+  rubricId    String
+  rubric      Rubric   @relation(fields: [rubricId], references: [id], onDelete: Cascade)
+  name        String   // e.g., "Inhalt", "Sprache", "Darstellung"
+  description String?
+  weight      Float    @default(1.0) // relative weight for this criterion
+  maxPoints   Int      // max points for this criterion
+  order       Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  levels RubricLevel[]
+
+  @@index([rubricId])
+}
+
+model RubricLevel {
+  id           String   @id @default(cuid())
+  criterionId  String
+  criterion    RubricCriterion @relation(fields: [criterionId], references: [id], onDelete: Cascade)
+  label        String   // e.g., "Sehr gut", "Gut", "Befriedigend", "Ausreichend"
+  description  String   // descriptor for this level
+  points       Int      // points for this level
+  order        Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([criterionId])
+}
+
+// ─── Report Card Comments Bank ────────────────────────────────────
+
+model CommentCategory {
+  id        String   @id @default(cuid())
+  schoolId  String
+  school    School   @relation(fields: [schoolId], references: [id])
+  name      String
+  color     String   // hex color
+  icon      String?  // emoji
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  comments CommentBankEntry[]
+
+  @@unique([schoolId, name])
+  @@index([schoolId])
+}
+
+model CommentBankEntry {
+  id          String   @id @default(cuid())
+  schoolId    String
+  school      School   @relation(fields: [schoolId], references: [id])
+  teacherId   String
+  teacher     User     @relation(fields: [teacherId], references: [id])
+  categoryId  String
+  category    CommentCategory @relation(fields: [categoryId], references: [id])
+  subjectId   String?
+  subject     Subject? @relation(fields: [subjectId], references: [id])
+  title       String   // short title
+  text        String   // the full comment text
+  gradeLevel  String?  // e.g., "3", "3-4", "all" — which grade levels this applies to
+  schoolType  String?  // e.g., "ELEMENTARY", "SECONDARY"
+  isPublic    Boolean  @default(false) // shared across school
+  usageCount  Int      @default(0) // how many times used
+  tags        String?  // comma-separated tags for search
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([schoolId])
+  @@index([teacherId])
+  @@index([categoryId])
+  @@index([subjectId])
+}

@@ -1,0 +1,1072 @@
+'use client';
+
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
+import { useTheme } from 'next-themes';
+import { motion, AnimatePresence } from 'framer-motion';
+import {
+  LayoutDashboard,
+  Users,
+  Grid3X3,
+  PenLine,
+  Flower2,
+  ClipboardCheck,
+  Calculator,
+  FileText,
+  BookOpen,
+  Sun,
+  Moon,
+  Globe,
+  LogOut,
+  ChevronRight,
+  Heart,
+  Bell,
+  GraduationCap,
+  Settings,
+  Search,
+  HelpCircle,
+  Command,
+  CornerDownLeft,
+  User as UserIcon,
+  FolderSearch,
+  X,
+  TrendingUp,
+  CalendarCheck,
+  CalendarDays,
+  Calendar as CalendarIconNav,
+  Mail,
+  Shield,
+  Target,
+  Ruler,
+  MessageSquareText,
+  Pencil,
+  Plus,
+} from 'lucide-react';
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarFooter,
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarGroupLabel,
+  SidebarHeader,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  SidebarProvider,
+  SidebarInset,
+  SidebarTrigger,
+  SidebarRail,
+} from '@/components/ui/sidebar';
+import { Button } from '@/components/ui/button';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Separator } from '@/components/ui/separator';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from '@/components/ui/breadcrumb';
+import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { useAppStore, type ViewName } from '@/lib/store';
+import { t } from '@/lib/i18n';
+import { fetchSchoolYears, fetchStudents, fetchClasses, fetchNotifications, markServerNotificationsRead, type SchoolYear, type Student, type ClassGroup, type NotificationData, type AssessmentNotification, type MissingObservationNotification } from '@/lib/api';
+import OnboardingTour, { isOnboardingCompleted } from '@/components/onboarding-tour';
+import KeyboardShortcutsDialog from '@/components/keyboard-shortcuts-dialog';
+import {
+  CommandDialog,
+  CommandInput,
+  CommandList,
+  CommandEmpty,
+  CommandGroup,
+  CommandItem,
+  CommandSeparator,
+  CommandShortcut,
+} from '@/components/ui/command';
+import { toast } from 'sonner';
+
+import { AlertTriangle, Info, ArrowRight } from 'lucide-react';
+import DashboardView from './dashboard-view';
+import ClassesView from './classes-view';
+import CompetencyGridView from './competency-grid-view';
+import ProgressEntriesView from './progress-entries-view';
+import CompetenceFlowerView from './competence-flower-view';
+import AssessmentsView from './assessments-view';
+import GradingView from './grading-view';
+import ReportsView from './reports-view';
+import SettingsView from './settings-view';
+import StudentDetailView from './student-detail-view';
+import AnalyticsView from './analytics-view';
+import MasteryMatrixView from './mastery-matrix-view';
+import AttendanceView from './attendance-view';
+import LessonPlansView from './lesson-plans-view';
+import CalendarView from './calendar-view';
+import ParentCommunicationView from './parent-communication-view';
+import BehaviorTrackingView from './behavior-tracking-view';
+import CurriculumCoverageView from './curriculum-coverage-view';
+import RubricLibraryView from './rubric-library-view';
+import CommentBankView from './comment-bank-view';
+
+type NavItem = { key: ViewName; icon: React.ElementType; labelKey: string };
+type NavSection = { id: string; labelKey: string; items: NavItem[] };
+
+const navSections: NavSection[] = [
+  {
+    id: 'analysis',
+    labelKey: 'polish.nav_analysis',
+    items: [
+      { key: 'dashboard', icon: LayoutDashboard, labelKey: 'nav.dashboard' },
+      { key: 'calendar', icon: CalendarIconNav, labelKey: 'nav.calendar' },
+      { key: 'analytics', icon: TrendingUp, labelKey: 'nav.analytics' },
+      { key: 'reports', icon: FileText, labelKey: 'nav.reports' },
+      { key: 'coverage', icon: Target, labelKey: 'nav.coverage' },
+    ],
+  },
+  {
+    id: 'teaching',
+    labelKey: 'polish.nav_teaching',
+    items: [
+      { key: 'classes', icon: Users, labelKey: 'nav.classes' },
+      { key: 'progress', icon: PenLine, labelKey: 'nav.progress' },
+      { key: 'flower', icon: Flower2, labelKey: 'nav.flower' },
+      { key: 'matrix', icon: Grid3X3, labelKey: 'nav.matrix' },
+      { key: 'assessments', icon: ClipboardCheck, labelKey: 'nav.assessments' },
+      { key: 'grading', icon: Calculator, labelKey: 'nav.grading' },
+      { key: 'attendance', icon: CalendarCheck, labelKey: 'nav.attendance' },
+      { key: 'lesson-plans', icon: CalendarDays, labelKey: 'nav.lesson_plans' },
+      { key: 'parents', icon: Mail, labelKey: 'nav.parents' },
+      { key: 'behavior', icon: Shield, labelKey: 'nav.behavior' },
+      { key: 'rubrics', icon: Ruler, labelKey: 'nav.rubrics' },
+      { key: 'comments', icon: MessageSquareText, labelKey: 'nav.comments' },
+    ],
+  },
+  {
+    id: 'setup',
+    labelKey: 'polish.nav_setup',
+    items: [
+      { key: 'competencies', icon: BookOpen, labelKey: 'nav.competencies' },
+      { key: 'settings', icon: Settings, labelKey: 'nav.settings' },
+    ],
+  },
+];
+
+function renderView(view: ViewName) {
+  switch (view) {
+    case 'dashboard': return <DashboardView />;
+    case 'classes': return <ClassesView />;
+    case 'competencies': return <CompetencyGridView />;
+    case 'progress': return <ProgressEntriesView />;
+    case 'flower': return <CompetenceFlowerView />;
+    case 'matrix': return <MasteryMatrixView />;
+    case 'analytics': return <AnalyticsView />;
+    case 'assessments': return <AssessmentsView />;
+    case 'grading': return <GradingView />;
+    case 'reports': return <ReportsView />;
+    case 'settings': return <SettingsView />;
+    case 'student-detail': return <StudentDetailView />;
+    case 'attendance': return <AttendanceView />;
+    case 'lesson-plans': return <LessonPlansView />;
+    case 'calendar': return <CalendarView />;
+    case 'parents': return <ParentCommunicationView />;
+    case 'behavior': return <BehaviorTrackingView />;
+    case 'coverage': return <CurriculumCoverageView />;
+    case 'rubrics': return <RubricLibraryView />;
+    case 'comments': return <CommentBankView />;
+    default: return <DashboardView />;
+  }
+}
+
+export default function AppLayout() {
+  const { theme, setTheme } = useTheme();
+  const currentView = useAppStore((s) => s.currentView);
+  const setCurrentView = useAppStore((s) => s.setCurrentView);
+  const currentUser = useAppStore((s) => s.currentUser);
+  const logout = useAppStore((s) => s.logout);
+  const locale = useAppStore((s) => s.locale);
+  const setLocale = useAppStore((s) => s.setLocale);
+  const storeSchoolYearId = useAppStore((s) => s.schoolYearId);
+  const setSchoolYearId = useAppStore((s) => s.setSchoolYearId);
+  const navigateToStudentDetail = useAppStore((s) => s.navigateToStudentDetail);
+  const setCurrentClass = useAppStore((s) => s.setCurrentClass);
+  const [schoolYears, setSchoolYears] = useState<SchoolYear[]>([]);
+  const [selectedYearId, setSelectedYearId] = useState<string>(storeSchoolYearId ?? '');
+
+  // Quick search (Cmd+K) state
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchStudents, setSearchStudents] = useState<Student[]>([]);
+  const [searchClasses, setSearchClasses] = useState<ClassGroup[]>([]);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [helpOpen, setHelpOpen] = useState(false);
+  const [notifOpen, setNotifOpen] = useState(false);
+  const [notifData, setNotifData] = useState<NotificationData | null>(null);
+  const [notifLoading, setNotifLoading] = useState(false);
+  const [onboardingOpen, setOnboardingOpen] = useState(false);
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
+  const [recentActions, setRecentActions] = useState<{ key: string; label: string; view?: ViewName; timestamp: number }[]>([]);
+
+  const initials = currentUser
+    ? `${currentUser.firstName[0]}${currentUser.lastName[0]}`.toUpperCase()
+    : '?';
+
+  const displayName = currentUser
+    ? `${currentUser.firstName} ${currentUser.lastName}`
+    : '';
+
+  const roleKey = currentUser?.role === 'TEACHER' ? 'role.teacher' : currentUser?.role === 'SCHOOL_ADMIN' ? 'role.school_admin' : 'role.super_admin';
+
+  const isDemoUser = currentUser?.isDemo === true || (currentUser?.email?.endsWith('@competencetrack.org') && currentUser?.email?.startsWith('demo'));
+
+  const handleLogout = async () => {
+    await logout();
+    toast.success(t('auth.logout'));
+  };
+
+  const toggleLocale = () => {
+    setLocale(locale === 'de' ? 'en' : 'de');
+  };
+
+  // Track recent actions for command palette
+  const trackAction = useCallback((key: string, label: string, view?: ViewName) => {
+    setRecentActions((prev) => {
+      const filtered = prev.filter((a) => a.key !== key);
+      return [{ key, label, view, timestamp: Date.now() }, ...filtered].slice(0, 5);
+    });
+  }, []);
+
+  // View shortcut mapping: Ctrl/Cmd + number -> view
+  const viewShortcuts: Record<number, ViewName> = {
+    1: 'dashboard',
+    2: 'classes',
+    3: 'progress',
+    4: 'flower',
+    5: 'assessments',
+    6: 'grading',
+    7: 'reports',
+    8: 'competencies',
+    9: 'settings',
+  };
+
+  // Global keyboard shortcuts
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      const isMod = e.metaKey || e.ctrlKey;
+
+      // Ctrl/Cmd + K: Open command palette
+      if (isMod && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setSearchOpen((v) => !v);
+        return;
+      }
+
+      // Ctrl/Cmd + /: Show keyboard shortcuts help
+      if (isMod && e.key.toLowerCase() === '/') {
+        e.preventDefault();
+        setShortcutsOpen((v) => !v);
+        return;
+      }
+
+      // Ctrl/Cmd + N: Create new entry (navigate to progress)
+      if (isMod && e.key.toLowerCase() === 'n') {
+        e.preventDefault();
+        setSearchOpen(false);
+        setCurrentView('progress');
+        trackAction('new-entry', t('shortcuts.new_entry'), 'progress');
+        toast.info(t('shortcuts.new_entry'));
+        return;
+      }
+
+      // Ctrl/Cmd + 1-9: Switch to specific view
+      if (isMod && e.key >= '1' && e.key <= '9') {
+        e.preventDefault();
+        const view = viewShortcuts[Number(e.key)];
+        if (view) {
+          setCurrentView(view);
+          trackAction(`view-${view}`, t(`nav.${view}`), view);
+        }
+        return;
+      }
+
+      // Escape: Close any open dialog
+      if (e.key === 'Escape') {
+        if (searchOpen) {
+          setSearchOpen(false);
+        } else if (shortcutsOpen) {
+          setShortcutsOpen(false);
+        } else if (helpOpen) {
+          setHelpOpen(false);
+        }
+      }
+    }
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [searchOpen, shortcutsOpen, helpOpen, setCurrentView, trackAction]);
+
+  // Debounced search
+  useEffect(() => {
+    if (!searchOpen) {
+      setSearchQuery('');
+      setSearchStudents([]);
+      setSearchClasses([]);
+      return;
+    }
+    if (!searchQuery.trim()) {
+      setSearchStudents([]);
+      setSearchClasses([]);
+      return;
+    }
+    const q = searchQuery.trim();
+    const handle = setTimeout(async () => {
+      setSearchLoading(true);
+      try {
+        const [students, classes] = await Promise.all([
+          fetchStudents(currentUser?.schoolId ?? undefined, undefined, q).catch(() => []),
+          fetchClasses(currentUser?.schoolId ?? undefined, undefined).catch(() => []),
+        ]);
+        const lowerQ = q.toLowerCase();
+        setSearchStudents(students.slice(0, 6));
+        setSearchClasses(classes.filter((c) => c.name.toLowerCase().includes(lowerQ)).slice(0, 4));
+      } finally {
+        setSearchLoading(false);
+      }
+    }, 220);
+    return () => clearTimeout(handle);
+  }, [searchQuery, searchOpen, currentUser?.schoolId]);
+
+  const breadcrumbLabel = useMemo(() => {
+    if (currentView === 'student-detail') return t('nav.student-detail');
+    return t(`nav.${currentView}`);
+  }, [currentView]);
+
+  const handleSearchPickStudent = useCallback((s: Student) => {
+    setSearchOpen(false);
+    navigateToStudentDetail(s.id, currentView);
+  }, [navigateToStudentDetail, currentView]);
+
+  const handleSearchPickClass = useCallback((c: ClassGroup) => {
+    setSearchOpen(false);
+    setCurrentClass(c.id);
+    setCurrentView('classes');
+  }, [setCurrentClass, setCurrentView]);
+
+  // Check onboarding status on mount
+  useEffect(() => {
+    if (!isOnboardingCompleted()) {
+      setOnboardingOpen(true);
+    }
+  }, []);
+
+  // Fetch notifications
+  const loadNotifications = useCallback(async () => {
+    if (!currentUser?.schoolId) return;
+    setNotifLoading(true);
+    try {
+      const data = await fetchNotifications();
+      setNotifData(data);
+    } catch {
+      // ignore
+    } finally {
+      setNotifLoading(false);
+    }
+  }, [currentUser?.schoolId]);
+
+  useEffect(() => {
+    loadNotifications();
+  }, [loadNotifications]);
+
+  const handleMarkAllRead = useCallback(async () => {
+    if (!notifData) return;
+    const allIds = [
+      ...notifData.upcomingAssessments.map((n) => n.id),
+      ...notifData.missingObservations.map((n) => n.id),
+    ];
+    if (allIds.length === 0) return;
+    try {
+      await markServerNotificationsRead(allIds);
+      setNotifData((prev) => prev ? {
+        ...prev,
+        upcomingAssessments: prev.upcomingAssessments.map((n) => ({ ...n, isRead: true })),
+        missingObservations: prev.missingObservations.map((n) => ({ ...n, isRead: true })),
+        unreadCount: 0,
+      } : prev);
+    } catch {
+      // ignore
+    }
+  }, [notifData]);
+
+  useEffect(() => {
+    async function loadYears() {
+      if (!currentUser?.schoolId) return;
+      try {
+        const years = await fetchSchoolYears(currentUser.schoolId);
+        setSchoolYears(years);
+        if (years.length > 0 && !selectedYearId) {
+          setSelectedYearId(years[0].id);
+          setSchoolYearId(years[0].id);
+        }
+      } catch {
+        // ignore
+      }
+    }
+    loadYears();
+  }, [currentUser?.schoolId]);
+
+  return (
+    <SidebarProvider>
+      <Sidebar
+        variant="sidebar"
+        collapsible="icon"
+        className="border-r border-emerald-200/50 dark:border-emerald-900/30 bg-gradient-to-b from-emerald-50/80 via-white to-white dark:from-gray-900 dark:via-emerald-950/20 dark:to-gray-950"
+      >
+        <SidebarHeader className="p-4">
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="flex items-center gap-3 group-data-[collapsible=icon]:justify-center"
+          >
+            <div className="flex items-center justify-center w-9 h-9 rounded-xl bg-gradient-to-br from-emerald-400 to-teal-500 text-white shrink-0 shadow-lg shadow-emerald-300/40 dark:shadow-emerald-900/40">
+              <BookOpen className="w-5 h-5" />
+            </div>
+            <div className="group-data-[collapsible=icon]:hidden">
+              <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100 leading-tight">CompetenceTrack</h2>
+              <p className="text-[10px] text-emerald-600/70 dark:text-emerald-400/50 leading-tight">{t('app.subtitle')}</p>
+            </div>
+          </motion.div>
+        </SidebarHeader>
+
+        <SidebarContent>
+          {navSections.map((section) => (
+            <SidebarGroup key={section.id}>
+              <SidebarGroupLabel className="text-emerald-600/70 dark:text-emerald-400/50 text-xs font-semibold uppercase tracking-wider inline-flex items-center gap-1.5">
+                {section.id === 'analysis' && <TrendingUp className="h-3 w-3" />}
+                {section.id === 'teaching' && <BookOpen className="h-3 w-3" />}
+                {section.id === 'setup' && <Settings className="h-3 w-3" />}
+                {t(section.labelKey)}
+              </SidebarGroupLabel>
+              <SidebarGroupContent>
+                <SidebarMenu>
+                  {section.items.map((item) => (
+                    <SidebarMenuItem key={item.key}>
+                      <SidebarMenuButton
+                        isActive={currentView === item.key}
+                        onClick={() => setCurrentView(item.key)}
+                        tooltip={t(item.labelKey)}
+                        className={`group relative transition-all duration-200 ${
+                          currentView === item.key
+                            ? 'bg-gradient-to-r from-emerald-100/90 via-emerald-50/70 to-teal-50/50 dark:from-emerald-900/40 dark:via-emerald-900/25 dark:to-teal-900/15 text-emerald-700 dark:text-emerald-300 font-semibold border-l-3 border-emerald-500 rounded-l-none shadow-sm shadow-emerald-100/40 dark:shadow-emerald-900/20'
+                            : 'text-gray-600 dark:text-gray-400 hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-emerald-50/50 dark:hover:bg-emerald-900/10'
+                        }`}
+                      >
+                        {currentView === item.key && (
+                          <span className="absolute inset-y-0 left-0 w-1 rounded-r-full bg-gradient-to-b from-emerald-400 to-teal-500" />
+                        )}
+                        <item.icon className={`h-4 w-4 transition-colors duration-200 ${
+                          currentView === item.key
+                            ? 'text-emerald-600 dark:text-emerald-400'
+                            : 'text-gray-400 dark:text-gray-500 group-hover:text-emerald-500 dark:group-hover:text-emerald-400'
+                        }`} />
+                        <span>{t(item.labelKey)}</span>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  ))}
+                </SidebarMenu>
+              </SidebarGroupContent>
+            </SidebarGroup>
+          ))}
+        </SidebarContent>
+
+        <SidebarFooter className="p-3">
+          <Separator className="mb-3 bg-emerald-200/50 dark:bg-emerald-900/30" />
+          <div className="flex items-center gap-2 group-data-[collapsible=icon]:justify-center">
+            <Avatar className="h-9 w-9 shrink-0 ring-2 ring-emerald-200 dark:ring-emerald-800">
+              <AvatarFallback className="bg-gradient-to-br from-emerald-100 to-teal-100 text-emerald-700 dark:from-emerald-900 dark:to-teal-900 dark:text-emerald-300 text-xs font-bold">
+                {initials}
+              </AvatarFallback>
+            </Avatar>
+            <div className="flex-1 min-w-0 group-data-[collapsible=icon]:hidden">
+              <p className="text-sm font-semibold text-gray-800 dark:text-gray-200 truncate flex items-center gap-1.5">
+                {displayName}
+                {isDemoUser && (
+                  <Badge className="bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 border-amber-200/50 dark:border-amber-900/30 text-[9px] px-1.5 py-0 h-4">
+                    {t('badge.demo')}
+                  </Badge>
+                )}
+              </p>
+              <p className="text-xs text-emerald-600/70 dark:text-emerald-400/50 truncate">{t(roleKey)}</p>
+            </div>
+          </div>
+          <div className="flex gap-1 mt-3 group-data-[collapsible=icon]:justify-center">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 hover:bg-emerald-100 dark:hover:bg-emerald-900/20"
+              onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+              title={t('theme.toggle')}
+            >
+              {theme === 'dark' ? <Sun className="h-4 w-4 text-amber-500" /> : <Moon className="h-4 w-4 text-gray-500" />}
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 hover:bg-emerald-100 dark:hover:bg-emerald-900/20"
+              onClick={toggleLocale}
+              title={t('language.toggle')}
+            >
+              <Globe className="h-4 w-4 text-teal-500" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 hover:bg-red-100 dark:hover:bg-red-900/20 text-gray-400 hover:text-red-500 dark:hover:text-red-400"
+              onClick={handleLogout}
+              title={t('auth.logout')}
+            >
+              <LogOut className="h-4 w-4" />
+            </Button>
+          </div>
+        </SidebarFooter>
+        <SidebarRail />
+      </Sidebar>
+
+      <SidebarInset>
+        <header className="flex h-14 items-center gap-2 border-b border-emerald-200/50 dark:border-emerald-900/30 bg-gradient-to-r from-white/90 to-emerald-50/30 dark:from-gray-950/90 dark:to-emerald-950/10 backdrop-blur-sm px-4 sticky top-0 z-10 shadow-sm shadow-emerald-100/50 dark:shadow-emerald-900/10">
+          <SidebarTrigger className="-ml-1 hover:bg-emerald-100 dark:hover:bg-emerald-900/20 shrink-0" />
+          <Separator orientation="vertical" className="h-6 bg-emerald-200/50 dark:bg-emerald-900/30 shrink-0" />
+          <Breadcrumb className="min-w-0 flex-1">
+            <BreadcrumbList className="text-sm">
+              <BreadcrumbItem>
+                <BreadcrumbLink
+                  className="cursor-pointer text-emerald-600/70 dark:text-emerald-400/60 hover:text-emerald-700 dark:hover:text-emerald-300"
+                  onClick={() => setCurrentView('dashboard')}
+                >
+                  {t('polish.breadcrumb_home')}
+                </BreadcrumbLink>
+              </BreadcrumbItem>
+              <BreadcrumbSeparator />
+              <BreadcrumbItem>
+                <BreadcrumbPage className="font-semibold text-gray-900 dark:text-gray-100 truncate">
+                  {breadcrumbLabel}
+                </BreadcrumbPage>
+              </BreadcrumbItem>
+            </BreadcrumbList>
+          </Breadcrumb>
+          {/* Right-aligned action group: Search | Help | School Year | Bell | Lang | Avatar */}
+          <div className="flex items-center gap-2 shrink-0">
+            {/* Quick Search (Cmd+K) */}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setSearchOpen(true)}
+              className="hidden md:inline-flex h-9 w-64 px-3 text-xs text-gray-500 dark:text-gray-400 border-emerald-200/50 dark:border-emerald-900/30 bg-white/60 dark:bg-gray-800/50 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 rounded-lg gap-2 justify-between"
+              title={t('polish.quick_search')}
+            >
+              <span className="inline-flex items-center gap-1.5">
+                <Search className="h-3.5 w-3.5 text-emerald-500" />
+                <span className="hidden lg:inline">{t('polish.quick_search')}</span>
+              </span>
+              <kbd className="hidden lg:inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-emerald-100/70 dark:bg-emerald-900/30 text-[10px] font-mono text-emerald-700 dark:text-emerald-300">
+                <Command className="h-2.5 w-2.5" />K
+              </kbd>
+            </Button>
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => setSearchOpen(true)}
+              className="md:hidden h-9 w-9 text-emerald-600 dark:text-emerald-400 border-emerald-200/50 dark:border-emerald-900/30 bg-white/60 dark:bg-gray-800/50 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 rounded-lg"
+              title={t('polish.quick_search')}
+            >
+              <Search className="h-4 w-4" />
+            </Button>
+            {/* Help button — opens help dialog, long-press/Ctrl+click opens onboarding tour */}
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-9 w-9 hover:bg-emerald-100 dark:hover:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400"
+              onClick={() => setHelpOpen(true)}
+              onContextMenu={(e) => { e.preventDefault(); setOnboardingOpen(true); }}
+              title={t('polish.help')}
+            >
+              <HelpCircle className="h-4 w-4" />
+            </Button>
+            {/* School Year Selector */}
+            {schoolYears.length > 0 && (
+              <Select value={selectedYearId} onValueChange={(v) => {
+                setSelectedYearId(v);
+                setSchoolYearId(v);
+              }}>
+                <SelectTrigger className="hidden sm:flex h-9 w-auto text-xs rounded-lg border-emerald-200/50 dark:border-emerald-900/30 bg-white/60 dark:bg-gray-800/50 min-w-[120px] lg:min-w-[150px] hover:bg-emerald-50/40 dark:hover:bg-emerald-900/15">
+                  <GraduationCap className="h-3.5 w-3.5 mr-1 text-emerald-500" />
+                  <SelectValue placeholder={t('header.select_year')} />
+                </SelectTrigger>
+                <SelectContent>
+                  {schoolYears.map((yr) => (
+                    <SelectItem key={yr.id} value={yr.id}>{yr.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+            {/* Notification Bell with Popover */}
+            <Popover open={notifOpen} onOpenChange={setNotifOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-9 w-9 hover:bg-emerald-100 dark:hover:bg-emerald-900/20 relative text-emerald-600 dark:text-emerald-400"
+                  title={t('notifications.title')}
+                >
+                  <Bell className="h-4 w-4" />
+                  {notifData && notifData.unreadCount > 0 && (
+                    <motion.span
+                      initial={{ scale: 0 }}
+                      animate={{ scale: 1 }}
+                      className="absolute -top-0.5 -right-0.5 w-4 h-4 rounded-full bg-gradient-to-br from-emerald-400 to-teal-500 text-white text-[9px] font-bold flex items-center justify-center shadow-sm shadow-emerald-300/30"
+                    >
+                      {notifData.unreadCount > 9 ? '9+' : notifData.unreadCount}
+                    </motion.span>
+                  )}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent
+                align="end"
+                className="w-[360px] p-0 rounded-xl border-emerald-200/60 dark:border-emerald-900/40 shadow-xl shadow-emerald-900/10"
+              >
+                {/* Header */}
+                <div className="flex items-center justify-between px-4 py-3 border-b border-emerald-100/50 dark:border-emerald-900/30 bg-gradient-to-r from-emerald-50/50 to-teal-50/30 dark:from-emerald-950/20 dark:to-teal-950/10">
+                  <h3 className="text-sm font-semibold text-emerald-700 dark:text-emerald-300">
+                    {t('notifications.title')}
+                  </h3>
+                  {notifData && notifData.unreadCount > 0 && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={handleMarkAllRead}
+                      className="h-7 text-xs text-emerald-600 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-900/20"
+                    >
+                      {t('notifications.mark_all_read')}
+                    </Button>
+                  )}
+                </div>
+                {/* Content */}
+                <ScrollArea className="max-h-[400px]">
+                  {notifLoading && (
+                    <div className="px-4 py-8 text-center">
+                      <Bell className="h-6 w-6 animate-pulse mx-auto mb-2 text-emerald-400" />
+                      <p className="text-xs text-emerald-600/70 dark:text-emerald-400/60">Loading…</p>
+                    </div>
+                  )}
+                  {!notifLoading && notifData && notifData.upcomingAssessments.length === 0 && notifData.missingObservations.length === 0 && (
+                    <div className="px-4 py-8 text-center">
+                      <Bell className="h-8 w-8 mx-auto mb-2 text-gray-300 dark:text-gray-600" />
+                      <p className="text-sm text-gray-500 dark:text-gray-400">{t('notifications.empty')}</p>
+                    </div>
+                  )}
+                  {!notifLoading && notifData && notifData.upcomingAssessments.length > 0 && (
+                    <div className="px-2">
+                      <p className="px-2 py-1.5 text-[10px] uppercase tracking-wider font-semibold text-amber-600/70 dark:text-amber-400/60 flex items-center gap-1">
+                        <AlertTriangle className="h-3 w-3" />
+                        {t('notifications.upcoming_assessments')}
+                      </p>
+                      {notifData.upcomingAssessments.map((n: AssessmentNotification, i: number) => (
+                        <motion.div
+                          key={n.id}
+                          initial={{ opacity: 0, y: 8 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ delay: i * 0.05 }}
+                          className={`flex items-start gap-3 px-2 py-2 rounded-lg transition-colors hover:bg-amber-50/50 dark:hover:bg-amber-900/10 ${n.isRead ? 'opacity-60' : ''}`}
+                        >
+                          <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-amber-100/80 dark:bg-amber-900/20 shrink-0">
+                            <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">{n.title}</p>
+                            <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{n.description}</p>
+                            <Badge variant="outline" className="mt-1 text-[10px] px-1.5 py-0 bg-amber-50/50 dark:bg-amber-900/10 border-amber-200/50 dark:border-amber-900/30 text-amber-700 dark:text-amber-300">
+                              {n.timestamp}
+                            </Badge>
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => { setNotifOpen(false); setCurrentView('assessments'); }}
+                            className="h-7 text-xs shrink-0 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-900/20 flex items-center gap-1"
+                          >
+                            {t('notifications.to_assessment')}
+                            <ArrowRight className="h-3 w-3" />
+                          </Button>
+                        </motion.div>
+                      ))}
+                    </div>
+                  )}
+                  {!notifLoading && notifData && notifData.missingObservations.length > 0 && (
+                    <div className="px-2 border-t border-emerald-100/30 dark:border-emerald-900/20">
+                      <p className="px-2 py-1.5 text-[10px] uppercase tracking-wider font-semibold text-teal-600/70 dark:text-teal-400/60 flex items-center gap-1">
+                        <Info className="h-3 w-3" />
+                        {t('notifications.missing_observations')}
+                      </p>
+                      {notifData.missingObservations.map((n: MissingObservationNotification, i: number) => (
+                        <motion.div
+                          key={n.id}
+                          initial={{ opacity: 0, y: 8 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ delay: i * 0.05 }}
+                          className={`flex items-start gap-3 px-2 py-2 rounded-lg transition-colors hover:bg-teal-50/50 dark:hover:bg-teal-900/10 ${n.isRead ? 'opacity-60' : ''}`}
+                        >
+                          <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-teal-100/80 dark:bg-teal-900/20 shrink-0">
+                            <Info className="h-4 w-4 text-teal-600 dark:text-teal-400" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">{n.title}</p>
+                            <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{n.description}</p>
+                            <Badge variant="outline" className="mt-1 text-[10px] px-1.5 py-0 bg-teal-50/50 dark:bg-teal-900/10 border-teal-200/50 dark:border-teal-900/30 text-teal-700 dark:text-teal-300">
+                              {n.timestamp}
+                            </Badge>
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => { setNotifOpen(false); setCurrentView('progress'); }}
+                            className="h-7 text-xs shrink-0 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-900/20 flex items-center gap-1"
+                          >
+                            {t('notifications.record_now')}
+                            <ArrowRight className="h-3 w-3" />
+                          </Button>
+                        </motion.div>
+                      ))}
+                    </div>
+                  )}
+                  {/* Quick Actions footer */}
+                  {!notifLoading && notifData && (notifData.upcomingAssessments.length > 0 || notifData.missingObservations.length > 0) && (
+                    <div className="px-3 py-2 border-t border-emerald-100/30 dark:border-emerald-900/20 flex gap-2">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => { setNotifOpen(false); setCurrentView('progress'); }}
+                        className="h-7 text-xs text-emerald-600 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-900/20"
+                      >
+                        <Pencil className="w-3 h-3 mr-0.5" /> {t('notifications.record_now')}
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => { setNotifOpen(false); setCurrentView('assessments'); }}
+                        className="h-7 text-xs text-emerald-600 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-900/20"
+                      >
+                        <ClipboardCheck className="w-3 h-3 mr-0.5" /> {t('notifications.to_assessment')}
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => { setNotifOpen(false); setCurrentView('reports'); }}
+                        className="h-7 text-xs text-emerald-600 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-900/20"
+                      >
+                        <FileText className="w-3 h-3 mr-0.5" /> {t('notifications.to_report')}
+                      </Button>
+                    </div>
+                  )}
+                </ScrollArea>
+              </PopoverContent>
+            </Popover>
+            {/* Language toggle (mobile: just flag) */}
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-9 w-9 hover:bg-emerald-100 dark:hover:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400"
+              onClick={toggleLocale}
+              title={t('language.toggle')}
+            >
+              <Globe className="h-4 w-4" />
+            </Button>
+            {/* User avatar */}
+            <Avatar className="h-9 w-9 ring-2 ring-emerald-200 dark:ring-emerald-800 shrink-0">
+              <AvatarFallback className="bg-gradient-to-br from-emerald-100 to-teal-100 text-emerald-700 dark:from-emerald-900 dark:to-teal-900 dark:text-emerald-300 text-xs font-bold">
+                {initials}
+              </AvatarFallback>
+            </Avatar>
+          </div>
+        </header>
+
+        <div className="flex-1 p-4 md:p-6 bg-white dark:bg-gray-950">
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={currentView}
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.2 }}
+            >
+              {renderView(currentView)}
+            </motion.div>
+          </AnimatePresence>
+        </div>
+
+        <footer className="mt-auto border-t border-emerald-200/50 dark:border-emerald-900/30 bg-gradient-to-r from-white/80 to-emerald-50/40 dark:from-gray-950/80 dark:to-emerald-950/10 py-3 px-4">
+          <div className="flex items-center justify-between text-xs text-emerald-600/60 dark:text-emerald-400/40">
+            <span className="flex items-center gap-1">
+              <Heart className="h-3 w-3 text-emerald-500" />
+              CompetenceTrack — {t('footer.copyright')}
+            </span>
+            <span className="flex items-center gap-2">
+              <span className="hidden sm:inline">{t('footer.version')} · {t('footer.oss')} · 🇩🇪 🇬🇧</span>
+              <span className="sm:hidden">{t('footer.version')}</span>
+            </span>
+          </div>
+        </footer>
+      </SidebarInset>
+
+      {/* ─── Command Palette (Cmd+K) ─────────────────────────── */}
+      <CommandDialog
+        open={searchOpen}
+        onOpenChange={setSearchOpen}
+        title={t('shortcuts.command_palette')}
+        description={t('shortcuts.description')}
+        className="max-w-xl rounded-2xl border-emerald-200/60 dark:border-emerald-900/40 shadow-2xl shadow-emerald-900/10 [&_[cmdk-group-heading]]:text-emerald-600/70 [&_[cmdk-group-heading]]:dark:text-emerald-400/60 [&_[cmdk-group-heading]]:text-[10px] [&_[cmdk-group-heading]]:uppercase [&_[cmdk-group-heading]]:tracking-wider [&_[cmdk-group-heading]]:font-semibold [&_[cmdk-input-wrapper]]:border-emerald-200/40 [&_[cmdk-input-wrapper]]:dark:border-emerald-900/30 [&_[cmdk-input-wrapper]]:bg-gradient-to-r [&_[cmdk-input-wrapper]]:from-emerald-50/50 [&_[cmdk-input-wrapper]]:to-transparent [&_[cmdk-input-wrapper]]:dark:from-emerald-950/20 [&_[cmdk-item]]:rounded-lg [&_[cmdk-item]]:hover:bg-emerald-50 [&_[cmdk-item]]:dark:hover:bg-emerald-900/20 [&_[cmdk-item]]:data-[selected=true]:bg-emerald-50/70 [&_[cmdk-item]]:dark:data-[selected=true]:bg-emerald-900/30 [&_[cmdk-item]]:data-[selected=true]:text-emerald-700 [&_[cmdk-item]]:dark:data-[selected=true]:text-emerald-300"
+      >
+        <CommandInput
+          placeholder={t('polish.search_placeholder')}
+          value={searchQuery}
+          onValueChange={setSearchQuery}
+        />
+        <CommandList className="max-h-[60vh]">
+          <CommandEmpty>
+            <div className="py-6 text-center">
+              <FolderSearch className="h-8 w-8 mx-auto mb-2 text-gray-300 dark:text-gray-600" />
+              <p className="text-sm text-gray-500 dark:text-gray-400">{t('polish.no_results')}</p>
+            </div>
+          </CommandEmpty>
+
+          {/* Recent actions */}
+          {!searchQuery.trim() && recentActions.length > 0 && (
+            <CommandGroup heading={t('shortcuts.recent_actions')}>
+              {recentActions.map((action) => (
+                <CommandItem
+                  key={action.key}
+                  onSelect={() => {
+                    if (action.view) {
+                      setCurrentView(action.view);
+                      trackAction(action.key, action.label, action.view);
+                    }
+                    setSearchOpen(false);
+                  }}
+                >
+                  <CornerDownLeft className="h-4 w-4 text-emerald-500 dark:text-emerald-400" />
+                  <span>{action.label}</span>
+                  <CommandShortcut className="text-emerald-600/60 dark:text-emerald-400/50">
+                    {t('shortcuts.recent_actions')}
+                  </CommandShortcut>
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          )}
+
+          {/* Quick actions (shown when no search query) */}
+          {!searchQuery.trim() && (
+            <CommandGroup heading={t('shortcuts.quick_actions')}>
+              <CommandItem
+                onSelect={() => {
+                  setCurrentView('progress');
+                  trackAction('new-entry', t('shortcuts.new_entry'), 'progress');
+                  setSearchOpen(false);
+                }}
+              >
+                <Plus className="h-4 w-4 text-emerald-500 dark:text-emerald-400" />
+                <span>{t('shortcuts.new_entry')}</span>
+                <CommandShortcut>
+                  <kbd className="inline-flex items-center gap-0.5 text-[10px] font-mono">
+                    <Command className="h-2.5 w-2.5" />N
+                  </kbd>
+                </CommandShortcut>
+              </CommandItem>
+              <CommandItem
+                onSelect={() => {
+                  setCurrentView('assessments');
+                  trackAction('new-assessment', t('action.create_assessment'), 'assessments');
+                  setSearchOpen(false);
+                }}
+              >
+                <ClipboardCheck className="h-4 w-4 text-emerald-500 dark:text-emerald-400" />
+                <span>{t('action.create_assessment')}</span>
+                <CommandShortcut>
+                  <kbd className="inline-flex items-center gap-0.5 text-[10px] font-mono">
+                    <Command className="h-2.5 w-2.5" />5
+                  </kbd>
+                </CommandShortcut>
+              </CommandItem>
+              <CommandItem
+                onSelect={() => {
+                  setCurrentView('reports');
+                  trackAction('new-report', t('action.generate_report'), 'reports');
+                  setSearchOpen(false);
+                }}
+              >
+                <FileText className="h-4 w-4 text-emerald-500 dark:text-emerald-400" />
+                <span>{t('action.generate_report')}</span>
+                <CommandShortcut>
+                  <kbd className="inline-flex items-center gap-0.5 text-[10px] font-mono">
+                    <Command className="h-2.5 w-2.5" />7
+                  </kbd>
+                </CommandShortcut>
+              </CommandItem>
+              <CommandItem
+                onSelect={() => {
+                  setShortcutsOpen(true);
+                  setSearchOpen(false);
+                }}
+              >
+                <HelpCircle className="h-4 w-4 text-emerald-500 dark:text-emerald-400" />
+                <span>{t('shortcuts.show_shortcuts')}</span>
+                <CommandShortcut>
+                  <kbd className="inline-flex items-center gap-0.5 text-[10px] font-mono">
+                    <Command className="h-2.5 w-2.5" />/
+                  </kbd>
+                </CommandShortcut>
+              </CommandItem>
+            </CommandGroup>
+          )}
+
+          {/* Available views (shown when no search query) */}
+          {!searchQuery.trim() && (
+            <CommandGroup heading={t('shortcuts.views')}>
+              {navSections.flatMap((section) => section.items).map((item, idx) => (
+                <CommandItem
+                  key={item.key}
+                  onSelect={() => {
+                    setCurrentView(item.key);
+                    trackAction(`view-${item.key}`, t(item.labelKey), item.key);
+                    setSearchOpen(false);
+                  }}
+                >
+                  <item.icon className="h-4 w-4 text-emerald-500 dark:text-emerald-400" />
+                  <span>{t(item.labelKey)}</span>
+                  {idx < 9 && (
+                    <CommandShortcut>
+                      <kbd className="inline-flex items-center gap-0.5 text-[10px] font-mono">
+                        <Command className="h-2.5 w-2.5" />{idx + 1}
+                      </kbd>
+                    </CommandShortcut>
+                  )}
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          )}
+
+          {/* Search results: Students */}
+          {searchStudents.length > 0 && (
+            <CommandGroup heading={t('nav.classes')}>
+              {searchStudents.map((s) => (
+                <CommandItem
+                  key={s.id}
+                  value={`${s.firstName} ${s.lastName} ${s.externalId ?? ''}`}
+                  onSelect={() => handleSearchPickStudent(s)}
+                >
+                  <div className="flex items-center justify-center w-6 h-6 rounded-full bg-gradient-to-br from-emerald-100 to-teal-100 dark:from-emerald-900 dark:to-teal-900 text-emerald-700 dark:text-emerald-300 text-[10px] font-bold shrink-0">
+                    {s.firstName[0]}{s.lastName[0]}
+                  </div>
+                  <span className="truncate">{s.firstName} {s.lastName}</span>
+                  <CommandShortcut className="text-xs text-gray-400 dark:text-gray-500 truncate max-w-[120px]">
+                    {s.enrollments?.[0]?.classGroup?.name ?? ''}
+                  </CommandShortcut>
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          )}
+
+          {/* Search results: Classes */}
+          {searchClasses.length > 0 && (
+            <CommandGroup heading={t('polish.class_overview')}>
+              {searchClasses.map((c) => (
+                <CommandItem
+                  key={c.id}
+                  value={`${c.name} ${c.gradeLevel}`}
+                  onSelect={() => handleSearchPickClass(c)}
+                >
+                  <Users className="h-4 w-4 text-teal-500 dark:text-teal-400" />
+                  <span className="truncate">{c.name}</span>
+                  <CommandShortcut className="text-xs text-gray-400 dark:text-gray-500">
+                    {t('label.grade')} {c.gradeLevel}
+                  </CommandShortcut>
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          )}
+        </CommandList>
+      </CommandDialog>
+
+      {/* ─── Keyboard Shortcuts Dialog ────────────────────── */}
+      <KeyboardShortcutsDialog open={shortcutsOpen} onOpenChange={setShortcutsOpen} />
+
+      {/* ─── Help Modal ─────────────────────────────────────────── */}
+      <Dialog open={helpOpen} onOpenChange={setHelpOpen}>
+        <DialogContent className="max-w-lg rounded-2xl border-emerald-200/60 dark:border-emerald-900/40">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-emerald-700 dark:text-emerald-300">
+              <HelpCircle className="h-5 w-5" />
+              {t('polish.help')}
+            </DialogTitle>
+            <DialogDescription className="text-xs text-gray-500 dark:text-gray-400">
+              CompetenceTrack · {t('footer.version')}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2 text-sm">
+            {[
+              { kbd: '⌘K', label: t('shortcuts.command_palette') },
+              { kbd: '⌘/', label: t('shortcuts.show_shortcuts') },
+              { kbd: '⌘N', label: t('shortcuts.new_entry') },
+              { kbd: '⌘1-9', label: t('shortcuts.switch_view') },
+              { kbd: 'Esc', label: t('shortcuts.close_dialog') },
+            ].map((row) => (
+              <div key={row.kbd} className="flex items-center justify-between rounded-lg px-3 py-2 bg-emerald-50/40 dark:bg-emerald-900/10 border border-emerald-100/50 dark:border-emerald-900/20">
+                <span className="text-gray-700 dark:text-gray-300">{row.label}</span>
+                <kbd className="inline-flex items-center px-2 py-0.5 rounded bg-white dark:bg-gray-800 border border-emerald-200/50 dark:border-emerald-900/30 text-[11px] font-mono text-emerald-700 dark:text-emerald-300">
+                  {row.kbd}
+                </kbd>
+              </div>
+            ))}
+            <p className="pt-2 text-xs text-gray-500 dark:text-gray-400">
+              {t('app.tagline')}
+            </p>
+            {/* Restart onboarding tour */}
+            <div className="pt-2 flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => { setHelpOpen(false); setShortcutsOpen(true); }}
+                className="flex-1 text-xs border-emerald-200/50 dark:border-emerald-900/30 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/20"
+              >
+                <Command className="w-3.5 h-3.5 mr-1" /> {t('shortcuts.show_shortcuts')}
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => { setHelpOpen(false); setOnboardingOpen(true); }}
+                className="flex-1 text-xs border-emerald-200/50 dark:border-emerald-900/30 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/20"
+              >
+                <GraduationCap className="w-3.5 h-3.5 mr-1" /> Tour
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* ─── Onboarding Tour ─────────────────────────────────────── */}
+      <OnboardingTour open={onboardingOpen} onClose={() => setOnboardingOpen(false)} />
+    </SidebarProvider>
+  );
+}
