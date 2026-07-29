@@ -69,6 +69,10 @@ model School {
   peerAssessments    PeerAssessment[]
   emergencyContacts  EmergencyContact[]
   schoolEvents       SchoolEvent[]
+  studentTransports  StudentTransport[]
+  healthRecords      HealthRecord[]
+  badges             Badge[]
+  studentBadges      StudentBadge[]
   district           SchoolDistrict? @relation(fields: [districtId], references: [id])
   districtId         String?
 }
@@ -115,6 +119,7 @@ model User {
   resources                 Resource[]
   organizedSchoolEvents     SchoolEvent[]
   eventRegistrations        EventRegistration[]
+  awardedBadges             StudentBadge[]
 }
 
 model SchoolYear {
@@ -213,6 +218,9 @@ model Student {
   peerAssessmentsGiven  PeerAssessment[] @relation("PeerAssessor")
   peerAssessmentsReceived PeerAssessment[] @relation("PeerAssessed")
   emergencyContacts     EmergencyContact[]
+  transports            StudentTransport[]
+  healthRecords         HealthRecord[]
+  studentBadges         StudentBadge[]
 }
 
 model Enrollment {
@@ -1477,4 +1485,106 @@ model EventRegistration {
 
   @@unique([eventId, userId])
   @@map("event_registrations")
+}
+
+// ─── Student Transportation ──────────────────────────────────────
+
+model StudentTransport {
+  id              String   @id @default(cuid())
+  schoolId        String
+  studentId       String
+  transportType   String   // "bus", "tram", "walk", "car", "bike", "other"
+  routeNumber     String?  // bus/tram route number
+  stopName        String?  // nearest stop name
+  pickupTime      String?  // "07:45"
+  dropoffTime     String?  // "15:30"
+  driverName      String?  // for car/bus
+  driverPhone     String?  // for car/bus
+  distanceKm      Float?   // distance in km
+  notes           String?
+  isDemo          Boolean  @default(false)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  deletedAt       DateTime?
+
+  school          School   @relation(fields: [schoolId], references: [id])
+  student         Student  @relation(fields: [studentId], references: [id])
+
+  @@index([schoolId, studentId])
+  @@map("student_transport")
+}
+
+// ─── Health Records ──────────────────────────────────────────────
+
+model HealthRecord {
+  id              String   @id @default(cuid())
+  schoolId        String
+  studentId       String
+  bloodType       String?  // "A+", "A-", "B+", "B-", "O+", "O-", "AB+", "AB-"
+  allergies       String?  // JSON array of allergy names
+  medications     String?  // JSON array of { name, dosage, frequency }
+  conditions      String?  // JSON array of condition names
+  doctorName      String?
+  doctorPhone     String?
+  insuranceNumber String?
+  insuranceProvider String?
+  lastCheckup     DateTime?
+  notes           String?
+  isConfidential  Boolean  @default(true)
+  isDemo          Boolean  @default(false)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  deletedAt       DateTime?
+
+  school          School   @relation(fields: [schoolId], references: [id])
+  student         Student  @relation(fields: [studentId], references: [id])
+
+  @@unique([schoolId, studentId])
+  @@map("health_records")
+}
+
+// ─── Badges & Gamification ───────────────────────────────────────
+
+model Badge {
+  id              String   @id @default(cuid())
+  schoolId        String
+  name            String
+  description     String?
+  icon            String   // Lucide icon name
+  color           String   @default("#10b981")
+  category        String   // "competency", "attendance", "behavior", "achievement", "milestone"
+  requirementType String   // "mastery_level", "attendance_rate", "behavior_count", "progress_entries", "custom"
+  requirementValue Int?    // threshold value
+  isAuto          Boolean  @default(true) // auto-awarded or manual
+  isDemo          Boolean  @default(false)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  deletedAt       DateTime?
+
+  school          School   @relation(fields: [schoolId], references: [id])
+  studentBadges   StudentBadge[]
+
+  @@index([schoolId, category])
+  @@map("badges")
+}
+
+model StudentBadge {
+  id              String   @id @default(cuid())
+  schoolId        String
+  studentId       String
+  badgeId         String
+  awardedAt       DateTime @default(now())
+  awardedBy       String?  // userId who awarded (null if auto)
+  notes           String?
+  isDemo          Boolean  @default(false)
+  createdAt       DateTime @default(now())
+
+  school          School   @relation(fields: [schoolId], references: [id])
+  student         Student  @relation(fields: [studentId], references: [id])
+  badge           Badge    @relation(fields: [badgeId], references: [id])
+  awardedByUser   User?    @relation(fields: [awardedBy], references: [id])
+
+  @@unique([studentId, badgeId])
+  @@index([schoolId, studentId])
+  @@map("student_badges")
 }

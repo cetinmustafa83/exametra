@@ -2889,3 +2889,108 @@ export function fetchDistrictSchools(districtId: string): Promise<Array<{
 export function assignSchoolToDistrict(districtId: string, schoolId: string): Promise<{ success: boolean }> {
   return apiPost<{ success: boolean }>(`/api/districts/${districtId}/schools`, { schoolId });
 }
+
+/* ── Badges ──────────────────────────────────────────────────────── */
+
+export interface BadgeData {
+  id: string;
+  schoolId: string;
+  name: string;
+  description: string | null;
+  icon: string;
+  color: string;
+  category: string;
+  requirementType: string;
+  requirementValue: number | null;
+  isAuto: boolean;
+  isDemo: boolean;
+  createdAt: string;
+  updatedAt: string;
+  _count?: { studentBadges: number };
+}
+
+export interface StudentBadgeData {
+  id: string;
+  schoolId: string;
+  studentId: string;
+  badgeId: string;
+  awardedAt: string;
+  awardedBy: string | null;
+  notes: string | null;
+  badge: BadgeData;
+  student: { id: string; firstName: string; lastName: string };
+  awardedByUser?: { id: string; firstName: string; lastName: string } | null;
+}
+
+export interface BadgeProgressData {
+  badgeId: string;
+  name: string;
+  icon: string;
+  color: string;
+  category: string;
+  earned: boolean;
+  progress: number;
+  current: number;
+  target: number;
+}
+
+export function fetchBadges(schoolId: string, category?: string): Promise<BadgeData[]> {
+  const params = new URLSearchParams({ schoolId });
+  if (category) params.set('category', category);
+  return apiGet<BadgeData[]>(`/api/badges?${params.toString()}`);
+}
+
+export function createBadge(data: {
+  schoolId: string;
+  name: string;
+  description?: string;
+  icon: string;
+  color?: string;
+  category: string;
+  requirementType: string;
+  requirementValue?: number;
+  isAuto?: boolean;
+}): Promise<BadgeData> {
+  return apiPost<BadgeData>('/api/badges', data);
+}
+
+export function updateBadge(id: string, data: Partial<BadgeData>): Promise<BadgeData> {
+  return apiPut<BadgeData>(`/api/badges/${id}`, data);
+}
+
+export function deleteBadge(id: string): Promise<{ success: boolean }> {
+  return apiDelete<{ success: boolean }>(`/api/badges/${id}`);
+}
+
+export function fetchStudentBadges(schoolId: string, studentId?: string, badgeId?: string): Promise<StudentBadgeData[]> {
+  const params = new URLSearchParams({ schoolId });
+  if (studentId) params.set('studentId', studentId);
+  if (badgeId) params.set('badgeId', badgeId);
+  return apiGet<StudentBadgeData[]>(`/api/student-badges?${params.toString()}`);
+}
+
+export function awardBadgeToStudent(data: {
+  schoolId: string;
+  studentId: string;
+  badgeId: string;
+  notes?: string;
+}): Promise<StudentBadgeData> {
+  return apiPost<StudentBadgeData>('/api/student-badges', data);
+}
+
+export function removeStudentBadge(id: string): Promise<{ success: boolean }> {
+  return apiDelete<{ success: boolean }>(`/api/student-badges/${id}`);
+}
+
+export function fetchBadgeProgress(schoolId: string, studentId: string): Promise<BadgeProgressData[]> {
+  const params = new URLSearchParams({ schoolId, studentId });
+  return apiGet<BadgeProgressData[]>(`/api/badge-progress?${params.toString()}`);
+}
+
+export function checkAndAwardBadges(schoolId: string, studentId: string): Promise<string[]> {
+  return apiPost<string[]>('/api/badge-check', { schoolId, studentId });
+}
+
+export function seedBadges(schoolId: string): Promise<{ success: boolean }> {
+  return apiPost<{ success: boolean }>('/api/badge-seed', { schoolId });
+}

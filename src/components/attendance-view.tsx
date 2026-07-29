@@ -27,6 +27,9 @@ import {
   Download,
   AlertTriangle,
   Shield,
+  QrCode,
+  FileDown,
+  RefreshCw,
 } from 'lucide-react';
 import {
   LineChart,
@@ -97,6 +100,7 @@ import {
   type Subject,
   type AttendanceAnalyticsData,
 } from '@/lib/api';
+import { generateQRCodeSync, downloadQRCode, type QRCodeData } from '@/lib/qrcode';
 
 /* ── Status helpers ────────────────────────────────────────────────── */
 
@@ -1072,6 +1076,43 @@ export default function AttendanceView() {
   const [newPeriod, setNewPeriod] = useState('');
   const [creating, setCreating] = useState(false);
 
+  // QR Attendance mode
+  const [qrAttendanceMode, setQrAttendanceMode] = useState(false);
+  const [qrAttendanceDataUrl, setQrAttendanceDataUrl] = useState<string>('');
+  const [qrRefreshTimer, setQrRefreshTimer] = useState(300); // 5 minutes = 300 seconds
+  const [qrTimerInterval, setQrTimerInterval] = useState<NodeJS.Timeout | null>(null);
+
+  // QR Attendance: generate and refresh QR code
+  const generateAttendanceQR = useCallback(() => {
+    if (!currentClassId) return;
+    const sessionId = `attendance-${currentClassId}-${Date.now()}`;
+    const qrData: QRCodeData = { type: 'attendance', id: currentClassId, sessionId, timestamp: Date.now() };
+    const dataUrl = generateQRCodeSync(qrData, { size: 300 });
+    setQrAttendanceDataUrl(dataUrl);
+    setQrRefreshTimer(300);
+  }, [currentClassId]);
+
+  // QR timer effect
+  useEffect(() => {
+    if (!qrAttendanceMode) {
+      if (qrTimerInterval) clearInterval(qrTimerInterval);
+      setQrTimerInterval(null);
+      return;
+    }
+    generateAttendanceQR();
+    const interval = setInterval(() => {
+      setQrRefreshTimer((prev) => {
+        if (prev <= 1) {
+          generateAttendanceQR();
+          return 300;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    setQrTimerInterval(interval);
+    return () => clearInterval(interval);
+  }, [qrAttendanceMode, generateAttendanceQR]);
+
   // Load classes
   useEffect(() => {
     fetchClasses()
@@ -1476,6 +1517,10 @@ export default function AttendanceView() {
             <TabsTrigger value="calendar" className="rounded-lg data-[state=active]:bg-emerald-500 data-[state=active]:text-white">
               {t('attendance.calendar')}
             </TabsTrigger>
+            <TabsTrigger value="qr" className="rounded-lg data-[state=active]:bg-emerald-500 data-[state=active]:text-white">
+              <QrCode className="h-4 w-4 mr-1" />
+              {t('qr.attendance')}
+            </TabsTrigger>
           </TabsList>
 
           {/* Sessions List Tab */}
@@ -1649,6 +1694,109 @@ export default function AttendanceView() {
           {/* Calendar Tab */}
           <TabsContent value="calendar" className="space-y-4">
             <MonthlyHeatmap sessions={sessions} />
+          </TabsContent>
+
+          {/* QR Attendance Tab */}
+          <TabsContent value="qr" className="space-y-4">
+            <Card className="border-0 shadow-sm rounded-xl overflow-hidden">
+              <CardHeader className="pb-3 pt-6 bg-gradient-to-r from-emerald-50/50 to-transparent dark:from-emerald-900/10 dark:to-transparent">
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <CardTitle className="text-lg font-bold flex items-center gap-2">
+                    <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400">
+                      <QrCode className="h-4 w-4" />
+                    </div>
+                    {t('qr.attendance')}
+                  </CardTitle>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="rounded-xl border-emerald-300 dark:border-emerald-700 text-emerald-700 dark:text-emerald-300"
+                    onClick={() => setQrAttendanceMode(!qrAttendanceMode)}
+                  >
+                    {qrAttendanceMode ? t('action.close') : t('qr.generate')}
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {qrAttendanceMode ? (
+                  <div className="attendance-qr-display">
+                    <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400">
+                      <CheckCircle2 className="h-5 w-5" />
+                      <span className="font-semibold">{t('qr.session_active')}</span>
+                    </div>
+                    {qrAttendanceDataUrl ? (
+                      <img src={qrAttendanceDataUrl} alt={t('qr.attendance')} className="mx-auto rounded-lg" width={280} height={280} />
+                    ) : (
+                      <div className="w-[280px] h-[280px] mx-auto bg-gray-100 dark:bg-gray-800 rounded-lg flex items-center justify-center">
+                        <QrCode className="h-16 w-16 text-gray-400" />
+                      </div>
+                    )}
+                    <p className="text-sm text-gray-500 dark:text-gray-400">{t('qr.scan_to_checkin')}</p>
+                    <div className="qr-timer">
+                      <RefreshCw className="h-4 w-4 text-emerald-500" />
+                      <span>{t('qr.refreshes_in', { seconds: qrRefreshTimer })}</span>
+                    </div>
+                    <div className="qr-timer-bar w-full max-w-xs">
+                      <div className="qr-timer-bar-fill" style={{ width: `${(qrRefreshTimer / 300) * 100}%` }} />
+                    </div>
+                    <div className="flex gap-2 mt-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="rounded-xl min-h-[44px]"
+                        onClick={() => { if (qrAttendanceDataUrl) downloadQRCode(qrAttendanceDataUrl, 'attendance-qr.png'); }}
+                      >
+                        <FileDown className="h-4 w-4 mr-1.5" />
+                        {t('qr.download')}
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="rounded-xl min-h-[44px]"
+                        onClick={generateAttendanceQR}
+                      >
+                        <RefreshCw className="h-4 w-4 mr-1.5" />
+                        {t('qr.refresh')}
+                      </Button>
+                    </div>
+                    {/* Real-time check-in status */}
+                    {sessions.length > 0 && (
+                      <div className="w-full mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+                        <h4 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">{t('attendance.status')}</h4>
+                        <div className="space-y-2 max-h-64 overflow-y-auto scrollbar-education">
+                          {sessions[0]?.records.map((record) => (
+                            <div key={record.id} className="flex items-center justify-between p-2 rounded-lg bg-white dark:bg-gray-800/50 border border-gray-100 dark:border-gray-700/50">
+                              <div className="flex items-center gap-2">
+                                <div className="w-8 h-8 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center text-xs font-medium">
+                                  {record.student.firstName[0]}{record.student.lastName[0]}
+                                </div>
+                                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{record.student.firstName} {record.student.lastName}</span>
+                              </div>
+                              <StatusBadge status={record.status} />
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="text-center py-12">
+                    <div className="flex items-center justify-center w-20 h-20 rounded-3xl bg-gradient-to-br from-emerald-100 to-teal-100 dark:from-emerald-900/30 dark:to-teal-900/30 mx-auto mb-5 shadow-md shadow-emerald-200/40 dark:shadow-emerald-900/20">
+                      <QrCode className="h-10 w-10 text-emerald-500 dark:text-emerald-400" />
+                    </div>
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">{t('qr.attendance')}</h3>
+                    <p className="text-sm text-muted-foreground max-w-md mx-auto mb-4">{t('qr.scan_to_checkin')}</p>
+                    <Button
+                      className="bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white shadow-md shadow-emerald-300/20 rounded-xl"
+                      onClick={() => setQrAttendanceMode(true)}
+                    >
+                      <QrCode className="h-4 w-4 mr-1.5" />
+                      {t('qr.generate')}
+                    </Button>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           </TabsContent>
         </Tabs>
       )}

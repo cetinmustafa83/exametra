@@ -62,6 +62,11 @@ import {
   AlertCircle,
   Star,
   Printer,
+  Trophy,
+  Award,
+  Target,
+  CalendarCheck,
+  Flame,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -145,6 +150,15 @@ import {
   fetchEmailLogs,
   type EmailTemplate,
   type EmailLog,
+  fetchBadges,
+  createBadge,
+  updateBadge,
+  deleteBadge,
+  fetchStudentBadges,
+  awardBadgeToStudent,
+  type BadgeData,
+  type StudentBadgeData,
+  seedBadges,
 } from '@/lib/api';
 import { RateLimitStatus } from '@/components/offline-indicator';
 
@@ -405,6 +419,278 @@ function NotificationSoundSetting() {
         </div>
       </div>
       <Switch checked={enabled} onCheckedChange={handleToggle} />
+    </div>
+  );
+}
+
+// ─── Badge Management Tab Component ─────────────────────────────────────
+function BadgeManagementTab() {
+  const currentUser = useAppStore((s) => s.currentUser);
+  const [badges, setBadges] = useState<BadgeData[]>([]);
+  const [studentBadges, setStudentBadges] = useState<StudentBadgeData[]>([]);
+  const [students, setStudentsList] = useState<Array<{ id: string; firstName: string; lastName: string }>>([]);
+  const [loading, setLoading] = useState(true);
+  const [createBadgeOpen, setCreateBadgeOpen] = useState(false);
+  const [awardBadgeOpen, setAwardBadgeOpen] = useState(false);
+  const [newBadgeForm, setNewBadgeForm] = useState({
+    name: '', description: '', icon: 'Award', color: '#10b981',
+    category: 'achievement', requirementType: 'custom', requirementValue: 5, isAuto: true,
+  });
+  const [awardForm, setAwardForm] = useState({ studentId: '', badgeId: '', notes: '' });
+
+  const categoryOptions = [
+    { value: 'competency', label: t('badges.competency') },
+    { value: 'attendance', label: t('badges.attendance') },
+    { value: 'behavior', label: t('badges.behavior') },
+    { value: 'achievement', label: t('badges.achievement') },
+    { value: 'milestone', label: t('badges.milestone') },
+  ];
+  const reqTypeOptions = [
+    { value: 'mastery_level', label: 'Mastery Level' },
+    { value: 'attendance_rate', label: 'Attendance Rate' },
+    { value: 'behavior_count', label: 'Behavior Count' },
+    { value: 'progress_entries', label: 'Progress Entries' },
+    { value: 'custom', label: 'Custom' },
+  ];
+  const iconOptions = ['Award', 'Star', 'Trophy', 'Target', 'CalendarCheck', 'TrendingUp', 'BookOpen', 'Pencil', 'ClipboardCheck', 'Leaf', 'Heart', 'Zap', 'Rocket', 'Flame'];
+
+  const loadBadges = useCallback(async () => {
+    if (!currentUser?.schoolId) return;
+    setLoading(true);
+    try {
+      // Seed default badges first
+      await seedBadges(currentUser.schoolId);
+      const data = await fetchBadges(currentUser.schoolId);
+      setBadges(data);
+      const sbData = await fetchStudentBadges(currentUser.schoolId);
+      setStudentBadges(sbData);
+      const stuData = await fetchStudents(currentUser.schoolId);
+      setStudentsList(stuData.map(s => ({ id: s.id, firstName: s.firstName, lastName: s.lastName })));
+    } catch { /* ignore */ }
+    setLoading(false);
+  }, [currentUser?.schoolId]);
+
+  useEffect(() => { loadBadges(); }, [loadBadges]);
+
+  const handleCreateBadge = async () => {
+    if (!currentUser?.schoolId || !newBadgeForm.name) return;
+    try {
+      await createBadge({ schoolId: currentUser.schoolId, ...newBadgeForm });
+      toast.success(t('badges.create'));
+      setCreateBadgeOpen(false);
+      setNewBadgeForm({ name: '', description: '', icon: 'Award', color: '#10b981', category: 'achievement', requirementType: 'custom', requirementValue: 5, isAuto: true });
+      loadBadges();
+    } catch { toast.error(t('error.generic')); }
+  };
+
+  const handleAwardBadge = async () => {
+    if (!currentUser?.schoolId || !awardForm.studentId || !awardForm.badgeId) return;
+    try {
+      await awardBadgeToStudent({ schoolId: currentUser.schoolId, studentId: awardForm.studentId, badgeId: awardForm.badgeId, notes: awardForm.notes });
+      toast.success(t('badges.award'));
+      setAwardBadgeOpen(false);
+      setAwardForm({ studentId: '', badgeId: '', notes: '' });
+      loadBadges();
+    } catch { toast.error(t('error.generic')); }
+  };
+
+  const handleDeleteBadge = async (id: string) => {
+    try {
+      await deleteBadge(id);
+      toast.success(t('badges.delete'));
+      loadBadges();
+    } catch { toast.error(t('error.generic')); }
+  };
+
+  if (loading) {
+    return <div className="flex justify-center py-12"><Loader2 className="h-8 w-8 animate-spin text-amber-500" /></div>;
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Badge Statistics */}
+      <Card className="border-0 shadow-sm rounded-xl border-l-3 border-l-amber-500 overflow-hidden">
+        <CardHeader className="bg-gradient-to-r from-amber-50/50 to-transparent dark:from-amber-900/10 dark:to-transparent">
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <CardTitle className="flex items-center gap-2">
+              <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400">
+                <Trophy className="h-4 w-4" />
+              </div>
+              {t('badges.statistics')}
+            </CardTitle>
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" className="rounded-xl min-h-[44px]" onClick={() => setAwardBadgeOpen(true)}>
+                <Award className="h-4 w-4 mr-1" />
+                {t('badges.award_manually')}
+              </Button>
+              <Button size="sm" className="rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 text-white min-h-[44px]" onClick={() => setCreateBadgeOpen(true)}>
+                <Plus className="h-4 w-4 mr-1" />
+                {t('badges.create')}
+              </Button>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
+            <div className="p-4 rounded-xl bg-amber-50/60 dark:bg-amber-900/10 border border-amber-200/30 dark:border-amber-900/20 text-center">
+              <Trophy className="h-5 w-5 text-amber-500 mx-auto mb-1" />
+              <p className="text-2xl font-bold text-amber-700 dark:text-amber-300">{badges.length}</p>
+              <p className="text-[10px] uppercase tracking-wider text-amber-600/60 dark:text-amber-400/40">{t('badges.title')}</p>
+            </div>
+            <div className="p-4 rounded-xl bg-emerald-50/60 dark:bg-emerald-900/10 border border-emerald-200/30 dark:border-emerald-900/20 text-center">
+              <Award className="h-5 w-5 text-emerald-500 mx-auto mb-1" />
+              <p className="text-2xl font-bold text-emerald-700 dark:text-emerald-300">{studentBadges.length}</p>
+              <p className="text-[10px] uppercase tracking-wider text-emerald-600/60 dark:text-emerald-400/40">{t('badges.earned')}</p>
+            </div>
+            <div className="p-4 rounded-xl bg-teal-50/60 dark:bg-teal-900/10 border border-teal-200/30 dark:border-teal-900/20 text-center">
+              <Star className="h-5 w-5 text-teal-500 mx-auto mb-1" />
+              <p className="text-2xl font-bold text-teal-700 dark:text-teal-300">{badges.filter(b => b.isAuto).length}</p>
+              <p className="text-[10px] uppercase tracking-wider text-teal-600/60 dark:text-teal-400/40">{t('badges.auto')}</p>
+            </div>
+          </div>
+
+          {/* Badge List */}
+          <div className="space-y-2 max-h-96 overflow-y-auto scrollbar-education">
+            {badges.map((badge) => {
+              const awardedCount = badge._count?.studentBadges ?? 0;
+              return (
+                <div key={badge.id} className="flex items-center justify-between p-3 rounded-lg bg-white dark:bg-gray-800/50 border border-gray-100 dark:border-gray-700/50">
+                  <div className="flex items-center gap-3">
+                    <div className="badge-circle badge-earned" style={{ background: `linear-gradient(135deg, ${badge.color}cc, ${badge.color}88)`, width: 40, height: 40 }}>
+                      <Award className="h-4 w-4 text-white" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-gray-900 dark:text-gray-100">{badge.name}</p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">{badge.description}</p>
+                      <div className="flex gap-2 mt-1">
+                        <Badge className="text-[10px] bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">{t(`badges.${badge.category}`)}</Badge>
+                        {badge.isAuto && <Badge className="text-[10px] bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-300">{t('badges.auto')}</Badge>}
+                        <Badge className="text-[10px] bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400">{awardedCount} {t('badges.earned')}</Badge>
+                      </div>
+                    </div>
+                  </div>
+                  <Button variant="ghost" size="sm" className="text-rose-500 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-900/20 rounded-lg min-h-[44px]" onClick={() => handleDeleteBadge(badge.id)}>
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              );
+            })}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Create Badge Dialog */}
+      <Dialog open={createBadgeOpen} onOpenChange={setCreateBadgeOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Trophy className="h-5 w-5 text-amber-600" />
+              {t('badges.create')}
+            </DialogTitle>
+            <DialogDescription>{t('badges.create')}</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label className="text-xs font-medium">{t('label.name')}</Label>
+              <Input value={newBadgeForm.name} onChange={(e) => setNewBadgeForm(f => ({ ...f, name: e.target.value }))} placeholder={t('badges.name' in {} ? 'badges.name' : 'label.name')} />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-xs font-medium">{t('label.description')}</Label>
+              <Input value={newBadgeForm.description} onChange={(e) => setNewBadgeForm(f => ({ ...f, description: e.target.value }))} />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label className="text-xs font-medium">{t('badges.icon')}</Label>
+                <Select value={newBadgeForm.icon} onValueChange={(v) => setNewBadgeForm(f => ({ ...f, icon: v }))}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {iconOptions.map(i => <SelectItem key={i} value={i}>{i}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label className="text-xs font-medium">{t('badges.color')}</Label>
+                <Input type="color" value={newBadgeForm.color} onChange={(e) => setNewBadgeForm(f => ({ ...f, color: e.target.value }))} className="h-10" />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label className="text-xs font-medium">{t('badges.category')}</Label>
+                <Select value={newBadgeForm.category} onValueChange={(v) => setNewBadgeForm(f => ({ ...f, category: v }))}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {categoryOptions.map(c => <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label className="text-xs font-medium">{t('badges.type')}</Label>
+                <Select value={newBadgeForm.requirementType} onValueChange={(v) => setNewBadgeForm(f => ({ ...f, requirementType: v }))}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {reqTypeOptions.map(r => <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label className="text-xs font-medium">{t('badges.threshold')}</Label>
+                <Input type="number" value={newBadgeForm.requirementValue} onChange={(e) => setNewBadgeForm(f => ({ ...f, requirementValue: parseInt(e.target.value) || 0 }))} />
+              </div>
+              <div className="flex items-end gap-2 pb-2">
+                <input type="checkbox" checked={newBadgeForm.isAuto} onChange={(e) => setNewBadgeForm(f => ({ ...f, isAuto: e.target.checked }))} className="rounded" />
+                <Label className="text-xs font-medium">{t('badges.is_auto')}</Label>
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" className="rounded-xl" onClick={() => setCreateBadgeOpen(false)}>{t('action.cancel')}</Button>
+            <Button className="rounded-xl bg-amber-500 hover:bg-amber-600 text-white" onClick={handleCreateBadge}>{t('badges.create')}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Award Badge Dialog */}
+      <Dialog open={awardBadgeOpen} onOpenChange={setAwardBadgeOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Award className="h-5 w-5 text-amber-600" />
+              {t('badges.award_manually')}
+            </DialogTitle>
+            <DialogDescription>{t('badges.award')}</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label className="text-xs font-medium">{t('label.student_count')}</Label>
+              <Select value={awardForm.studentId} onValueChange={(v) => setAwardForm(f => ({ ...f, studentId: v }))}>
+                <SelectTrigger><SelectValue placeholder={t('action.select')} /></SelectTrigger>
+                <SelectContent className="max-h-48">
+                  {studentsList.map(s => <SelectItem key={s.id} value={s.id}>{s.firstName} {s.lastName}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label className="text-xs font-medium">{t('badges.title')}</Label>
+              <Select value={awardForm.badgeId} onValueChange={(v) => setAwardForm(f => ({ ...f, badgeId: v }))}>
+                <SelectTrigger><SelectValue placeholder={t('action.select')} /></SelectTrigger>
+                <SelectContent className="max-h-48">
+                  {badges.map(b => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label className="text-xs font-medium">{t('label.note')}</Label>
+              <Input value={awardForm.notes} onChange={(e) => setAwardForm(f => ({ ...f, notes: e.target.value }))} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" className="rounded-xl" onClick={() => setAwardBadgeOpen(false)}>{t('action.cancel')}</Button>
+            <Button className="rounded-xl bg-amber-500 hover:bg-amber-600 text-white" onClick={handleAwardBadge} disabled={!awardForm.studentId || !awardForm.badgeId}>{t('badges.award')}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -1568,6 +1854,10 @@ export default function SettingsView() {
             <TabsTrigger value="rate-limit" className="rounded-lg min-h-[44px] data-[state=active]:bg-rose-500 data-[state=active]:text-white">
               <Shield className="h-4 w-4 mr-1.5" />
               <span className="hidden sm:inline">{t('rate_limit.status_title')}</span>
+            </TabsTrigger>
+            <TabsTrigger value="badges" className="rounded-lg min-h-[44px] data-[state=active]:bg-amber-500 data-[state=active]:text-white">
+              <Trophy className="h-4 w-4 mr-1.5" />
+              <span className="hidden sm:inline">{t('badges.manage')}</span>
             </TabsTrigger>
           </TabsList>
 
@@ -4273,6 +4563,11 @@ export default function SettingsView() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* ── Badge Management Tab ─────────────────────────────────── */}
+      <TabsContent value="badges">
+        <BadgeManagementTab />
+      </TabsContent>
     </motion.div>
   );
 }

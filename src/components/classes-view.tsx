@@ -9,6 +9,7 @@ import {
   GripVertical, Armchair, ArrowRight,
   GraduationCap, Library, Backpack,
   Sprout, Leaf, TreePine, Trees,
+  QrCode, FileDown,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -29,6 +30,7 @@ import {
   type LearningProgressEntry,
   type ClassGroup, type Student, type Subject, type CompetencyTemplate, type ClassCompetencyAssignment,
 } from '@/lib/api';
+import { generateQRCodeSync, downloadQRCode, type QRCodeData } from '@/lib/qrcode';
 import { toast } from 'sonner';
 
 const schoolTypeAccent: Record<string, string> = {
@@ -191,6 +193,10 @@ export default function ClassesView() {
   const [dragOverIdx, setDragOverIdx] = useState<number | null>(null);
   const [dragIdx, setDragIdx] = useState<number | null>(null);
   const [reorderSaving, setReorderSaving] = useState(false);
+
+  // QR Code dialog
+  const [classQrOpen, setClassQrOpen] = useState(false);
+  const [classQrDataUrl, setClassQrDataUrl] = useState<string>('');
 
   // Parse a CSV file (client-side). Supports quoted fields with escaped quotes.
   function parseCsv(text: string): string[][] {
@@ -786,6 +792,15 @@ export default function ClassesView() {
                     <Button size="sm" variant="outline" className="border-emerald-300 dark:border-emerald-700 rounded-xl" onClick={openAssignDialog}>
                       <Grid3X3 className="h-4 w-4 mr-1" />
                       {t('classes.assign_template')}
+                    </Button>
+                    <Button size="sm" variant="outline" className="border-teal-300 dark:border-teal-700 rounded-xl" onClick={() => {
+                      const qrData: QRCodeData = { type: 'class', id: selectedClass.id, label: selectedClass.name };
+                      const dataUrl = generateQRCodeSync(qrData, { size: 256 });
+                      setClassQrDataUrl(dataUrl);
+                      setClassQrOpen(true);
+                    }}>
+                      <QrCode className="h-4 w-4 mr-1" />
+                      {t('qr.class')}
                     </Button>
                   </div>
                 </div>
@@ -1421,6 +1436,40 @@ export default function ClassesView() {
               </>
             )}
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Class QR Code Dialog */}
+      <Dialog open={classQrOpen} onOpenChange={setClassQrOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <QrCode className="h-5 w-5 text-emerald-600" />
+              {t('qr.class')}
+            </DialogTitle>
+            <DialogDescription>{selectedClass?.name}</DialogDescription>
+          </DialogHeader>
+          <div className="qr-card mx-auto">
+            {classQrDataUrl ? (
+              <img src={classQrDataUrl} alt={t('qr.title')} className="mx-auto" width={200} height={200} />
+            ) : (
+              <div className="w-[200px] h-[200px] mx-auto bg-gray-100 dark:bg-gray-800 rounded-lg flex items-center justify-center">
+                <QrCode className="h-12 w-12 text-gray-400" />
+              </div>
+            )}
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-3">{selectedClass?.name}</p>
+            <p className="text-[10px] text-gray-400 dark:text-gray-500">{t('label.grade')} {selectedClass?.gradeLevel} · {selectedClass?.schoolYear?.label}</p>
+          </div>
+          <div className="flex justify-center gap-2 mt-4">
+            <Button
+              variant="outline"
+              className="rounded-xl min-h-[44px]"
+              onClick={() => { if (classQrDataUrl) downloadQRCode(classQrDataUrl, `${selectedClass?.name || 'class'}-qr.png`); }}
+            >
+              <FileDown className="h-4 w-4 mr-1.5" />
+              {t('qr.download')}
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
     </div>

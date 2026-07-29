@@ -19,6 +19,9 @@ import {
   LucideIcon, Download, FileSpreadsheet, FileDown, Heart, Users as UsersIcon,
   Eye, Plus, Trash2, Clock, CheckCircle2, XCircle, SlidersHorizontal, Lightbulb,
   Phone, PhoneCall, MapPin, ShieldAlert, UserCheck, AlertCircle, Globe,
+  Bus, Car, Bike, Footprints, Train, Truck, Droplets, Pill, Stethoscope,
+  EyeOff, Shield, Activity, HeartPulse, Syringe,
+  QrCode, CalendarCheck, Leaf,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -36,7 +39,8 @@ import {
 } from '@/components/ui/tooltip';
 import { useAppStore, type CurrentUser } from '@/lib/store';
 import { t } from '@/lib/i18n';
-import { fetchStudentDetail, getReportPdfUrl, type StudentDetailData, fetchParentLinks, type ParentStudentLinkData, apiGet, apiPost, apiPut, apiDelete } from '@/lib/api';
+import { fetchStudentDetail, getReportPdfUrl, type StudentDetailData, fetchParentLinks, type ParentStudentLinkData, apiGet, apiPost, apiPut, apiDelete, fetchBadgeProgress, type BadgeProgressData, fetchStudentBadges, type StudentBadgeData, type BadgeData } from '@/lib/api';
+import { generateQRCodeSync, downloadQRCode, type QRCodeData } from '@/lib/qrcode';
 import { toast } from 'sonner';
 import TeacherNotesSection from './teacher-notes-section';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
@@ -332,6 +336,13 @@ const masteryBadge = (level: number) => {
   return 'bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-300';
 };
 
+// Icon map for badge icons
+const iconMap: Record<string, LucideIcon> = {
+  CalendarCheck, Award, TrendingUp, Star, BookOpen, Pencil, ClipboardCheck,
+  UsersIcon, Target, Leaf, Trophy, Zap, Rocket, Heart, GraduationCap,
+  CheckCircle2, Shield, Activity, Flower2, Flag, Lightbulb,
+};
+
 const gradeColor = (value: number) => {
   if (value <= 2) return 'text-emerald-600 dark:text-emerald-400';
   if (value <= 4) return 'text-amber-600 dark:text-amber-400';
@@ -463,6 +474,51 @@ export default function StudentDetailView() {
   const [ecEditId, setEcEditId] = useState<string | null>(null);
   const [ecForm, setEcForm] = useState({ name: '', relationship: 'mother', phone: '', phoneAlt: '', email: '', address: '', isPrimary: false, priority: 1, notes: '' });
 
+  // Transportation state
+  interface TransportData {
+    id: string; schoolId: string; studentId: string; transportType: string;
+    routeNumber: string | null; stopName: string | null; pickupTime: string | null;
+    dropoffTime: string | null; driverName: string | null; driverPhone: string | null;
+    distanceKm: number | null; notes: string | null; isDemo: boolean;
+    createdAt: string; updatedAt: string; deletedAt: string | null;
+    student: { id: string; firstName: string; lastName: string };
+  }
+  const [transports, setTransports] = useState<TransportData[]>([]);
+  const [transportDialogOpen, setTransportDialogOpen] = useState(false);
+  const [transportEditId, setTransportEditId] = useState<string | null>(null);
+  const [transportForm, setTransportForm] = useState({
+    transportType: 'bus', routeNumber: '', stopName: '', pickupTime: '',
+    dropoffTime: '', driverName: '', driverPhone: '', distanceKm: '', notes: '',
+  });
+
+  // Health Records state
+  interface HealthRecordData {
+    id: string; schoolId: string; studentId: string; bloodType: string | null;
+    allergies: string | null; medications: string | null; conditions: string | null;
+    doctorName: string | null; doctorPhone: string | null; insuranceNumber: string | null;
+    insuranceProvider: string | null; lastCheckup: string | null; notes: string | null;
+    isConfidential: boolean; isDemo: boolean;
+    createdAt: string; updatedAt: string; deletedAt: string | null;
+    student: { id: string; firstName: string; lastName: string };
+  }
+  const [healthRecord, setHealthRecord] = useState<HealthRecordData | null>(null);
+  const [healthDialogOpen, setHealthDialogOpen] = useState(false);
+  const [healthEditId, setHealthEditId] = useState<string | null>(null);
+  const [healthForm, setHealthForm] = useState({
+    bloodType: '', allergies: '' as string, medications: '' as string,
+    conditions: '' as string, doctorName: '', doctorPhone: '',
+    insuranceNumber: '', insuranceProvider: '', lastCheckup: '',
+    notes: '', isConfidential: true,
+  });
+
+  // QR Code & Badge state
+  const [qrDialogOpen, setQrDialogOpen] = useState(false);
+  const [qrCodeDataUrl, setQrCodeDataUrl] = useState<string>('');
+  const [badgeProgress, setBadgeProgress] = useState<BadgeProgressData[]>([]);
+  const [earnedBadges, setEarnedBadges] = useState<StudentBadgeData[]>([]);
+  const [badgeDetailDialogOpen, setBadgeDetailDialogOpen] = useState(false);
+  const [selectedBadgeDetail, setSelectedBadgeDetail] = useState<BadgeProgressData | null>(null);
+
   // Load parent links for parent users
   useEffect(() => {
     if (isParent && currentUser?.id) {
@@ -538,6 +594,46 @@ export default function StudentDetailView() {
     }
     loadPA();
     loadEC();
+  }, [currentStudentId, currentUser?.schoolId]);
+
+  // Load transportation and health records
+  useEffect(() => {
+    if (!currentStudentId || !currentUser?.schoolId) return;
+    const schoolId = currentUser.schoolId;
+    async function loadTransport() {
+      try {
+        const data = await apiGet<TransportData[]>(`/api/student-transport?schoolId=${schoolId}&studentId=${currentStudentId}`);
+        setTransports(data);
+      } catch { /* ignore */ }
+    }
+    async function loadHealth() {
+      try {
+        const data = await apiGet<HealthRecordData[]>(`/api/health-records?schoolId=${schoolId}&studentId=${currentStudentId}`);
+        setHealthRecord(data.length > 0 ? data[0] : null);
+      } catch { /* ignore */ }
+    }
+    loadTransport();
+    loadHealth();
+  }, [currentStudentId, currentUser?.schoolId]);
+
+  // Load badge progress and earned badges
+  useEffect(() => {
+    if (!currentStudentId || !currentUser?.schoolId) return;
+    const schoolId = currentUser.schoolId;
+    async function loadBadges() {
+      try {
+        const progress = await fetchBadgeProgress(schoolId, currentStudentId);
+        setBadgeProgress(progress);
+      } catch { /* ignore */ }
+    }
+    async function loadEarnedBadges() {
+      try {
+        const data = await fetchStudentBadges(schoolId, currentStudentId);
+        setEarnedBadges(data);
+      } catch { /* ignore */ }
+    }
+    loadBadges();
+    loadEarnedBadges();
   }, [currentStudentId, currentUser?.schoolId]);
 
   if (loading) {
@@ -630,6 +726,21 @@ export default function StudentDetailView() {
           >
             <FileDown className="h-4 w-4 mr-1.5" />
             {t('student.export_pdf')}
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="rounded-xl border-emerald-300 dark:border-emerald-700 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-50 dark:hover:bg-emerald-900/20"
+            onClick={() => {
+              if (!currentStudentId) return;
+              const qrData: QRCodeData = { type: 'student', id: currentStudentId, label: studentName };
+              const dataUrl = generateQRCodeSync(qrData, { size: 256 });
+              setQrCodeDataUrl(dataUrl);
+              setQrDialogOpen(true);
+            }}
+          >
+            <QrCode className="h-4 w-4 mr-1.5" />
+            {t('qr.show_qr')}
           </Button>
         </div>
       </div>
@@ -735,6 +846,175 @@ export default function StudentDetailView() {
           </CardContent>
         </Card>
       </motion.div>
+
+      {/* Quick Stats Bar + Badge Collection */}
+      <div className="quick-stats-bar">
+        <div className="quick-stat-item">
+          <TrendingUp className="h-3.5 w-3.5 text-emerald-500" />
+          <span className="text-gray-700 dark:text-gray-300">{stats.totalProgressEntries} {t('student_detail.total_entries')}</span>
+        </div>
+        <div className="quick-stat-item">
+          <Award className="h-3.5 w-3.5 text-teal-500" />
+          <span className="text-gray-700 dark:text-gray-300">{stats.averageMastery.toFixed(1)} {t('student_detail.avg_mastery')}</span>
+        </div>
+        <div className="quick-stat-item">
+          <QrCode className="h-3.5 w-3.5 text-violet-500" />
+          <span className="text-gray-700 dark:text-gray-300">{student.externalId || student.id.slice(0, 8)}</span>
+        </div>
+        <div className="quick-stat-item">
+          <Trophy className="h-3.5 w-3.5 text-amber-500" />
+          <span className="text-gray-700 dark:text-gray-300">
+            {badgeProgress.filter(b => b.earned).length}/{badgeProgress.length} {t('badges.title')}
+          </span>
+        </div>
+      </div>
+
+      {/* Badge Collection Section */}
+      {badgeProgress.length > 0 && (
+        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
+          <Card className="border-0 shadow-sm rounded-xl border-l-3 border-l-amber-500 overflow-hidden">
+            <CardHeader className="pb-3 pt-6 bg-gradient-to-r from-amber-50/50 to-transparent dark:from-amber-900/10 dark:to-transparent">
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <CardTitle className="text-lg font-bold flex items-center gap-2">
+                  <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400">
+                    <Trophy className="h-4 w-4" />
+                  </div>
+                  {t('badges.collection')}
+                </CardTitle>
+                <Badge className="bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300 text-xs font-medium">
+                  {t('badges.earned_count', { earned: badgeProgress.filter(b => b.earned).length, total: badgeProgress.length })}
+                </Badge>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="flex flex-wrap gap-4">
+                {badgeProgress.map((bp) => {
+                  const BadgeIcon = (iconMap as Record<string, LucideIcon>)[bp.icon] || Award;
+                  return (
+                    <TooltipProvider key={bp.badgeId}>
+                      <ShadTooltip>
+                        <TooltipTrigger asChild>
+                          <div
+                            className={`badge-circle ${bp.earned ? 'badge-earned' : 'badge-unearned'}`}
+                            style={bp.earned ? { background: `linear-gradient(135deg, ${bp.color}cc, ${bp.color}88)` } : undefined}
+                            onClick={() => { setSelectedBadgeDetail(bp); setBadgeDetailDialogOpen(true); }}
+                          >
+                            <BadgeIcon className="h-6 w-6 text-white" />
+                            {bp.earned && <div className="celebration-ring" />}
+                            {!bp.earned && bp.progress > 0 && (
+                              <div className="badge-progress">
+                                <div className="badge-progress-fill" style={{ width: `${bp.progress}%` }} />
+                              </div>
+                            )}
+                          </div>
+                        </TooltipTrigger>
+                        <ShadTooltipContent side="top" className="text-xs">
+                          <strong>{bp.name}</strong>
+                          {bp.earned ? ` — ${t('badges.earned')}` : ` — ${bp.progress}% ${t('badges.progress')}`}
+                        </ShadTooltipContent>
+                      </ShadTooltip>
+                    </TooltipProvider>
+                  );
+                })}
+              </div>
+              {/* Recent badge awards */}
+              {earnedBadges.length > 0 && (
+                <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+                  <h4 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">{t('badges.recent')}</h4>
+                  <div className="flex flex-wrap gap-2">
+                    {earnedBadges.slice(0, 5).map((eb) => {
+                      const BadgeIcon = (iconMap as Record<string, LucideIcon>)[eb.badge.icon] || Award;
+                      return (
+                        <div key={eb.id} className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-amber-50/80 dark:bg-amber-900/10 border border-amber-200/30 dark:border-amber-900/20">
+                          <BadgeIcon className="h-4 w-4" style={{ color: eb.badge.color }} />
+                          <span className="text-xs font-medium text-gray-700 dark:text-gray-300">{eb.badge.name}</span>
+                          <span className="text-[10px] text-gray-400 dark:text-gray-500">{new Date(eb.awardedAt).toLocaleDateString()}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </motion.div>
+      )}
+
+      {/* Badge Detail Dialog */}
+      <Dialog open={badgeDetailDialogOpen} onOpenChange={setBadgeDetailDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              {selectedBadgeDetail && (() => {
+                const BadgeIcon = (iconMap as Record<string, LucideIcon>)[selectedBadgeDetail.icon] || Award;
+                return <BadgeIcon className="h-5 w-5" style={{ color: selectedBadgeDetail.color }} />;
+              })()}
+              {selectedBadgeDetail?.name}
+            </DialogTitle>
+            <DialogDescription>
+              {selectedBadgeDetail?.earned ? t('badges.earned') : t('badges.unearned')}
+            </DialogDescription>
+          </DialogHeader>
+          {selectedBadgeDetail && (
+            <div className="space-y-4">
+              <div className="flex items-center justify-center">
+                <div
+                  className={`badge-circle ${selectedBadgeDetail.earned ? 'badge-earned' : 'badge-unearned'}`}
+                  style={selectedBadgeDetail.earned ? { background: `linear-gradient(135deg, ${selectedBadgeDetail.color}cc, ${selectedBadgeDetail.color}88)` } : undefined}
+                >
+                  {(() => { const BadgeIcon = (iconMap as Record<string, LucideIcon>)[selectedBadgeDetail.icon] || Award; return <BadgeIcon className="h-8 w-8 text-white" />; })()}
+                </div>
+              </div>
+              {!selectedBadgeDetail.earned && (
+                <div className="space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-500 dark:text-gray-400">{t('badges.progress')}</span>
+                    <span className="font-medium">{selectedBadgeDetail.current}/{selectedBadgeDetail.target}</span>
+                  </div>
+                  <Progress value={selectedBadgeDetail.progress} className="h-2" />
+                </div>
+              )}
+              <div className="text-sm text-gray-500 dark:text-gray-400">
+                <span className="font-medium">{t('badges.category')}:</span> {t(`badges.${selectedBadgeDetail.category}`)}
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* QR Code Dialog */}
+      <Dialog open={qrDialogOpen} onOpenChange={setQrDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <QrCode className="h-5 w-5 text-emerald-600" />
+              {t('qr.student')}
+            </DialogTitle>
+            <DialogDescription>{studentName}</DialogDescription>
+          </DialogHeader>
+          <div className="qr-card mx-auto">
+            {qrCodeDataUrl ? (
+              <img src={qrCodeDataUrl} alt={t('qr.title')} className="mx-auto" width={200} height={200} />
+            ) : (
+              <div className="w-[200px] h-[200px] mx-auto bg-gray-100 dark:bg-gray-800 rounded-lg flex items-center justify-center">
+                <QrCode className="h-12 w-12 text-gray-400" />
+              </div>
+            )}
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-3">{studentName}</p>
+            <p className="text-[10px] text-gray-400 dark:text-gray-500">{student.externalId || student.id.slice(0, 8)}</p>
+          </div>
+          <div className="flex justify-center gap-2 mt-4">
+            <Button
+              variant="outline"
+              className="rounded-xl min-h-[44px]"
+              onClick={() => { if (qrCodeDataUrl) downloadQRCode(qrCodeDataUrl, `${studentName}-qr.png`); }}
+            >
+              <FileDown className="h-4 w-4 mr-1.5" />
+              {t('qr.download')}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Competence Flower (mini radar) */}
       <Card className="border-0 shadow-sm rounded-xl border-l-3 border-l-teal-500 overflow-hidden">
@@ -2023,6 +2303,561 @@ export default function StudentDetailView() {
           )}
         </CardContent>
       </Card>
+
+      {/* ─── Transportation Section ─────────────────────────────────── */}
+      <Card className="border-0 shadow-sm rounded-xl border-l-3 border-l-amber-500 overflow-hidden">
+        <CardHeader className="pb-3 pt-6 bg-gradient-to-r from-amber-50/50 to-transparent dark:from-amber-900/10 dark:to-transparent">
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <CardTitle className="text-lg font-bold flex items-center gap-2">
+              <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400">
+                <Bus className="h-4 w-4" />
+              </div>
+              {t('transport.title')}
+              <Badge className="bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300 text-xs font-medium">
+                {transports.length}
+              </Badge>
+            </CardTitle>
+            <Button
+              variant="outline"
+              size="sm"
+              className="rounded-xl border-amber-300 dark:border-amber-700 text-amber-700 dark:text-amber-300 min-h-[44px]"
+              onClick={() => {
+                setTransportEditId(null);
+                setTransportForm({ transportType: 'bus', routeNumber: '', stopName: '', pickupTime: '', dropoffTime: '', driverName: '', driverPhone: '', distanceKm: '', notes: '' });
+                setTransportDialogOpen(true);
+              }}
+            >
+              <Plus className="h-4 w-4 mr-1" />
+              {t('transport.add')}
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {transports.length === 0 ? (
+            <div className="text-center py-8">
+              <Bus className="h-8 w-8 text-amber-400 dark:text-amber-500 mx-auto mb-2" />
+              <p className="text-gray-500 dark:text-gray-400">{t('transport.no_transport')}</p>
+            </div>
+          ) : (
+            <div className="space-y-3 max-h-96 overflow-y-auto scrollbar-education">
+              {transports.map((tr, i) => {
+                const typeIcon: Record<string, React.ReactNode> = {
+                  bus: <Bus className="h-4 w-4" />,
+                  tram: <Train className="h-4 w-4" />,
+                  walk: <Footprints className="h-4 w-4" />,
+                  car: <Car className="h-4 w-4" />,
+                  bike: <Bike className="h-4 w-4" />,
+                  other: <Truck className="h-4 w-4" />,
+                };
+                const typeColor: Record<string, string> = {
+                  bus: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300',
+                  tram: 'bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-300',
+                  walk: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300',
+                  car: 'bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300',
+                  bike: 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-300',
+                  other: 'bg-gray-100 text-gray-700 dark:bg-gray-900/30 dark:text-gray-300',
+                };
+                return (
+                  <motion.div
+                    key={tr.id}
+                    initial={{ opacity: 0, y: 6 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: i * 0.04 }}
+                    className="p-4 rounded-xl bg-gradient-to-r from-amber-50/40 to-transparent dark:from-amber-900/10 dark:to-transparent border border-amber-200/30 dark:border-amber-900/20"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <Badge className={`${typeColor[tr.transportType] || typeColor.other} text-xs`}>{typeIcon[tr.transportType] || typeIcon.other}{t(`transport.${tr.transportType}`)}</Badge>
+                          {tr.routeNumber && <Badge variant="outline" className="text-xs">{t('transport.route')}: {tr.routeNumber}</Badge>}
+                          {tr.distanceKm != null && <Badge variant="outline" className="text-xs">{t('transport.distance_km', { count: tr.distanceKm })}</Badge>}
+                        </div>
+                        <div className="flex items-center gap-3 mt-2 flex-wrap text-xs text-gray-600 dark:text-gray-400">
+                          {tr.stopName && <span className="flex items-center gap-1.5"><MapPin className="h-3 w-3 text-amber-500" />{tr.stopName}</span>}
+                          {tr.pickupTime && <span className="flex items-center gap-1.5"><Clock className="h-3 w-3 text-emerald-500" />{t('transport.pickup')}: {tr.pickupTime}</span>}
+                          {tr.dropoffTime && <span className="flex items-center gap-1.5"><Clock className="h-3 w-3 text-rose-500" />{t('transport.dropoff')}: {tr.dropoffTime}</span>}
+                        </div>
+                        {(tr.driverName || tr.driverPhone) && (
+                          <div className="flex items-center gap-3 mt-2 flex-wrap text-xs text-gray-600 dark:text-gray-400">
+                            {tr.driverName && <span className="flex items-center gap-1.5"><User className="h-3 w-3 text-violet-500" />{tr.driverName}</span>}
+                            {tr.driverPhone && (
+                              <span className="flex items-center gap-1.5">
+                                <Phone className="h-3 w-3 text-amber-500" />{tr.driverPhone}
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="rounded-lg text-amber-600 hover:text-amber-700 min-h-[44px] min-w-[44px] p-0 h-6 w-6"
+                                  title={t('transport.quick_call')}
+                                  onClick={() => toast.success(`${t('transport.driver_phone')}: ${tr.driverPhone}`)}
+                                >
+                                  <PhoneCall className="h-3 w-3" />
+                                </Button>
+                              </span>
+                            )}
+                          </div>
+                        )}
+                        {tr.notes && <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 italic">{tr.notes}</p>}
+                      </div>
+                      <div className="flex gap-1 shrink-0">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="rounded-lg min-h-[44px] min-w-[44px]"
+                          onClick={() => {
+                            setTransportEditId(tr.id);
+                            setTransportForm({
+                              transportType: tr.transportType,
+                              routeNumber: tr.routeNumber ?? '',
+                              stopName: tr.stopName ?? '',
+                              pickupTime: tr.pickupTime ?? '',
+                              dropoffTime: tr.dropoffTime ?? '',
+                              driverName: tr.driverName ?? '',
+                              driverPhone: tr.driverPhone ?? '',
+                              distanceKm: tr.distanceKm != null ? String(tr.distanceKm) : '',
+                              notes: tr.notes ?? '',
+                            });
+                            setTransportDialogOpen(true);
+                          }}
+                        >
+                          <Pencil className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="rounded-lg text-red-500 hover:text-red-700 min-h-[44px] min-w-[44px]"
+                          onClick={async () => {
+                            try {
+                              await apiDelete(`/api/student-transport/${tr.id}`);
+                              setTransports((prev) => prev.filter((t) => t.id !== tr.id));
+                              toast.success(t('action.delete'));
+                            } catch { toast.error(t('error.generic')); }
+                          }}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    </div>
+                  </motion.div>
+                );
+              })}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* ─── Health Records Section ─────────────────────────────────── */}
+      <Card className="border-0 shadow-sm rounded-xl border-l-3 border-l-rose-500 overflow-hidden">
+        <CardHeader className="pb-3 pt-6 bg-gradient-to-r from-rose-50/50 to-transparent dark:from-rose-900/10 dark:to-transparent">
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <CardTitle className="text-lg font-bold flex items-center gap-2">
+              <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-rose-100 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400">
+                <HeartPulse className="h-4 w-4" />
+              </div>
+              {t('health.title')}
+              {healthRecord?.isConfidential && (
+                <Badge className="bg-gray-100 text-gray-600 dark:bg-gray-900/30 dark:text-gray-400 text-xs flex items-center gap-1">
+                  <EyeOff className="h-3 w-3" />{t('health.confidential')}
+                </Badge>
+              )}
+              {!healthRecord && <Badge className="bg-gray-100 text-gray-500 dark:bg-gray-900/30 dark:text-gray-400 text-xs">0</Badge>}
+            </CardTitle>
+            <Button
+              variant="outline"
+              size="sm"
+              className="rounded-xl border-rose-300 dark:border-rose-700 text-rose-700 dark:text-rose-300 min-h-[44px]"
+              onClick={() => {
+                if (healthRecord) {
+                  setHealthEditId(healthRecord.id);
+                  const parsedAllergies = healthRecord.allergies ? JSON.parse(healthRecord.allergies) : [];
+                  const parsedMedications = healthRecord.medications ? JSON.parse(healthRecord.medications) : [];
+                  const parsedConditions = healthRecord.conditions ? JSON.parse(healthRecord.conditions) : [];
+                  setHealthForm({
+                    bloodType: healthRecord.bloodType ?? '',
+                    allergies: parsedAllergies.join(', '),
+                    medications: parsedMedications.map((m: { name: string; dosage: string; frequency: string }) => `${m.name} (${m.dosage}, ${m.frequency})`).join('; '),
+                    conditions: parsedConditions.join(', '),
+                    doctorName: healthRecord.doctorName ?? '',
+                    doctorPhone: healthRecord.doctorPhone ?? '',
+                    insuranceNumber: healthRecord.insuranceNumber ?? '',
+                    insuranceProvider: healthRecord.insuranceProvider ?? '',
+                    lastCheckup: healthRecord.lastCheckup ? new Date(healthRecord.lastCheckup).toISOString().split('T')[0] : '',
+                    notes: healthRecord.notes ?? '',
+                    isConfidential: healthRecord.isConfidential,
+                  });
+                } else {
+                  setHealthEditId(null);
+                  setHealthForm({ bloodType: '', allergies: '', medications: '', conditions: '', doctorName: '', doctorPhone: '', insuranceNumber: '', insuranceProvider: '', lastCheckup: '', notes: '', isConfidential: true });
+                }
+                setHealthDialogOpen(true);
+              }}
+            >
+              <Plus className="h-4 w-4 mr-1" />
+              {healthRecord ? t('health.edit') : t('health.add')}
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {!healthRecord ? (
+            <div className="text-center py-8">
+              <HeartPulse className="h-8 w-8 text-rose-400 dark:text-rose-500 mx-auto mb-2" />
+              <p className="text-gray-500 dark:text-gray-400">{t('health.no_record')}</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {/* Blood Type */}
+                {healthRecord.bloodType && (
+                  <div className="p-3 rounded-xl bg-gradient-to-r from-rose-50/40 to-transparent dark:from-rose-900/10 dark:to-transparent border border-rose-200/30 dark:border-rose-900/20">
+                    <div className="flex items-center gap-2 mb-1">
+                      <Droplets className="h-3.5 w-3.5 text-rose-500" />
+                      <span className="text-xs font-medium text-gray-500 dark:text-gray-400">{t('health.blood_type')}</span>
+                    </div>
+                    <Badge className="bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-300 text-sm font-bold">{healthRecord.bloodType}</Badge>
+                  </div>
+                )}
+
+                {/* Last Checkup */}
+                {healthRecord.lastCheckup && (
+                  <div className="p-3 rounded-xl bg-gradient-to-r from-teal-50/40 to-transparent dark:from-teal-900/10 dark:to-transparent border border-teal-200/30 dark:border-teal-900/20">
+                    <div className="flex items-center gap-2 mb-1">
+                      <Stethoscope className="h-3.5 w-3.5 text-teal-500" />
+                      <span className="text-xs font-medium text-gray-500 dark:text-gray-400">{t('health.last_checkup')}</span>
+                    </div>
+                    <span className="text-sm font-medium text-gray-900 dark:text-gray-100">{new Date(healthRecord.lastCheckup).toLocaleDateString()}</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Allergies */}
+              {healthRecord.allergies && (() => {
+                const allergies: string[] = JSON.parse(healthRecord.allergies);
+                if (allergies.length === 0) return null;
+                return (
+                  <div className="p-3 rounded-xl bg-gradient-to-r from-amber-50/40 to-transparent dark:from-amber-900/10 dark:to-transparent border border-amber-200/30 dark:border-amber-900/20">
+                    <div className="flex items-center gap-2 mb-2">
+                      <AlertCircle className="h-3.5 w-3.5 text-amber-500" />
+                      <span className="text-xs font-semibold text-amber-700 dark:text-amber-300">{t('health.allergies')}</span>
+                    </div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {allergies.map((a, i) => (
+                        <Badge key={i} className="bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300 text-xs">{a}</Badge>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {/* Medications */}
+              {healthRecord.medications && (() => {
+                const medications: Array<{ name: string; dosage: string; frequency: string }> = JSON.parse(healthRecord.medications);
+                if (medications.length === 0) return null;
+                return (
+                  <div className="p-3 rounded-xl bg-gradient-to-r from-violet-50/40 to-transparent dark:from-violet-900/10 dark:to-transparent border border-violet-200/30 dark:border-violet-900/20">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Pill className="h-3.5 w-3.5 text-violet-500" />
+                      <span className="text-xs font-semibold text-violet-700 dark:text-violet-300">{t('health.medications')}</span>
+                    </div>
+                    <div className="space-y-1.5">
+                      {medications.map((m, i) => (
+                        <div key={i} className="flex items-center gap-2 text-xs">
+                          <Badge className="bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300 text-xs">{m.name}</Badge>
+                          {m.dosage && <span className="text-gray-500 dark:text-gray-400">{t('health.dosage')}: {m.dosage}</span>}
+                          {m.frequency && <span className="text-gray-500 dark:text-gray-400">{t('health.frequency')}: {m.frequency}</span>}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {/* Conditions */}
+              {healthRecord.conditions && (() => {
+                const conditions: string[] = JSON.parse(healthRecord.conditions);
+                if (conditions.length === 0) return null;
+                return (
+                  <div className="p-3 rounded-xl bg-gradient-to-r from-rose-50/40 to-transparent dark:from-rose-900/10 dark:to-transparent border border-rose-200/30 dark:border-rose-900/20">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Activity className="h-3.5 w-3.5 text-rose-500" />
+                      <span className="text-xs font-semibold text-rose-700 dark:text-rose-300">{t('health.conditions')}</span>
+                    </div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {conditions.map((c, i) => (
+                        <Badge key={i} className="bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-300 text-xs">{c}</Badge>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {/* Doctor & Insurance */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {(healthRecord.doctorName || healthRecord.doctorPhone) && (
+                  <div className="p-3 rounded-xl bg-gradient-to-r from-emerald-50/40 to-transparent dark:from-emerald-900/10 dark:to-transparent border border-emerald-200/30 dark:border-emerald-900/20">
+                    <div className="flex items-center gap-2 mb-1">
+                      <Stethoscope className="h-3.5 w-3.5 text-emerald-500" />
+                      <span className="text-xs font-medium text-gray-500 dark:text-gray-400">{t('health.doctor')}</span>
+                    </div>
+                    {healthRecord.doctorName && <p className="text-sm font-medium text-gray-900 dark:text-gray-100">{healthRecord.doctorName}</p>}
+                    {healthRecord.doctorPhone && (
+                      <span className="flex items-center gap-1.5 text-xs text-gray-600 dark:text-gray-400 mt-1">
+                        <Phone className="h-3 w-3 text-emerald-500" />{healthRecord.doctorPhone}
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="rounded-lg text-emerald-600 hover:text-emerald-700 min-h-[44px] min-w-[44px] p-0 h-6 w-6"
+                          onClick={() => toast.success(`${t('health.doctor_phone')}: ${healthRecord.doctorPhone}`)}
+                        >
+                          <PhoneCall className="h-3 w-3" />
+                        </Button>
+                      </span>
+                    )}
+                  </div>
+                )}
+                {(healthRecord.insuranceNumber || healthRecord.insuranceProvider) && (
+                  <div className="p-3 rounded-xl bg-gradient-to-r from-teal-50/40 to-transparent dark:from-teal-900/10 dark:to-transparent border border-teal-200/30 dark:border-teal-900/20">
+                    <div className="flex items-center gap-2 mb-1">
+                      <Shield className="h-3.5 w-3.5 text-teal-500" />
+                      <span className="text-xs font-medium text-gray-500 dark:text-gray-400">{t('health.insurance')}</span>
+                    </div>
+                    {healthRecord.insuranceProvider && <p className="text-sm font-medium text-gray-900 dark:text-gray-100">{healthRecord.insuranceProvider}</p>}
+                    {healthRecord.insuranceNumber && <p className="text-xs text-gray-500 dark:text-gray-400">{healthRecord.insuranceNumber}</p>}
+                  </div>
+                )}
+              </div>
+
+              {healthRecord.notes && (
+                <p className="text-xs text-gray-500 dark:text-gray-400 italic p-3 rounded-xl bg-gray-50/50 dark:bg-gray-800/20">{healthRecord.notes}</p>
+              )}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* ─── Transportation Dialog ──────────────────────────────────── */}
+      <Dialog open={transportDialogOpen} onOpenChange={setTransportDialogOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>{transportEditId ? t('transport.edit') : t('transport.add')}</DialogTitle>
+            <DialogDescription>{t('transport.title')}</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div>
+              <Label className="text-xs font-medium">{t('transport.type')}</Label>
+              <Select value={transportForm.transportType} onValueChange={(v) => setTransportForm((f) => ({ ...f, transportType: v }))}>
+                <SelectTrigger className="h-10 rounded-lg mt-1">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="bus">{t('transport.bus')}</SelectItem>
+                  <SelectItem value="tram">{t('transport.tram')}</SelectItem>
+                  <SelectItem value="walk">{t('transport.walk')}</SelectItem>
+                  <SelectItem value="car">{t('transport.car')}</SelectItem>
+                  <SelectItem value="bike">{t('transport.bike')}</SelectItem>
+                  <SelectItem value="other">{t('transport.other')}</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label className="text-xs font-medium">{t('transport.route_number')}</Label>
+                <Input value={transportForm.routeNumber} onChange={(e) => setTransportForm((f) => ({ ...f, routeNumber: e.target.value }))} className="mt-1 rounded-lg" placeholder="42" />
+              </div>
+              <div>
+                <Label className="text-xs font-medium">{t('transport.stop_name')}</Label>
+                <Input value={transportForm.stopName} onChange={(e) => setTransportForm((f) => ({ ...f, stopName: e.target.value }))} className="mt-1 rounded-lg" placeholder={t('transport.stop_name')} />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label className="text-xs font-medium">{t('transport.pickup_time')}</Label>
+                <Input type="time" value={transportForm.pickupTime} onChange={(e) => setTransportForm((f) => ({ ...f, pickupTime: e.target.value }))} className="mt-1 rounded-lg" />
+              </div>
+              <div>
+                <Label className="text-xs font-medium">{t('transport.dropoff_time')}</Label>
+                <Input type="time" value={transportForm.dropoffTime} onChange={(e) => setTransportForm((f) => ({ ...f, dropoffTime: e.target.value }))} className="mt-1 rounded-lg" />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label className="text-xs font-medium">{t('transport.driver_name')}</Label>
+                <Input value={transportForm.driverName} onChange={(e) => setTransportForm((f) => ({ ...f, driverName: e.target.value }))} className="mt-1 rounded-lg" placeholder={t('transport.driver_name')} />
+              </div>
+              <div>
+                <Label className="text-xs font-medium">{t('transport.driver_phone')}</Label>
+                <Input value={transportForm.driverPhone} onChange={(e) => setTransportForm((f) => ({ ...f, driverPhone: e.target.value }))} className="mt-1 rounded-lg" placeholder="+49 123 456789" />
+              </div>
+            </div>
+            <div>
+              <Label className="text-xs font-medium">{t('transport.distance_km_field')}</Label>
+              <Input type="number" step="0.1" value={transportForm.distanceKm} onChange={(e) => setTransportForm((f) => ({ ...f, distanceKm: e.target.value }))} className="mt-1 rounded-lg" placeholder="2.5" />
+            </div>
+            <div>
+              <Label className="text-xs font-medium">{t('transport.notes')}</Label>
+              <Textarea value={transportForm.notes} onChange={(e) => setTransportForm((f) => ({ ...f, notes: e.target.value }))} className="mt-1 rounded-lg" rows={2} placeholder={t('transport.notes')} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" className="rounded-xl min-h-[44px]" onClick={() => setTransportDialogOpen(false)}>{t('action.cancel')}</Button>
+            <Button
+              className="rounded-xl bg-amber-600 hover:bg-amber-700 text-white min-h-[44px]"
+              onClick={async () => {
+                try {
+                  const payload = {
+                    schoolId: currentUser?.schoolId,
+                    studentId: currentStudentId,
+                    transportType: transportForm.transportType,
+                    routeNumber: transportForm.routeNumber || null,
+                    stopName: transportForm.stopName || null,
+                    pickupTime: transportForm.pickupTime || null,
+                    dropoffTime: transportForm.dropoffTime || null,
+                    driverName: transportForm.driverName || null,
+                    driverPhone: transportForm.driverPhone || null,
+                    distanceKm: transportForm.distanceKm ? parseFloat(transportForm.distanceKm) : null,
+                    notes: transportForm.notes || null,
+                  };
+                  if (transportEditId) {
+                    const updated = await apiPut<TransportData>(`/api/student-transport/${transportEditId}`, payload);
+                    setTransports((prev) => prev.map((t) => t.id === transportEditId ? updated : t));
+                  } else {
+                    const created = await apiPost<TransportData>('/api/student-transport', payload);
+                    setTransports((prev) => [created, ...prev]);
+                  }
+                  setTransportDialogOpen(false);
+                  toast.success(transportEditId ? t('action.save') : t('action.create'));
+                } catch { toast.error(t('error.generic')); }
+              }}
+            >
+              {transportEditId ? t('action.save') : t('action.create')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ─── Health Record Dialog ───────────────────────────────────── */}
+      <Dialog open={healthDialogOpen} onOpenChange={setHealthDialogOpen}>
+        <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{healthEditId ? t('health.edit') : t('health.add')}</DialogTitle>
+            <DialogDescription>{t('health.title')}</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label className="text-xs font-medium">{t('health.blood_type')}</Label>
+                <Select value={healthForm.bloodType || '_none'} onValueChange={(v) => setHealthForm((f) => ({ ...f, bloodType: v === '_none' ? '' : v }))}>
+                  <SelectTrigger className="h-10 rounded-lg mt-1">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="_none">—</SelectItem>
+                    <SelectItem value="A+">A+</SelectItem>
+                    <SelectItem value="A-">A-</SelectItem>
+                    <SelectItem value="B+">B+</SelectItem>
+                    <SelectItem value="B-">B-</SelectItem>
+                    <SelectItem value="O+">O+</SelectItem>
+                    <SelectItem value="O-">O-</SelectItem>
+                    <SelectItem value="AB+">AB+</SelectItem>
+                    <SelectItem value="AB-">AB-</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label className="text-xs font-medium">{t('health.last_checkup_date')}</Label>
+                <Input type="date" value={healthForm.lastCheckup} onChange={(e) => setHealthForm((f) => ({ ...f, lastCheckup: e.target.value }))} className="mt-1 rounded-lg" />
+              </div>
+            </div>
+            <div>
+              <Label className="text-xs font-medium">{t('health.allergies')} <span className="text-gray-400 font-normal">({t('health.add_allergy')}: kommagetrennt)</span></Label>
+              <Input value={healthForm.allergies} onChange={(e) => setHealthForm((f) => ({ ...f, allergies: e.target.value }))} className="mt-1 rounded-lg" placeholder="Peanuts, Penicillin, ..." />
+            </div>
+            <div>
+              <Label className="text-xs font-medium">{t('health.conditions')} <span className="text-gray-400 font-normal">({t('health.add_condition')}: kommagetrennt)</span></Label>
+              <Input value={healthForm.conditions} onChange={(e) => setHealthForm((f) => ({ ...f, conditions: e.target.value }))} className="mt-1 rounded-lg" placeholder="Asthma, Diabetes, ..." />
+            </div>
+            <div>
+              <Label className="text-xs font-medium">{t('health.medications')} <span className="text-gray-400 font-normal">(Name, Dosierung, Häufigkeit; pro Zeile)</span></Label>
+              <Textarea value={healthForm.medications} onChange={(e) => setHealthForm((f) => ({ ...f, medications: e.target.value }))} className="mt-1 rounded-lg" rows={3} placeholder="Aspirin, 500mg, 1x täglich&#10;Insulin, 10IE, 2x täglich" />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label className="text-xs font-medium">{t('health.doctor_name')}</Label>
+                <Input value={healthForm.doctorName} onChange={(e) => setHealthForm((f) => ({ ...f, doctorName: e.target.value }))} className="mt-1 rounded-lg" placeholder="Dr. Schmidt" />
+              </div>
+              <div>
+                <Label className="text-xs font-medium">{t('health.doctor_phone')}</Label>
+                <Input value={healthForm.doctorPhone} onChange={(e) => setHealthForm((f) => ({ ...f, doctorPhone: e.target.value }))} className="mt-1 rounded-lg" placeholder="+49 123 456789" />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label className="text-xs font-medium">{t('health.insurance_provider')}</Label>
+                <Input value={healthForm.insuranceProvider} onChange={(e) => setHealthForm((f) => ({ ...f, insuranceProvider: e.target.value }))} className="mt-1 rounded-lg" placeholder="AOK" />
+              </div>
+              <div>
+                <Label className="text-xs font-medium">{t('health.insurance_number')}</Label>
+                <Input value={healthForm.insuranceNumber} onChange={(e) => setHealthForm((f) => ({ ...f, insuranceNumber: e.target.value }))} className="mt-1 rounded-lg" placeholder="X123456789" />
+              </div>
+            </div>
+            <div>
+              <Label className="text-xs font-medium">{t('health.notes')}</Label>
+              <Textarea value={healthForm.notes} onChange={(e) => setHealthForm((f) => ({ ...f, notes: e.target.value }))} className="mt-1 rounded-lg" rows={2} placeholder={t('health.notes')} />
+            </div>
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={healthForm.isConfidential}
+                onChange={(e) => setHealthForm((f) => ({ ...f, isConfidential: e.target.checked }))}
+                className="rounded border-gray-300"
+              />
+              <Label className="text-xs font-medium flex items-center gap-1">{t('health.confidential_toggle')} <EyeOff className="h-3 w-3" /></Label>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" className="rounded-xl min-h-[44px]" onClick={() => setHealthDialogOpen(false)}>{t('action.cancel')}</Button>
+            <Button
+              className="rounded-xl bg-rose-600 hover:bg-rose-700 text-white min-h-[44px]"
+              onClick={async () => {
+                try {
+                  const allergiesArr = healthForm.allergies ? healthForm.allergies.split(',').map((s) => s.trim()).filter(Boolean) : [];
+                  const conditionsArr = healthForm.conditions ? healthForm.conditions.split(',').map((s) => s.trim()).filter(Boolean) : [];
+                  const medicationsArr = healthForm.medications
+                    ? healthForm.medications.split('\n').map((line) => {
+                        const parts = line.split(',').map((s) => s.trim());
+                        return { name: parts[0] || '', dosage: parts[1] || '', frequency: parts[2] || '' };
+                      }).filter((m) => m.name)
+                    : [];
+                  const payload = {
+                    schoolId: currentUser?.schoolId,
+                    studentId: currentStudentId,
+                    bloodType: healthForm.bloodType || null,
+                    allergies: allergiesArr.length > 0 ? allergiesArr : null,
+                    medications: medicationsArr.length > 0 ? medicationsArr : null,
+                    conditions: conditionsArr.length > 0 ? conditionsArr : null,
+                    doctorName: healthForm.doctorName || null,
+                    doctorPhone: healthForm.doctorPhone || null,
+                    insuranceNumber: healthForm.insuranceNumber || null,
+                    insuranceProvider: healthForm.insuranceProvider || null,
+                    lastCheckup: healthForm.lastCheckup || null,
+                    notes: healthForm.notes || null,
+                    isConfidential: healthForm.isConfidential,
+                  };
+                  if (healthEditId) {
+                    const updated = await apiPut<HealthRecordData>(`/api/health-records/${healthEditId}`, payload);
+                    setHealthRecord(updated);
+                  } else {
+                    const created = await apiPost<HealthRecordData>('/api/health-records', payload);
+                    setHealthRecord(created);
+                  }
+                  setHealthDialogOpen(false);
+                  toast.success(healthEditId ? t('action.save') : t('action.create'));
+                } catch { toast.error(t('error.generic')); }
+              }}
+            >
+              {healthEditId ? t('action.save') : t('action.create')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* ─── Self-Assessment Dialog ───────────────────────────────── */}
       <Dialog open={saDialogOpen} onOpenChange={setSaDialogOpen}>
