@@ -1,6 +1,20 @@
 # CompetenceTrack — Project Worklog
 
 ---
+Task ID: 26
+Agent: bug-fix-auth-500-script-tag-dynamic-import-rate-limit
+Task: Bug Fixes — Auth 500, Script Tag Sanitization, Dynamic Import SSR, Rate Limit, Demo Credentials
+Date: 2025-01-27
+
+Work Log:
+- Fixed Auth 500 error: changed `findUnique` to `findFirst` in login API route to avoid crash when multiple records match
+- Fixed Script tag sanitization: ensured script tags are properly stripped/sanitized from user input
+- Fixed Dynamic import: added `ssr: false` to dynamic imports that require browser-only APIs
+- Increased Rate limit from 5→20/min to reduce false positives during normal usage
+- Verified demo credentials in auth-view.tsx: already correctly showing `demo@competencetrack.org` / `Demo2025!` (no `admin@demo.de` found)
+- Verification: Login works, lint passes, dev server running
+
+---
 Task ID: 27
 Agent: round18-verification-and-push
 Task: Round 18 Verification, Lint, i18n Check, Git Push
