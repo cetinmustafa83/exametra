@@ -746,3 +746,136 @@ Built three major features: Exam Calendar Integration, Parent Portal, and Deep S
 - **Parent Portal**: Child selector, pending approvals, tabbed views (exams/grades/attendance/illness/counseling/disciplinary), quick actions
 - **Content Crawl**: z-ai-web-dev-sdk page_reader, AI topic extraction, fallback generation, admin-only
 - **Plan Exam / Generate AI Test**: Buttons for exam planning and AI test generation
+
+---
+Task ID: Round-22
+Agent: main
+Task: Round 22 - Exam Calendar, Parent Portal, Teacher Grading, Deep Styling
+
+Work Log:
+- Fixed schoolId auto-detect in counseling and disciplinary-committees APIs
+- Added MessageSquare import to settings-view.tsx
+- Built Exam Calendar Integration:
+  - API: /api/calendar-events/exams (GET/POST)
+  - Calendar view: Plan Exam button, exam filter toggle, countdown badges
+  - Exam type badge in calendar legend
+  - Red-themed exam visual config with GraduationCap icon
+- Built Parent Portal:
+  - API: /api/parent-portal (GET)
+  - Parent portal view: children overview, illness approvals, grades, attendance
+  - Quick actions: Report illness, Request conversation
+  - Navigation: Added to parent role
+- Built Deep Schlaukopf Content Crawling:
+  - API: /api/subject-contents/crawl (POST, admin-only)
+  - Uses z-ai-web-dev-sdk page_reader + AI to extract topics
+  - Crawl button in subjects-view admin section
+- Built Teacher Grading Enhancements:
+  - Annotation API: /api/grading/annotate (GET/POST)
+  - Grading view: Scratch pad with DrawingCanvas, AI review button, bulk grading
+  - Annotation indicator on graded items
+- Built Deep Styling Improvements:
+  - Dashboard: Upcoming exams section, AI tips section
+  - Settings: AI provider config, virtual character toggle, management tabs
+  - Layout: Favorites section, notification badges on sidebar
+  - Auth: VICE_PRINCIPAL demo account, feature showcase
+  - Attendance: Illness report integration button
+  - Assessments: Plan exam button, AI test generation button
+- Added 150+ i18n keys
+- All lints pass, dev server running
+
+Stage Summary:
+- 6 new API route files created
+- 1 new component (parent-portal-view.tsx)
+- 8 components enhanced with new features
+- Exam calendar integration with countdown badges
+- Parent portal with children overview and illness approvals
+- Teacher grading with stylus annotation and AI review
+- Deep schlaukopf.de content crawling
+- Pushed to GitHub
+
+Unresolved issues / Next phase priorities:
+- Need to verify all features work end-to-end in the browser
+- Need to add more schlaukopf.de content (crawl deeper pages)
+- Need to add more practice exercises with actual questions
+- Need to enhance the virtual character with more animations
+- Need to add inter-school competition federation
+- Need to add parent portal enhancements (communication with teachers)
+- WebSocket connection timeout errors (Caddy proxy not forwarding WebSocket upgrades)
+
+## Task ID: 9-b - Inter-School Competitions + Enhanced Communication Builder
+
+**Date:** 2025-01-21
+**Agent:** Inter-School Competitions + Enhanced Communication Builder
+**Status:** Completed
+
+### Summary
+
+Built the Inter-School Competition Federation system and Enhanced Communication System for CompetenceTrack. The federation system allows schools in the same district to compete against each other with school rankings and team scores. The enhanced communication system adds voice chat, note sharing, file sharing, and teacher notes to the existing communication rooms.
+
+### Files Created
+
+1. `src/app/api/competitions/federation/route.ts` - GET/POST for federation competitions
+2. `src/app/api/communication-rooms/[id]/share-notes/route.ts` - GET/POST for sharing notebooks in communication rooms
+
+### Files Modified
+
+1. `prisma/schema.prisma` - Added `isFederation` and `federationSchedule` fields to Competition model
+2. `src/lib/i18n.ts` - Added 70+ i18n keys for federation and communication features (DE + EN)
+3. `src/lib/api.ts` - Added `FederationLeaderboardEntry` interface, `fetchFederationCompetitions` and `createFederationCompetition` functions, updated `CompetitionData` interface with `isFederation`, `federationSchedule`, and `primaryColor` fields
+4. `src/components/competitions-view.tsx` - Added Federation tab with school leaderboard, federation competition cards, create/join functionality, and category/schedule filters
+5. `src/components/communication-view.tsx` - Complete rewrite with voice chat (Web Audio API), file sharing (drag-and-drop), notebook sharing, and teacher notes panel
+
+### Key Features
+
+#### Inter-School Competition Federation
+- Schools in the same district compete against each other
+- Federation leaderboard showing school rankings with team scores (sum of top 10 student scores)
+- Competition types: Math Olympiad, Science Bowl, Language Quiz, General Knowledge
+- Schedule: Weekly, Monthly, Quarterly competitions
+- Admin/teacher can create federation competitions
+- Students can join competitions with "Join Competition" button
+- Federation-specific competition cards with category icons
+- Create Federation Competition dialog with all fields
+
+#### Enhanced Communication System
+- **Voice Chat**: Record and send voice messages using Web Audio API, with playback controls (play/pause), duration display, and waveform visualization
+- **Note Sharing**: Students can share their notebook with the teacher via the share-notes API, select notebook dialog with color-coded notebook cards
+- **File Sharing**: Drag-and-drop file upload, file input button, supports PDF/images/documents, files stored as base64 in message metadata, file size validation (10 MB max)
+- **Teacher Notes Panel**: Teachers can take private notes during conversations, notes are saved via TeacherNote model, notes are NOT visible to students, expandable panel in chat header
+
+### i18n Keys Added (70+ keys)
+- Federation: `federation.title`, `federation.leaderboard`, `federation.school_ranking`, `federation.team_score`, `federation.join`, `federation.create`, `federation.math_olympiad`, `federation.science_bowl`, `federation.language_quiz`, `federation.general_knowledge`, `federation.weekly`, `federation.monthly`, `federation.quarterly`, etc.
+- Communication: `communication.voice_call`, `communication.voice_message`, `communication.play`, `communication.share_notes`, `communication.select_notebook`, `communication.shared_notes`, `communication.upload_file`, `communication.drag_drop`, `communication.teacher_notes`, `communication.private_notes`, `communication.save_note`, `communication.notes_saved`, etc.
+
+## Task ID: 9-a - Practice Exercises + Enhanced Virtual Character Builder
+
+**Date:** 2025-01-21
+**Agent:** Practice Exercises + Enhanced Virtual Character Builder
+**Status:** Completed
+
+### Summary
+
+Built two major features: (1) Practice Exercises with AI-generated multiple-choice questions and (2) Enhanced Virtual Character with animations, accessories, AI chat, and interactions.
+
+### Files Created
+
+1. `src/app/api/subject-contents/exercises/route.ts` - API route for generating practice exercises with AI (POST) and fetching existing questions (GET)
+   - Uses z-ai-web-dev-sdk to generate multiple-choice questions
+   - Rate limit: max 10 requests per day per user
+   - Saves generated questions to SubjectContent's `content` field as JSON
+   - Awards XP to virtual character for generating exercises
+
+2. `src/app/api/subject-contents/exercises/` directory - Created for the exercises API
+
+### Files Modified
+
+1. `src/lib/i18n.ts` - Added 100+ i18n keys for practice exercises and enhanced virtual character (DE + EN)
+2. `src/components/subjects-view.tsx` - Enhanced with full practice exercise mode (real AI questions, score tracking, celebration, retry incorrect)
+3. `src/components/virtual-character.tsx` - Complete rewrite with animations, accessories, AI chat, and interactions
+4. `src/app/api/ai/character/route.ts` - Updated to support accessories field
+
+### Key Features
+
+- **Practice Exercises**: AI-generated multiple-choice questions, score tracking, detailed breakdown, retry incorrect, confetti celebration on high scores
+- **Enhanced Virtual Character**: 5 character types with accessories (hat, glasses, scarf, cape, wand), AI chat, mood animations, daily tips, level-up celebrations
+- **100+ i18n keys** added in both DE and EN

@@ -64,6 +64,12 @@ import {
   Notebook,
   History,
   Loader2,
+  Building2,
+  Calculator,
+  Microscope,
+  Languages,
+  Brain,
+  CalendarDays,
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -111,10 +117,13 @@ import {
   createCompetitionReward,
   fetchRewardClaims,
   claimReward,
+  fetchFederationCompetitions,
+  createFederationCompetition,
   type CompetitionData,
   type CompetitionLeaderboardEntry,
   type CompetitionRewardData,
   type RewardClaimData,
+  type FederationLeaderboardEntry,
 } from '@/lib/api';
 import { toast } from 'sonner';
 
@@ -770,6 +779,27 @@ export default function CompetitionsView() {
   // Register
   const [isRegistering, setIsRegistering] = useState(false);
 
+  // Federation state
+  const [federationCompetitions, setFederationCompetitions] = useState<CompetitionData[]>([]);
+  const [federationLeaderboard, setFederationLeaderboard] = useState<FederationLeaderboardEntry[]>([]);
+  const [federationLoading, setFederationLoading] = useState(true);
+  const [federationCategory, setFederationCategory] = useState<string>('all');
+  const [federationSchedule, setFederationSchedule] = useState<string>('all');
+  const [federationCreateOpen, setFederationCreateOpen] = useState(false);
+  const [isCreatingFederation, setIsCreatingFederation] = useState(false);
+  const [federationForm, setFederationForm] = useState({
+    title: '',
+    description: '',
+    category: 'math_olympiad',
+    schedule: 'monthly',
+    startDate: '',
+    endDate: '',
+    registrationDeadline: '',
+    maxParticipants: '',
+    rules: '',
+    isPublic: true,
+  });
+
   const isAdmin = currentUser?.role === 'SCHOOL_ADMIN' || currentUser?.role === 'SUPER_ADMIN';
   const isTeacher = currentUser?.role === 'TEACHER';
   const isStudent = currentUser?.role === 'STUDENT';
@@ -799,6 +829,95 @@ export default function CompetitionsView() {
   useEffect(() => {
     loadCompetitions();
   }, [loadCompetitions]);
+
+  /* ── Fetch federation competitions ──────────────────────────────── */
+  const loadFederation = useCallback(async () => {
+    setFederationLoading(true);
+    try {
+      const result = await fetchFederationCompetitions(
+        federationCategory !== 'all' ? federationCategory : undefined,
+        federationSchedule !== 'all' ? federationSchedule : undefined,
+        undefined,
+        100,
+      );
+      setFederationCompetitions(result.competitions);
+      setFederationLeaderboard(result.schoolLeaderboard);
+    } catch (err) {
+      console.error('Failed to load federation competitions:', err);
+    } finally {
+      setFederationLoading(false);
+    }
+  }, [federationCategory, federationSchedule]);
+
+  useEffect(() => {
+    loadFederation();
+  }, [loadFederation]);
+
+  /* ── Create federation competition ─────────────────────────────── */
+  const handleCreateFederation = useCallback(async () => {
+    if (!schoolId) return;
+    if (!federationForm.title.trim()) {
+      toast.error('Title is required');
+      return;
+    }
+    if (!federationForm.startDate || !federationForm.endDate) {
+      toast.error('Start and end dates are required');
+      return;
+    }
+    setIsCreatingFederation(true);
+    try {
+      await createFederationCompetition({
+        schoolId,
+        title: federationForm.title.trim(),
+        description: federationForm.description.trim() || null,
+        category: federationForm.category,
+        schedule: federationForm.schedule,
+        startDate: new Date(federationForm.startDate).toISOString(),
+        endDate: new Date(federationForm.endDate).toISOString(),
+        registrationDeadline: federationForm.registrationDeadline ? new Date(federationForm.registrationDeadline).toISOString() : null,
+        maxParticipants: federationForm.maxParticipants ? parseInt(federationForm.maxParticipants, 10) : null,
+        rules: federationForm.rules.trim() || null,
+        isPublic: federationForm.isPublic,
+      });
+      toast.success(t('federation.create_success'));
+      setFederationCreateOpen(false);
+      setFederationForm({
+        title: '',
+        description: '',
+        category: 'math_olympiad',
+        schedule: 'monthly',
+        startDate: '',
+        endDate: '',
+        registrationDeadline: '',
+        maxParticipants: '',
+        rules: '',
+        isPublic: true,
+      });
+      loadFederation();
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : t('federation.error_create');
+      toast.error(message);
+    } finally {
+      setIsCreatingFederation(false);
+    }
+  }, [schoolId, federationForm, loadFederation]);
+
+  /* ── Join federation competition ────────────────────────────────── */
+  const handleJoinFederation = useCallback(async (comp: CompetitionData) => {
+    if (!currentUser || !schoolId) return;
+    try {
+      await registerCompetitionParticipant(comp.id, {
+        participantType: 'user',
+        participantId: currentUser.id,
+        userId: currentUser.id,
+      });
+      toast.success(t('federation.register_success'));
+      loadFederation();
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : t('federation.error_join');
+      toast.error(message);
+    }
+  }, [currentUser, schoolId, loadFederation]);
 
   /* ── Fetch my claims ─────────────────────────────────────────── */
   const loadMyClaims = useCallback(async () => {
@@ -1228,6 +1347,10 @@ export default function CompetitionsView() {
           <TabsTrigger value="leaderboard" className="min-h-[44px]">{t('competition.leaderboard')}</TabsTrigger>
           <TabsTrigger value="rewards" className="min-h-[44px]">{t('competition.rewards')}</TabsTrigger>
           <TabsTrigger value="catalog" className="min-h-[44px]">{t('rewards.title')}</TabsTrigger>
+          <TabsTrigger value="federation" className="min-h-[44px]">
+            <Building2 className="h-4 w-4 mr-1" />
+            {t('federation.title')}
+          </TabsTrigger>
         </TabsList>
 
         {/* Overview Tab */}
@@ -1801,9 +1924,209 @@ export default function CompetitionsView() {
             </Card>
           </div>
         </TabsContent>
+
+        {/* Federation Tab */}
+        <TabsContent value="federation" className="space-y-6 mt-4">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-100 dark:bg-emerald-900/30">
+                <Building2 className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+              </div>
+              <div>
+                <h2 className="text-lg font-semibold">{t('federation.title')}</h2>
+                <p className="text-sm text-muted-foreground">{t('federation.description')}</p>
+              </div>
+            </div>
+            {canCreate && (
+              <Button
+                className="min-h-[44px] bg-emerald-600 hover:bg-emerald-700"
+                onClick={() => setFederationCreateOpen(true)}
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                {t('federation.create')}
+              </Button>
+            )}
+          </div>
+
+          {/* Federation Filters */}
+          <div className="flex flex-col sm:flex-row gap-3">
+            <Select value={federationCategory} onValueChange={setFederationCategory}>
+              <SelectTrigger className="w-full sm:w-[200px] min-h-[44px]">
+                <SelectValue placeholder={t('federation.category_label')} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">{t('federation.category_label')}</SelectItem>
+                <SelectItem value="math_olympiad">{t('federation.math_olympiad')}</SelectItem>
+                <SelectItem value="science_bowl">{t('federation.science_bowl')}</SelectItem>
+                <SelectItem value="language_quiz">{t('federation.language_quiz')}</SelectItem>
+                <SelectItem value="general_knowledge">{t('federation.general_knowledge')}</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={federationSchedule} onValueChange={setFederationSchedule}>
+              <SelectTrigger className="w-full sm:w-[160px] min-h-[44px]">
+                <SelectValue placeholder={t('federation.schedule')} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">{t('federation.schedule')}</SelectItem>
+                <SelectItem value="weekly">{t('federation.weekly')}</SelectItem>
+                <SelectItem value="monthly">{t('federation.monthly')}</SelectItem>
+                <SelectItem value="quarterly">{t('federation.quarterly')}</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* School Leaderboard */}
+          {federationLeaderboard.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <Crown className="h-5 w-5 text-amber-500" />
+                  {t('federation.school_ranking')}
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="max-h-96 overflow-y-auto">
+                  <table className="w-full">
+                    <thead className="sticky top-0 bg-background">
+                      <tr className="border-b text-left text-xs text-muted-foreground">
+                        <th className="pb-2 pl-3 w-16">{t('federation.school_rank')}</th>
+                        <th className="pb-2">{t('federation.district_schools')}</th>
+                        <th className="pb-2 text-center">{t('federation.participants')}</th>
+                        <th className="pb-2 pr-3 text-right">{t('federation.team_score')}</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {federationLeaderboard.map((entry, idx) => (
+                        <motion.tr
+                          key={entry.schoolId}
+                          initial={{ opacity: 0, x: -10 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          transition={{ delay: idx * 0.03 }}
+                          className={`border-b last:border-0 hover:bg-muted/50 transition-colors ${
+                            entry.schoolId === schoolId ? 'bg-emerald-50/50 dark:bg-emerald-900/10' : ''
+                          }`}
+                        >
+                          <td className="py-2.5 pl-3">
+                            <div className="flex items-center gap-1.5">
+                              {entry.rank === 1 ? (
+                                <Crown className="h-5 w-5 text-amber-500" />
+                              ) : entry.rank === 2 ? (
+                                <Medal className="h-5 w-5 text-gray-400" />
+                              ) : entry.rank === 3 ? (
+                                <Medal className="h-5 w-5 text-amber-700" />
+                              ) : (
+                                <span className="text-sm font-medium text-muted-foreground w-5 text-center">{entry.rank}</span>
+                              )}
+                            </div>
+                          </td>
+                          <td className="py-2.5">
+                            <div className="flex items-center gap-2">
+                              <div className="flex h-7 w-7 items-center justify-center rounded bg-emerald-100 dark:bg-emerald-900/30 shrink-0">
+                                <Building2 className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+                              </div>
+                              <span className="text-sm font-medium">{entry.schoolName}</span>
+                              {entry.schoolId === schoolId && (
+                                <Badge variant="secondary" className="text-xs bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300">
+                                  {t('federation.your_school')}
+                                </Badge>
+                              )}
+                            </div>
+                          </td>
+                          <td className="py-2.5 text-center">
+                            <span className="text-sm text-muted-foreground">{entry.participantCount}</span>
+                          </td>
+                          <td className="py-2.5 pr-3 text-right">
+                            <span className="text-sm font-semibold text-emerald-600 dark:text-emerald-400">{entry.teamScore}</span>
+                          </td>
+                        </motion.tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Federation Competitions List */}
+          {federationLoading ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {[1, 2, 3].map((i) => (
+                <Card key={i}><CardContent className="p-4"><Skeleton className="h-32" /></CardContent></Card>
+              ))}
+            </div>
+          ) : federationCompetitions.length === 0 ? (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="flex flex-col items-center justify-center py-16 text-muted-foreground"
+            >
+              <Building2 className="h-16 w-16 mb-4 opacity-20" />
+              <p className="text-lg font-medium">{t('federation.no_competitions')}</p>
+              <p className="text-sm mt-1">{t('federation.no_district')}</p>
+            </motion.div>
+          ) : (
+            <>
+              {/* Active Federation Competitions */}
+              {federationCompetitions.filter((c) => c.status === 'active' || c.status === 'registration').length > 0 && (
+                <section>
+                  <div className="flex items-center gap-2 mb-3">
+                    <Flame className="h-5 w-5 text-emerald-500" />
+                    <h3 className="text-lg font-semibold">{t('federation.active_federation')}</h3>
+                    <Badge variant="secondary" className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300">
+                      {federationCompetitions.filter((c) => c.status === 'active' || c.status === 'registration').length}
+                    </Badge>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <AnimatePresence>
+                      {federationCompetitions
+                        .filter((c) => c.status === 'active' || c.status === 'registration')
+                        .map((comp) => (
+                          <FederationCompetitionCard
+                            key={comp.id}
+                            competition={comp}
+                            onView={handleViewCompetition}
+                            onJoin={handleJoinFederation}
+                            isStudent={isStudent}
+                            currentSchoolId={schoolId}
+                          />
+                        ))}
+                    </AnimatePresence>
+                  </div>
+                </section>
+              )}
+
+              {/* Completed Federation Competitions */}
+              {federationCompetitions.filter((c) => c.status === 'completed').length > 0 && (
+                <section>
+                  <div className="flex items-center gap-2 mb-3">
+                    <CheckCircle2 className="h-5 w-5 text-amber-500" />
+                    <h3 className="text-lg font-semibold">{t('federation.completed')}</h3>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <AnimatePresence>
+                      {federationCompetitions
+                        .filter((c) => c.status === 'completed')
+                        .map((comp) => (
+                          <FederationCompetitionCard
+                            key={comp.id}
+                            competition={comp}
+                            onView={handleViewCompetition}
+                            onJoin={handleJoinFederation}
+                            isStudent={isStudent}
+                            currentSchoolId={schoolId}
+                          />
+                        ))}
+                    </AnimatePresence>
+                  </div>
+                </section>
+              )}
+            </>
+          )}
+        </TabsContent>
       </Tabs>
 
       {/* ── Competition Detail Dialog ──────────────────────────── */}
+
       <Dialog open={detailOpen} onOpenChange={setDetailOpen}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           {selectedCompetition && (
@@ -2458,7 +2781,284 @@ export default function CompetitionsView() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* ── Federation Create Dialog ───────────────────────────────── */}
+      <Dialog open={federationCreateOpen} onOpenChange={setFederationCreateOpen}>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Building2 className="h-5 w-5 text-emerald-500" />
+              {t('federation.create')}
+            </DialogTitle>
+            <DialogDescription>
+              {t('federation.description')}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 mt-4">
+            <div>
+              <Label>{t('competition.name')} *</Label>
+              <Input
+                value={federationForm.title}
+                onChange={(e) => setFederationForm((f) => ({ ...f, title: e.target.value }))}
+                placeholder={t('federation.create') + '...'}
+                className="mt-1 min-h-[44px]"
+              />
+            </div>
+            <div>
+              <Label>{t('competition.description')}</Label>
+              <Textarea
+                value={federationForm.description}
+                onChange={(e) => setFederationForm((f) => ({ ...f, description: e.target.value }))}
+                placeholder={t('federation.description')}
+                className="mt-1"
+                rows={3}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label>{t('federation.category_label')} *</Label>
+                <Select
+                  value={federationForm.category}
+                  onValueChange={(v) => setFederationForm((f) => ({ ...f, category: v }))}
+                >
+                  <SelectTrigger className="mt-1 min-h-[44px]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="math_olympiad">
+                      <span className="flex items-center gap-2"><Calculator className="h-4 w-4" /> {t('federation.math_olympiad')}</span>
+                    </SelectItem>
+                    <SelectItem value="science_bowl">
+                      <span className="flex items-center gap-2"><Microscope className="h-4 w-4" /> {t('federation.science_bowl')}</span>
+                    </SelectItem>
+                    <SelectItem value="language_quiz">
+                      <span className="flex items-center gap-2"><Languages className="h-4 w-4" /> {t('federation.language_quiz')}</span>
+                    </SelectItem>
+                    <SelectItem value="general_knowledge">
+                      <span className="flex items-center gap-2"><Brain className="h-4 w-4" /> {t('federation.general_knowledge')}</span>
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>{t('federation.schedule')} *</Label>
+                <Select
+                  value={federationForm.schedule}
+                  onValueChange={(v) => setFederationForm((f) => ({ ...f, schedule: v }))}
+                >
+                  <SelectTrigger className="mt-1 min-h-[44px]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="weekly">
+                      <span className="flex items-center gap-2"><CalendarDays className="h-4 w-4" /> {t('federation.weekly')}</span>
+                    </SelectItem>
+                    <SelectItem value="monthly">
+                      <span className="flex items-center gap-2"><Calendar className="h-4 w-4" /> {t('federation.monthly')}</span>
+                    </SelectItem>
+                    <SelectItem value="quarterly">
+                      <span className="flex items-center gap-2"><Calendar className="h-4 w-4" /> {t('federation.quarterly')}</span>
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label>{t('competition.start_date')} *</Label>
+                <Input
+                  type="datetime-local"
+                  value={federationForm.startDate}
+                  onChange={(e) => setFederationForm((f) => ({ ...f, startDate: e.target.value }))}
+                  className="mt-1 min-h-[44px]"
+                />
+              </div>
+              <div>
+                <Label>{t('competition.end_date')} *</Label>
+                <Input
+                  type="datetime-local"
+                  value={federationForm.endDate}
+                  onChange={(e) => setFederationForm((f) => ({ ...f, endDate: e.target.value }))}
+                  className="mt-1 min-h-[44px]"
+                />
+              </div>
+            </div>
+            <div>
+              <Label>{t('competition.max_participants')}</Label>
+              <Input
+                type="number"
+                value={federationForm.maxParticipants}
+                onChange={(e) => setFederationForm((f) => ({ ...f, maxParticipants: e.target.value }))}
+                placeholder={t('competition.unlimited')}
+                className="mt-1 min-h-[44px]"
+              />
+            </div>
+            <div>
+              <Label>{t('competition.rules')}</Label>
+              <Textarea
+                value={federationForm.rules}
+                onChange={(e) => setFederationForm((f) => ({ ...f, rules: e.target.value }))}
+                placeholder={t('competition.rules') + '...'}
+                className="mt-1"
+                rows={3}
+              />
+            </div>
+          </div>
+          <DialogFooter className="mt-4">
+            <Button variant="outline" className="min-h-[44px]" onClick={() => setFederationCreateOpen(false)}>
+              {t('action.cancel')}
+            </Button>
+            <Button
+              className="min-h-[44px] bg-emerald-600 hover:bg-emerald-700"
+              onClick={handleCreateFederation}
+              disabled={isCreatingFederation}
+            >
+              {isCreatingFederation ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <Plus className="h-4 w-4 mr-2" />
+              )}
+              {t('federation.create')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
+  );
+}
+
+/* ── Federation Competition Card ──────────────────────────────────── */
+
+function FederationCompetitionCard({
+  competition,
+  onView,
+  onJoin,
+  isStudent,
+  currentSchoolId,
+}: {
+  competition: CompetitionData;
+  onView: (c: CompetitionData) => void;
+  onJoin: (c: CompetitionData) => void;
+  isStudent: boolean;
+  currentSchoolId: string | null;
+}) {
+  const progress = getTimeProgress(competition.startDate, competition.endDate);
+  const isRegistration = competition.status === 'registration';
+  const isActive = competition.status === 'active';
+  const participantCount = competition._count?.participants ?? 0;
+
+  const getFederationCategoryIcon = (category: string) => {
+    switch (category) {
+      case 'math_olympiad': return <Calculator className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />;
+      case 'science_bowl': return <Microscope className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />;
+      case 'language_quiz': return <Languages className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />;
+      case 'general_knowledge': return <Brain className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />;
+      default: return <Trophy className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />;
+    }
+  };
+
+  const getFederationCategoryLabel = (category: string) => {
+    switch (category) {
+      case 'math_olympiad': return t('federation.math_olympiad');
+      case 'science_bowl': return t('federation.science_bowl');
+      case 'language_quiz': return t('federation.language_quiz');
+      case 'general_knowledge': return t('federation.general_knowledge');
+      default: return category;
+    }
+  };
+
+  const getScheduleLabel = (schedule: string | null) => {
+    switch (schedule) {
+      case 'weekly': return t('federation.weekly');
+      case 'monthly': return t('federation.monthly');
+      case 'quarterly': return t('federation.quarterly');
+      default: return schedule || '';
+    }
+  };
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -12 }}
+      transition={{ duration: 0.2 }}
+      whileHover={{ y: -2 }}
+      className="h-full"
+    >
+      <Card className="border-l-4 border-l-emerald-500 h-full flex flex-col cursor-pointer transition-shadow hover:shadow-md" onClick={() => onView(competition)}>
+        <CardHeader className="pb-3">
+          <div className="flex items-start justify-between gap-2">
+            <div className="flex items-center gap-2 min-w-0 flex-1">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-50 dark:bg-emerald-900/30 shrink-0">
+                {getFederationCategoryIcon(competition.category)}
+              </div>
+              <div className="min-w-0">
+                <CardTitle className="text-base leading-tight truncate">{competition.title}</CardTitle>
+                <CardDescription className="text-xs mt-0.5 flex items-center gap-1">
+                  <Building2 className="h-3 w-3" />
+                  {getFederationCategoryLabel(competition.category)}
+                </CardDescription>
+              </div>
+            </div>
+            <Badge className={`${getStatusColor(competition.status)} text-xs shrink-0`}>
+              {getStatusLabel(competition.status)}
+            </Badge>
+          </div>
+        </CardHeader>
+        <CardContent className="flex-1 pb-3 space-y-3">
+          {competition.description && (
+            <p className="text-sm text-muted-foreground line-clamp-2">{competition.description}</p>
+          )}
+          <div className="flex items-center gap-4 text-xs text-muted-foreground">
+            <span className="flex items-center gap-1">
+              <Users className="h-3.5 w-3.5" />
+              {participantCount}
+            </span>
+            <span className="flex items-center gap-1">
+              <CalendarDays className="h-3.5 w-3.5" />
+              {getScheduleLabel(competition.federationSchedule)}
+            </span>
+            <span className="flex items-center gap-1">
+              <Building2 className="h-3.5 w-3.5" />
+              {competition.school?.name}
+            </span>
+          </div>
+          {(isActive || isRegistration) && (
+            <div className="space-y-1">
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-muted-foreground flex items-center gap-1">
+                  <Clock className="h-3 w-3" />
+                  {getTimeRemaining(competition.endDate)}
+                </span>
+                <span className="text-muted-foreground">{progress}%</span>
+              </div>
+              <Progress value={progress} className="h-1.5" />
+            </div>
+          )}
+        </CardContent>
+        <CardFooter className="pt-0 pb-4 gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            className="flex-1 min-h-[44px]"
+            onClick={(e) => { e.stopPropagation(); onView(competition); }}
+          >
+            <Eye className="h-4 w-4 mr-1" />
+            {t('competition.details')}
+          </Button>
+          {isRegistration && isStudent && (
+            <Button
+              size="sm"
+              className="flex-1 min-h-[44px] bg-emerald-600 hover:bg-emerald-700"
+              onClick={(e) => { e.stopPropagation(); onJoin(competition); }}
+            >
+              <UserPlus className="h-4 w-4 mr-1" />
+              {t('federation.join')}
+            </Button>
+          )}
+        </CardFooter>
+      </Card>
+    </motion.div>
   );
 }
 

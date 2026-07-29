@@ -1680,6 +1680,8 @@ model Competition {
   rules          String?  // markdown rules/description
   isPublic       Boolean  @default(false) // visible to all schools?
   isDemo         Boolean  @default(false)
+  isFederation   Boolean  @default(false) // inter-school district federation competition
+  federationSchedule String? // "weekly" | "monthly" | "quarterly"
   createdById    String   // teacher/admin who created
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt

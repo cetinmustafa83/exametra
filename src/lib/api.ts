@@ -3110,11 +3110,13 @@ export interface CompetitionData {
   rules: string | null;
   isPublic: boolean;
   isDemo: boolean;
+  isFederation: boolean;
+  federationSchedule: string | null;
   createdById: string;
   createdAt: string;
   updatedAt: string;
   deletedAt: string | null;
-  school?: { id: string; name: string };
+  school?: { id: string; name: string; primaryColor?: string | null };
   createdBy?: { id: string; firstName: string; lastName: string };
   subject?: { id: string; name: string } | null;
   _count?: { participants: number; rewards: number };
@@ -3200,6 +3202,47 @@ export function fetchCompetitions(
   if (limit) params.set('limit', String(limit));
   if (offset) params.set('offset', String(offset));
   return apiGet<{ competitions: CompetitionData[]; total: number }>(`/api/competitions?${params.toString()}`);
+}
+
+export interface FederationLeaderboardEntry {
+  schoolId: string;
+  schoolName: string;
+  teamScore: number;
+  participantCount: number;
+  rank: number;
+}
+
+export function fetchFederationCompetitions(
+  category?: string,
+  schedule?: string,
+  status?: string,
+  limit?: number,
+  offset?: number
+): Promise<{ competitions: CompetitionData[]; total: number; schoolLeaderboard: FederationLeaderboardEntry[] }> {
+  const params = new URLSearchParams();
+  if (category) params.set('category', category);
+  if (schedule) params.set('schedule', schedule);
+  if (status) params.set('status', status);
+  if (limit) params.set('limit', String(limit));
+  if (offset) params.set('offset', String(offset));
+  return apiGet<{ competitions: CompetitionData[]; total: number; schoolLeaderboard: FederationLeaderboardEntry[] }>(`/api/competitions/federation?${params.toString()}`);
+}
+
+export function createFederationCompetition(data: {
+  schoolId: string;
+  title: string;
+  description?: string | null;
+  category: string;
+  subjectId?: string | null;
+  schedule: string;
+  startDate: string;
+  endDate: string;
+  registrationDeadline?: string | null;
+  maxParticipants?: number | null;
+  rules?: string | null;
+  isPublic?: boolean;
+}): Promise<CompetitionData> {
+  return apiPost<CompetitionData>('/api/competitions/federation', data);
 }
 
 export function fetchPublicCompetitions(

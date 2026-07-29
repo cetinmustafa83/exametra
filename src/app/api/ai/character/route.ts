@@ -66,7 +66,7 @@ export async function PUT(request: Request) {
     }
 
     const body = await request.json();
-    const { characterId, name, color, mood } = body;
+    const { characterId, name, color, mood, accessories } = body;
 
     // Get existing character
     const existing = await db.virtualCharacter.findUnique({
@@ -85,6 +85,7 @@ export async function PUT(request: Request) {
           level: 1,
           xp: 0,
           mood: mood || 'happy',
+          accessories: accessories || null,
         },
       });
       return NextResponse.json(character);
@@ -98,6 +99,7 @@ export async function PUT(request: Request) {
         ...(name ? { name } : {}),
         ...(color ? { color } : {}),
         ...(mood ? { mood } : {}),
+        ...(accessories !== undefined ? { accessories } : {}),
       },
     });
 

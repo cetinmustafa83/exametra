@@ -9,6 +9,7 @@ import {
   Palette, Dumbbell, Map, Settings, FileText, MessageSquare, Shield,
   Loader2, Sparkles, RefreshCw, Filter, ToggleLeft, ToggleRight, Send,
   AlertTriangle, CheckCircle2, Clock, XCircle, ChevronDown, Info,
+  PartyPopper, Trophy, RotateCcw,
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -29,6 +30,13 @@ import { apiGet, apiPost, apiPut, apiDelete } from '@/lib/api';
 import { toast } from 'sonner';
 
 /* ── Types ─────────────────────────────────────────────────────────── */
+
+interface PracticeQuestion {
+  question: string;
+  options: string[];
+  correctAnswer: number;
+  explanation: string;
+}
 
 interface SubjectCategory {
   id: string;
@@ -198,10 +206,14 @@ export default function SubjectsView() {
   // Practice state
   const [isPracticing, setIsPracticing] = useState(false);
   const [currentQuestion, setCurrentQuestion] = useState(0);
-  const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
+  const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null);
   const [showResult, setShowResult] = useState(false);
   const [practiceScore, setPracticeScore] = useState(0);
   const [practiceComplete, setPracticeComplete] = useState(false);
+  const [practiceQuestions, setPracticeQuestions] = useState<PracticeQuestion[]>([]);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [answerHistory, setAnswerHistory] = useState<Array<{ questionIndex: number; selectedAnswer: number; isCorrect: boolean }>>([]);
+  const [showConfetti, setShowConfetti] = useState(false);
 
   // Dialog state
   const [showCategoryDialog, setShowCategoryDialog] = useState(false);
@@ -343,6 +355,8 @@ export default function SubjectsView() {
   const handleTopicClick = (topic: SubjectContentItem) => {
     setSelectedTopic(topic);
     setIsPracticing(false);
+    setPracticeQuestions([]);
+    setAnswerHistory([]);
   };
 
   const handleBack = () => {
@@ -365,34 +379,127 @@ export default function SubjectsView() {
     }
   };
 
-  const handleStartPractice = () => {
+  const handleStartPractice = async () => {
+    if (!selectedTopic) return;
+    setIsGenerating(true);
+
+    try {
+      // First try to load existing questions
+      const data = await apiGet<{ questions: PracticeQuestion[]; questionCount: number }>(
+        `/api/subject-contents/exercises?contentId=${selectedTopic.id}`
+      );
+
+      if (data.questions && data.questions.length > 0) {
+        setPracticeQuestions(data.questions);
+        setIsPracticing(true);
+        setCurrentQuestion(0);
+        setPracticeScore(0);
+        setSelectedAnswer(null);
+        setShowResult(false);
+        setPracticeComplete(false);
+        setAnswerHistory([]);
+        setShowConfetti(false);
+      } else {
+        // No existing questions, generate new ones
+        await handleGenerateQuestions();
+      }
+    } catch {
+      // Fallback: try to generate
+      await handleGenerateQuestions();
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  const handleGenerateQuestions = async () => {
+    if (!selectedTopic) return;
+    setIsGenerating(true);
+
+    try {
+      const data = await apiPost<{
+        questions: PracticeQuestion[];
+        requestsToday: number;
+        maxRequests: number;
+      }>('/api/subject-contents/exercises', {
+        contentId: selectedTopic.id,
+        topic: selectedTopic.title,
+        count: 5,
+        difficulty: selectedTopic.difficulty || 'medium',
+      });
+
+      if (data.questions && data.questions.length > 0) {
+        setPracticeQuestions(data.questions);
+        setIsPracticing(true);
+        setCurrentQuestion(0);
+        setPracticeScore(0);
+        setSelectedAnswer(null);
+        setShowResult(false);
+        setPracticeComplete(false);
+        setAnswerHistory([]);
+        setShowConfetti(false);
+        toast.success(t('practice.xp_earned', { xp: '10' }));
+      }
+    } catch (err: unknown) {
+      const error = err as { message?: string };
+      if (error.message?.includes('429') || error.message?.includes('limit')) {
+        toast.error(t('practice.rate_limit_reached'));
+      } else {
+        toast.error(t('practice.generation_error'));
+      }
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  const handleAnswer = (answerIndex: number) => {
+    if (showResult || !practiceQuestions[currentQuestion]) return;
+    setSelectedAnswer(answerIndex);
+    setShowResult(true);
+
+    const isCorrect = answerIndex === practiceQuestions[currentQuestion].correctAnswer;
+    if (isCorrect) {
+      setPracticeScore((s) => s + 1);
+    }
+    setAnswerHistory((prev) => [
+      ...prev,
+      { questionIndex: currentQuestion, selectedAnswer: answerIndex, isCorrect },
+    ]);
+  };
+
+  const handleNextQuestion = () => {
+    if (currentQuestion + 1 >= practiceQuestions.length) {
+      setPracticeComplete(true);
+      const pct = Math.round(((practiceScore + (selectedAnswer === practiceQuestions[currentQuestion]?.correctAnswer ? 0 : 0)) / practiceQuestions.length) * 100);
+      if (pct >= 80) {
+        setShowConfetti(true);
+        setTimeout(() => setShowConfetti(false), 4000);
+      }
+    } else {
+      setCurrentQuestion((q) => q + 1);
+      setSelectedAnswer(null);
+      setShowResult(false);
+    }
+  };
+
+  const handleRetryIncorrect = () => {
+    const incorrectQuestions = answerHistory
+      .filter((h) => !h.isCorrect)
+      .map((h) => practiceQuestions[h.questionIndex]);
+
+    if (incorrectQuestions.length === 0) {
+      handleStartPractice();
+      return;
+    }
+
+    setPracticeQuestions(incorrectQuestions);
     setIsPracticing(true);
     setCurrentQuestion(0);
     setPracticeScore(0);
     setSelectedAnswer(null);
     setShowResult(false);
     setPracticeComplete(false);
-  };
-
-  const handleAnswer = (answer: string) => {
-    setSelectedAnswer(answer);
-    setShowResult(true);
-    // Simulate correct answer 50% of the time
-    const isCorrect = Math.random() > 0.5;
-    if (isCorrect) {
-      setPracticeScore((s) => s + 1);
-    }
-  };
-
-  const handleNextQuestion = () => {
-    const totalQ = selectedTopic?.questionCount || 5;
-    if (currentQuestion + 1 >= totalQ) {
-      setPracticeComplete(true);
-    } else {
-      setCurrentQuestion((q) => q + 1);
-      setSelectedAnswer(null);
-      setShowResult(false);
-    }
+    setAnswerHistory([]);
+    setShowConfetti(false);
   };
 
   const handleSeedData = async () => {
@@ -1086,7 +1193,36 @@ export default function SubjectsView() {
       return renderPractice();
     }
 
-    const totalQ = selectedTopic.questionCount || 5;
+    if (isGenerating) {
+      return (
+        <div className="max-w-md mx-auto space-y-6">
+          <Card className="border-0 shadow-xl overflow-hidden">
+            <div className="bg-gradient-to-br from-emerald-500 to-teal-600 p-8 text-center">
+              <motion.div
+                animate={{ rotate: 360 }}
+                transition={{ repeat: Infinity, duration: 2, ease: 'linear' }}
+                className="inline-block"
+              >
+                <Sparkles className="h-12 w-12 text-white" />
+              </motion.div>
+              <h2 className="text-xl font-bold text-white mt-4">
+                {t('practice.generating')}
+              </h2>
+              <p className="text-emerald-100 mt-2 text-sm">
+                {t('practice.generate_questions')}
+              </p>
+            </div>
+            <CardContent className="p-6 text-center">
+              <div className="flex items-center justify-center gap-2">
+                <Loader2 className="h-4 w-4 animate-spin text-emerald-600" />
+                <span className="text-sm text-gray-500">{t('practice.generating')}</span>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      );
+    }
+
     return (
       <div className="space-y-6">
         {/* Breadcrumb */}
@@ -1116,16 +1252,22 @@ export default function SubjectsView() {
                   <p className="text-emerald-100 mt-1">{selectedTopic.description}</p>
                 )}
                 <div className="flex items-center gap-2 mt-3">
-                  <Badge className="text-xs bg-white/20 text-white border-0 hover:bg-white/30">
-                    {totalQ} {t('subjects.question_count')}
-                  </Badge>
                   <DifficultyBadge difficulty={selectedTopic.difficulty} />
+                  {selectedTopic.questionCount > 0 && (
+                    <Badge className="text-xs bg-white/20 text-white border-0 hover:bg-white/30">
+                      {selectedTopic.questionCount} {t('subjects.question_count')}
+                    </Badge>
+                  )}
                 </div>
               </div>
-              <div className="flex gap-2">
+              <div className="flex gap-2 flex-wrap">
                 <Button onClick={handleStartPractice} className="gap-1 bg-white text-emerald-700 hover:bg-emerald-50 shadow-md">
                   <Play className="h-4 w-4" />
-                  {t('subjects.start_practice')}
+                  {t('practice.start')}
+                </Button>
+                <Button onClick={handleGenerateQuestions} variant="outline" className="gap-1 bg-white/20 border-white/30 text-white hover:bg-white/30 hover:text-white">
+                  <Sparkles className="h-4 w-4" />
+                  {t('practice.generate_questions')}
                 </Button>
                 {isTeacher && (
                   <Button
@@ -1172,40 +1314,138 @@ export default function SubjectsView() {
     );
   };
 
+  /* ── Confetti Particle ───────────────────────────────────────────── */
+
+  function ConfettiParticle({ delay, color }: { delay: number; color: string }) {
+    return (
+      <motion.div
+        className="absolute w-3 h-3 rounded-sm"
+        style={{ backgroundColor: color, left: `${Math.random() * 100}%`, top: '-10px' }}
+        initial={{ opacity: 1, y: 0, rotate: 0, scale: 1 }}
+        animate={{
+          opacity: [1, 1, 0],
+          y: [0, window?.innerHeight || 600],
+          rotate: [0, Math.random() * 720 - 360],
+          scale: [1, 0.8, 0.3],
+          x: [0, (Math.random() - 0.5) * 200],
+        }}
+        transition={{ duration: 2.5, delay, ease: 'easeOut' }}
+      />
+    );
+  }
+
   /* ── Render: Practice Mode ───────────────────────────────────────── */
 
   const renderPractice = () => {
     if (!selectedTopic) return null;
-    const totalQ = selectedTopic.questionCount || 5;
+    const totalQ = practiceQuestions.length;
 
-    if (practiceComplete) {
-      const pct = Math.round((practiceScore / totalQ) * 100);
+    if (totalQ === 0) {
       return (
         <div className="max-w-md mx-auto space-y-6">
           <Card className="border-0 shadow-xl overflow-hidden">
             <div className="bg-gradient-to-br from-emerald-500 to-teal-600 p-6 text-center">
+              <FileText className="h-16 w-16 text-white/80 mx-auto mb-4" />
+              <h2 className="text-xl font-bold text-white mb-2">
+                {t('practice.no_questions')}
+              </h2>
+              <p className="text-emerald-100 text-sm">
+                {t('practice.no_questions_desc')}
+              </p>
+            </div>
+            <CardContent className="p-6 text-center space-y-3">
+              <Button onClick={handleGenerateQuestions} className="w-full gap-1 bg-emerald-600 hover:bg-emerald-700">
+                <Sparkles className="h-4 w-4" />
+                {t('practice.generate_questions')}
+              </Button>
+              <Button onClick={handleBack} variant="outline" className="w-full gap-1">
+                <ArrowLeft className="h-4 w-4" />
+                {t('subjects.back_to_subject')}
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+      );
+    }
+
+    if (practiceComplete) {
+      const pct = Math.round((practiceScore / totalQ) * 100);
+      const incorrectCount = totalQ - practiceScore;
+      const scoreMessage = pct === 100
+        ? t('practice.perfect_score')
+        : pct >= 80
+        ? t('practice.great_score')
+        : pct >= 50
+        ? t('practice.good_score')
+        : t('practice.needs_practice');
+
+      return (
+        <div className="max-w-lg mx-auto space-y-6">
+          {/* Confetti overlay */}
+          <AnimatePresence>
+            {showConfetti && (
+              <motion.div
+                className="fixed inset-0 pointer-events-none z-50 overflow-hidden"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+              >
+                {Array.from({ length: 40 }).map((_, i) => (
+                  <ConfettiParticle
+                    key={i}
+                    delay={Math.random() * 0.8}
+                    color={['#10b981', '#fbbf24', '#ef4444', '#3b82f6', '#8b5cf6', '#ec4899'][i % 6]}
+                  />
+                ))}
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          <Card className="border-0 shadow-xl overflow-hidden">
+            <div className="bg-gradient-to-br from-emerald-500 to-teal-600 p-6 text-center relative">
+              {pct >= 80 && (
+                <motion.div
+                  className="absolute top-2 right-4"
+                  animate={{ scale: [1, 1.2, 1], rotate: [0, 10, -10, 0] }}
+                  transition={{ repeat: Infinity, duration: 2 }}
+                >
+                  <PartyPopper className="h-8 w-8 text-yellow-300" />
+                </motion.div>
+              )}
               <motion.div
                 initial={{ scale: 0, rotate: -180 }}
                 animate={{ scale: 1, rotate: 0 }}
                 transition={{ type: 'spring', duration: 0.8, stiffness: 200 }}
               >
-                <Award className="h-20 w-20 text-white mx-auto mb-4 drop-shadow-lg" />
+                {pct >= 80 ? (
+                  <Trophy className="h-20 w-20 text-yellow-300 mx-auto mb-4 drop-shadow-lg" />
+                ) : (
+                  <Award className="h-20 w-20 text-white mx-auto mb-4 drop-shadow-lg" />
+                )}
               </motion.div>
               <h2 className="text-2xl font-bold text-white mb-2">
-                {t('subjects.practice_complete')}
+                {t('practice.results')}
               </h2>
-              <p className="text-emerald-100">
-                {t('subjects.score')}: {practiceScore}/{totalQ} ({pct}%)
+              <p className="text-emerald-100 text-lg">
+                {practiceScore}/{totalQ} ({pct}%)
               </p>
+              <motion.p
+                className="text-white font-semibold mt-2"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.5 }}
+              >
+                {scoreMessage}
+              </motion.p>
             </div>
-            <CardContent className="p-6 text-center">
+            <CardContent className="p-6">
               {/* Circular progress */}
-              <div className="relative w-32 h-32 mx-auto mb-4">
+              <div className="relative w-32 h-32 mx-auto mb-6">
                 <svg className="w-full h-full -rotate-90" viewBox="0 0 100 100">
                   <circle cx="50" cy="50" r="40" fill="none" stroke="currentColor" className="text-gray-200 dark:text-gray-700" strokeWidth="8" />
                   <motion.circle
                     cx="50" cy="50" r="40" fill="none"
-                    stroke={pct >= 70 ? '#10b981' : pct >= 40 ? '#f59e0b' : '#ef4444'}
+                    stroke={pct >= 80 ? '#10b981' : pct >= 50 ? '#f59e0b' : '#ef4444'}
                     strokeWidth="8"
                     strokeLinecap="round"
                     strokeDasharray={`${2 * Math.PI * 40}`}
@@ -1225,12 +1465,88 @@ export default function SubjectsView() {
                   </motion.span>
                 </div>
               </div>
-              <div className="flex gap-3 justify-center">
-                <Button onClick={handleStartPractice} variant="outline" className="gap-1">
+
+              {/* Stats row */}
+              <div className="grid grid-cols-3 gap-3 mb-6">
+                <div className="text-center p-3 rounded-lg bg-emerald-50 dark:bg-emerald-900/20">
+                  <p className="text-2xl font-bold text-emerald-600">{practiceScore}</p>
+                  <p className="text-xs text-gray-500">{t('practice.correct_answers')}</p>
+                </div>
+                <div className="text-center p-3 rounded-lg bg-rose-50 dark:bg-rose-900/20">
+                  <p className="text-2xl font-bold text-rose-600">{incorrectCount}</p>
+                  <p className="text-xs text-gray-500">{t('practice.incorrect_answers')}</p>
+                </div>
+                <div className="text-center p-3 rounded-lg bg-amber-50 dark:bg-amber-900/20">
+                  <p className="text-2xl font-bold text-amber-600">{pct}%</p>
+                  <p className="text-xs text-gray-500">{t('practice.percentage')}</p>
+                </div>
+              </div>
+
+              {/* Detailed breakdown */}
+              <div className="mb-6">
+                <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3 flex items-center gap-2">
+                  <Info className="h-4 w-4 text-emerald-600" />
+                  {t('practice.detailed_breakdown')}
+                </h3>
+                <ScrollArea className="max-h-64">
+                  <div className="space-y-2">
+                    {answerHistory.map((entry, idx) => {
+                      const q = practiceQuestions[entry.questionIndex];
+                      if (!q) return null;
+                      return (
+                        <div
+                          key={idx}
+                          className={`p-3 rounded-lg border text-sm ${
+                            entry.isCorrect
+                              ? 'border-emerald-200 bg-emerald-50/50 dark:border-emerald-800 dark:bg-emerald-900/10'
+                              : 'border-rose-200 bg-rose-50/50 dark:border-rose-800 dark:bg-rose-900/10'
+                          }`}
+                        >
+                          <div className="flex items-start gap-2">
+                            {entry.isCorrect ? (
+                              <CheckCircle2 className="h-4 w-4 text-emerald-500 mt-0.5 shrink-0" />
+                            ) : (
+                              <XCircle className="h-4 w-4 text-rose-500 mt-0.5 shrink-0" />
+                            )}
+                            <div className="flex-1 min-w-0">
+                              <p className="font-medium text-gray-900 dark:text-gray-100 truncate">
+                                {q.question}
+                              </p>
+                              {!entry.isCorrect && (
+                                <div className="mt-1 text-xs space-y-0.5">
+                                  <p className="text-rose-600 dark:text-rose-400">
+                                    {t('practice.your_answer')}: {q.options[entry.selectedAnswer]}
+                                  </p>
+                                  <p className="text-emerald-600 dark:text-emerald-400">
+                                    {t('practice.correct_answer')}: {q.options[q.correctAnswer]}
+                                  </p>
+                                </div>
+                              )}
+                              {q.explanation && (
+                                <p className="text-xs text-gray-500 mt-1">{q.explanation}</p>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </ScrollArea>
+              </div>
+
+              {/* Action buttons */}
+              <div className="flex flex-col gap-2">
+                <Button onClick={handleStartPractice} className="gap-1 bg-emerald-600 hover:bg-emerald-700">
                   <RefreshCw className="h-4 w-4" />
-                  {t('subjects.start_practice')}
+                  {t('practice.retry')}
                 </Button>
-                <Button onClick={handleBack} className="gap-1 bg-emerald-600 hover:bg-emerald-700">
+                {incorrectCount > 0 && (
+                  <Button onClick={handleRetryIncorrect} variant="outline" className="gap-1 border-emerald-300 text-emerald-700 hover:bg-emerald-50 dark:border-emerald-700 dark:text-emerald-400 dark:hover:bg-emerald-900/20">
+                    <RotateCcw className="h-4 w-4" />
+                    {t('practice.retry_incorrect')} ({incorrectCount})
+                  </Button>
+                )}
+                <Button onClick={handleBack} variant="ghost" className="gap-1">
                   <ArrowLeft className="h-4 w-4" />
                   {t('subjects.back_to_subject')}
                 </Button>
@@ -1241,8 +1557,10 @@ export default function SubjectsView() {
       );
     }
 
-    // Generate mock options for the current question
-    const mockOptions = ['A', 'B', 'C', 'D'];
+    const currentQ = practiceQuestions[currentQuestion];
+    if (!currentQ) return null;
+
+    const optionLabels = ['A', 'B', 'C', 'D'];
 
     return (
       <div className="max-w-md mx-auto space-y-6">
@@ -1268,19 +1586,24 @@ export default function SubjectsView() {
             </div>
             {/* Question navigation dots */}
             <div className="flex items-center gap-1 mt-2 justify-center">
-              {Array.from({ length: totalQ }).map((_, i) => (
-                <motion.div
-                  key={i}
-                  className={`h-2 rounded-full transition-all duration-300 ${
-                    i === currentQuestion
-                      ? 'w-6 bg-emerald-500'
-                      : i < currentQuestion
-                      ? 'w-2 bg-emerald-300 dark:bg-emerald-700'
-                      : 'w-2 bg-gray-300 dark:bg-gray-600'
-                  }`}
-                  layout
-                />
-              ))}
+              {practiceQuestions.map((_, i) => {
+                const historyEntry = answerHistory.find((h) => h.questionIndex === i);
+                return (
+                  <motion.div
+                    key={i}
+                    className={`h-2 rounded-full transition-all duration-300 ${
+                      i === currentQuestion
+                        ? 'w-6 bg-emerald-500'
+                        : historyEntry
+                        ? historyEntry.isCorrect
+                          ? 'w-2 bg-emerald-400'
+                          : 'w-2 bg-rose-400'
+                        : 'w-2 bg-gray-300 dark:bg-gray-600'
+                    }`}
+                    layout
+                  />
+                );
+              })}
             </div>
           </div>
         </div>
@@ -1289,21 +1612,21 @@ export default function SubjectsView() {
         <Card className="border-emerald-200 dark:border-emerald-800">
           <CardContent className="p-6">
             <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">
-              {selectedTopic.title} - Frage {currentQuestion + 1}
+              {t('practice.question')} {currentQuestion + 1}
             </h3>
             <p className="text-gray-600 dark:text-gray-400 mb-4">
-              Was ist die richtige Antwort auf diese Frage zum Thema {selectedTopic.title}?
+              {currentQ.question}
             </p>
 
             <div className="space-y-3">
-              {mockOptions.map((option) => {
-                const isSelected = selectedAnswer === option;
-                const isCorrect = showResult && option === 'A';
-                const isWrong = showResult && isSelected && option !== 'A';
+              {currentQ.options.map((option, idx) => {
+                const isSelected = selectedAnswer === idx;
+                const isCorrect = showResult && idx === currentQ.correctAnswer;
+                const isWrong = showResult && isSelected && idx !== currentQ.correctAnswer;
                 return (
                   <motion.button
-                    key={option}
-                    onClick={() => !showResult && handleAnswer(option)}
+                    key={idx}
+                    onClick={() => !showResult && handleAnswer(idx)}
                     className={`w-full text-left p-4 rounded-lg border-2 transition-all ${
                       isCorrect
                         ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-900/20'
@@ -1317,12 +1640,18 @@ export default function SubjectsView() {
                     whileTap={!showResult ? { scale: 0.99 } : {}}
                   >
                     <div className="flex items-center gap-3">
-                      <span className="w-8 h-8 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center text-sm font-medium">
-                        {option}
+                      <span className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
+                        isCorrect
+                          ? 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300'
+                          : isWrong
+                          ? 'bg-rose-100 dark:bg-rose-900/40 text-rose-700 dark:text-rose-300'
+                          : 'bg-gray-100 dark:bg-gray-800'
+                      }`}>
+                        {optionLabels[idx]}
                       </span>
-                      <span className="text-sm">Antwortmoeglichkeit {option}</span>
-                      {isCorrect && <Check className="h-4 w-4 text-emerald-500 ml-auto" />}
-                      {isWrong && <X className="h-4 w-4 text-rose-500 ml-auto" />}
+                      <span className="text-sm flex-1">{option}</span>
+                      {isCorrect && <Check className="h-4 w-4 text-emerald-500 ml-auto shrink-0" />}
+                      {isWrong && <X className="h-4 w-4 text-rose-500 ml-auto shrink-0" />}
                     </div>
                   </motion.button>
                 );
@@ -1333,24 +1662,29 @@ export default function SubjectsView() {
               <motion.div
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="mt-4"
+                className="mt-4 space-y-3"
               >
                 <div className={`p-3 rounded-lg text-sm ${
-                  selectedAnswer === 'A'
+                  selectedAnswer === currentQ.correctAnswer
                     ? 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-300'
                     : 'bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-300'
                 }`}>
-                  {selectedAnswer === 'A'
-                    ? t('subjects.correct_answer')
-                    : t('subjects.wrong_answer')}
+                  <p className="font-medium">
+                    {selectedAnswer === currentQ.correctAnswer
+                      ? t('practice.correct')
+                      : t('practice.incorrect')}
+                  </p>
+                  {currentQ.explanation && (
+                    <p className="mt-1 text-xs opacity-80">{currentQ.explanation}</p>
+                  )}
                 </div>
                 <Button
                   onClick={handleNextQuestion}
-                  className="mt-3 w-full bg-emerald-600 hover:bg-emerald-700"
+                  className="w-full bg-emerald-600 hover:bg-emerald-700"
                 >
                   {currentQuestion + 1 >= totalQ
-                    ? t('subjects.finish_practice')
-                    : t('subjects.next_question')}
+                    ? t('practice.finish')
+                    : t('practice.next_question')}
                 </Button>
               </motion.div>
             )}
