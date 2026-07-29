@@ -32,6 +32,8 @@ import {
   BarChart3,
   TrendingUp,
   CheckCircle,
+  Leaf,
+  DatabaseIcon,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -650,7 +652,7 @@ export default function SettingsView() {
               <span className="hidden sm:inline">{t('settings.tab_data')}</span>
             </TabsTrigger>
             {isAdmin && (
-              <TabsTrigger value="demo" className="rounded-lg data-[state=active]:bg-amber-500 data-[state=active]:text-white">
+              <TabsTrigger value="demo" className="rounded-lg min-h-[44px] data-[state=active]:bg-amber-500 data-[state=active]:text-white">
                 <Zap className="h-4 w-4 mr-1.5" />
                 <span className="hidden sm:inline">{t('settings.demo_accounts')}</span>
               </TabsTrigger>
@@ -1541,7 +1543,60 @@ export default function SettingsView() {
           {/* ── Demo Accounts Tab ───────────────────────────────── */}
           {isAdmin && (
             <TabsContent value="demo">
-              <Card className="border-0 shadow-sm rounded-xl border-l-3 border-l-amber-500 overflow-hidden">
+              {/* Demo Data Danger Zone Card */}
+              <motion.div
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.1 }}
+              >
+                <Card className="border-2 border-rose-200 dark:border-rose-900/40 shadow-sm rounded-xl overflow-hidden bg-white dark:bg-gray-950 mb-6">
+                  <CardHeader className="bg-gradient-to-r from-rose-50/80 to-rose-100/40 dark:from-rose-900/20 dark:to-rose-900/10 pb-3 pt-6">
+                    <CardTitle className="flex items-center gap-2 text-rose-700 dark:text-rose-300">
+                      <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-rose-100 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400">
+                        <Trash2 className="h-5 w-5" />
+                      </div>
+                      {t('settings.demo_data_title')}
+                    </CardTitle>
+                    <CardDescription className="text-rose-600/60 dark:text-rose-400/40">{t('settings.demo_data_desc')}</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    {/* Demo record count */}
+                    <div className="flex items-center gap-3 p-4 rounded-xl bg-gradient-to-r from-rose-50/60 to-rose-50/0 dark:from-rose-900/15 dark:to-rose-900/0 border border-rose-100/50 dark:border-rose-900/20">
+                      <DatabaseIcon className="h-5 w-5 text-rose-500 shrink-0" />
+                      <div className="flex-1">
+                        <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+                          {t('settings.demo_record_count')}
+                        </p>
+                        <p className="text-xs text-gray-500 dark:text-gray-400">
+                          {demoAccounts.length} {t('settings.demo_record_count').toLowerCase()}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Big red Delete All Demo Data button */}
+                    <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+                      <Button
+                        onClick={() => setDeleteAllDemoOpen(true)}
+                        className="w-full h-12 min-h-[44px] bg-gradient-to-r from-rose-500 to-rose-600 hover:from-rose-600 hover:to-rose-700 text-white shadow-lg shadow-rose-300/20 rounded-xl"
+                      >
+                        <Trash2 className="h-5 w-5 mr-2" />
+                        {t('settings.demo_delete_all_data')}
+                      </Button>
+                    </motion.div>
+
+                    {/* Environmental-friendly messaging */}
+                    <div className="flex items-center gap-2 p-3 rounded-xl bg-gradient-to-r from-emerald-50/60 to-teal-50/30 dark:from-emerald-900/15 dark:to-teal-900/10 border border-emerald-200/30 dark:border-emerald-900/20">
+                      <Leaf className="h-4 w-4 text-emerald-500 shrink-0" />
+                      <p className="text-xs text-emerald-700/70 dark:text-emerald-400/50">
+                        {t('settings.env_tip')}
+                      </p>
+                    </div>
+                  </CardContent>
+                </Card>
+              </motion.div>
+
+              {/* Demo Accounts Card */}
+              <Card className="border-0 shadow-sm rounded-xl border-l-3 border-l-amber-500 overflow-hidden bg-white dark:bg-gray-950">
                 <CardHeader className="bg-gradient-to-r from-amber-50/50 to-emerald-50/30 dark:from-amber-900/10 dark:to-emerald-900/5">
                   <CardTitle className="flex items-center gap-2">
                     <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400">
@@ -1565,7 +1620,7 @@ export default function SettingsView() {
                     <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
                       <Button
                         onClick={handleEnableAllDemo}
-                        className="bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white shadow-md shadow-emerald-300/20 rounded-xl"
+                        className="bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white shadow-md shadow-emerald-300/20 rounded-xl min-h-[44px]"
                       >
                         <CheckCircle2 className="h-4 w-4 mr-1.5" />
                         {t('settings.demo_enable')}
@@ -1574,7 +1629,7 @@ export default function SettingsView() {
                     <Button
                       onClick={handleDisableAllDemo}
                       variant="outline"
-                      className="border-amber-300 dark:border-amber-700 text-amber-700 dark:text-amber-300 hover:bg-amber-50 dark:hover:bg-amber-900/20 rounded-xl"
+                      className="border-amber-300 dark:border-amber-700 text-amber-700 dark:text-amber-300 hover:bg-amber-50 dark:hover:bg-amber-900/20 rounded-xl min-h-[44px]"
                     >
                       <Clock className="h-4 w-4 mr-1.5" />
                       {t('settings.demo_disable_all')}
@@ -1582,7 +1637,7 @@ export default function SettingsView() {
                     <Button
                       onClick={() => setDeleteAllDemoOpen(true)}
                       variant="outline"
-                      className="border-rose-300 dark:border-rose-700 text-rose-700 dark:text-rose-300 hover:bg-rose-50 dark:hover:bg-rose-900/20 rounded-xl"
+                      className="border-rose-300 dark:border-rose-700 text-rose-700 dark:text-rose-300 hover:bg-rose-50 dark:hover:bg-rose-900/20 rounded-xl min-h-[44px]"
                     >
                       <Trash2 className="h-4 w-4 mr-1.5" />
                       {t('settings.demo_delete_all')}

@@ -26,7 +26,20 @@ import {
   BarChart3,
   ListChecks,
   MessageSquareText,
+  MessageSquare,
+  type LucideIcon,
 } from 'lucide-react';
+
+const LUCIDE_ICON_MAP_CB: Record<string, LucideIcon> = {
+  MessageSquare, MessageSquareText, BookOpen, Plus, Pencil, Trash2, Copy, Loader2, Search, Eye, Globe, Lock, Tag, BarChart3, ListChecks,
+};
+
+function renderCBIcon(name: string, className?: string): React.ReactNode {
+  const IconComp = LUCIDE_ICON_MAP_CB[name];
+  if (!IconComp) return null;
+  return <IconComp className={className ?? 'h-3.5 w-3.5 inline'} />;
+}
+
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -594,7 +607,7 @@ export default function CommentBankView() {
                                 borderColor: hexToRgba(entry.category.color, 0.3),
                               }}
                             >
-                              {entry.category.icon ? `${entry.category.icon} ` : ''}{entry.category.name}
+                              {entry.category.icon ? renderCBIcon(entry.category.icon) : null}{entry.category.name}
                             </Badge>
                             {entry.isPublic ? (
                               <Badge variant="outline" className="text-xs bg-emerald-50 text-emerald-600 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-800">
@@ -863,7 +876,7 @@ export default function CommentBankView() {
                             borderColor: hexToRgba(entry.category.color, 0.3),
                           }}
                         >
-                          {entry.category.icon ? `${entry.category.icon} ` : ''}{entry.category.name}
+                          {entry.category.icon ? renderCBIcon(entry.category.icon) : null}{entry.category.name}
                         </Badge>
                         <Badge variant="secondary" className="text-xs font-semibold">
                           {entry.usageCount}×
@@ -1034,7 +1047,7 @@ export default function CommentBankView() {
                       borderColor: hexToRgba(entryDetailData.category.color, 0.3),
                     }}
                   >
-                    {entryDetailData.category.icon ? `${entryDetailData.category.icon} ` : ''}{entryDetailData.category.name}
+                    {entryDetailData.category.icon ? renderCBIcon(entryDetailData.category.icon) : null}{entryDetailData.category.name}
                   </Badge>
                 </DialogTitle>
                 <DialogDescription>

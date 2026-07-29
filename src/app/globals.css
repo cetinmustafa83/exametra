@@ -633,3 +633,136 @@
   /* Prevent overflow */
   .overflow-y-auto, .max-h-96, .max-h-80, .max-h-72 { max-height: none !important; overflow: visible !important; }
 }
+
+/* ─── Tablet & Stylus Optimization ────────────────────────────────────── */
+
+/* Minimum touch target size (44px as per Apple HIG and WCAG guidelines) */
+@layer utilities {
+  .min-touch {
+    min-width: 44px;
+    min-height: 44px;
+  }
+}
+
+/* Touch-friendly media queries for tablets (768px-1024px) */
+@media (pointer: coarse) {
+  /* Increase touch targets for all interactive elements */
+  button,
+  [role="button"],
+  a,
+  input[type="checkbox"],
+  input[type="radio"],
+  select,
+  .tabs-trigger,
+  [data-state] {
+    min-height: 44px;
+  }
+
+  /* Stylus-friendly: larger focus rings to prevent accidental taps */
+  *:focus-visible {
+    outline-width: 3px;
+    outline-offset: 4px;
+  }
+
+  /* More generous spacing between interactive elements */
+  .sidebar-menu-item {
+    margin-bottom: 2px;
+  }
+
+  /* Prevent text selection while using stylus on interactive elements */
+  button, a, [role="button"] {
+    -webkit-user-select: none;
+    user-select: none;
+  }
+
+  /* Slightly larger fonts for touch readability */
+  input, select, textarea {
+    font-size: 16px; /* Prevents iOS zoom on input focus */
+  }
+}
+
+/* Stylus-specific improvements */
+@media (pointer: fine) and (hover: none) {
+  /* Stylus devices often lack hover — replace hover effects with active */
+  *:hover {
+    /* Remove hover-only styles that don't make sense without hover capability */
+  }
+  /* Larger active/focus states for stylus precision */
+  *:active {
+    transform: scale(0.98);
+    transition: transform 0.1s ease;
+  }
+}
+
+/* ─── Smooth Scrollbar Styling (touch-friendly) ─────────────────────── */
+@layer utilities {
+  .scrollbar-touch::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  .scrollbar-touch::-webkit-scrollbar-track {
+    background: transparent;
+    margin: 4px;
+  }
+  .scrollbar-touch::-webkit-scrollbar-thumb {
+    background: oklch(0.80 0.02 155 / 0.5);
+    border-radius: 5px;
+    border: 3px solid transparent;
+    background-clip: padding-box;
+  }
+  .scrollbar-touch::-webkit-scrollbar-thumb:hover {
+    background: oklch(0.65 0.17 155 / 0.7);
+    border: 3px solid transparent;
+    background-clip: padding-box;
+  }
+  .dark .scrollbar-touch::-webkit-scrollbar-thumb {
+    background: oklch(0.35 0.015 260 / 0.5);
+    border: 3px solid transparent;
+    background-clip: padding-box;
+  }
+
+  /* Stylus-friendly input styles — larger focus rings for precision tapping */
+  .stylus-input:focus-visible {
+    outline: 3px solid oklch(0.55 0.17 155);
+    outline-offset: 4px;
+    box-shadow: 0 0 0 6px oklch(0.55 0.17 155 / 0.15);
+    border-radius: 8px;
+    transition: box-shadow 0.2s ease-out, outline-offset 0.2s ease-out;
+  }
+  .dark .stylus-input:focus-visible {
+    outline: 3px solid oklch(0.65 0.17 155);
+    box-shadow: 0 0 0 6px oklch(0.65 0.17 155 / 0.2);
+  }
+}
+
+/* ─── Better Print Styles ──────────────────────────────────────────────── */
+@media print {
+  /* Ensure emerald accent colors print as dark gray for readability */
+  .text-emerald-600, .text-emerald-700, .text-teal-600, .text-teal-700 {
+    color: #333 !important;
+  }
+  .bg-emerald-50, .bg-emerald-100, .bg-teal-50, .bg-teal-100,
+  .bg-gradient-to-r,
+  [class*="from-emerald"],
+  [class*="from-teal"] {
+    background: #f5f5f5 !important;
+  }
+
+  /* Remove animations for print */
+  .animate-float, .animate-float-reverse, .animate-float-slow,
+  .animate-pulse-soft, .animate-shimmer, .animate-progress-fill,
+  .animate-view-fade-in, .animate-enter-fade, .animate-count-up {
+    animation: none !important;
+  }
+
+  /* Force all cards to have visible borders */
+  [class*="border-0"], [class*="border-l-3"] {
+    border: 1px solid #ddd !important;
+  }
+
+  /* Remove shadows */
+  .shadow-sm, .shadow-md, .shadow-lg, .shadow-xl,
+  [class*="shadow-"] {
+    box-shadow: none !important;
+  }
+}

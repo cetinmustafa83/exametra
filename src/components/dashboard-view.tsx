@@ -392,7 +392,7 @@ export default function DashboardView() {
       </motion.div>
 
       {/* ===== STATS CARDS ===== */}
-      <motion.div variants={itemVariants} className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+      <motion.div variants={itemVariants} className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
         {[
           { icon: Users, label: t('dashboard.total_students'), value: data.stats.totalStudents, color: 'emerald', trend: 'up', tip: t('dashboard.total_students'), spark: [3, 5, 4, 6, 7, 8, data.stats.totalStudents] },
           { icon: BarChart3, label: t('dashboard.total_classes'), value: data.stats.totalClasses, color: 'teal', trend: 'up', tip: t('dashboard.total_classes'), spark: [1, 2, 2, 3, 3, 4, data.stats.totalClasses] },
@@ -659,7 +659,7 @@ export default function DashboardView() {
         <motion.div whileHover={{ scale: 1.02, y: -1 }} whileTap={{ scale: 0.98 }} transition={{ duration: 0.15 }}>
           <Button
             onClick={() => setCurrentView('progress')}
-            className="bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white shadow-lg shadow-emerald-300/30 rounded-xl px-6 h-11 transition-shadow hover:shadow-xl hover:shadow-emerald-300/40"
+            className="bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white shadow-lg shadow-emerald-300/30 rounded-xl px-6 h-12 min-h-[44px] transition-shadow hover:shadow-xl hover:shadow-emerald-300/40"
           >
             <motion.div
               className="flex items-center gap-2"
@@ -676,7 +676,7 @@ export default function DashboardView() {
           <Button
             onClick={() => setCurrentView('assessments')}
             variant="outline"
-            className="border-emerald-300 dark:border-emerald-700 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 text-emerald-700 dark:text-emerald-300 rounded-xl px-6 h-11 transition-shadow hover:shadow-md hover:shadow-emerald-100/40"
+            className="border-emerald-300 dark:border-emerald-700 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 text-emerald-700 dark:text-emerald-300 rounded-xl px-6 h-12 min-h-[44px] transition-shadow hover:shadow-md hover:shadow-emerald-100/40"
           >
             <ClipboardCheck className="h-5 w-5 mr-2" />
             {t('action.create_assessment')}
@@ -686,7 +686,7 @@ export default function DashboardView() {
           <Button
             onClick={() => setCurrentView('reports')}
             variant="outline"
-            className="border-teal-300 dark:border-teal-700 hover:bg-teal-50 dark:hover:bg-teal-900/20 text-teal-700 dark:text-teal-300 rounded-xl px-6 h-11 transition-shadow hover:shadow-md hover:shadow-teal-100/40"
+            className="border-teal-300 dark:border-teal-700 hover:bg-teal-50 dark:hover:bg-teal-900/20 text-teal-700 dark:text-teal-300 rounded-xl px-6 h-12 min-h-[44px] transition-shadow hover:shadow-md hover:shadow-teal-100/40"
           >
             <FileText className="h-5 w-5 mr-2" />
             {t('action.generate_report')}
@@ -720,7 +720,7 @@ export default function DashboardView() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               {[
                 {
                   icon: ClipboardCheck,
@@ -781,14 +781,14 @@ export default function DashboardView() {
                   whileHover={{ scale: 1.03, y: -3 }}
                   whileTap={{ scale: 0.98 }}
                   transition={{ duration: 0.18, ease: 'easeOut' }}
-                  className={`group text-left p-4 rounded-xl bg-gradient-to-br ${action.tile} border ${action.border} hover:shadow-lg ${action.hoverGlow} transition-shadow duration-300 relative overflow-hidden`}
+                  className={`group text-left p-4 min-h-[80px] rounded-xl bg-gradient-to-br ${action.tile} border ${action.border} hover:shadow-lg ${action.hoverGlow} transition-shadow duration-300 relative overflow-hidden`}
                 >
                   {/* Subtle glass overlay on hover */}
                   <div className="absolute inset-0 bg-white/0 group-hover:bg-white/20 dark:group-hover:bg-white/5 transition-colors duration-300 pointer-events-none rounded-xl" />
                   <div className="relative">
                     <div className="flex items-start justify-between mb-3">
-                      <div className={`flex items-center justify-center w-10 h-10 rounded-xl ${action.iconBg} ${action.iconText} shadow-sm transition-transform duration-200 group-hover:scale-110 group-hover:rotate-3`}>
-                        <action.icon className="h-5 w-5" />
+                      <div className={`flex items-center justify-center w-12 h-12 rounded-xl ${action.iconBg} ${action.iconText} shadow-sm transition-transform duration-200 group-hover:scale-110 group-hover:rotate-3`}>
+                        <action.icon className="h-6 w-6" />
                       </div>
                       {action.recentlyUsed && (
                         <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-emerald-100/60 dark:bg-emerald-900/30 text-[9px] font-semibold text-emerald-600 dark:text-emerald-400">
@@ -1141,6 +1141,35 @@ export default function DashboardView() {
                 })}
               </div>
             )}
+          </CardContent>
+        </Card>
+      </motion.div>
+
+      {/* ===== ENVIRONMENTAL TIPS SECTION ===== */}
+      <motion.div variants={itemVariants}>
+        <Card className="border-0 shadow-sm rounded-xl overflow-hidden bg-white dark:bg-gray-950 ring-1 ring-black/[0.03] dark:ring-white/[0.05]">
+          <CardContent className="p-5">
+            <div className="flex items-center gap-4">
+              <div className="flex items-center justify-center w-12 h-12 rounded-xl bg-gradient-to-br from-emerald-400 to-teal-500 text-white shadow-md shrink-0">
+                <Leaf className="h-6 w-6" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <h3 className="text-sm font-bold text-emerald-700 dark:text-emerald-300 mb-1">
+                  {t('dashboard.env_tip_title')}
+                </h3>
+                <p className="text-xs text-gray-600 dark:text-gray-400 leading-relaxed">
+                  {t('dashboard.env_tip_text')}
+                </p>
+              </div>
+              <div className="hidden md:flex items-center gap-2 shrink-0">
+                <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400">
+                  <TreePine className="h-4 w-4" />
+                </div>
+                <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-teal-100 dark:bg-teal-900/30 text-teal-600 dark:text-teal-400">
+                  <Sprout className="h-4 w-4" />
+                </div>
+              </div>
+            </div>
           </CardContent>
         </Card>
       </motion.div>

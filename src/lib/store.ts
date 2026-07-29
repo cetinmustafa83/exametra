@@ -22,7 +22,9 @@ export type ViewName =
   | 'behavior'
   | 'coverage'
   | 'rubrics'
-  | 'comments';
+  | 'comments'
+  | 'notebooks'
+  | 'drawing';
 
 export interface CurrentUser {
   id: string;

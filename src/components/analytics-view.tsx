@@ -532,7 +532,7 @@ export default function AnalyticsView() {
         <>
           {/* Insights */}
           {(() => {
-            const insights: Array<{ icon: string; text: string; tone: 'emerald' | 'amber' | 'violet' | 'rose' | 'teal' }> = [];
+            const insights: Array<{ icon: React.ReactNode; text: string; tone: 'emerald' | 'amber' | 'violet' | 'rose' | 'teal' }> = [];
             // Trend insight: compare first vs last mastery data point
             if (data.masteryTrend.length >= 2) {
               const first = data.masteryTrend[0].avgMastery;

@@ -40,6 +40,8 @@ import {
   MessageSquareText,
   Pencil,
   Plus,
+  Palette,
+  Leaf,
 } from 'lucide-react';
 import {
   Sidebar,
@@ -102,8 +104,8 @@ import {
   CommandShortcut,
 } from '@/components/ui/command';
 import { toast } from 'sonner';
-
 import { AlertTriangle, Info, ArrowRight } from 'lucide-react';
+
 import DashboardView from './dashboard-view';
 import ClassesView from './classes-view';
 import CompetencyGridView from './competency-grid-view';
@@ -124,6 +126,8 @@ import BehaviorTrackingView from './behavior-tracking-view';
 import CurriculumCoverageView from './curriculum-coverage-view';
 import RubricLibraryView from './rubric-library-view';
 import CommentBankView from './comment-bank-view';
+import NotebooksView from './notebooks-view';
+import DrawingView from './drawing-view';
 
 type NavItem = { key: ViewName; icon: React.ElementType; labelKey: string };
 type NavSection = { id: string; labelKey: string; items: NavItem[] };
@@ -156,6 +160,8 @@ const navSections: NavSection[] = [
       { key: 'behavior', icon: Shield, labelKey: 'nav.behavior' },
       { key: 'rubrics', icon: Ruler, labelKey: 'nav.rubrics' },
       { key: 'comments', icon: MessageSquareText, labelKey: 'nav.comments' },
+      { key: 'notebooks', icon: BookOpen, labelKey: 'nav.notebooks' },
+      { key: 'drawing', icon: Palette, labelKey: 'nav.drawing' },
     ],
   },
   {
@@ -190,6 +196,8 @@ function renderView(view: ViewName) {
     case 'coverage': return <CurriculumCoverageView />;
     case 'rubrics': return <RubricLibraryView />;
     case 'comments': return <CommentBankView />;
+    case 'notebooks': return <NotebooksView />;
+    case 'drawing': return <DrawingView />;
     default: return <DashboardView />;
   }
 }
@@ -469,7 +477,7 @@ export default function AppLayout() {
                         isActive={currentView === item.key}
                         onClick={() => setCurrentView(item.key)}
                         tooltip={t(item.labelKey)}
-                        className={`group relative transition-all duration-200 ${
+                        className={`group relative transition-all duration-200 min-h-[44px] ${
                           currentView === item.key
                             ? 'bg-gradient-to-r from-emerald-100/90 via-emerald-50/70 to-teal-50/50 dark:from-emerald-900/40 dark:via-emerald-900/25 dark:to-teal-900/15 text-emerald-700 dark:text-emerald-300 font-semibold border-l-3 border-emerald-500 rounded-l-none shadow-sm shadow-emerald-100/40 dark:shadow-emerald-900/20'
                             : 'text-gray-600 dark:text-gray-400 hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-emerald-50/50 dark:hover:bg-emerald-900/10'
@@ -478,12 +486,12 @@ export default function AppLayout() {
                         {currentView === item.key && (
                           <span className="absolute inset-y-0 left-0 w-1 rounded-r-full bg-gradient-to-b from-emerald-400 to-teal-500" />
                         )}
-                        <item.icon className={`h-4 w-4 transition-colors duration-200 ${
+                        <item.icon className={`h-5 w-5 transition-colors duration-200 ${
                           currentView === item.key
                             ? 'text-emerald-600 dark:text-emerald-400'
                             : 'text-gray-400 dark:text-gray-500 group-hover:text-emerald-500 dark:group-hover:text-emerald-400'
                         }`} />
-                        <span>{t(item.labelKey)}</span>
+                        <span className="text-sm">{t(item.labelKey)}</span>
                       </SidebarMenuButton>
                     </SidebarMenuItem>
                   ))}
@@ -494,9 +502,21 @@ export default function AppLayout() {
         </SidebarContent>
 
         <SidebarFooter className="p-3">
+          {/* Environmental message */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.4 }}
+            className="flex items-center gap-2 px-3 py-2.5 mb-3 rounded-lg bg-gradient-to-r from-emerald-50/80 via-teal-50/40 to-transparent dark:from-emerald-900/15 dark:via-teal-900/10 dark:to-transparent border border-emerald-200/30 dark:border-emerald-800/20 group-data-[collapsible=icon]:hidden"
+          >
+            <Leaf className="h-4 w-4 text-emerald-500 shrink-0" />
+            <p className="text-xs text-emerald-600/70 dark:text-emerald-400/50 font-medium leading-snug">
+              {t('sidebar.eco_message')}
+            </p>
+          </motion.div>
           <Separator className="mb-3 bg-emerald-200/50 dark:bg-emerald-900/30" />
           <div className="flex items-center gap-2 group-data-[collapsible=icon]:justify-center">
-            <Avatar className="h-9 w-9 shrink-0 ring-2 ring-emerald-200 dark:ring-emerald-800">
+            <Avatar className="h-10 w-10 shrink-0 ring-2 ring-emerald-200 dark:ring-emerald-800">
               <AvatarFallback className="bg-gradient-to-br from-emerald-100 to-teal-100 text-emerald-700 dark:from-emerald-900 dark:to-teal-900 dark:text-emerald-300 text-xs font-bold">
                 {initials}
               </AvatarFallback>
@@ -517,7 +537,7 @@ export default function AppLayout() {
             <Button
               variant="ghost"
               size="icon"
-              className="h-8 w-8 hover:bg-emerald-100 dark:hover:bg-emerald-900/20"
+              className="h-10 w-10 min-touch hover:bg-emerald-100 dark:hover:bg-emerald-900/20"
               onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
               title={t('theme.toggle')}
             >
@@ -526,7 +546,7 @@ export default function AppLayout() {
             <Button
               variant="ghost"
               size="icon"
-              className="h-8 w-8 hover:bg-emerald-100 dark:hover:bg-emerald-900/20"
+              className="h-10 w-10 min-touch hover:bg-emerald-100 dark:hover:bg-emerald-900/20"
               onClick={toggleLocale}
               title={t('language.toggle')}
             >
@@ -535,7 +555,7 @@ export default function AppLayout() {
             <Button
               variant="ghost"
               size="icon"
-              className="h-8 w-8 hover:bg-red-100 dark:hover:bg-red-900/20 text-gray-400 hover:text-red-500 dark:hover:text-red-400"
+              className="h-10 w-10 min-touch hover:bg-red-100 dark:hover:bg-red-900/20 text-gray-400 hover:text-red-500 dark:hover:text-red-400"
               onClick={handleLogout}
               title={t('auth.logout')}
             >
@@ -547,8 +567,8 @@ export default function AppLayout() {
       </Sidebar>
 
       <SidebarInset>
-        <header className="flex h-14 items-center gap-2 border-b border-emerald-200/50 dark:border-emerald-900/30 bg-gradient-to-r from-white/90 to-emerald-50/30 dark:from-gray-950/90 dark:to-emerald-950/10 backdrop-blur-sm px-4 sticky top-0 z-10 shadow-sm shadow-emerald-100/50 dark:shadow-emerald-900/10">
-          <SidebarTrigger className="-ml-1 hover:bg-emerald-100 dark:hover:bg-emerald-900/20 shrink-0" />
+        <header className="flex h-14 items-center gap-2 border-b border-emerald-200/50 dark:border-emerald-900/30 bg-white dark:bg-gray-950 backdrop-blur-sm px-4 sticky top-0 z-10 shadow-sm shadow-emerald-100/50 dark:shadow-emerald-900/10">
+          <SidebarTrigger className="-ml-1 h-10 w-10 hover:bg-emerald-100 dark:hover:bg-emerald-900/20 shrink-0" />
           <Separator orientation="vertical" className="h-6 bg-emerald-200/50 dark:bg-emerald-900/30 shrink-0" />
           <Breadcrumb className="min-w-0 flex-1">
             <BreadcrumbList className="text-sm">
@@ -817,14 +837,14 @@ export default function AppLayout() {
           </AnimatePresence>
         </div>
 
-        <footer className="mt-auto border-t border-emerald-200/50 dark:border-emerald-900/30 bg-gradient-to-r from-white/80 to-emerald-50/40 dark:from-gray-950/80 dark:to-emerald-950/10 py-3 px-4">
+        <footer className="mt-auto border-t border-emerald-200/50 dark:border-emerald-900/30 bg-white dark:bg-gray-950 py-3 px-4">
           <div className="flex items-center justify-between text-xs text-emerald-600/60 dark:text-emerald-400/40">
             <span className="flex items-center gap-1">
-              <Heart className="h-3 w-3 text-emerald-500" />
+              <Leaf className="h-3 w-3 text-emerald-500" />
               CompetenceTrack — {t('footer.copyright')}
             </span>
             <span className="flex items-center gap-2">
-              <span className="hidden sm:inline">{t('footer.version')} · {t('footer.oss')} · 🇩🇪 🇬🇧</span>
+              <span className="hidden sm:inline">{t('footer.version')} · {t('footer.oss')}</span>
               <span className="sm:hidden">{t('footer.version')}</span>
             </span>
           </div>

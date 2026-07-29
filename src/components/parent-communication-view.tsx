@@ -1299,7 +1299,7 @@ function StatisticsPanel({
                 <div key={c} className="space-y-1">
                   <div className="flex items-center justify-between text-xs">
                     <span className="font-medium text-gray-700 dark:text-gray-300 flex items-center gap-1.5">
-                      <span>{cfg.emoji}</span>
+                      {(() => { const CatIcon = cfg.iconComponent; return <CatIcon className="w-3.5 h-3.5" />; })()}
                       {t(CATEGORY_LABEL_KEY[c])}
                     </span>
                     <span className="text-gray-500 dark:text-gray-400">{count}</span>

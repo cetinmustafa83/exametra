@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { BookOpen, Mail, Lock, User, ArrowRight, GraduationCap, Heart, Sparkles, Flower2, Eye, EyeOff, KeyRound, Info, Shield } from 'lucide-react';
+import { BookOpen, Mail, Lock, User, ArrowRight, GraduationCap, Heart, Sparkles, Flower2, Eye, EyeOff, KeyRound, Info, Shield, Leaf } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -97,7 +97,7 @@ export default function AuthView() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-emerald-50 via-white to-teal-50 dark:from-gray-950 dark:via-gray-900 dark:to-emerald-950 p-4 relative overflow-hidden">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-emerald-50 via-white to-teal-50 dark:from-gray-950 dark:via-gray-900 dark:to-emerald-950 p-4 md:p-8 relative overflow-hidden">
       {/* Animated floating geometric shapes background */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         {/* Large emerald circle */}
@@ -232,7 +232,7 @@ export default function AuthView() {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
-        className="w-full max-w-md"
+        className="w-full max-w-md md:max-w-lg"
       >
         {/* Branding */}
         <div className="text-center mb-8 lg:hidden">
@@ -253,8 +253,8 @@ export default function AuthView() {
         </div>
 
         {/* Auth Card */}
-        <Card className="shadow-xl border-0 shadow-emerald-100/50 dark:shadow-emerald-900/20 rounded-xl overflow-hidden">
-          <CardHeader className="text-center pb-1 pt-6 bg-gradient-to-r from-emerald-50/50 to-teal-50/50 dark:from-emerald-950/10 dark:to-teal-950/10">
+        <Card className="shadow-xl border-0 shadow-emerald-100/50 dark:shadow-emerald-900/20 rounded-2xl overflow-hidden bg-white dark:bg-gray-950">
+          <CardHeader className="text-center pb-2 pt-8 bg-gradient-to-r from-emerald-50/50 to-teal-50/50 dark:from-emerald-950/10 dark:to-teal-950/10">
             <CardTitle className="text-xl font-bold text-gray-900 dark:text-gray-100">
               {mode === 'login' ? t('auth.login') : t('auth.register_title')}
             </CardTitle>
@@ -275,12 +275,12 @@ export default function AuthView() {
                       <div className="space-y-2">
                         <Label htmlFor="firstName" className="text-sm font-medium">{t('auth.firstName')}</Label>
                         <div className="relative">
-                          <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-emerald-400" />
+                          <User className="absolute left-3.5 top-1/2 -translate-y-1/2 h-5 w-5 text-emerald-400" />
                           <Input
                             id="firstName"
                             value={firstName}
                             onChange={(e) => setFirstName(e.target.value)}
-                            className="pl-9 border-emerald-200/50 dark:border-emerald-900/30 focus:border-emerald-400 focus:ring-emerald-400/20"
+                            className="pl-10 h-12 min-h-[44px] border-emerald-200/50 dark:border-emerald-900/30 focus:border-emerald-400 focus:ring-emerald-400/20 text-base"
                             placeholder={t('auth.firstName')}
                             required
                           />
@@ -292,7 +292,7 @@ export default function AuthView() {
                           id="lastName"
                           value={lastName}
                           onChange={(e) => setLastName(e.target.value)}
-                          className="border-emerald-200/50 dark:border-emerald-900/30 focus:border-emerald-400 focus:ring-emerald-400/20"
+                          className="h-12 min-h-[44px] border-emerald-200/50 dark:border-emerald-900/30 focus:border-emerald-400 focus:ring-emerald-400/20 text-base"
                           placeholder={t('auth.lastName')}
                           required
                         />
@@ -305,13 +305,13 @@ export default function AuthView() {
               <div className="space-y-2">
                 <Label htmlFor="email" className="text-sm font-medium">{t('auth.email')}</Label>
                 <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-emerald-400" />
+                  <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 h-5 w-5 text-emerald-400" />
                   <Input
                     id="email"
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="pl-9 border-emerald-200/50 dark:border-emerald-900/30 focus:border-emerald-400 focus:ring-emerald-400/20"
+                    className="pl-10 h-12 min-h-[44px] border-emerald-200/50 dark:border-emerald-900/30 focus:border-emerald-400 focus:ring-emerald-400/20 text-base"
                     placeholder="name@schule.de"
                     required
                   />
@@ -332,7 +332,7 @@ export default function AuthView() {
                   )}
                 </div>
                 <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-emerald-400" />
+                  <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 h-5 w-5 text-emerald-400" />
                   <Input
                     id="password"
                     type={showPassword ? 'text' : 'password'}
@@ -346,11 +346,11 @@ export default function AuthView() {
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-emerald-400 hover:text-emerald-600 dark:hover:text-emerald-300 transition-colors"
+                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-emerald-400 hover:text-emerald-600 dark:hover:text-emerald-300 transition-colors w-10 h-10 flex items-center justify-center"
                     tabIndex={-1}
                     aria-label={showPassword ? t('polish.hide_password') : t('polish.show_password')}
                   >
-                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                   </button>
                 </div>
               </div>
@@ -372,7 +372,7 @@ export default function AuthView() {
 
               <Button
                 type="submit"
-                className="w-full bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white shadow-lg shadow-emerald-300/30 dark:shadow-emerald-900/30 rounded-xl"
+                className="w-full h-12 min-h-[44px] bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white shadow-lg shadow-emerald-300/30 dark:shadow-emerald-900/30 rounded-xl text-base"
                 disabled={loading || demoLoading}
               >
                 {loading || demoLoading ? (
@@ -405,7 +405,7 @@ export default function AuthView() {
                   </div>
                   <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{t('auth.demo_section_subtitle')}</p>
                 </div>
-                <div className="grid grid-cols-2 gap-2.5">
+                <div className="grid grid-cols-2 gap-3">
                   {DEMO_ACCOUNTS.map((demo) => (
                     <Button
                       key={demo.email}
@@ -413,9 +413,9 @@ export default function AuthView() {
                       variant="outline"
                       onClick={() => handleDemoLogin(demo.email, demo.password)}
                       disabled={loading || demoLoading}
-                      className={`h-auto py-2.5 px-3 rounded-xl border-0 bg-gradient-to-br ${demo.colorClass} text-white font-semibold text-xs shadow-lg flex flex-col items-center gap-1.5 hover:shadow-xl transition-all`}
+                      className={`h-auto min-h-[44px] py-3 px-3 rounded-xl border-0 bg-gradient-to-br ${demo.colorClass} text-white font-semibold text-xs shadow-lg flex flex-col items-center gap-1.5 hover:shadow-xl transition-all`}
                     >
-                      <demo.icon className="h-4 w-4" />
+                      <demo.icon className="h-5 w-5" />
                       <span>{t(demo.labelKey)}</span>
                     </Button>
                   ))}
@@ -436,9 +436,12 @@ export default function AuthView() {
         </Card>
 
         {/* Footer */}
-        <p className="mt-8 text-center text-xs text-emerald-600/40 dark:text-emerald-400/30">
-          {t('app.tagline')}
-        </p>
+        <div className="mt-8 text-center flex items-center justify-center gap-1.5">
+          <Leaf className="h-3.5 w-3.5 text-emerald-500/40 dark:text-emerald-400/30" />
+          <p className="text-xs text-emerald-600/40 dark:text-emerald-400/30">
+            {t('app.tagline')}
+          </p>
+        </div>
       </motion.div>
     </div>
   );

@@ -37,7 +37,29 @@ import {
   Frown,
   Meh,
   Sparkles,
+  Handshake,
+  Hand,
+  AlertTriangle,
+  Flame,
+  Clock,
+  Star,
+  MessageSquare,
+  type LucideIcon,
 } from 'lucide-react';
+
+const LUCIDE_ICON_MAP: Record<string, LucideIcon> = {
+  Handshake, Hand, AlertTriangle, Flame, Clock, Star, MessageSquare,
+  Shield, ShieldAlert, Smile, Frown, Meh, Sparkles, Award, CheckCircle2,
+  Circle, Plus, Pencil, Trash2, Filter, X, CalendarIcon,
+  MapPin, UserCheck, PieChartIcon, BarChart3, ListChecks, Loader2,
+};
+
+function renderLucideIcon(name: string, className?: string): React.ReactNode {
+  const IconComp = LUCIDE_ICON_MAP[name];
+  if (!IconComp) return null;
+  return <IconComp className={className ?? 'h-3.5 w-3.5'} />;
+}
+
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -360,7 +382,7 @@ function CategoryBadge({ category }: { category: BehaviorIncident['category'] })
         borderColor: hexToRgba(category.color, 0.3),
       }}
     >
-      {category.icon && <span>{category.icon}</span>}
+      {category.icon && renderLucideIcon(category.icon)}
       {category.name}
     </span>
   );

@@ -35,6 +35,8 @@ model School {
   rubrics            Rubric[]
   commentCategories  CommentCategory[]
   commentBankEntries CommentBankEntry[]
+  notebooks          Notebook[]
+  drawings           Drawing[]
 }
 
 model User {
@@ -67,6 +69,8 @@ model User {
   behaviorIncidentsResolved BehaviorIncident[] @relation("BehaviorResolver")
   rubrics                   Rubric[]
   commentBankEntries        CommentBankEntry[]
+  notebooks                 Notebook[]
+  drawings                  Drawing[]
 }
 
 model SchoolYear {
@@ -109,6 +113,8 @@ model ClassGroup {
   attendanceSessions  AttendanceSession[]
   lessonPlans         LessonPlan[]
   behaviorIncidents   BehaviorIncident[]
+  notebooks           Notebook[]
+  drawings            Drawing[]
 }
 
 model ClassGroupTeacher {
@@ -179,6 +185,8 @@ model Subject {
   lessonPlans         LessonPlan[]
   rubrics             Rubric[]
   commentBankEntries  CommentBankEntry[]
+  notebooks           Notebook[]
+  drawings            Drawing[]
 }
 
 model CompetencyTemplate {
@@ -709,5 +717,86 @@ model CommentBankEntry {
   @@index([schoolId])
   @@index([teacherId])
   @@index([categoryId])
+  @@index([subjectId])
+}
+
+// ─── Digital Notebooks ─────────────────────────────────────────────
+
+model Notebook {
+  id          String   @id @default(cuid())
+  schoolId    String
+  ownerId     String   // userId of the student or teacher
+  ownerType   String   // STUDENT | TEACHER
+  subjectId   String?  // null = personal/general notebook
+  classGroupId String?
+  title       String
+  description String?
+  notebookType String  @default("lined") // lined | grid | blank | dotted | music | calligraphy
+  color       String   @default("#10b981") // cover color
+  icon        String?  // lucide icon name
+  isArchived  Boolean  @default(false)
+  isPublic    Boolean  @default(false) // shared with class
+  sortOrder   Int      @default(0)
+  isDemo      Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  deletedAt   DateTime?
+
+  school     School    @relation(fields: [schoolId], references: [id])
+  owner      User      @relation(fields: [ownerId], references: [id])
+  subject    Subject?  @relation(fields: [subjectId], references: [id])
+  classGroup ClassGroup? @relation(fields: [classGroupId], references: [id])
+  pages      NotebookPage[]
+
+  @@index([schoolId])
+  @@index([ownerId])
+  @@index([subjectId])
+  @@index([classGroupId])
+  @@index([isArchived])
+}
+
+model NotebookPage {
+  id          String   @id @default(cuid())
+  notebookId  String
+  pageNumber  Int
+  title       String?
+  contentType String   @default("text") // text | drawing | mixed
+  textContent String?  // markdown/rich text content
+  drawingData String?  // JSON with strokes/paths for canvas
+  background  String   @default("lined") // lined | grid | blank | dotted | music
+  isBookmark  Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  notebook   Notebook @relation(fields: [notebookId], references: [id], onDelete: Cascade)
+
+  @@index([notebookId])
+  @@index([pageNumber])
+}
+
+// ─── Drawing Canvas ────────────────────────────────────────────────
+
+model Drawing {
+  id          String   @id @default(cuid())
+  schoolId    String
+  ownerId     String
+  title       String
+  description String?
+  drawingData String   // JSON with all strokes, paths, colors
+  imageData   String?  // base64 encoded PNG thumbnail
+  subjectId   String?
+  classGroupId String?
+  isPublic    Boolean  @default(false)
+  isDemo      Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  school     School    @relation(fields: [schoolId], references: [id])
+  owner      User      @relation(fields: [ownerId], references: [id])
+  subject    Subject?  @relation(fields: [subjectId], references: [id])
+  classGroup ClassGroup? @relation(fields: [classGroupId], references: [id])
+
+  @@index([schoolId])
+  @@index([ownerId])
   @@index([subjectId])
 }
