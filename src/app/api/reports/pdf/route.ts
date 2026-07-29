@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { getSession } from '@/lib/auth';
+import { withRateLimit } from '@/lib/rate-limit';
 
-export async function GET(request: Request) {
+export const GET = withRateLimit(async function GET(request: Request) {
   try {
     const session = await getSession();
     if (!session) {
@@ -105,7 +106,7 @@ export async function GET(request: Request) {
     console.error('Report PDF error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
-}
+}, 'heavy');
 
 function generatePrintHtml(report: Record<string, unknown>, template: string): string {
   const student = report.student as { firstName: string; lastName: string };

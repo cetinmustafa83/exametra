@@ -42,6 +42,10 @@ model School {
   parentStudentLinks ParentStudentLink[]
   curriculumStandards CurriculumStandard[]
   backups            Backup[]
+  behaviorInterventions BehaviorIntervention[]
+  reportSchedules    ReportSchedule[]
+  district           SchoolDistrict? @relation(fields: [districtId], references: [id])
+  districtId         String?
 }
 
 model User {
@@ -79,6 +83,7 @@ model User {
   notifications             Notification[]
   calendarEvents            CalendarEvent[]
   parentLinks               ParentStudentLink[]
+  assignedInterventions     BehaviorIntervention[] @relation("InterventionAssignee")
 }
 
 model SchoolYear {
@@ -124,6 +129,7 @@ model ClassGroup {
   notebooks           Notebook[]
   drawings            Drawing[]
   calendarEvents      CalendarEvent[]
+  reportSchedules     ReportSchedule[]
 }
 
 model ClassGroupTeacher {
@@ -160,6 +166,7 @@ model Student {
   parentContacts        ParentContact[]
   parentMessages        ParentMessage[]
   behaviorIncidents     BehaviorIncident[]
+  behaviorInterventions BehaviorIntervention[]
   parentStudentLinks    ParentStudentLink[]
 }
 
@@ -427,6 +434,9 @@ model AuditLog {
   action     String
   entityType String
   entityId   String?
+  changes    String?  // JSON: { before: {...}, after: {...} }
+  ipAddress  String?
+  userAgent  String?
   timestamp  DateTime @default(now())
   metadata   String?  // JSON
 
@@ -630,6 +640,8 @@ model BehaviorIncident {
   @@index([classGroupId, date])
   @@index([schoolId, date])
   @@index([teacherId])
+
+  interventions BehaviorIntervention[]
 }
 
 // ─── Rubric Library ────────────────────────────────────────────────
@@ -963,4 +975,83 @@ model Backup {
   school      School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
 
   @@map("backups")
+}
+
+// ─── Behavior Interventions ─────────────────────────────────────────
+
+model BehaviorIntervention {
+  id              String    @id @default(cuid())
+  schoolId        String
+  studentId       String
+  incidentId      String?
+  type            String    // "warning", "meeting", "action_plan", "support", "parent_contact"
+  description     String
+  status          String    @default("planned") // "planned", "in_progress", "completed", "cancelled"
+  assignedTo      String?
+  startDate       DateTime?
+  endDate         DateTime?
+  outcome         String?
+  isDemo          Boolean   @default(false)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  deletedAt       DateTime?
+
+  school          School            @relation(fields: [schoolId], references: [id])
+  student         Student           @relation(fields: [studentId], references: [id])
+  incident        BehaviorIncident? @relation(fields: [incidentId], references: [id])
+  assignedUser    User?             @relation("InterventionAssignee", fields: [assignedTo], references: [id])
+
+  @@index([schoolId, studentId])
+  @@map("behavior_interventions")
+}
+
+// ─── Report Scheduling ──────────────────────────────────────────────
+
+model ReportSchedule {
+  id              String   @id @default(cuid())
+  schoolId        String
+  classGroupId    String?
+  template        String   // "short", "full", "custom"
+  frequency       String   // "weekly", "monthly", "quarterly", "end_of_term"
+  dayOfWeek       Int?     // 0-6 for weekly
+  dayOfMonth      Int?     // 1-31 for monthly
+  monthOfYear     Int?     // 1-12 for quarterly
+  recipients      String?  // JSON array of userIds
+  includeStudents Boolean  @default(true)
+  includeGrades   Boolean  @default(true)
+  includeAttendance Boolean @default(true)
+  includeBehavior Boolean  @default(false)
+  includeCompetencies Boolean @default(true)
+  isActive        Boolean  @default(true)
+  lastRunAt       DateTime?
+  nextRunAt       DateTime?
+  isDemo          Boolean  @default(false)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  deletedAt       DateTime?
+
+  school          School   @relation(fields: [schoolId], references: [id])
+  classGroup      ClassGroup? @relation(fields: [classGroupId], references: [id])
+
+  @@index([schoolId, isActive])
+  @@map("report_schedules")
+}
+
+// ─── School District ────────────────────────────────────────────────
+
+model SchoolDistrict {
+  id          String   @id @default(cuid())
+  name        String
+  code        String?  // district code
+  region      String?
+  country     String   @default("DE")
+  adminEmail  String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  deletedAt   DateTime?
+
+  schools     School[]
+
+  @@map("school_districts")
 }

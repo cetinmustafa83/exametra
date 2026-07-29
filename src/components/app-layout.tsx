@@ -115,6 +115,7 @@ import {
 } from '@/components/ui/command';
 import { toast } from 'sonner';
 import { useWebSocket, usePushNotifications, playNotificationSound, getNotificationSoundPref } from '@/lib/websocket';
+import { OfflineIndicator, PWAInstallPrompt, useServiceWorker, OfflineSyncManager } from '@/components/offline-indicator';
 
 import DashboardView from './dashboard-view';
 import ClassesView from './classes-view';
@@ -256,6 +257,9 @@ export default function AppLayout() {
   const setCurrentClass = useAppStore((s) => s.setCurrentClass);
   const [schoolYears, setSchoolYears] = useState<SchoolYear[]>([]);
   const [selectedYearId, setSelectedYearId] = useState<string>(storeSchoolYearId ?? '');
+
+  // Service Worker registration for PWA
+  useServiceWorker();
 
   // WebSocket connection for real-time push notifications
   const { connected: wsConnected } = useWebSocket();
@@ -636,6 +640,12 @@ export default function AppLayout() {
 
   return (
     <SidebarProvider>
+      {/* Offline indicator bar */}
+      <OfflineIndicator />
+      {/* PWA install prompt */}
+      <PWAInstallPrompt />
+      {/* Offline sync manager */}
+      <OfflineSyncManager />
       <Sidebar
         variant="sidebar"
         collapsible="icon"

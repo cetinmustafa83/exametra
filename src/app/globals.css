@@ -1548,3 +1548,258 @@
     pointer-events: none;
   }
 }
+
+/* ─── Report Scheduling Styles (Task 13) ────────────────────────────────── */
+@layer utilities {
+  /* Schedule timeline visualization */
+  .schedule-timeline {
+    position: relative;
+    padding-left: 1.5rem;
+  }
+  .schedule-timeline::before {
+    content: '';
+    position: absolute;
+    left: 0.5rem;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: linear-gradient(to bottom, oklch(0.55 0.17 155), oklch(0.65 0.12 175));
+    border-radius: 1px;
+  }
+  .schedule-timeline-item {
+    position: relative;
+    padding-bottom: 1.5rem;
+  }
+  .schedule-timeline-item::before {
+    content: '';
+    position: absolute;
+    left: -1.1rem;
+    top: 0.35rem;
+    width: 0.75rem;
+    height: 0.75rem;
+    border-radius: 50%;
+    background: oklch(0.55 0.17 155);
+    border: 2px solid white;
+    box-shadow: 0 0 0 2px oklch(0.55 0.17 155 / 0.3);
+  }
+  .schedule-timeline-item.inactive::before {
+    background: oklch(0.7 0 0);
+    box-shadow: 0 0 0 2px oklch(0.7 0 0 / 0.3);
+  }
+  .schedule-timeline-item:last-child {
+    padding-bottom: 0;
+  }
+
+  /* District card styling */
+  .district-card {
+    position: relative;
+    overflow: hidden;
+    border-radius: 1rem;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+  }
+  .district-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px -5px oklch(0 0 0 / 0.1), 0 0 0 1px oklch(0.55 0.17 155 / 0.1);
+  }
+  .district-card::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: linear-gradient(to right, oklch(0.55 0.17 155), oklch(0.65 0.12 175), oklch(0.55 0.17 155));
+  }
+  .dark .district-card::after {
+    background: linear-gradient(to right, oklch(0.65 0.17 155), oklch(0.75 0.12 175), oklch(0.65 0.17 155));
+  }
+
+  /* Cross-school comparison styling */
+  .cross-school-comparison {
+    display: grid;
+    gap: 1rem;
+  }
+  .cross-school-comparison .comparison-bar {
+    height: 0.5rem;
+    border-radius: 9999px;
+    overflow: hidden;
+    background: oklch(0.95 0.02 155);
+  }
+  .dark .cross-school-comparison .comparison-bar {
+    background: oklch(0.25 0.02 155);
+  }
+  .cross-school-comparison .comparison-bar-fill {
+    height: 100%;
+    border-radius: 9999px;
+    transition: width 0.5s ease;
+  }
+
+  /* Report generation progress bar */
+  .report-progress {
+    position: relative;
+    height: 0.5rem;
+    border-radius: 9999px;
+    overflow: hidden;
+    background: oklch(0.93 0.02 155);
+  }
+  .dark .report-progress {
+    background: oklch(0.25 0.02 155);
+  }
+  .report-progress-fill {
+    height: 100%;
+    border-radius: 9999px;
+    background: linear-gradient(to right, oklch(0.55 0.17 155), oklch(0.65 0.12 175));
+    transition: width 0.5s ease;
+    position: relative;
+  }
+  .report-progress-fill::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(90deg, transparent, oklch(1 0 0 / 0.3), transparent);
+    animation: shimmer-progress 2s ease-in-out infinite;
+  }
+  @keyframes shimmer-progress {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
+  }
+
+  /* Section divider with gradient line */
+  .section-divider {
+    position: relative;
+    height: 1px;
+    background: linear-gradient(to right, transparent, oklch(0.55 0.17 155 / 0.3), transparent);
+    margin: 1.5rem 0;
+  }
+  .dark .section-divider {
+    background: linear-gradient(to right, transparent, oklch(0.65 0.17 155 / 0.3), transparent);
+  }
+
+  /* ─── Offline / PWA Styles ──────────────────────────────────────── */
+
+  /* Offline indicator bar */
+  .offline-indicator-bar {
+    z-index: 100;
+    font-size: 0.875rem;
+    line-height: 1.25rem;
+    font-weight: 500;
+  }
+
+  /* PWA install prompt */
+  .pwa-install-prompt {
+    animation: slide-up-fade 0.3s ease-out;
+  }
+
+  @keyframes slide-up-fade {
+    from {
+      opacity: 0;
+      transform: translateY(16px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  /* Offline badge pulse */
+  .offline-badge-pulse {
+    animation: offline-pulse 2s ease-in-out infinite;
+  }
+
+  @keyframes offline-pulse {
+    0%, 100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.6;
+    }
+  }
+
+  /* Offline sync spinner */
+  .offline-sync-spinner {
+    animation: offline-sync-spin 1s linear infinite;
+  }
+
+  @keyframes offline-sync-spin {
+    from {
+      transform: rotate(0deg);
+    }
+    to {
+      transform: rotate(360deg);
+    }
+  }
+
+  /* Cached notebook indicator */
+  .cached-notebook-indicator {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.125rem 0.5rem;
+    border-radius: 9999px;
+    font-size: 0.625rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  /* Rate limit status card */
+  .rate-limit-card {
+    border: 1px solid oklch(0.55 0.17 155 / 0.2);
+    border-radius: 0.75rem;
+    padding: 1rem;
+    background: oklch(0.98 0.01 155 / 0.5);
+  }
+  .dark .rate-limit-card {
+    border-color: oklch(0.55 0.17 155 / 0.15);
+    background: oklch(0.2 0.02 155 / 0.3);
+  }
+
+  /* Rate limit bar */
+  .rate-limit-bar {
+    height: 4px;
+    border-radius: 2px;
+    background: oklch(0.92 0.01 155);
+    overflow: hidden;
+  }
+  .dark .rate-limit-bar {
+    background: oklch(0.25 0.01 155);
+  }
+  .rate-limit-bar-fill {
+    height: 100%;
+    border-radius: 2px;
+    transition: width 0.3s ease;
+  }
+
+  /* PWA standalone mode adjustments */
+  @media (display-mode: standalone) {
+    body {
+      padding-top: env(safe-area-inset-top);
+      padding-bottom: env(safe-area-inset-bottom);
+      padding-left: env(safe-area-inset-left);
+      padding-right: env(safe-area-inset-right);
+    }
+  }
+
+  /* Offline mode visual feedback */
+  .offline-mode-active {
+    filter: none;
+  }
+
+  .offline-mode-active .offline-dimmed {
+    opacity: 0.7;
+    pointer-events: none;
+  }
+
+  /* Toast rate limit countdown */
+  .rate-limit-countdown {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    font-variant-numeric: tabular-nums;
+    font-weight: 600;
+    color: oklch(0.55 0.17 25);
+  }
+}

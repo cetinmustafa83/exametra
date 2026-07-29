@@ -10,9 +10,25 @@ async function apiRequest<T>(url: string, options?: RequestInit): Promise<T> {
   });
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
+    // Handle 429 Too Many Requests (rate limiting)
+    if (res.status === 429) {
+      const retryAfter = body.retryAfter || parseInt(res.headers.get('Retry-After') || '60', 10);
+      const rateLimitError = new Error(body.error || 'Too many requests');
+      (rateLimitError as RateLimitError).isRateLimit = true;
+      (rateLimitError as RateLimitError).retryAfter = retryAfter;
+      (rateLimitError as RateLimitError).limit = body.limit || 0;
+      throw rateLimitError;
+    }
     throw new Error(body.error || `API error ${res.status}`);
   }
   return res.json();
+}
+
+// Rate limit error type
+export interface RateLimitError extends Error {
+  isRateLimit: boolean;
+  retryAfter: number;
+  limit: number;
 }
 
 export function apiGet<T>(url: string): Promise<T> {
@@ -703,23 +719,143 @@ export interface AuditLogEntry {
   action: string;
   entityType: string;
   entityId: string | null;
+  changes: string | null;
+  ipAddress: string | null;
+  userAgent: string | null;
   timestamp: string;
   metadata: string | null;
   user: { id: string; firstName: string; lastName: string } | null;
 }
 
+export interface AuditLogPaginatedResponse {
+  entries: AuditLogEntry[];
+  pagination: {
+    page: number;
+    pageSize: number;
+    total: number;
+    totalPages: number;
+  };
+}
+
 export function fetchAuditLog(params?: {
   schoolId?: string;
   action?: string;
+  entityType?: string;
+  userId?: string;
   startDate?: string;
   endDate?: string;
-}): Promise<AuditLogEntry[]> {
+  page?: number;
+  pageSize?: number;
+}): Promise<AuditLogPaginatedResponse> {
   const sp = new URLSearchParams();
   if (params?.schoolId) sp.set('schoolId', params.schoolId);
   if (params?.action) sp.set('action', params.action);
+  if (params?.entityType) sp.set('entityType', params.entityType);
+  if (params?.userId) sp.set('userId', params.userId);
   if (params?.startDate) sp.set('startDate', params.startDate);
   if (params?.endDate) sp.set('endDate', params.endDate);
-  return apiGet<AuditLogEntry[]>(`/api/audit-log?${sp.toString()}`);
+  if (params?.page) sp.set('page', String(params.page));
+  if (params?.pageSize) sp.set('pageSize', String(params.pageSize));
+  return apiGet<AuditLogPaginatedResponse>(`/api/audit-log?${sp.toString()}`);
+}
+
+export function exportAuditLogCsv(params?: {
+  schoolId?: string;
+  action?: string;
+  entityType?: string;
+  userId?: string;
+  startDate?: string;
+  endDate?: string;
+}): void {
+  const sp = new URLSearchParams();
+  sp.set('export', 'csv');
+  if (params?.schoolId) sp.set('schoolId', params.schoolId);
+  if (params?.action) sp.set('action', params.action);
+  if (params?.entityType) sp.set('entityType', params.entityType);
+  if (params?.userId) sp.set('userId', params.userId);
+  if (params?.startDate) sp.set('startDate', params.startDate);
+  if (params?.endDate) sp.set('endDate', params.endDate);
+  const url = `/api/audit-log?${sp.toString()}`;
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'audit-log.csv';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+}
+
+/* ── Behavior Interventions ─────────────────────────────────────────── */
+
+export interface BehaviorInterventionType {
+  id: string;
+  schoolId: string;
+  studentId: string;
+  incidentId: string | null;
+  type: string;
+  description: string;
+  status: string;
+  assignedTo: string | null;
+  startDate: string | null;
+  endDate: string | null;
+  outcome: string | null;
+  isDemo: boolean;
+  createdAt: string;
+  updatedAt: string;
+  student: { id: string; firstName: string; lastName: string };
+  incident: { id: string; description: string; date: string; severity: string } | null;
+  assignedUser: { id: string; firstName: string; lastName: string } | null;
+}
+
+export function fetchBehaviorInterventions(params: {
+  schoolId: string;
+  studentId?: string;
+  incidentId?: string;
+  type?: string;
+  status?: string;
+}): Promise<BehaviorInterventionType[]> {
+  const sp = new URLSearchParams();
+  sp.set('schoolId', params.schoolId);
+  if (params.studentId) sp.set('studentId', params.studentId);
+  if (params.incidentId) sp.set('incidentId', params.incidentId);
+  if (params.type) sp.set('type', params.type);
+  if (params.status) sp.set('status', params.status);
+  return apiGet<BehaviorInterventionType[]>(`/api/behavior-interventions?${sp.toString()}`);
+}
+
+export function createBehaviorIntervention(data: {
+  schoolId: string;
+  studentId: string;
+  incidentId?: string;
+  type: string;
+  description: string;
+  status?: string;
+  assignedTo?: string;
+  startDate?: string;
+  endDate?: string;
+  outcome?: string;
+  isDemo?: boolean;
+}): Promise<BehaviorInterventionType> {
+  return apiPost<BehaviorInterventionType>('/api/behavior-interventions', data);
+}
+
+export function updateBehaviorIntervention(
+  id: string,
+  data: {
+    type?: string;
+    description?: string;
+    status?: string;
+    assignedTo?: string;
+    startDate?: string;
+    endDate?: string;
+    outcome?: string;
+    incidentId?: string;
+  }
+): Promise<BehaviorInterventionType> {
+  return apiPut<BehaviorInterventionType>(`/api/behavior-interventions/${id}`, data);
+}
+
+export function deleteBehaviorIntervention(id: string): Promise<{ success: boolean }> {
+  return apiDelete<{ success: boolean }>(`/api/behavior-interventions/${id}`);
 }
 
 /* ── Data Export (CSV) ────────────────────────────────────────────── */
@@ -2446,4 +2582,145 @@ export function bulkCreateStudentAccounts(data: {
   locale?: string;
 }): Promise<{ created: Array<Record<string, unknown>>; count: number }> {
   return apiPost<{ created: Array<Record<string, unknown>>; count: number }>('/api/users', { ...data, action: 'bulkCreateStudents' });
+}
+
+/* ── Report Schedules ──────────────────────────────────────────────── */
+
+export interface ReportScheduleData {
+  id: string;
+  schoolId: string;
+  classGroupId: string | null;
+  template: string;
+  frequency: string;
+  dayOfWeek: number | null;
+  dayOfMonth: number | null;
+  monthOfYear: number | null;
+  recipients: string | null;
+  includeStudents: boolean;
+  includeGrades: boolean;
+  includeAttendance: boolean;
+  includeBehavior: boolean;
+  includeCompetencies: boolean;
+  isActive: boolean;
+  lastRunAt: string | null;
+  nextRunAt: string | null;
+  isDemo: boolean;
+  createdAt: string;
+  updatedAt: string;
+  deletedAt: string | null;
+  classGroup?: { id: string; name: string; gradeLevel: number } | null;
+}
+
+export function fetchReportSchedules(schoolId: string): Promise<ReportScheduleData[]> {
+  return apiGet<ReportScheduleData[]>(`/api/report-schedules?schoolId=${schoolId}`);
+}
+
+export function createReportSchedule(data: {
+  schoolId: string;
+  classGroupId?: string;
+  template: string;
+  frequency: string;
+  dayOfWeek?: number | null;
+  dayOfMonth?: number | null;
+  monthOfYear?: number | null;
+  recipients?: string[];
+  includeStudents?: boolean;
+  includeGrades?: boolean;
+  includeAttendance?: boolean;
+  includeBehavior?: boolean;
+  includeCompetencies?: boolean;
+}): Promise<ReportScheduleData> {
+  return apiPost<ReportScheduleData>('/api/report-schedules', data);
+}
+
+export function updateReportSchedule(id: string, data: {
+  classGroupId?: string;
+  template?: string;
+  frequency?: string;
+  dayOfWeek?: number | null;
+  dayOfMonth?: number | null;
+  monthOfYear?: number | null;
+  recipients?: string[];
+  includeStudents?: boolean;
+  includeGrades?: boolean;
+  includeAttendance?: boolean;
+  includeBehavior?: boolean;
+  includeCompetencies?: boolean;
+  isActive?: boolean;
+}): Promise<ReportScheduleData> {
+  return apiPut<ReportScheduleData>(`/api/report-schedules/${id}`, data);
+}
+
+export function deleteReportSchedule(id: string): Promise<{ success: boolean }> {
+  return apiDelete<{ success: boolean }>(`/api/report-schedules/${id}`);
+}
+
+export function runReportSchedule(id: string): Promise<{
+  success: boolean;
+  lastRunAt: string;
+  nextRunAt: string;
+  recipientsNotified: number;
+}> {
+  return apiPost(`/api/report-schedules/${id}/run`, {});
+}
+
+/* ── School Districts ──────────────────────────────────────────────── */
+
+export interface SchoolDistrictData {
+  id: string;
+  name: string;
+  code: string | null;
+  region: string | null;
+  country: string;
+  adminEmail: string | null;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+  deletedAt: string | null;
+  schools: Array<{ id: string; name: string; schoolType: string; country: string }>;
+  schoolCount?: number;
+  totalStudents?: number;
+}
+
+export function fetchDistricts(): Promise<SchoolDistrictData[]> {
+  return apiGet<SchoolDistrictData[]>('/api/districts');
+}
+
+export function createDistrict(data: {
+  name: string;
+  code?: string;
+  region?: string;
+  country?: string;
+  adminEmail?: string;
+}): Promise<SchoolDistrictData> {
+  return apiPost<SchoolDistrictData>('/api/districts', data);
+}
+
+export function updateDistrict(id: string, data: {
+  name?: string;
+  code?: string;
+  region?: string;
+  country?: string;
+  adminEmail?: string;
+  isActive?: boolean;
+}): Promise<SchoolDistrictData> {
+  return apiPut<SchoolDistrictData>(`/api/districts/${id}`, data);
+}
+
+export function deleteDistrict(id: string): Promise<{ success: boolean }> {
+  return apiDelete<{ success: boolean }>(`/api/districts/${id}`);
+}
+
+export function fetchDistrictSchools(districtId: string): Promise<Array<{
+  id: string;
+  name: string;
+  schoolType: string;
+  country: string;
+  _count: { students: number; classGroups: number; users: number };
+}>> {
+  return apiGet(`/api/districts/${districtId}/schools`);
+}
+
+export function assignSchoolToDistrict(districtId: string, schoolId: string): Promise<{ success: boolean }> {
+  return apiPost<{ success: boolean }>(`/api/districts/${districtId}/schools`, { schoolId });
 }

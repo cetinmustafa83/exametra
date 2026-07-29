@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { getSession } from '@/lib/auth';
+import { withRateLimit } from '@/lib/rate-limit';
 
 function escapeCsvField(field: string | number | null | undefined): string {
   if (field === null || field === undefined) return '';
@@ -59,7 +60,7 @@ function parseCsv(text: string): { headers: string[]; rows: ImportRow[] } {
   return { headers, rows };
 }
 
-export async function POST(request: Request) {
+export const POST = withRateLimit(async function POST(request: Request) {
   try {
     const session = await getSession();
     if (!session) {
@@ -217,7 +218,7 @@ export async function POST(request: Request) {
     console.error('Data Import error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
-}
+}, 'heavy');
 
 export async function GET(request: Request) {
   try {

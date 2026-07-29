@@ -14,6 +14,8 @@ import {
   ResponsiveContainer,
   Legend,
   CartesianGrid,
+  LineChart,
+  Line,
 } from 'recharts';
 import {
   Shield,
@@ -44,6 +46,10 @@ import {
   Clock,
   Star,
   MessageSquare,
+  TrendingUp,
+  Target,
+  Heart,
+  Users,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -52,6 +58,7 @@ const LUCIDE_ICON_MAP: Record<string, LucideIcon> = {
   Shield, ShieldAlert, Smile, Frown, Meh, Sparkles, Award, CheckCircle2,
   Circle, Plus, Pencil, Trash2, Filter, X, CalendarIcon,
   MapPin, UserCheck, PieChartIcon, BarChart3, ListChecks, Loader2,
+  TrendingUp, Target, Heart, Users,
 };
 
 function renderLucideIcon(name: string, className?: string): React.ReactNode {
@@ -93,6 +100,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Progress } from '@/components/ui/progress';
 import { toast } from 'sonner';
 import { useAppStore } from '@/lib/store';
 import { t } from '@/lib/i18n';
@@ -107,6 +115,11 @@ import {
   deleteBehaviorIncident,
   fetchClasses,
   fetchStudents,
+  fetchBehaviorInterventions,
+  createBehaviorIntervention,
+  updateBehaviorIntervention,
+  deleteBehaviorIntervention,
+  fetchUsers,
   type BehaviorCategory,
   type BehaviorIncident,
   type BehaviorValence,
@@ -116,6 +129,8 @@ import {
   type BehaviorCategoryInput,
   type ClassGroup,
   type Student,
+  type BehaviorInterventionType,
+  type UserAccount,
 } from '@/lib/api';
 
 /* ── Constants ─────────────────────────────────────────────────────── */
@@ -207,6 +222,24 @@ const FOLLOWUP_OPTIONS = [
   'prize',
 ];
 
+const INTERVENTION_TYPES = ['warning', 'meeting', 'action_plan', 'support', 'parent_contact'] as const;
+const INTERVENTION_STATUSES = ['planned', 'in_progress', 'completed', 'cancelled'] as const;
+
+const INTERVENTION_STATUS_CONFIG: Record<string, { dot: string; badge: string; progress: number; icon: React.ReactNode }> = {
+  planned: { dot: 'bg-slate-500', badge: 'bg-slate-100 text-slate-700 dark:bg-slate-950/60 dark:text-slate-300', progress: 0, icon: <Circle className="h-3.5 w-3.5" /> },
+  in_progress: { dot: 'bg-amber-500', badge: 'bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300', progress: 50, icon: <Clock className="h-3.5 w-3.5" /> },
+  completed: { dot: 'bg-emerald-500', badge: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300', progress: 100, icon: <CheckCircle2 className="h-3.5 w-3.5" /> },
+  cancelled: { dot: 'bg-rose-500', badge: 'bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300', progress: 0, icon: <X className="h-3.5 w-3.5" /> },
+};
+
+const INTERVENTION_TYPE_CONFIG: Record<string, { color: string; icon: React.ReactNode }> = {
+  warning: { color: 'text-amber-600 dark:text-amber-400', icon: <AlertTriangle className="h-4 w-4" /> },
+  meeting: { color: 'text-violet-600 dark:text-violet-400', icon: <Users className="h-4 w-4" /> },
+  action_plan: { color: 'text-teal-600 dark:text-teal-400', icon: <Target className="h-4 w-4" /> },
+  support: { color: 'text-emerald-600 dark:text-emerald-400', icon: <Heart className="h-4 w-4" /> },
+  parent_contact: { color: 'text-rose-600 dark:text-rose-400', icon: <MessageSquare className="h-4 w-4" /> },
+};
+
 /* ── Helpers ───────────────────────────────────────────────────────── */
 
 function pad(n: number): string {
@@ -287,6 +320,33 @@ interface CategoryFormState {
   color: string;
   valence: BehaviorValence;
   icon: string;
+}
+
+interface InterventionFormState {
+  id?: string;
+  studentId: string;
+  incidentId: string;
+  type: string;
+  description: string;
+  status: string;
+  assignedTo: string;
+  startDate: string;
+  endDate: string;
+  outcome: string;
+}
+
+function emptyInterventionForm(studentId = '', incidentId = ''): InterventionFormState {
+  return {
+    studentId,
+    incidentId,
+    type: 'meeting',
+    description: '',
+    status: 'planned',
+    assignedTo: '',
+    startDate: toDateInputValue(new Date()),
+    endDate: '',
+    outcome: '',
+  };
 }
 
 function emptyIncidentForm(studentId = '', classGroupId = '', categoryId = ''): IncidentFormState {
@@ -402,7 +462,7 @@ export default function BehaviorTrackingView() {
   const [classesLoading, setClassesLoading] = useState(true);
   const [categoriesLoading, setCategoriesLoading] = useState(true);
   const [incidentsLoading, setIncidentsLoading] = useState(true);
-  const [tab, setTab] = useState<'incidents' | 'categories' | 'statistics'>('incidents');
+  const [tab, setTab] = useState<'incidents' | 'categories' | 'statistics' | 'analytics' | 'interventions'>('incidents');
 
   // Filters
   const [filterClassId, setFilterClassId] = useState<string>('all');
@@ -425,6 +485,20 @@ export default function BehaviorTrackingView() {
   const [categoryForm, setCategoryForm] = useState<CategoryFormState | null>(null);
   const [savingCategory, setSavingCategory] = useState(false);
   const [deleteCategoryId, setDeleteCategoryId] = useState<string | null>(null);
+
+  // Interventions state
+  const [interventions, setInterventions] = useState<BehaviorInterventionType[]>([]);
+  const [interventionsLoading, setInterventionsLoading] = useState(false);
+  const [interventionDialogOpen, setInterventionDialogOpen] = useState(false);
+  const [interventionForm, setInterventionForm] = useState<InterventionFormState | null>(null);
+  const [savingIntervention, setSavingIntervention] = useState(false);
+  const [deleteInterventionId, setDeleteInterventionId] = useState<string | null>(null);
+  const [interventionFilterStatus, setInterventionFilterStatus] = useState<string>('all');
+  const [interventionFilterType, setInterventionFilterType] = useState<string>('all');
+  const [teachers, setTeachers] = useState<UserAccount[]>([]);
+
+  // Analytics period
+  const [analyticsPeriod, setAnalyticsPeriod] = useState<'30' | '90' | 'year'>('90');
 
   const schoolId = currentUser?.schoolId ?? '';
 
@@ -495,6 +569,34 @@ export default function BehaviorTrackingView() {
   useEffect(() => {
     loadIncidents();
   }, [loadIncidents]);
+
+  /* ── Load interventions ──────────────────────────────────────────── */
+  const loadInterventions = useCallback(async () => {
+    if (!schoolId) {
+      setInterventions([]);
+      return;
+    }
+    setInterventionsLoading(true);
+    try {
+      const data = await fetchBehaviorInterventions({ schoolId });
+      setInterventions(data);
+    } catch {
+      setInterventions([]);
+    } finally {
+      setInterventionsLoading(false);
+    }
+  }, [schoolId]);
+
+  useEffect(() => {
+    loadInterventions();
+  }, [loadInterventions]);
+
+  /* ── Load teachers ───────────────────────────────────────────────── */
+  useEffect(() => {
+    if (schoolId) {
+      fetchUsers(schoolId).then(setTeachers).catch(() => setTeachers([]));
+    }
+  }, [schoolId]);
 
   /* ── Incident actions ────────────────────────────────────────────── */
   const openCreateIncident = () => {
@@ -669,6 +771,199 @@ export default function BehaviorTrackingView() {
     }
   };
 
+  /* ── Intervention actions ──────────────────────────────────────── */
+  const openCreateIntervention = (studentId = '', incidentId = '') => {
+    setInterventionForm(emptyInterventionForm(studentId, incidentId));
+    setInterventionDialogOpen(true);
+  };
+
+  const openEditIntervention = (intv: BehaviorInterventionType) => {
+    setInterventionForm({
+      id: intv.id,
+      studentId: intv.studentId,
+      incidentId: intv.incidentId ?? '',
+      type: intv.type,
+      description: intv.description,
+      status: intv.status,
+      assignedTo: intv.assignedTo ?? '',
+      startDate: intv.startDate ? toDateInputValue(new Date(intv.startDate)) : '',
+      endDate: intv.endDate ? toDateInputValue(new Date(intv.endDate)) : '',
+      outcome: intv.outcome ?? '',
+    });
+    setInterventionDialogOpen(true);
+  };
+
+  const closeInterventionDialog = () => {
+    if (savingIntervention) return;
+    setInterventionDialogOpen(false);
+    setInterventionForm(null);
+  };
+
+  const handleSaveIntervention = async () => {
+    if (!interventionForm) return;
+    if (!interventionForm.type) {
+      toast.error(t('behavior.intervention.required_type'));
+      return;
+    }
+    if (!interventionForm.description.trim()) {
+      toast.error(t('behavior.intervention.required_description'));
+      return;
+    }
+    setSavingIntervention(true);
+    try {
+      const payload = {
+        schoolId,
+        studentId: interventionForm.studentId || students[0]?.id || '',
+        incidentId: interventionForm.incidentId || undefined,
+        type: interventionForm.type,
+        description: interventionForm.description.trim(),
+        status: interventionForm.status,
+        assignedTo: interventionForm.assignedTo || undefined,
+        startDate: interventionForm.startDate || undefined,
+        endDate: interventionForm.endDate || undefined,
+        outcome: interventionForm.outcome || undefined,
+      };
+      if (interventionForm.id) {
+        await updateBehaviorIntervention(interventionForm.id, payload);
+      } else {
+        await createBehaviorIntervention(payload);
+      }
+      toast.success(t('behavior.intervention.saved'));
+      setInterventionDialogOpen(false);
+      setInterventionForm(null);
+      await loadInterventions();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : t('behavior.intervention.error_save'));
+    } finally {
+      setSavingIntervention(false);
+    }
+  };
+
+  const handleDeleteIntervention = async () => {
+    if (!deleteInterventionId) return;
+    try {
+      await deleteBehaviorIntervention(deleteInterventionId);
+      toast.success(t('behavior.intervention.deleted'));
+      setDeleteInterventionId(null);
+      await loadInterventions();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : t('behavior.intervention.error_delete'));
+    }
+  };
+
+  /* ── Analytics computations ─────────────────────────────────────── */
+  const analytics = useMemo(() => {
+    const now = new Date();
+    const periodStart = analyticsPeriod === '30'
+      ? new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
+      : analyticsPeriod === '90'
+        ? new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000)
+        : new Date(now.getFullYear(), 0, 1); // this year
+
+    const periodIncidents = incidents.filter((i) => new Date(i.date) >= periodStart);
+
+    // Trend data: group by week
+    const trendMap = new Map<string, { week: string; positive: number; negative: number; neutral: number }>();
+    for (const inc of periodIncidents) {
+      const d = new Date(inc.date);
+      const weekStart = new Date(d);
+      weekStart.setDate(d.getDate() - d.getDay());
+      const key = toDateInputValue(weekStart);
+      const existing = trendMap.get(key);
+      if (existing) {
+        existing[inc.category.valence] += 1;
+      } else {
+        trendMap.set(key, {
+          week: formatDateShort(key, locale),
+          positive: inc.category.valence === 'positive' ? 1 : 0,
+          negative: inc.category.valence === 'negative' ? 1 : 0,
+          neutral: inc.category.valence === 'neutral' ? 1 : 0,
+        });
+      }
+    }
+    const trendData = Array.from(trendMap.values()).sort((a, b) => a.week.localeCompare(b.week));
+
+    // Category distribution (pie)
+    const catDistMap = new Map<string, { name: string; value: number; color: string }>();
+    for (const inc of periodIncidents) {
+      const existing = catDistMap.get(inc.categoryId);
+      if (existing) existing.value += 1;
+      else catDistMap.set(inc.categoryId, { name: inc.category.name, value: 1, color: inc.category.color });
+    }
+    const categoryDist = Array.from(catDistMap.values());
+
+    // Risk profile: students with >= 3 negative incidents
+    const riskMap = new Map<string, { studentId: string; firstName: string; lastName: string; negative: number; positive: number; total: number; risk: string }>();
+    for (const inc of periodIncidents) {
+      const existing = riskMap.get(inc.studentId);
+      if (existing) {
+        existing.total += 1;
+        if (inc.category.valence === 'negative') existing.negative += 1;
+        if (inc.category.valence === 'positive') existing.positive += 1;
+      } else {
+        riskMap.set(inc.studentId, {
+          studentId: inc.studentId,
+          firstName: inc.student.firstName,
+          lastName: inc.student.lastName,
+          negative: inc.category.valence === 'negative' ? 1 : 0,
+          positive: inc.category.valence === 'positive' ? 1 : 0,
+          total: 1,
+          risk: 'low',
+        });
+      }
+    }
+    const riskProfile = Array.from(riskMap.values()).map((s) => ({
+      ...s,
+      risk: s.negative >= 5 ? 'high' : s.negative >= 3 ? 'medium' : 'low',
+    })).filter((s) => s.negative >= 1).sort((a, b) => b.negative - a.negative);
+
+    // Class comparison
+    const classMap = new Map<string, { name: string; positive: number; negative: number; neutral: number; total: number }>();
+    for (const inc of periodIncidents) {
+      const className = inc.classGroup?.name ?? 'Unknown';
+      const existing = classMap.get(className);
+      if (existing) {
+        existing.total += 1;
+        existing[inc.category.valence] += 1;
+      } else {
+        classMap.set(className, {
+          name: className,
+          positive: inc.category.valence === 'positive' ? 1 : 0,
+          negative: inc.category.valence === 'negative' ? 1 : 0,
+          neutral: inc.category.valence === 'neutral' ? 1 : 0,
+          total: 1,
+        });
+      }
+    }
+    const classComparison = Array.from(classMap.values()).sort((a, b) => b.total - a.total);
+
+    // Time-of-day analysis
+    const hourMap = new Map<number, { hour: number; count: number; label: string }>();
+    for (const inc of periodIncidents) {
+      const d = new Date(inc.date);
+      const h = d.getHours();
+      const existing = hourMap.get(h);
+      if (existing) existing.count += 1;
+      else hourMap.set(h, { hour: h, count: 1, label: `${pad(h)}:00` });
+    }
+    const timeOfDay = Array.from(hourMap.values()).sort((a, b) => a.hour - b.hour);
+
+    // Positive reinforcement: students with more positive than negative
+    const positiveReinforcement = Array.from(riskMap.values())
+      .filter((s) => s.positive > s.negative && s.positive >= 2)
+      .sort((a, b) => (b.positive - b.negative) - (a.positive - a.negative));
+
+    return {
+      trendData,
+      categoryDist,
+      riskProfile,
+      classComparison,
+      timeOfDay,
+      positiveReinforcement,
+      periodIncidents,
+    };
+  }, [incidents, analyticsPeriod, locale]);
+
   /* ── Statistics computations ─────────────────────────────────────── */
   const stats = useMemo(() => {
     const now = new Date();
@@ -828,6 +1123,25 @@ export default function BehaviorTrackingView() {
           >
             <BarChart3 className="h-4 w-4 mr-1.5" />
             {t('behavior.tab_statistics')}
+          </TabsTrigger>
+          <TabsTrigger
+            value="analytics"
+            className="data-[state=active]:bg-white data-[state=active]:text-emerald-700 data-[state=active]:shadow-sm dark:data-[state=active]:bg-gray-900 dark:data-[state=active]:text-emerald-300"
+          >
+            <TrendingUp className="h-4 w-4 mr-1.5" />
+            {t('behavior.tab_analytics')}
+          </TabsTrigger>
+          <TabsTrigger
+            value="interventions"
+            className="data-[state=active]:bg-white data-[state=active]:text-emerald-700 data-[state=active]:shadow-sm dark:data-[state=active]:bg-gray-900 dark:data-[state=active]:text-emerald-300"
+          >
+            <Target className="h-4 w-4 mr-1.5" />
+            {t('behavior.tab_interventions')}
+            {interventions.length > 0 && (
+              <span className="ml-1.5 inline-flex items-center justify-center min-w-[18px] h-[18px] rounded-full bg-emerald-100 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300 text-[10px] font-bold px-1">
+                {interventions.length}
+              </span>
+            )}
           </TabsTrigger>
         </TabsList>
 
@@ -1391,6 +1705,443 @@ export default function BehaviorTrackingView() {
             </motion.div>
           </AnimatePresence>
         </TabsContent>
+
+        {/* ── Tab: Analytics ────────────────────────────────────────── */}
+        <TabsContent value="analytics" className="mt-4">
+          <AnimatePresence mode="wait">
+            <motion.div
+              key="analytics-tab"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.25 }}
+              className="space-y-4"
+            >
+              {/* Period selector */}
+              <div className="flex items-center gap-2">
+                <Label className="text-xs font-semibold">{t('behavior.analytics.period')}</Label>
+                <div className="flex gap-1.5">
+                  {(['30', '90', 'year'] as const).map((p) => (
+                    <button
+                      key={p}
+                      onClick={() => setAnalyticsPeriod(p)}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all min-h-[36px] ${
+                        analyticsPeriod === p
+                          ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 ring-1 ring-emerald-200 dark:ring-emerald-800'
+                          : 'bg-gray-50 text-gray-600 dark:bg-gray-800 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
+                      }`}
+                    >
+                      {t(`behavior.analytics.last_${p === 'year' ? 'this_year' : `last_${p}`}`)}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Trend Chart */}
+              <Card className="border-0 shadow-sm rounded-xl">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base font-bold flex items-center gap-2">
+                    <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-emerald-100 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400">
+                      <TrendingUp className="h-4 w-4" />
+                    </div>
+                    {t('behavior.analytics.trend')}
+                  </CardTitle>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">{t('behavior.analytics.trend_desc')}</p>
+                </CardHeader>
+                <CardContent>
+                  {analytics.trendData.length === 0 ? (
+                    <p className="text-center py-10 text-sm text-gray-500 dark:text-gray-400">{t('behavior.stat.no_data')}</p>
+                  ) : (
+                    <ResponsiveContainer width="100%" height={280}>
+                      <LineChart data={analytics.trendData} margin={{ top: 8, right: 8, left: -16, bottom: 8 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" strokeOpacity={0.4} />
+                        <XAxis dataKey="week" tick={{ fontSize: 10, fill: '#6b7280' }} />
+                        <YAxis tick={{ fontSize: 10, fill: '#9ca3af' }} allowDecimals={false} />
+                        <RTooltip contentStyle={{ borderRadius: '12px', border: '1px solid #a7f3d0', fontSize: '12px' }} />
+                        <Legend wrapperStyle={{ fontSize: 11 }} />
+                        <Line type="monotone" dataKey="positive" stroke="#10b981" strokeWidth={2} dot={{ r: 3 }} name={t('behavior.valence.positive')} />
+                        <Line type="monotone" dataKey="negative" stroke="#f43f5e" strokeWidth={2} dot={{ r: 3 }} name={t('behavior.valence.negative')} />
+                        <Line type="monotone" dataKey="neutral" stroke="#64748b" strokeWidth={2} dot={{ r: 3 }} name={t('behavior.valence.neutral')} />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  )}
+                </CardContent>
+              </Card>
+
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                {/* Category Distribution */}
+                <Card className="border-0 shadow-sm rounded-xl">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-base font-bold flex items-center gap-2">
+                      <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-violet-100 dark:bg-violet-950/40 text-violet-600 dark:text-violet-400">
+                        <PieChartIcon className="h-4 w-4" />
+                      </div>
+                      {t('behavior.analytics.category_dist')}
+                    </CardTitle>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">{t('behavior.analytics.category_dist_desc')}</p>
+                  </CardHeader>
+                  <CardContent>
+                    {analytics.categoryDist.length === 0 ? (
+                      <p className="text-center py-10 text-sm text-gray-500 dark:text-gray-400">{t('behavior.stat.no_data')}</p>
+                    ) : (
+                      <ResponsiveContainer width="100%" height={260}>
+                        <PieChart>
+                          <Pie
+                            data={analytics.categoryDist}
+                            cx="50%"
+                            cy="50%"
+                            innerRadius={55}
+                            outerRadius={85}
+                            paddingAngle={3}
+                            dataKey="value"
+                            nameKey="name"
+                            label={({ name, value }) => `${name}: ${value}`}
+                            labelLine={false}
+                          >
+                            {analytics.categoryDist.map((entry, idx) => (
+                              <Cell key={`cell-${idx}`} fill={entry.color} />
+                            ))}
+                          </Pie>
+                          <Legend wrapperStyle={{ fontSize: 11 }} />
+                          <RTooltip contentStyle={{ borderRadius: '12px', fontSize: '12px' }} />
+                        </PieChart>
+                      </ResponsiveContainer>
+                    )}
+                  </CardContent>
+                </Card>
+
+                {/* Time-of-Day Analysis */}
+                <Card className="border-0 shadow-sm rounded-xl">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-base font-bold flex items-center gap-2">
+                      <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-amber-100 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400">
+                        <Clock className="h-4 w-4" />
+                      </div>
+                      {t('behavior.analytics.time_of_day')}
+                    </CardTitle>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">{t('behavior.analytics.time_of_day_desc')}</p>
+                  </CardHeader>
+                  <CardContent>
+                    {analytics.timeOfDay.length === 0 ? (
+                      <p className="text-center py-10 text-sm text-gray-500 dark:text-gray-400">{t('behavior.stat.no_data')}</p>
+                    ) : (
+                      <ResponsiveContainer width="100%" height={260}>
+                        <BarChart data={analytics.timeOfDay} margin={{ top: 8, right: 8, left: -16, bottom: 8 }}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" strokeOpacity={0.4} vertical={false} />
+                          <XAxis dataKey="label" tick={{ fontSize: 10, fill: '#6b7280' }} />
+                          <YAxis tick={{ fontSize: 10, fill: '#9ca3af' }} allowDecimals={false} />
+                          <RTooltip contentStyle={{ borderRadius: '12px', fontSize: '12px' }} />
+                          <Bar dataKey="count" fill="#f59e0b" radius={[6, 6, 0, 0]} name={t('behavior.analytics.incidents_count_short')} />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Class Comparison */}
+              <Card className="border-0 shadow-sm rounded-xl">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base font-bold flex items-center gap-2">
+                    <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-teal-100 dark:bg-teal-950/40 text-teal-600 dark:text-teal-400">
+                      <Users className="h-4 w-4" />
+                    </div>
+                    {t('behavior.analytics.class_comparison')}
+                  </CardTitle>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">{t('behavior.analytics.class_comparison_desc')}</p>
+                </CardHeader>
+                <CardContent>
+                  {analytics.classComparison.length === 0 ? (
+                    <p className="text-center py-10 text-sm text-gray-500 dark:text-gray-400">{t('behavior.stat.no_data')}</p>
+                  ) : (
+                    <ResponsiveContainer width="100%" height={analytics.classComparison.length * 50 + 60}>
+                      <BarChart data={analytics.classComparison} layout="vertical" margin={{ top: 8, right: 8, left: 60, bottom: 8 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" strokeOpacity={0.4} horizontal={false} />
+                        <XAxis type="number" tick={{ fontSize: 10, fill: '#9ca3af' }} allowDecimals={false} />
+                        <YAxis type="category" dataKey="name" tick={{ fontSize: 11, fill: '#6b7280' }} width={55} />
+                        <RTooltip contentStyle={{ borderRadius: '12px', fontSize: '12px' }} />
+                        <Legend wrapperStyle={{ fontSize: 11 }} />
+                        <Bar dataKey="positive" fill="#10b981" stackId="a" name={t('behavior.valence.positive')} />
+                        <Bar dataKey="negative" fill="#f43f5e" stackId="a" name={t('behavior.valence.negative')} />
+                        <Bar dataKey="neutral" fill="#64748b" stackId="a" name={t('behavior.valence.neutral')} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  )}
+                </CardContent>
+              </Card>
+
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                {/* Risk Profile */}
+                <Card className="border-0 shadow-sm rounded-xl">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-base font-bold flex items-center gap-2">
+                      <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-rose-100 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400">
+                        <AlertTriangle className="h-4 w-4" />
+                      </div>
+                      {t('behavior.analytics.risk_profile')}
+                    </CardTitle>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">{t('behavior.analytics.risk_profile_desc')}</p>
+                  </CardHeader>
+                  <CardContent>
+                    {analytics.riskProfile.length === 0 ? (
+                      <p className="text-center py-10 text-sm text-gray-500 dark:text-gray-400">{t('behavior.stat.no_data')}</p>
+                    ) : (
+                      <ScrollArea className="max-h-72">
+                        <div className="space-y-2">
+                          {analytics.riskProfile.map((s) => {
+                            const riskBadge = s.risk === 'high'
+                              ? 'bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300'
+                              : s.risk === 'medium'
+                                ? 'bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300'
+                                : 'bg-slate-100 text-slate-700 dark:bg-slate-950/60 dark:text-slate-300';
+                            return (
+                              <div key={s.studentId} className="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-900/40 transition-colors">
+                                <StudentAvatar first={s.firstName} last={s.lastName} size="sm" />
+                                <div className="flex-1 min-w-0">
+                                  <div className="text-sm font-medium text-gray-800 dark:text-gray-200 truncate">
+                                    {s.firstName} {s.lastName}
+                                  </div>
+                                  <div className="text-xs text-gray-500 dark:text-gray-400">
+                                    {t('behavior.analytics.incidents_count_short')}: {s.negative} neg / {s.positive} pos
+                                  </div>
+                                </div>
+                                <Badge variant="outline" className={`text-xs ${riskBadge}`}>
+                                  {t(`behavior.analytics.risk_${s.risk}`)}
+                                </Badge>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </ScrollArea>
+                    )}
+                  </CardContent>
+                </Card>
+
+                {/* Positive Reinforcement */}
+                <Card className="border-0 shadow-sm rounded-xl">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-base font-bold flex items-center gap-2">
+                      <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-emerald-100 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400">
+                        <Heart className="h-4 w-4" />
+                      </div>
+                      {t('behavior.analytics.positive_trend')}
+                    </CardTitle>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">{t('behavior.analytics.positive_trend_desc')}</p>
+                  </CardHeader>
+                  <CardContent>
+                    {analytics.positiveReinforcement.length === 0 ? (
+                      <p className="text-center py-10 text-sm text-gray-500 dark:text-gray-400">{t('behavior.stat.no_data')}</p>
+                    ) : (
+                      <ScrollArea className="max-h-72">
+                        <div className="space-y-2">
+                          {analytics.positiveReinforcement.map((s) => (
+                            <div key={s.studentId} className="flex items-center gap-3 p-2 rounded-lg hover:bg-emerald-50/50 dark:hover:bg-emerald-950/20 transition-colors">
+                              <StudentAvatar first={s.firstName} last={s.lastName} size="sm" />
+                              <div className="flex-1 min-w-0">
+                                <div className="text-sm font-medium text-gray-800 dark:text-gray-200 truncate">
+                                  {s.firstName} {s.lastName}
+                                </div>
+                                <div className="flex items-center gap-2 text-xs">
+                                  <span className="text-emerald-600 dark:text-emerald-400 font-semibold">
+                                    +{s.positive - s.negative} {t('behavior.analytics.positive_change')}
+                                  </span>
+                                </div>
+                              </div>
+                              <Badge variant="outline" className="text-xs bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800">
+                                <Smile className="h-3 w-3 mr-0.5" />
+                                {s.positive}
+                              </Badge>
+                            </div>
+                          ))}
+                        </div>
+                      </ScrollArea>
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
+            </motion.div>
+          </AnimatePresence>
+        </TabsContent>
+
+        {/* ── Tab: Interventions ─────────────────────────────────────── */}
+        <TabsContent value="interventions" className="mt-4">
+          <AnimatePresence mode="wait">
+            <motion.div
+              key="interventions-tab"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.25 }}
+              className="space-y-4"
+            >
+              {/* Header */}
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <Select value={interventionFilterStatus} onValueChange={setInterventionFilterStatus}>
+                    <SelectTrigger className="h-9 w-[140px] text-sm rounded-xl border-emerald-200/50 dark:border-emerald-900/30">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">{t('behavior.intervention.all_statuses')}</SelectItem>
+                      {INTERVENTION_STATUSES.map((s) => (
+                        <SelectItem key={s} value={s}>{t(`behavior.intervention.status.${s}`)}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Select value={interventionFilterType} onValueChange={setInterventionFilterType}>
+                    <SelectTrigger className="h-9 w-[140px] text-sm rounded-xl border-emerald-200/50 dark:border-emerald-900/30">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">{t('behavior.intervention.all_types')}</SelectItem>
+                      {INTERVENTION_TYPES.map((tp) => (
+                        <SelectItem key={tp} value={tp}>{t(`behavior.intervention.type.${tp}`)}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <Button
+                  size="sm"
+                  onClick={() => openCreateIntervention()}
+                  className="bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white shadow-sm min-h-[36px]"
+                >
+                  <Plus className="h-4 w-4 mr-1" />
+                  {t('behavior.intervention.add')}
+                </Button>
+              </div>
+
+              {/* Intervention list */}
+              {interventionsLoading ? (
+                <div className="flex items-center justify-center py-16">
+                  <Loader2 className="h-6 w-6 animate-spin text-emerald-500" />
+                </div>
+              ) : (() => {
+                const filtered = interventions.filter((intv) => {
+                  if (interventionFilterStatus !== 'all' && intv.status !== interventionFilterStatus) return false;
+                  if (interventionFilterType !== 'all' && intv.type !== interventionFilterType) return false;
+                  return true;
+                });
+                return filtered.length === 0 ? (
+                  <Card className="border-0 shadow-sm rounded-xl">
+                    <CardContent className="py-16 text-center">
+                      <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-500 mb-4">
+                        <Target className="h-8 w-8" />
+                      </div>
+                      <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200">
+                        {t('behavior.intervention.no_interventions')}
+                      </h3>
+                      <p className="text-sm text-gray-500 dark:text-gray-400 mt-1 max-w-md mx-auto">
+                        {t('behavior.intervention.no_interventions_desc')}
+                      </p>
+                      <Button
+                        onClick={() => openCreateIntervention()}
+                        className="mt-4 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white min-h-[36px]"
+                      >
+                        <Plus className="h-4 w-4 mr-1" />
+                        {t('behavior.intervention.add')}
+                      </Button>
+                    </CardContent>
+                  </Card>
+                ) : (
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+                    {filtered.map((intv, idx) => {
+                      const statusCfg = INTERVENTION_STATUS_CONFIG[intv.status] ?? INTERVENTION_STATUS_CONFIG.planned;
+                      const typeCfg = INTERVENTION_TYPE_CONFIG[intv.type] ?? { color: 'text-gray-600', icon: <Target className="h-4 w-4" /> };
+                      return (
+                        <motion.div
+                          key={intv.id}
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ duration: 0.25, delay: Math.min(idx * 0.04, 0.4) }}
+                        >
+                          <Card className="border-0 shadow-sm rounded-xl overflow-hidden group">
+                            <CardContent className="p-4">
+                              <div className="flex items-start gap-3">
+                                <StudentAvatar first={intv.student.firstName} last={intv.student.lastName} />
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center justify-between gap-2">
+                                    <div className="text-sm font-semibold text-gray-800 dark:text-gray-200 truncate">
+                                      {intv.student.firstName} {intv.student.lastName}
+                                    </div>
+                                    <Badge variant="outline" className={`text-xs gap-1 ${statusCfg.badge}`}>
+                                      {statusCfg.icon}
+                                      {t(`behavior.intervention.status.${intv.status}`)}
+                                    </Badge>
+                                  </div>
+                                  <div className="flex items-center gap-2 mt-1">
+                                    <span className={`flex items-center gap-1 text-xs font-medium ${typeCfg.color}`}>
+                                      {typeCfg.icon}
+                                      {t(`behavior.intervention.type.${intv.type}`)}
+                                    </span>
+                                    {intv.assignedUser && (
+                                      <span className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1">
+                                        <UserCheck className="h-3 w-3" />
+                                        {intv.assignedUser.firstName} {intv.assignedUser.lastName}
+                                      </span>
+                                    )}
+                                    {intv.incident && (
+                                      <span className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                                        {t('behavior.intervention.linked_incident')}: {intv.incident.description.slice(0, 20)}
+                                      </span>
+                                    )}
+                                  </div>
+                                  <p className="text-xs text-gray-600 dark:text-gray-400 mt-1.5 line-clamp-2">{intv.description}</p>
+
+                                  {/* Progress indicator */}
+                                  <div className="mt-2.5">
+                                    <div className="flex items-center justify-between text-[10px] text-gray-500 dark:text-gray-400 mb-1">
+                                      <span>{t('behavior.intervention.progress')}</span>
+                                      <span>{statusCfg.progress}%</span>
+                                    </div>
+                                    <Progress value={statusCfg.progress} className="h-1.5" />
+                                  </div>
+
+                                  {/* Effectiveness outcome */}
+                                  {intv.outcome && intv.status === 'completed' && (
+                                    <div className="mt-2 p-2 rounded-lg bg-emerald-50/50 dark:bg-emerald-950/20 border border-emerald-100 dark:border-emerald-900/30">
+                                      <div className="text-[10px] uppercase tracking-wider text-emerald-600 dark:text-emerald-400 font-semibold">{t('behavior.intervention.effectiveness')}</div>
+                                      <p className="text-xs text-gray-700 dark:text-gray-300 mt-0.5">{intv.outcome}</p>
+                                    </div>
+                                  )}
+
+                                  {/* Actions */}
+                                  <div className="flex items-center gap-1.5 mt-2 pt-2 border-t border-gray-100 dark:border-gray-900/40">
+                                    <Button variant="ghost" size="sm" className="h-7 text-xs min-h-[36px] min-w-[36px]" onClick={() => openEditIntervention(intv)}>
+                                      <Pencil className="h-3 w-3 mr-0.5" /> {t('behavior.edit')}
+                                    </Button>
+                                    <Button variant="ghost" size="sm" className="h-7 text-xs hover:text-rose-600 min-h-[36px] min-w-[36px]" onClick={() => setDeleteInterventionId(intv.id)}>
+                                      <Trash2 className="h-3 w-3" />
+                                    </Button>
+                                    {intv.status === 'planned' && (
+                                      <Button variant="ghost" size="sm" className="h-7 text-xs min-h-[36px]" onClick={async () => {
+                                        await updateBehaviorIntervention(intv.id, { status: 'in_progress' });
+                                        await loadInterventions();
+                                      }}>
+                                        <Clock className="h-3 w-3 mr-0.5" /> {t('behavior.intervention.status.in_progress')}
+                                      </Button>
+                                    )}
+                                    {intv.status === 'in_progress' && (
+                                      <Button variant="ghost" size="sm" className="h-7 text-xs min-h-[36px]" onClick={async () => {
+                                        await updateBehaviorIntervention(intv.id, { status: 'completed' });
+                                        await loadInterventions();
+                                      }}>
+                                        <CheckCircle2 className="h-3 w-3 mr-0.5" /> {t('behavior.intervention.status.completed')}
+                                      </Button>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        </motion.div>
+                      );
+                    })}
+                  </div>
+                );
+              })()}
+            </motion.div>
+          </AnimatePresence>
+        </TabsContent>
       </Tabs>
 
       {/* ── Incident Form Dialog ─────────────────────────────────────── */}
@@ -1826,6 +2577,169 @@ export default function BehaviorTrackingView() {
             <AlertDialogCancel>{t('behavior.cancel')}</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDeleteCategory}
+              className="bg-rose-500 hover:bg-rose-600 text-white"
+            >
+              {t('behavior.delete')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* ── Intervention Form Dialog ──────────────────────────────────── */}
+      <Dialog open={interventionDialogOpen} onOpenChange={(o) => { if (!o) closeInterventionDialog(); }}>
+        <DialogContent className="sm:max-w-[560px] max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Target className="h-5 w-5 text-emerald-500" />
+              {interventionForm?.id ? t('behavior.intervention.edit') : t('behavior.intervention.add')}
+            </DialogTitle>
+            <DialogDescription>{t('behavior.intervention.subtitle')}</DialogDescription>
+          </DialogHeader>
+
+          {interventionForm && (
+            <div className="space-y-3 py-1">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <Label className="text-xs font-semibold">{t('behavior.field.student')}</Label>
+                  <Select value={interventionForm.studentId} onValueChange={(v) => setInterventionForm({ ...interventionForm, studentId: v })}>
+                    <SelectTrigger className="mt-1"><SelectValue placeholder={t('behavior.all_students')} /></SelectTrigger>
+                    <SelectContent className="max-h-60">
+                      {students.map((s) => (
+                        <SelectItem key={s.id} value={s.id}>
+                          {s.firstName} {s.lastName}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label className="text-xs font-semibold">{t('behavior.intervention.type')}</Label>
+                  <Select value={interventionForm.type} onValueChange={(v) => setInterventionForm({ ...interventionForm, type: v })}>
+                    <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {INTERVENTION_TYPES.map((tp) => (
+                        <SelectItem key={tp} value={tp}>{t(`behavior.intervention.type.${tp}`)}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div>
+                <Label className="text-xs font-semibold">{t('behavior.intervention.description')}</Label>
+                <Textarea
+                  value={interventionForm.description}
+                  onChange={(e) => setInterventionForm({ ...interventionForm, description: e.target.value })}
+                  placeholder={t('behavior.intervention.description_placeholder')}
+                  className="mt-1 min-h-[80px]"
+                  rows={3}
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <Label className="text-xs font-semibold">{t('behavior.intervention.status')}</Label>
+                  <Select value={interventionForm.status} onValueChange={(v) => setInterventionForm({ ...interventionForm, status: v })}>
+                    <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {INTERVENTION_STATUSES.map((s) => (
+                        <SelectItem key={s} value={s}>{t(`behavior.intervention.status.${s}`)}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label className="text-xs font-semibold">{t('behavior.intervention.assigned_to')}</Label>
+                  <Select value={interventionForm.assignedTo} onValueChange={(v) => setInterventionForm({ ...interventionForm, assignedTo: v })}>
+                    <SelectTrigger className="mt-1"><SelectValue placeholder={t('behavior.intervention.assigned_to_placeholder')} /></SelectTrigger>
+                    <SelectContent className="max-h-60">
+                      <SelectItem value="">{t('behavior.intervention.assigned_to_placeholder')}</SelectItem>
+                      {teachers.map((u) => (
+                        <SelectItem key={u.id} value={u.id}>
+                          {u.firstName} {u.lastName}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <Label className="text-xs font-semibold">{t('behavior.intervention.start_date')}</Label>
+                  <Input
+                    type="date"
+                    value={interventionForm.startDate}
+                    onChange={(e) => setInterventionForm({ ...interventionForm, startDate: e.target.value })}
+                    className="mt-1"
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs font-semibold">{t('behavior.intervention.end_date')}</Label>
+                  <Input
+                    type="date"
+                    value={interventionForm.endDate}
+                    onChange={(e) => setInterventionForm({ ...interventionForm, endDate: e.target.value })}
+                    className="mt-1"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <Label className="text-xs font-semibold">{t('behavior.intervention.outcome')}</Label>
+                <Textarea
+                  value={interventionForm.outcome}
+                  onChange={(e) => setInterventionForm({ ...interventionForm, outcome: e.target.value })}
+                  placeholder={t('behavior.intervention.outcome_placeholder')}
+                  className="mt-1"
+                  rows={2}
+                />
+              </div>
+
+              <div>
+                <Label className="text-xs font-semibold">{t('behavior.intervention.linked_incident')}</Label>
+                <Select value={interventionForm.incidentId} onValueChange={(v) => setInterventionForm({ ...interventionForm, incidentId: v })}>
+                  <SelectTrigger className="mt-1"><SelectValue placeholder={t('behavior.intervention.no_incident')} /></SelectTrigger>
+                  <SelectContent className="max-h-60">
+                    <SelectItem value="">{t('behavior.intervention.no_incident')}</SelectItem>
+                    {incidents.map((inc) => (
+                      <SelectItem key={inc.id} value={inc.id}>
+                        {inc.student.firstName} {inc.student.lastName} - {inc.description.slice(0, 30)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={closeInterventionDialog} disabled={savingIntervention}>
+              {t('behavior.cancel')}
+            </Button>
+            <Button
+              onClick={handleSaveIntervention}
+              disabled={savingIntervention}
+              className="bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white"
+            >
+              {savingIntervention ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <CheckCircle2 className="h-4 w-4 mr-1" />}
+              {t('behavior.save')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Delete Intervention Confirmation ─────────────────────────── */}
+      <AlertDialog open={!!deleteInterventionId} onOpenChange={(o) => { if (!o) setDeleteInterventionId(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t('behavior.intervention.title')}</AlertDialogTitle>
+            <AlertDialogDescription>{t('behavior.delete_incident_desc')}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t('behavior.cancel')}</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteIntervention}
               className="bg-rose-500 hover:bg-rose-600 text-white"
             >
               {t('behavior.delete')}

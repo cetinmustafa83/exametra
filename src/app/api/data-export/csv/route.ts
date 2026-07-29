@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { getSession } from '@/lib/auth';
+import { withRateLimit } from '@/lib/rate-limit';
 
 function escapeCsvField(field: string | number | null | undefined): string {
   if (field === null || field === undefined) return '';
@@ -16,7 +17,7 @@ function toCsvRow(fields: (string | number | null | undefined)[]): string {
   return fields.map(escapeCsvField).join(',');
 }
 
-export async function GET(request: Request) {
+export const GET = withRateLimit(async function GET(request: Request) {
   try {
     const session = await getSession();
     if (!session) {
@@ -318,4 +319,4 @@ export async function GET(request: Request) {
     console.error('CSV Export error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
-}
+}, 'heavy');

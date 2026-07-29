@@ -1,5 +1,62 @@
 # CompetenceTrack — Project Worklog
 
+---
+Task ID: 12
+Agent: behavior-audit
+Task: Behavior Tracking Enhancement + Audit Logging
+
+Work Log:
+- Added BehaviorIntervention Prisma model with fields: type, description, status, assignedTo, startDate, endDate, outcome, incidentId, isDemo, deletedAt
+- Added relations to School, Student, BehaviorIncident, and User models
+- Enhanced AuditLog model with new fields: changes (JSON before/after), ipAddress, userAgent
+- Ran db:push to sync schema changes
+- Created audit logging middleware (src/lib/audit.ts) with logAudit() and withAuditLog() helper functions
+- Created Intervention API routes: GET/POST /api/behavior-interventions, GET/PUT/DELETE /api/behavior-interventions/[id]
+- Enhanced Audit Log API with pagination, entityType filter, userId filter, and CSV export endpoint
+- Added API client functions: fetchBehaviorInterventions, createBehaviorIntervention, updateBehaviorIntervention, deleteBehaviorIntervention, exportAuditLogCsv
+- Enhanced AuditLogEntry type with changes, ipAddress, userAgent fields
+- Added fetchAuditLog to return paginated response (AuditLogPaginatedResponse)
+- Added "Analytics" tab to behavior-tracking-view.tsx with:
+  - Line chart: trend of positive vs negative incidents over time (by week)
+  - Pie chart: category distribution breakdown
+  - Bar chart: time-of-day analysis showing when incidents most frequently occur
+  - Horizontal stacked bar chart: class comparison across classes
+  - Risk profile: students with frequent negative incidents (high/medium/low risk)
+  - Positive reinforcement: students with positive behavior trends
+  - Period selector: last 30 days, last 90 days, this school year
+- Added "Interventions" tab to behavior-tracking-view.tsx with:
+  - Intervention CRUD: create, edit, delete interventions
+  - Status tracking with progress indicators (planned/in_progress/completed/cancelled)
+  - Type filter and status filter
+  - Quick status change buttons (planned -> in_progress -> completed)
+  - Effectiveness outcome display for completed interventions
+  - Linked incident display
+  - Assigned user display
+  - Intervention form dialog with all fields
+- Enhanced settings-view.tsx audit tab with:
+  - Entity type filter chips
+  - Pagination (previous/next page controls)
+  - CSV export button
+  - Click-to-view detail dialog showing before/after changes
+  - IP address display in timeline entries
+  - User agent display in detail dialog
+- Added 150+ new i18n keys (DE + EN) for behavior analytics, interventions, and audit log enhancement
+- Lint passes with 0 errors
+
+Stage Summary:
+- New Prisma model: BehaviorIntervention (behavior_interventions table)
+- Enhanced AuditLog model with changes, ipAddress, userAgent fields
+- New file: src/lib/audit.ts (audit logging middleware)
+- New files: src/app/api/behavior-interventions/route.ts, src/app/api/behavior-interventions/[id]/route.ts
+- Modified: src/app/api/audit-log/route.ts (pagination, filters, CSV export)
+- Modified: src/lib/api.ts (intervention API functions, enhanced audit log types)
+- Modified: src/lib/i18n.ts (150+ new DE/EN keys)
+- Modified: src/components/behavior-tracking-view.tsx (analytics tab + interventions tab)
+- Modified: src/components/settings-view.tsx (enhanced audit tab with pagination, filters, export, detail view)
+- Modified: prisma/schema.prisma (BehaviorIntervention model + AuditLog enhancements)
+
+---
+
 ## Current Project Status (Round 14 — Lint Cleanup, ESLint Config Fix, Hook Violation Fix, WS Service Restart)
 
 **Status**: Stable, all features working, lint passes with 0 errors
@@ -458,3 +515,31 @@ See git history for details on earlier rounds.
 - App running on localhost:3000 (200 OK)
 - Backup API responding correctly
 - Prisma schema pushed successfully
+
+---
+Task ID: 11
+Agent: offline-pwa-rate-limit
+Task: Offline Mode (PWA) + API Rate Limiting
+
+Work Log:
+- Created Service Worker at public/sw.js with NetworkFirst (API), CacheFirst (static), navigation fallback, background sync, IndexedDB for pending requests, push notification support
+- Created Web App Manifest at public/manifest.json with emerald theme, standalone display, German description
+- Generated PWA icons (icon-192.png, icon-512.png) using sharp from SVG with emerald-teal gradient and book icon
+- Updated src/app/layout.tsx with manifest metadata, appleWebApp config, Viewport export with themeColor, apple-touch-icon link
+- Created src/components/offline-indicator.tsx with OfflineIndicator bar, PWAInstallPrompt card, useServiceWorker hook, OfflineBadge, OfflineSyncManager, showRateLimitToast, RateLimitStatus component
+- Created src/lib/offline-cache.ts with localStorage notebook caching (cacheNotebook, getCachedNotebook, queueNotebookEdit, replayQueuedEdits)
+- Integrated offline components in src/components/app-layout.tsx (SW registration, OfflineIndicator, PWAInstallPrompt, OfflineSyncManager)
+- Created src/lib/rate-limit.ts with in-memory rate limiting (Map-based), configurable presets (auth:5/min, dataRead:60/min, dataWrite:30/min, heavy:10/5min), withRateLimit wrapper, rate limit headers, 429 response, stats endpoint
+- Applied rate limiting to /api/auth (auth preset), /api/data-export/csv (heavy), /api/reports/pdf (heavy), /api/data-import (heavy), /api/backup (heavy)
+- Created /api/rate-limit-stats API endpoint for admin monitoring
+- Updated src/lib/api.ts with 429 handling and RateLimitError interface
+- Added RateLimitStatus tab in settings-view.tsx with Shield icon and rose color scheme
+- Added 40 i18n keys (32 PWA/offline + 8 rate limit) in DE and EN
+- Added offline/PWA/rate-limit CSS styles in globals.css
+
+Stage Summary:
+- Full PWA support with offline mode, service worker, install prompt, and offline indicator
+- Notebook data cached in localStorage for offline access with queued edits for sync
+- API rate limiting with configurable presets protecting auth, data, and heavy operation endpoints
+- Rate limit admin monitoring in settings view
+- 8 new files, 11 modified files, 0 lint errors

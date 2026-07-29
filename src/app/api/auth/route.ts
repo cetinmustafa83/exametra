@@ -8,6 +8,7 @@ import {
   getSession,
   clearSession,
 } from '@/lib/auth';
+import { withRateLimit, checkRateLimit, getRateLimitKey, getRateLimitHeaders, createRateLimitResponse } from '@/lib/rate-limit';
 
 const loginSchema = z.object({
   email: z.string().email(),
@@ -23,7 +24,7 @@ const registerSchema = z.object({
   role: z.enum(['TEACHER', 'SCHOOL_ADMIN', 'SUPER_ADMIN']).default('TEACHER'),
 });
 
-export async function POST(request: Request) {
+export const POST = withRateLimit(async function POST(request: Request) {
   try {
     const body = await request.json();
     const { action } = body;
@@ -138,15 +139,33 @@ export async function POST(request: Request) {
       { status: 500 }
     );
   }
-}
+}, 'auth');
 
-export async function GET() {
+export async function GET(request: Request) {
+  // Apply rate limit for auth check endpoint
+  const key = getRateLimitKey(request);
+  const result = checkRateLimit(key, 60, 60 * 1000); // 60 per minute for GET
+
+  if (!result.allowed) {
+    const rateLimitResponse = createRateLimitResponse(result);
+    return NextResponse.json(rateLimitResponse.body, {
+      status: rateLimitResponse.status,
+      headers: rateLimitResponse.headers,
+    });
+  }
+
   try {
     const session = await getSession();
     if (!session || !session.user) {
       return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
     }
-    return NextResponse.json(session.user);
+
+    const response = NextResponse.json(session.user);
+    const rateLimitHeaders = getRateLimitHeaders(result);
+    for (const [headerKey, headerValue] of rateLimitHeaders.entries()) {
+      response.headers.set(headerKey, headerValue);
+    }
+    return response;
   } catch (error) {
     console.error('Auth me error:', error);
     return NextResponse.json(

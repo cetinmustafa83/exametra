@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { withRateLimit } from '@/lib/rate-limit';
 
 // GET /api/backup — List backups for a school
 export async function GET(req: NextRequest) {
@@ -21,7 +22,7 @@ export async function GET(req: NextRequest) {
 }
 
 // POST /api/backup — Create a new backup or restore from backup
-export async function POST(req: NextRequest) {
+export const POST = withRateLimit(async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     const { schoolId, action, backupId, notes } = body;
@@ -139,7 +140,7 @@ export async function POST(req: NextRequest) {
     }
     return NextResponse.json({ error: 'Failed to create backup' }, { status: 500 });
   }
-}
+}, 'heavy');
 
 // DELETE /api/backup — Delete a backup
 export async function DELETE(req: NextRequest) {

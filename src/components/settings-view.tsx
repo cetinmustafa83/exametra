@@ -46,6 +46,11 @@ import {
   Volume2,
   VolumeX,
   Bell,
+  MapPin,
+  Building2,
+  ArrowRightLeft,
+  TrendingDown,
+  ArrowUpRight,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -113,7 +118,16 @@ import {
   type Subject,
   type AuditLogEntry,
   type UserAccount,
+  exportAuditLogCsv,
+  type SchoolDistrictData,
+  fetchDistricts,
+  createDistrict,
+  updateDistrict,
+  deleteDistrict,
+  fetchDistrictSchools,
+  assignSchoolToDistrict,
 } from '@/lib/api';
+import { RateLimitStatus } from '@/components/offline-indicator';
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -204,9 +218,13 @@ export default function SettingsView() {
   const [auditEntries, setAuditEntries] = useState<AuditLogEntry[]>([]);
   const [auditLoading, setAuditLoading] = useState(true);
   const [auditActionFilter, setAuditActionFilter] = useState('all');
+  const [auditEntityTypeFilter, setAuditEntityTypeFilter] = useState('all');
   const [auditDateFrom, setAuditDateFrom] = useState('');
   const [auditDateTo, setAuditDateTo] = useState('');
   const [auditSearch, setAuditSearch] = useState('');
+  const [auditPage, setAuditPage] = useState(1);
+  const [auditTotalPages, setAuditTotalPages] = useState(1);
+  const [auditDetailEntry, setAuditDetailEntry] = useState<AuditLogEntry | null>(null);
 
   // Data erasure state
   const [showErasureDialog, setShowErasureDialog] = useState(false);
@@ -294,6 +312,23 @@ export default function SettingsView() {
   const [autoBackupEnabled, setAutoBackupEnabled] = useState(false);
   const [autoBackupFrequency, setAutoBackupFrequency] = useState<'daily' | 'weekly'>('weekly');
 
+  // District state
+  const [districts, setDistricts] = useState<SchoolDistrictData[]>([]);
+  const [districtsLoading, setDistrictsLoading] = useState(false);
+  const [districtDialogOpen, setDistrictDialogOpen] = useState(false);
+  const [editingDistrict, setEditingDistrict] = useState<SchoolDistrictData | null>(null);
+  const [districtForm, setDistrictForm] = useState({ name: '', code: '', region: '', country: 'DE', adminEmail: '' });
+  const [districtSaving, setDistrictSaving] = useState(false);
+  const [deleteDistrictId, setDeleteDistrictId] = useState<string | null>(null);
+  const [districtSchools, setDistrictSchools] = useState<Array<{
+    id: string; name: string; schoolType: string; country: string;
+    _count: { students: number; classGroups: number; users: number };
+  }>>([]);
+  const [districtSchoolsLoading, setDistrictSchoolsLoading] = useState(false);
+  const [selectedDistrictId, setSelectedDistrictId] = useState<string | null>(null);
+  const [assignSchoolId, setAssignSchoolId] = useState('');
+
+  const isSuperAdmin = currentUser?.role === 'SUPER_ADMIN';
   const isAdmin = currentUser?.role === 'SCHOOL_ADMIN' || currentUser?.role === 'SUPER_ADMIN';
 
   const loadSchools = useCallback(async () => {
@@ -359,16 +394,20 @@ export default function SettingsView() {
       const data = await fetchAuditLog({
         schoolId: currentUser?.schoolId ?? undefined,
         action: auditActionFilter !== 'all' ? auditActionFilter : undefined,
+        entityType: auditEntityTypeFilter !== 'all' ? auditEntityTypeFilter : undefined,
         startDate: auditDateFrom || undefined,
         endDate: auditDateTo || undefined,
+        page: auditPage,
+        pageSize: 50,
       });
-      setAuditEntries(data);
+      setAuditEntries(data.entries);
+      setAuditTotalPages(data.pagination.totalPages);
     } catch {
       toast.error(t('error.generic'));
     } finally {
       setAuditLoading(false);
     }
-  }, [currentUser?.schoolId, auditActionFilter, auditDateFrom, auditDateTo]);
+  }, [currentUser?.schoolId, auditActionFilter, auditEntityTypeFilter, auditDateFrom, auditDateTo, auditPage]);
 
   const loadUsers = useCallback(async () => {
     setUsersLoading(true);
@@ -425,7 +464,133 @@ export default function SettingsView() {
     if (tab === 'backup') {
       loadBackups();
     }
-  }, [isAdmin, loadDemoAccounts, loadBackups]);
+    if (tab === 'district' && isSuperAdmin) {
+      loadDistricts();
+    }
+  }, [isAdmin, loadDemoAccounts, loadBackups, isSuperAdmin]);
+
+  // District handlers
+  const loadDistricts = useCallback(async () => {
+    setDistrictsLoading(true);
+    try {
+      const data = await fetchDistricts();
+      setDistricts(data);
+    } catch {
+      // ignore
+    } finally {
+      setDistrictsLoading(false);
+    }
+  }, []);
+
+  const loadDistrictSchoolsData = useCallback(async (districtId: string) => {
+    setSelectedDistrictId(districtId);
+    setDistrictSchoolsLoading(true);
+    try {
+      const data = await fetchDistrictSchools(districtId);
+      setDistrictSchools(data);
+    } catch {
+      // ignore
+    } finally {
+      setDistrictSchoolsLoading(false);
+    }
+  }, []);
+
+  const handleCreateDistrict = async () => {
+    setDistrictSaving(true);
+    try {
+      await createDistrict({
+        name: districtForm.name,
+        code: districtForm.code || undefined,
+        region: districtForm.region || undefined,
+        country: districtForm.country,
+        adminEmail: districtForm.adminEmail || undefined,
+      });
+      toast.success(t('district.create'));
+      setDistrictDialogOpen(false);
+      resetDistrictForm();
+      loadDistricts();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : t('error.generic'));
+    } finally {
+      setDistrictSaving(false);
+    }
+  };
+
+  const handleUpdateDistrict = async () => {
+    if (!editingDistrict) return;
+    setDistrictSaving(true);
+    try {
+      await updateDistrict(editingDistrict.id, {
+        name: districtForm.name,
+        code: districtForm.code || undefined,
+        region: districtForm.region || undefined,
+        country: districtForm.country,
+        adminEmail: districtForm.adminEmail || undefined,
+      });
+      toast.success(t('district.edit'));
+      setDistrictDialogOpen(false);
+      setEditingDistrict(null);
+      resetDistrictForm();
+      loadDistricts();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : t('error.generic'));
+    } finally {
+      setDistrictSaving(false);
+    }
+  };
+
+  const handleDeleteDistrict = async (id: string) => {
+    try {
+      await deleteDistrict(id);
+      toast.success(t('district.delete'));
+      setDeleteDistrictId(null);
+      if (selectedDistrictId === id) setSelectedDistrictId(null);
+      loadDistricts();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : t('error.generic'));
+    }
+  };
+
+  const handleAssignSchool = async () => {
+    if (!selectedDistrictId || !assignSchoolId) return;
+    try {
+      await assignSchoolToDistrict(selectedDistrictId, assignSchoolId);
+      toast.success(t('district.assign_school'));
+      setAssignSchoolId('');
+      loadDistrictSchoolsData(selectedDistrictId);
+      loadDistricts();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : t('error.generic'));
+    }
+  };
+
+  const handleUnassignSchool = async (schoolId: string) => {
+    // Unassign by setting districtId to null on the school
+    try {
+      await apiPut(`/api/schools`, { id: schoolId, districtId: null });
+      toast.success(t('district.unassign_school'));
+      if (selectedDistrictId) loadDistrictSchoolsData(selectedDistrictId);
+      loadDistricts();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : t('error.generic'));
+    }
+  };
+
+  const openEditDistrict = (district: SchoolDistrictData) => {
+    setEditingDistrict(district);
+    setDistrictForm({
+      name: district.name,
+      code: district.code ?? '',
+      region: district.region ?? '',
+      country: district.country,
+      adminEmail: district.adminEmail ?? '',
+    });
+    setDistrictDialogOpen(true);
+  };
+
+  const resetDistrictForm = () => {
+    setDistrictForm({ name: '', code: '', region: '', country: 'DE', adminEmail: '' });
+  };
 
   const handleCreateBackup = useCallback(async () => {
     if (!currentUser?.schoolId) return;
@@ -961,6 +1126,16 @@ export default function SettingsView() {
             <TabsTrigger value="backup" className="rounded-lg min-h-[44px] data-[state=active]:bg-teal-500 data-[state=active]:text-white">
               <HardDrive className="h-4 w-4 mr-1.5" />
               <span className="hidden sm:inline">{t('backup.title')}</span>
+            </TabsTrigger>
+            {isSuperAdmin && (
+              <TabsTrigger value="district" className="rounded-lg min-h-[44px] data-[state=active]:bg-violet-500 data-[state=active]:text-white">
+                <Building2 className="h-4 w-4 mr-1.5" />
+                <span className="hidden sm:inline">{t('district.title')}</span>
+              </TabsTrigger>
+            )}
+            <TabsTrigger value="rate-limit" className="rounded-lg min-h-[44px] data-[state=active]:bg-rose-500 data-[state=active]:text-white">
+              <Shield className="h-4 w-4 mr-1.5" />
+              <span className="hidden sm:inline">{t('rate_limit.status_title')}</span>
             </TabsTrigger>
           </TabsList>
 
@@ -1692,12 +1867,29 @@ export default function SettingsView() {
           <TabsContent value="audit">
             <Card className="border-0 shadow-sm rounded-xl border-l-3 border-l-violet-500 overflow-hidden">
               <CardHeader className="bg-gradient-to-r from-violet-50/50 to-transparent dark:from-violet-900/10 dark:to-transparent">
-                <CardTitle className="flex items-center gap-2">
-                  <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-violet-100 dark:bg-violet-900/30 text-violet-600 dark:text-violet-400">
-                    <Shield className="h-4 w-4" />
-                  </div>
-                  {t('settings.audit_title')}
-                </CardTitle>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="flex items-center gap-2">
+                    <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-violet-100 dark:bg-violet-900/30 text-violet-600 dark:text-violet-400">
+                      <Shield className="h-4 w-4" />
+                    </div>
+                    {t('settings.audit_title')}
+                  </CardTitle>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => exportAuditLogCsv({
+                      schoolId: currentUser?.schoolId ?? undefined,
+                      action: auditActionFilter !== 'all' ? auditActionFilter : undefined,
+                      entityType: auditEntityTypeFilter !== 'all' ? auditEntityTypeFilter : undefined,
+                      startDate: auditDateFrom || undefined,
+                      endDate: auditDateTo || undefined,
+                    })}
+                    className="h-8 rounded-lg border-violet-200 dark:border-violet-900/30 text-violet-700 dark:text-violet-300 min-h-[36px]"
+                  >
+                    <FileDown className="h-3.5 w-3.5 mr-1" />
+                    {t('audit.export_csv')}
+                  </Button>
+                </div>
                 <CardDescription>{t('settings.audit_action')} & {t('settings.audit_timestamp')}</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -1724,8 +1916,8 @@ export default function SettingsView() {
                   ].map((chip) => (
                     <button
                       key={chip.value}
-                      onClick={() => setAuditActionFilter(chip.value)}
-                      className={`px-2.5 py-1 rounded-md text-xs font-medium transition-all ${
+                      onClick={() => { setAuditActionFilter(chip.value); setAuditPage(1); }}
+                      className={`px-2.5 py-1 rounded-md text-xs font-medium transition-all min-h-[36px] ${
                         auditActionFilter === chip.value
                           ? `${chip.color} ring-1 shadow-sm`
                           : 'bg-white/60 dark:bg-gray-800/40 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 border border-gray-200/50 dark:border-gray-700/30'
@@ -1736,6 +1928,30 @@ export default function SettingsView() {
                   ))}
                 </div>
 
+                {/* Entity type filter */}
+                <div className="flex flex-wrap gap-1.5">
+                  <Label className="text-xs text-gray-500 dark:text-gray-400 self-center">{t('audit.entity_type_filter')}</Label>
+                  {(() => {
+                    const entityTypes = Array.from(new Set(auditEntries.map((e) => e.entityType))).sort();
+                    return [
+                      { value: 'all', label: t('audit.all_entity_types') },
+                      ...entityTypes.map((et) => ({ value: et, label: et })),
+                    ].map((chip) => (
+                      <button
+                        key={chip.value}
+                        onClick={() => { setAuditEntityTypeFilter(chip.value); setAuditPage(1); }}
+                        className={`px-2 py-1 rounded-md text-xs font-medium transition-all min-h-[36px] ${
+                          auditEntityTypeFilter === chip.value
+                            ? 'bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300 ring-1 ring-violet-300 dark:ring-violet-700'
+                            : 'bg-white/60 dark:bg-gray-800/40 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 border border-gray-200/50 dark:border-gray-700/30'
+                        }`}
+                      >
+                        {chip.label}
+                      </button>
+                    ));
+                  })()}
+                </div>
+
                 {/* Date filters */}
                 <div className="flex flex-wrap gap-3 items-end">
                   <div className="space-y-1">
@@ -1743,7 +1959,7 @@ export default function SettingsView() {
                     <Input
                       type="date"
                       value={auditDateFrom}
-                      onChange={(e) => setAuditDateFrom(e.target.value)}
+                      onChange={(e) => { setAuditDateFrom(e.target.value); setAuditPage(1); }}
                       className="h-8 w-36 rounded-lg text-xs border-violet-200 dark:border-violet-900/30"
                     />
                   </div>
@@ -1752,7 +1968,7 @@ export default function SettingsView() {
                     <Input
                       type="date"
                       value={auditDateTo}
-                      onChange={(e) => setAuditDateTo(e.target.value)}
+                      onChange={(e) => { setAuditDateTo(e.target.value); setAuditPage(1); }}
                       className="h-8 w-36 rounded-lg text-xs border-violet-200 dark:border-violet-900/30"
                     />
                   </div>
@@ -1760,7 +1976,7 @@ export default function SettingsView() {
                     variant="outline"
                     size="sm"
                     onClick={loadAuditLog}
-                    className="h-8 rounded-lg border-violet-200 dark:border-violet-900/30 text-violet-700 dark:text-violet-300"
+                    className="h-8 rounded-lg border-violet-200 dark:border-violet-900/30 text-violet-700 dark:text-violet-300 min-h-[36px]"
                   >
                     <RefreshCw className="h-3.5 w-3.5 mr-1" />
                     {t('action.refresh')}
@@ -1824,7 +2040,8 @@ export default function SettingsView() {
                           initial={{ opacity: 0, x: -8 }}
                           animate={{ opacity: 1, x: 0 }}
                           transition={{ delay: i * 0.03 }}
-                          className="relative flex items-start gap-4 pl-4 py-3 group"
+                          className="relative flex items-start gap-4 pl-4 py-3 group cursor-pointer"
+                          onClick={() => setAuditDetailEntry(entry)}
                         >
                           {/* Timeline dot */}
                           <div className={`absolute left-3.5 w-3 h-3 rounded-full ring-2 ring-white dark:ring-gray-900 shrink-0 ${dotColor} group-hover:scale-125 transition-transform`} style={{ zIndex: 1 }} />
@@ -1864,6 +2081,9 @@ export default function SettingsView() {
                                 </div>
                                 <span>{actorName}</span>
                               </div>
+                              {entry.ipAddress && (
+                                <span className="text-gray-400 dark:text-gray-500 ml-2">IP: {entry.ipAddress}</span>
+                              )}
                             </div>
                           </div>
                         </motion.div>
@@ -1872,8 +2092,115 @@ export default function SettingsView() {
                   </div>
                   );
                 })()}
+
+                {/* Pagination */}
+                {auditTotalPages > 1 && (
+                  <div className="flex items-center justify-center gap-2 pt-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={auditPage <= 1}
+                      onClick={() => setAuditPage((p) => Math.max(1, p - 1))}
+                      className="h-8 min-h-[36px] rounded-lg border-violet-200 dark:border-violet-900/30"
+                    >
+                      {t('audit.previous')}
+                    </Button>
+                    <span className="text-xs text-gray-500 dark:text-gray-400">
+                      {t('audit.page')} {auditPage} {t('audit.of')} {auditTotalPages}
+                    </span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={auditPage >= auditTotalPages}
+                      onClick={() => setAuditPage((p) => Math.min(auditTotalPages, p + 1))}
+                      className="h-8 min-h-[36px] rounded-lg border-violet-200 dark:border-violet-900/30"
+                    >
+                      {t('audit.next')}
+                    </Button>
+                  </div>
+                )}
               </CardContent>
             </Card>
+
+            {/* Audit Detail Dialog */}
+            <Dialog open={!!auditDetailEntry} onOpenChange={(o) => { if (!o) setAuditDetailEntry(null); }}>
+              <DialogContent className="sm:max-w-[560px] max-h-[90vh] overflow-y-auto">
+                {auditDetailEntry && (
+                  <>
+                    <DialogHeader>
+                      <DialogTitle className="flex items-center gap-2">
+                        <Shield className="h-5 w-5 text-violet-500" />
+                        {t('audit.detail')}
+                      </DialogTitle>
+                      <DialogDescription>
+                        {auditDetailEntry.action} - {auditDetailEntry.entityType}
+                      </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-3 py-1">
+                      <div className="grid grid-cols-2 gap-3 text-sm">
+                        <div>
+                          <Label className="text-[10px] uppercase tracking-wider text-gray-500 font-semibold">{t('settings.audit_action')}</Label>
+                          <p className="mt-1 font-medium">{auditDetailEntry.action}</p>
+                        </div>
+                        <div>
+                          <Label className="text-[10px] uppercase tracking-wider text-gray-500 font-semibold">{t('audit.entity_type')}</Label>
+                          <p className="mt-1 font-medium">{auditDetailEntry.entityType}</p>
+                        </div>
+                        <div>
+                          <Label className="text-[10px] uppercase tracking-wider text-gray-500 font-semibold">{t('settings.audit_timestamp')}</Label>
+                          <p className="mt-1 text-xs">{new Date(auditDetailEntry.timestamp).toLocaleString()}</p>
+                        </div>
+                        <div>
+                          <Label className="text-[10px] uppercase tracking-wider text-gray-500 font-semibold">ID</Label>
+                          <p className="mt-1 text-xs font-mono">{auditDetailEntry.entityId ?? '-'}</p>
+                        </div>
+                        {auditDetailEntry.ipAddress && (
+                          <div>
+                            <Label className="text-[10px] uppercase tracking-wider text-gray-500 font-semibold">{t('audit.ip_address')}</Label>
+                            <p className="mt-1 text-xs">{auditDetailEntry.ipAddress}</p>
+                          </div>
+                        )}
+                        {auditDetailEntry.userAgent && (
+                          <div>
+                            <Label className="text-[10px] uppercase tracking-wider text-gray-500 font-semibold">{t('audit.user_agent')}</Label>
+                            <p className="mt-1 text-xs truncate max-w-[200px]">{auditDetailEntry.userAgent}</p>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Changes before/after */}
+                      {auditDetailEntry.changes && (() => {
+                        try {
+                          const parsed = JSON.parse(auditDetailEntry.changes);
+                          return (
+                            <div className="space-y-2">
+                              {parsed.before && (
+                                <div>
+                                  <Label className="text-[10px] uppercase tracking-wider text-rose-500 font-semibold">{t('audit.before')}</Label>
+                                  <pre className="mt-1 p-2 rounded-lg bg-rose-50 dark:bg-rose-950/20 text-xs text-rose-700 dark:text-rose-300 overflow-auto max-h-40 font-mono whitespace-pre-wrap">
+                                    {JSON.stringify(parsed.before, null, 2)}
+                                  </pre>
+                                </div>
+                              )}
+                              {parsed.after && (
+                                <div>
+                                  <Label className="text-[10px] uppercase tracking-wider text-emerald-500 font-semibold">{t('audit.after')}</Label>
+                                  <pre className="mt-1 p-2 rounded-lg bg-emerald-50 dark:bg-emerald-950/20 text-xs text-emerald-700 dark:text-emerald-300 overflow-auto max-h-40 font-mono whitespace-pre-wrap">
+                                    {JSON.stringify(parsed.after, null, 2)}
+                                  </pre>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        } catch {
+                          return <p className="text-xs text-gray-500">{t('audit.no_changes')}</p>;
+                        }
+                      })()}
+                    </div>
+                  </>
+                )}
+              </DialogContent>
+            </Dialog>
           </TabsContent>
 
           {/* ── Data Management Tab ─────────────────────────────── */}
@@ -2523,6 +2850,364 @@ export default function SettingsView() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* ── District Tab (SUPER_ADMIN only) ─────────────────────────── */}
+      {isSuperAdmin && (
+        <TabsContent value="district">
+          <div className="space-y-6">
+            {/* District Management Card */}
+            <Card className="border-0 shadow-sm rounded-xl overflow-hidden">
+              <CardHeader className="pb-3 pt-6 bg-gradient-to-r from-violet-50/50 to-transparent dark:from-violet-900/10 dark:to-transparent">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-lg font-bold flex items-center gap-2">
+                    <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-violet-100 dark:bg-violet-900/30 text-violet-600 dark:text-violet-400">
+                      <Building2 className="h-4 w-4" />
+                    </div>
+                    {t('district.title')}
+                  </CardTitle>
+                  <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
+                    <Button
+                      className="bg-gradient-to-r from-violet-500 to-purple-500 hover:from-violet-600 hover:to-purple-600 text-white shadow-md shadow-violet-300/20 rounded-xl min-h-[44px]"
+                      onClick={() => { resetDistrictForm(); setEditingDistrict(null); setDistrictDialogOpen(true); }}
+                    >
+                      <Plus className="h-4 w-4 mr-1.5" />
+                      {t('district.create')}
+                    </Button>
+                  </motion.div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {districtsLoading ? (
+                  <div className="space-y-3">
+                    {Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-24 rounded-xl" />)}
+                  </div>
+                ) : districts.length === 0 ? (
+                  <div className="text-center py-12">
+                    <div className="flex items-center justify-center w-20 h-20 rounded-3xl bg-gradient-to-br from-violet-100 to-purple-100 dark:from-violet-900/30 dark:to-purple-900/30 mx-auto mb-5 shadow-md shadow-violet-200/40 dark:shadow-violet-900/20">
+                      <Building2 className="h-10 w-10 text-violet-500 dark:text-violet-400" />
+                    </div>
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-1">{t('district.no_districts')}</h3>
+                    <p className="text-sm text-muted-foreground max-w-md mx-auto">{t('district.no_districts_desc')}</p>
+                    <Button className="mt-5 bg-gradient-to-r from-violet-500 to-purple-500 hover:from-violet-600 hover:to-purple-600 text-white rounded-xl min-h-[44px]" onClick={() => { resetDistrictForm(); setEditingDistrict(null); setDistrictDialogOpen(true); }}>
+                      <Plus className="h-4 w-4 mr-1" />
+                      {t('district.create')}
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {districts.map((district) => (
+                      <motion.div
+                        key={district.id}
+                        whileHover={{ scale: 1.01 }}
+                        className="district-card p-5 bg-white dark:bg-gray-950 border border-gray-100 dark:border-gray-800 cursor-pointer"
+                        onClick={() => loadDistrictSchoolsData(district.id)}
+                      >
+                        <div className="flex items-center gap-3 mb-3">
+                          <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-gradient-to-br from-violet-400 to-purple-500 text-white shadow-sm">
+                            <Building2 className="h-5 w-5" />
+                          </div>
+                          <div className="min-w-0">
+                            <p className="font-semibold text-gray-900 dark:text-gray-100 text-sm truncate">{district.name}</p>
+                            <div className="flex items-center gap-2 mt-0.5">
+                              {district.code && (
+                                <span className="text-xs text-gray-500 dark:text-gray-400">{district.code}</span>
+                              )}
+                              {district.region && (
+                                <span className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-0.5">
+                                  <MapPin className="h-3 w-3" />{district.region}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-3 mb-3">
+                          <Badge className="bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300 text-[10px] px-1.5 py-0 rounded-xl">
+                            {t('district.school_count')}: {district.schools.length}
+                          </Badge>
+                          {district.isActive ? (
+                            <Badge className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300 text-[10px] px-1.5 py-0 rounded-xl">
+                              {t('schedules.active')}
+                            </Badge>
+                          ) : (
+                            <Badge className="bg-gray-100 text-gray-500 dark:bg-gray-900/30 dark:text-gray-400 text-[10px] px-1.5 py-0 rounded-xl">
+                              {t('schedules.inactive')}
+                            </Badge>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="min-h-[44px] min-w-[44px] rounded-xl text-gray-400 hover:text-violet-500"
+                            onClick={(e) => { e.stopPropagation(); openEditDistrict(district); }}
+                            aria-label={t('action.edit')}
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="min-h-[44px] min-w-[44px] rounded-xl text-gray-400 hover:text-rose-500"
+                            onClick={(e) => { e.stopPropagation(); setDeleteDistrictId(district.id); }}
+                            aria-label={t('action.delete')}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </motion.div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* District Schools Detail */}
+            {selectedDistrictId && (
+              <Card className="border-0 shadow-sm rounded-xl border-l-3 border-l-violet-500 overflow-hidden">
+                <CardHeader className="pb-3 pt-6 bg-gradient-to-r from-violet-50/50 to-transparent dark:from-violet-900/10 dark:to-transparent">
+                  <CardTitle className="text-base font-bold flex items-center gap-2">
+                    <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-violet-100 dark:bg-violet-900/30 text-violet-600 dark:text-violet-400">
+                      <School className="h-4 w-4" />
+                    </div>
+                    {t('district.schools')}
+                    {districts.find((d) => d.id === selectedDistrictId) && (
+                      <span className="text-sm font-normal text-gray-500 dark:text-gray-400">
+                        · {districts.find((d) => d.id === selectedDistrictId)!.name}
+                      </span>
+                    )}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {/* Assign school */}
+                  <div className="flex flex-wrap items-end gap-3">
+                    <div className="space-y-1 min-w-[200px]">
+                      <Label className="text-sm font-medium">{t('district.assign_school')}</Label>
+                      <Select value={assignSchoolId} onValueChange={setAssignSchoolId}>
+                        <SelectTrigger className="rounded-xl border-violet-200/50 dark:border-violet-900/30">
+                          <SelectValue placeholder={t('district.select_school')} />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {schools
+                            .filter((s) => !districtSchools.find((ds) => ds.id === s.id))
+                            .map((s) => (
+                              <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                            ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <Button
+                      className="bg-gradient-to-r from-violet-500 to-purple-500 hover:from-violet-600 hover:to-purple-600 text-white rounded-xl min-h-[44px]"
+                      onClick={handleAssignSchool}
+                      disabled={!assignSchoolId}
+                    >
+                      <Plus className="h-4 w-4 mr-1" />
+                      {t('district.assign_school')}
+                    </Button>
+                  </div>
+
+                  {/* Schools list */}
+                  {districtSchoolsLoading ? (
+                    <div className="space-y-3">
+                      {Array.from({ length: 2 }).map((_, i) => <Skeleton key={i} className="h-20 rounded-xl" />)}
+                    </div>
+                  ) : districtSchools.length === 0 ? (
+                    <div className="text-center py-8">
+                      <School className="h-8 w-8 text-violet-400 dark:text-violet-500 mx-auto mb-2" />
+                      <p className="text-gray-500 dark:text-gray-400">{t('district.no_schools_assigned')}</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-3 max-h-96 overflow-y-auto scrollbar-education">
+                      {districtSchools.map((school) => (
+                        <div key={school.id} className="p-4 rounded-xl bg-gradient-to-r from-gray-50 to-gray-50/0 dark:from-gray-800/50 dark:to-gray-800/0 border-l-3 border-l-violet-400/40 hover:border-l-violet-500 transition-colors">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                              <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-violet-100 dark:bg-violet-900/30 text-violet-600 dark:text-violet-400">
+                                <School className="h-4 w-4" />
+                              </div>
+                              <div>
+                                <p className="font-semibold text-gray-900 dark:text-gray-100 text-sm">{school.name}</p>
+                                <div className="flex items-center gap-3 mt-0.5 text-xs text-gray-500 dark:text-gray-400">
+                                  <span>{t('district.total_students')}: {school._count.students}</span>
+                                  <span>{t('district.total_classes')}: {school._count.classGroups}</span>
+                                  <span>{t('district.total_teachers')}: {school._count.users}</span>
+                                </div>
+                              </div>
+                            </div>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="min-h-[44px] min-w-[44px] text-gray-400 hover:text-rose-500 rounded-xl"
+                              onClick={() => handleUnassignSchool(school.id)}
+                              aria-label={t('district.unassign_school')}
+                            >
+                              <ArrowRightLeft className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Cross-School Comparison */}
+            {districts.length > 0 && (
+              <Card className="border-0 shadow-sm rounded-xl border-l-3 border-l-purple-500 overflow-hidden">
+                <CardHeader className="pb-3 pt-6 bg-gradient-to-r from-purple-50/50 to-transparent dark:from-purple-900/10 dark:to-transparent">
+                  <CardTitle className="text-base font-bold flex items-center gap-2">
+                    <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400">
+                      <BarChart3 className="h-4 w-4" />
+                    </div>
+                    {t('district.cross_school_comparison')}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="cross-school-comparison">
+                    {districts.map((district) => {
+                      const totalStudents = district.schools.length;
+                      const maxSchools = Math.max(...districts.map((d) => d.schools.length), 1);
+                      const pct = Math.round((totalStudents / maxSchools) * 100);
+                      return (
+                        <div key={district.id} className="p-4 rounded-xl bg-gradient-to-r from-gray-50 to-gray-50/0 dark:from-gray-800/50 dark:to-gray-800/0">
+                          <div className="flex items-center justify-between mb-2">
+                            <p className="font-semibold text-gray-900 dark:text-gray-100 text-sm">{district.name}</p>
+                            <div className="flex items-center gap-2">
+                              <Badge className="bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300 text-[10px] px-1.5 py-0 rounded-xl">
+                                {district.schools.length} {t('district.schools')}
+                              </Badge>
+                              {totalStudents === maxSchools && districts.length > 1 && (
+                                <Badge className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300 text-[10px] px-1.5 py-0 rounded-xl">
+                                  <ArrowUpRight className="h-3 w-3 mr-0.5" />
+                                  {t('district.top_performing')}
+                                </Badge>
+                              )}
+                            </div>
+                          </div>
+                          <div className="comparison-bar">
+                            <div
+                              className="comparison-bar-fill bg-gradient-to-r from-violet-400 to-purple-500"
+                              style={{ width: `${pct}%` }}
+                            />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+          </div>
+        </TabsContent>
+      )}
+
+      {/* ── District Create/Edit Dialog ─────────────────────────────── */}
+      <Dialog open={districtDialogOpen} onOpenChange={(open) => { if (!open) { setDistrictDialogOpen(false); setEditingDistrict(null); } }}>
+        <DialogContent className="rounded-xl">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-bold">
+              {editingDistrict ? t('district.edit') : t('district.create')}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-5 pt-2">
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">{t('district.name')}</Label>
+              <Input
+                value={districtForm.name}
+                onChange={(e) => setDistrictForm({ ...districtForm, name: e.target.value })}
+                className="rounded-xl border-violet-200/50 dark:border-violet-900/30"
+                placeholder={t('district.name')}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">{t('district.code')}</Label>
+                <Input
+                  value={districtForm.code}
+                  onChange={(e) => setDistrictForm({ ...districtForm, code: e.target.value })}
+                  className="rounded-xl border-violet-200/50 dark:border-violet-900/30"
+                  placeholder="DE-NW-001"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">{t('district.region')}</Label>
+                <Input
+                  value={districtForm.region}
+                  onChange={(e) => setDistrictForm({ ...districtForm, region: e.target.value })}
+                  className="rounded-xl border-violet-200/50 dark:border-violet-900/30"
+                  placeholder="Nordrhein-Westfalen"
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">{t('district.country')}</Label>
+                <Input
+                  value={districtForm.country}
+                  onChange={(e) => setDistrictForm({ ...districtForm, country: e.target.value })}
+                  className="rounded-xl border-violet-200/50 dark:border-violet-900/30"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">{t('district.admin_email')}</Label>
+                <Input
+                  type="email"
+                  value={districtForm.adminEmail}
+                  onChange={(e) => setDistrictForm({ ...districtForm, adminEmail: e.target.value })}
+                  className="rounded-xl border-violet-200/50 dark:border-violet-900/30"
+                  placeholder="admin@bezirk.de"
+                />
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setDistrictDialogOpen(false); setEditingDistrict(null); }} className="rounded-xl">{t('action.cancel')}</Button>
+            <Button
+              className="bg-gradient-to-r from-violet-500 to-purple-500 hover:from-violet-600 hover:to-purple-600 text-white rounded-xl shadow-md min-h-[44px]"
+              onClick={editingDistrict ? handleUpdateDistrict : handleCreateDistrict}
+              disabled={districtSaving || !districtForm.name}
+            >
+              {districtSaving ? t('empty.loading') : (editingDistrict ? t('action.save') : t('district.create'))}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── District Delete Confirmation ────────────────────────────── */}
+      <AlertDialog open={!!deleteDistrictId} onOpenChange={(open) => { if (!open) setDeleteDistrictId(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t('district.confirm_delete')}</AlertDialogTitle>
+            <AlertDialogDescription>{t('district.confirm_delete_desc')}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t('action.cancel')}</AlertDialogCancel>
+            <AlertDialogAction onClick={() => deleteDistrictId && handleDeleteDistrict(deleteDistrictId)} className="bg-rose-600 hover:bg-rose-700 text-white">
+              {t('action.delete')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* ── Rate Limit Tab ─────────────────────────────────────────── */}
+      <TabsContent value="rate-limit">
+        <Card className="border-0 shadow-sm rounded-xl border-l-3 border-l-rose-500 overflow-hidden">
+          <CardHeader className="pb-3 pt-6 bg-gradient-to-r from-rose-50/50 to-transparent dark:from-rose-900/10 dark:to-transparent">
+            <CardTitle className="text-lg font-bold flex items-center gap-2">
+              <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-rose-100 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400">
+                <Shield className="h-4 w-4" />
+              </div>
+              {t('rate_limit.status_title')}
+            </CardTitle>
+            <CardDescription className="text-xs text-gray-500 dark:text-gray-400">
+              {t('rate_limit.auth_limit')} · {t('rate_limit.data_limit')} · {t('rate_limit.write_limit')} · {t('rate_limit.heavy_limit')}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <RateLimitStatus />
+          </CardContent>
+        </Card>
+      </TabsContent>
     </motion.div>
   );
 }
