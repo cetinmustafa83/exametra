@@ -588,9 +588,9 @@ export default function CompetitionsView() {
   // Register
   const [isRegistering, setIsRegistering] = useState(false);
 
-  const isAdmin = currentUser?.role === 'admin';
-  const isTeacher = currentUser?.role === 'teacher';
-  const isStudent = currentUser?.role === 'student';
+  const isAdmin = currentUser?.role === 'SCHOOL_ADMIN' || currentUser?.role === 'SUPER_ADMIN';
+  const isTeacher = currentUser?.role === 'TEACHER';
+  const isStudent = currentUser?.role === 'STUDENT';
   const canCreate = isAdmin || isTeacher;
   const schoolId = currentUser?.schoolId;
 

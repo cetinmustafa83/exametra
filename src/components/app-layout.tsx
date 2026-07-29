@@ -58,6 +58,7 @@ import {
   Clock as ClockIcon,
   Library as LibraryIcon,
   Trophy,
+  FolderOpen,
 } from 'lucide-react';
 import {
   Sidebar,
@@ -237,6 +238,8 @@ const studentNavSections: NavSection[] = [
       { key: 'portfolio', icon: Briefcase, labelKey: 'nav.portfolio' },
       { key: 'calendar', icon: CalendarIconNav, labelKey: 'nav.calendar' },
       { key: 'competitions', icon: Trophy, labelKey: 'nav.competitions' },
+      { key: 'resources', icon: FolderOpen, labelKey: 'nav.resources' },
+      { key: 'settings', icon: Settings, labelKey: 'nav.settings' },
     ],
   },
 ];
@@ -250,7 +253,10 @@ const parentNavSections: NavSection[] = [
       { key: 'dashboard', icon: LayoutDashboard, labelKey: 'nav.dashboard' },
       { key: 'parents', icon: Mail, labelKey: 'parent.my_children' },
       { key: 'parents', icon: MessageSquareText, labelKey: 'parent.messages' },
+      { key: 'grading', icon: Calculator, labelKey: 'nav.student_grades' },
+      { key: 'attendance', icon: CalendarCheck, labelKey: 'nav.student_attendance' },
       { key: 'calendar', icon: CalendarIconNav, labelKey: 'nav.calendar' },
+      { key: 'competitions', icon: Trophy, labelKey: 'nav.competitions' },
     ],
   },
 ];

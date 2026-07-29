@@ -30,9 +30,8 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
     }
 
-    if (session.user?.role !== 'TEACHER' && session.user?.role !== 'SCHOOL_ADMIN' && session.user?.role !== 'SUPER_ADMIN') {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
+    const role = session.user?.role;
+    const isTeacherOrAdmin = role === 'TEACHER' || role === 'SCHOOL_ADMIN' || role === 'SUPER_ADMIN';
 
     const { searchParams } = new URL(request.url);
     const classGroupId = searchParams.get('classGroupId');
@@ -62,6 +61,47 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
+    // Students can only view their own attendance records
+    if (role === 'STUDENT') {
+      // Find the student record matching this user (by name + school)
+      const studentRecord = await db.student.findFirst({
+        where: {
+          schoolId: session.user.schoolId ?? undefined,
+          firstName: session.user.firstName,
+          lastName: session.user.lastName,
+          deletedAt: null,
+        },
+      });
+      if (!studentRecord) {
+        // No student record found for this user - return empty
+        return NextResponse.json([]);
+      }
+      // Verify the student is enrolled in this class
+      const enrollment = await db.enrollment.findFirst({
+        where: { classGroupId, studentId: studentRecord.id, endDate: null },
+      });
+      if (!enrollment) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      }
+    }
+
+    // Parents can view attendance if they have a child in the class
+    if (role === 'PARENT') {
+      const childEnrollment = await db.enrollment.findFirst({
+        where: { classGroupId, endDate: null },
+        include: {
+          student: {
+            include: {
+              parentLinks: { where: { parentId: session.userId } },
+            },
+          },
+        },
+      });
+      if (!childEnrollment || childEnrollment.student.parentLinks.length === 0) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      }
+    }
+
     const where: Record<string, unknown> = { classGroupId };
     if (dateFrom || dateTo) {
       const dateFilter: Record<string, unknown> = {};
@@ -87,6 +127,38 @@ export async function GET(request: Request) {
         },
       },
     });
+
+    // For students, filter records to only show their own
+    if (role === 'STUDENT') {
+      const studentRecord = await db.student.findFirst({
+        where: {
+          schoolId: session.user.schoolId ?? undefined,
+          firstName: session.user.firstName,
+          lastName: session.user.lastName,
+          deletedAt: null,
+        },
+      });
+      const studentId = studentRecord?.id ?? '';
+      const filteredSessions = sessions.map((s) => ({
+        ...s,
+        records: s.records.filter((r) => r.studentId === studentId),
+      }));
+      return NextResponse.json(filteredSessions);
+    }
+
+    // For parents, filter records to only show their children's
+    if (role === 'PARENT') {
+      const childIds = await db.parentStudentLink.findMany({
+        where: { parentId: session.userId },
+        select: { studentId: true },
+      });
+      const childIdSet = new Set(childIds.map((c) => c.studentId));
+      const filteredSessions = sessions.map((s) => ({
+        ...s,
+        records: s.records.filter((r) => childIdSet.has(r.studentId)),
+      }));
+      return NextResponse.json(filteredSessions);
+    }
 
     return NextResponse.json(sessions);
   } catch (error) {

@@ -15,7 +15,7 @@ import {
   Copy, FlaskConical, Languages, Calculator, Paintbrush, Megaphone,
   Strikethrough, Type, Highlighter, GripVertical,
   Clock, History, ZoomIn, ZoomOut, Image as ImageIcon,
-  Users as UsersIcon, Radio, MousePointer2,
+  Users as UsersIcon, Radio, MousePointer2, Columns2,
   ChevronRight, XCircle, Trophy, Zap, Flame, Dumbbell, Heart, RotateCcw, ArrowRight, Play,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -161,9 +161,10 @@ const NOTEBOOK_TEMPLATES: NotebookTemplate[] = [
     pages: [
       { title: 'Aufgaben', content: '# Aufgaben\n\n1. \n2. \n3. \n' },
       { title: 'Rechnungen', content: '# Rechnungen\n\n' },
-      { title: 'Formeln', content: '# Formeln\n\n' },
+      { title: 'Formeln', content: '# Formeln\n\n| Name | Formel |\n|------|--------|\n| Flaeche Rechteck | A = a · b |\n| Umfang Rechteck | U = 2·(a+b) |\n| Flaeche Dreieck | A = ½ · g · h |\n' },
       { title: 'Geometrie', content: '# Geometrie\n\n' },
       { title: 'Ergebnisse', content: '# Ergebnisse\n\n' },
+      { title: 'Kontrolle', content: '# Kontrolle\n\n| Aufgabe | Ergebnis | Richtig? |\n|---------|----------|----------|\n| 1 | | |\n| 2 | | |\n| 3 | | |\n' },
     ],
   },
   {
@@ -175,11 +176,12 @@ const NOTEBOOK_TEMPLATES: NotebookTemplate[] = [
     icon: 'BookOpen',
     iconComponent: BookOpen,
     pages: [
-      { title: 'Aufsaetze', content: '# Aufsaetze\n\n' },
-      { title: 'Lesetagebuch', content: '# Lesetagebuch\n\n' },
-      { title: 'Grammatik', content: '# Grammatik\n\n' },
-      { title: 'Rechtschreibung', content: '# Rechtschreibung\n\n' },
-      { title: 'Kreatives Schreiben', content: '# Kreatives Schreiben\n\n' },
+      { title: 'Aufsaetze', content: '# Aufsaetze\n\n**Einleitung:**\n\n**Hauptteil:**\n\n**Schluss:**\n\n' },
+      { title: 'Lesetagebuch', content: '# Lesetagebuch\n\n| Datum | Buch | Seiten | Meine Meinung |\n|-------|------|--------|---------------|\n| | | | |\n' },
+      { title: 'Grammatik', content: '# Grammatik\n\n**Wortart:** \n\n**Regel:** \n\n**Beispiele:**\n1. \n2. \n3. \n' },
+      { title: 'Rechtschreibung', content: '# Rechtschreibung\n\n| Falsch | Richtig | Regel |\n|--------|---------|-------|\n| | | |\n' },
+      { title: 'Kreatives Schreiben', content: '# Kreatives Schreiben\n\n**Freies Schreiben:**\n\n' },
+      { title: 'Textanalyse', content: '# Textanalyse\n\n**Titel:** \n\n**Autor:** \n\n**Textsorte:** \n\n**Zusammenfassung:**\n\n**Sprachliche Mittel:**\n\n' },
     ],
   },
   {
@@ -244,6 +246,52 @@ const NOTEBOOK_TEMPLATES: NotebookTemplate[] = [
       { title: 'Ergebnisse', content: '# Ergebnisse\n\n' },
       { title: 'Versuchsprotokoll', content: '# Versuchsprotokoll\n\nDatum:\n\nMaterial:\n\n' },
       { title: 'Fragen', content: '# Fragen\n\n' },
+    ],
+  },
+  {
+    key: 'grundschule',
+    titleKey: 'notebooks.template_grundschule',
+    descKey: 'notebooks.template_grundschule_desc',
+    notebookType: 'lined',
+    color: '#f97316',
+    icon: 'Book',
+    iconComponent: Book,
+    pages: [
+      { title: 'Wortschatz', content: '# Wortschatz\n\n| Wort | Artikel | Plural |\n|------|---------|--------|\n| | | |\n' },
+      { title: 'Schreiben lernen', content: '# Schreiben lernen\n\n' },
+      { title: 'Rechnen', content: '# Rechnen\n\n1. \n2. \n3. \n\n**Malfolgen:**\n\n| 1er | 2er | 5er | 10er |\n|-----|-----|-----|------|\n| 1 | 2 | 5 | 10 |\n| 2 | 4 | 10 | 20 |\n| 3 | 6 | 15 | 30 |\n' },
+      { title: 'Lesen', content: '# Lesen\n\n**Gelesenes Buch:**\n\n**Meine Meinung:**\n\n' },
+      { title: 'Sachkunde', content: '# Sachkunde\n\n**Thema:**\n\n**Was ich weiss:**\n\n**Was ich gelernt habe:**\n\n' },
+    ],
+  },
+  {
+    key: 'history',
+    titleKey: 'notebooks.template_history',
+    descKey: 'notebooks.template_history_desc',
+    notebookType: 'lined',
+    color: '#92400e',
+    icon: 'BookMarked',
+    iconComponent: BookMarked,
+    pages: [
+      { title: 'Zeitstrahl', content: '# Zeitstrahl\n\n| Jahr | Ereignis |\n|------|----------|\n| | |\n' },
+      { title: 'Quellenanalyse', content: '# Quellenanalyse\n\n**Quellenart:**\n\n**Entstehungszeit:**\n\n**Verfasser:**\n\n**Aussage:**\n\n**Historischer Kontext:**\n\n' },
+      { title: 'Begriffe', content: '# Begriffe\n\n| Begriff | Definition |\n|---------|------------|\n| | |\n' },
+      { title: 'Ursachen und Wirkungen', content: '# Ursachen und Wirkungen\n\n**Ursachen:**\n1. \n2. \n\n**Wirkungen:**\n1. \n2. \n' },
+    ],
+  },
+  {
+    key: 'religion',
+    titleKey: 'notebooks.template_religion',
+    descKey: 'notebooks.template_religion_desc',
+    notebookType: 'lined',
+    color: '#f97316',
+    icon: 'Heart',
+    iconComponent: Heart,
+    pages: [
+      { title: 'Bibelstellen', content: '# Bibelstellen\n\n| Stelle | Text | Bedeutung |\n|--------|------|----------|\n| | | |\n' },
+      { title: 'Gedanken', content: '# Gedanken\n\n' },
+      { title: 'Ethik', content: '# Ethik\n\n**Situation:**\n\n**Verschiedene Sichtweisen:**\n\n**Meine Meinung:**\n\n' },
+      { title: 'Weltreligionen', content: '# Weltreligionen\n\n| Religion | Gruender | Heilige Schrift |\n|----------|----------|----------------|\n| Christentum | Jesus | Bibel |\n| Islam | Mohammed | Koran |\n| Judentum | Moses | Tora |\n| Buddhismus | Buddha | Tripitaka |\n| Hinduismus | - | Veden |\n' },
     ],
   },
 ];
@@ -1017,7 +1065,8 @@ function NotebookDetailView({
   const [currentPageId, setCurrentPageId] = useState<string | null>(null);
   const [pageContent, setPageContent] = useState('');
   const [pageTitle, setPageTitle] = useState('');
-  const [drawingMode, setDrawingMode] = useState(false);
+  const [viewMode, setViewMode] = useState<'text' | 'split' | 'drawing'>('text');
+  const [splitRatio, setSplitRatio] = useState(50); // percentage for text side
   const [saving, setSaving] = useState(false);
   const [autoSaveStatus, setAutoSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
 
@@ -1534,16 +1583,38 @@ function NotebookDetailView({
           </Popover>
         )}
 
-        {/* Drawing mode toggle */}
-        <Button
-          variant={drawingMode ? 'default' : 'outline'}
-          size="sm"
-          onClick={() => setDrawingMode(!drawingMode)}
-          className={`min-h-[44px] shrink-0 transition-all ${drawingMode ? 'bg-emerald-600 hover:bg-emerald-700 shadow-md shadow-emerald-500/20' : ''}`}
-        >
-          <PenLine className="w-4 h-4 mr-1" />
-          {drawingMode ? t('notebooks.drawing_mode_exit') : t('notebooks.drawing_mode_toggle')}
-        </Button>
+        {/* View mode toggle — Text / Split / Drawing */}
+        <div className="flex items-center rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden shrink-0">
+          <Button
+            variant={viewMode === 'text' ? 'default' : 'ghost'}
+            size="sm"
+            onClick={() => setViewMode('text')}
+            className={`min-h-[40px] rounded-none border-0 px-3 ${viewMode === 'text' ? 'bg-emerald-600 hover:bg-emerald-700 text-white' : ''}`}
+            title={t('notebooks.view_text_only')}
+          >
+            <Edit3 className="w-4 h-4" />
+          </Button>
+          <div className="w-px h-6 bg-gray-200 dark:bg-gray-700" />
+          <Button
+            variant={viewMode === 'split' ? 'default' : 'ghost'}
+            size="sm"
+            onClick={() => setViewMode('split')}
+            className={`min-h-[40px] rounded-none border-0 px-3 ${viewMode === 'split' ? 'bg-emerald-600 hover:bg-emerald-700 text-white' : ''}`}
+            title={t('notebooks.view_split')}
+          >
+            <Columns2 className="w-4 h-4" />
+          </Button>
+          <div className="w-px h-6 bg-gray-200 dark:bg-gray-700" />
+          <Button
+            variant={viewMode === 'drawing' ? 'default' : 'ghost'}
+            size="sm"
+            onClick={() => setViewMode('drawing')}
+            className={`min-h-[40px] rounded-none border-0 px-3 ${viewMode === 'drawing' ? 'bg-emerald-600 hover:bg-emerald-700 text-white' : ''}`}
+            title={t('notebooks.view_drawing_only')}
+          >
+            <PenLine className="w-4 h-4" />
+          </Button>
+        </div>
 
         {/* Version history button */}
         <Button
@@ -1627,7 +1698,7 @@ function NotebookDetailView({
 
                     {/* Page info below thumbnail */}
                     <button
-                      onClick={() => { setCurrentPageId(page.id); setDrawingMode(false); }}
+                      onClick={() => { setCurrentPageId(page.id); }}
                       className={`w-full text-left p-2 rounded-b-lg text-sm transition-all min-h-[44px] flex items-center gap-2 ${
                         currentPageId === page.id
                           ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 font-medium'
@@ -1720,8 +1791,8 @@ function NotebookDetailView({
                 </Button>
               </div>
 
-              {drawingMode ? (
-                /* Drawing mode - render DrawingCanvas */
+              {viewMode === 'drawing' ? (
+                /* Full drawing mode - render DrawingCanvas */
                 <motion.div
                   initial={{ opacity: 0, x: 30 }}
                   animate={{ opacity: 1, x: 0 }}
@@ -1733,12 +1804,106 @@ function NotebookDetailView({
                     backgroundType={currentPage.background === 'music' || currentPage.background === 'calligraphy' ? 'blank' : (currentPage.background as 'blank' | 'lined' | 'grid' | 'dotted') ?? (notebook.notebookType as 'blank' | 'lined' | 'grid' | 'dotted')}
                     initialDrawingData={currentPage.drawingData ?? undefined}
                     onSave={handleDrawingSave}
-                    onExit={() => setDrawingMode(false)}
+                    onExit={() => setViewMode('text')}
                     title={currentPage.title ?? `${t('notebooks.page')} ${currentPage.pageNumber}`}
                   />
                 </motion.div>
+              ) : viewMode === 'split' ? (
+                /* Split view - text editor on left, drawing canvas on right */
+                <div className="flex-1 flex overflow-hidden">
+                  {/* Left: Text editor */}
+                  <div className="flex flex-col overflow-hidden" style={{ width: `${splitRatio}%` }}>
+                    <WysiwygToolbar editorRef={editorRef} onFormatChange={handleFormatChange} />
+                    <div className="flex-1 overflow-hidden p-3 relative">
+                      <div
+                        className="w-full h-full rounded-xl overflow-hidden"
+                        style={{ backgroundColor: '#fff' }}
+                      >
+                        <ScrollArea className="h-full">
+                          <div
+                            className="min-h-full p-6"
+                            style={getPageBackgroundCSS(currentPage.background ?? notebook.notebookType)}
+                            onMouseMove={handleEditorMouseMove}
+                          >
+                            <div
+                              ref={editorRef}
+                              contentEditable
+                              suppressContentEditableWarning
+                              onInput={handleEditorInput}
+                              data-placeholder={t('notebooks.page_content') + '...'}
+                              className="w-full min-h-[500px] bg-transparent outline-none text-base text-gray-800 dark:text-gray-200 focus:ring-0 prose prose-sm max-w-none [&:empty]:before:content-[attr(data-placeholder)] [&:empty]:before:text-gray-300 [&:empty]:dark:before:text-gray-600 [&_h1]:text-2xl [&_h1]:font-bold [&_h1]:mb-2 [&_h1]:mt-4 [&_h2]:text-xl [&_h2]:font-bold [&_h2]:mb-1.5 [&_h2]:mt-3 [&_h3]:text-lg [&_h3]:font-semibold [&_h3]:mb-1 [&_h3]:mt-2 [&_ul]:list-disc [&_ul]:pl-6 [&_ul]:mb-2 [&_ol]:list-decimal [&_ol]:pl-6 [&_ol]:mb-2 [&_li]:mb-0.5"
+                              style={{ lineHeight: notebook.notebookType === 'lined' || notebook.notebookType === 'calligraphy' ? '32px' : '1.5' }}
+                            />
+                          </div>
+                        </ScrollArea>
+                      </div>
+                      {cursors.filter(c => c.pageId === currentPage?.id).map((cursor) => (
+                        <motion.div
+                          key={cursor.userId}
+                          initial={{ opacity: 0, scale: 0.5 }}
+                          animate={{ opacity: 1, scale: 1 }}
+                          className="absolute pointer-events-none z-20"
+                          style={{
+                            left: `${cursor.x}%`,
+                            top: `${cursor.y}%`,
+                            transform: 'translate(-4px, -4px)',
+                          }}
+                        >
+                          <MousePointer2 className="w-4 h-4" style={{ color: cursor.color, fill: cursor.color }} />
+                          <div className="px-1.5 py-0.5 rounded text-[10px] font-bold text-white whitespace-nowrap mt-0.5" style={{ backgroundColor: cursor.color }}>
+                            {cursor.userName}
+                          </div>
+                        </motion.div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Resizable divider */}
+                  <div
+                    className="w-2 cursor-col-resize bg-gray-200 dark:bg-gray-700 hover:bg-emerald-400 dark:hover:bg-emerald-600 transition-colors flex items-center justify-center shrink-0"
+                    onMouseDown={(e) => {
+                      e.preventDefault();
+                      const startX = e.clientX;
+                      const startRatio = splitRatio;
+                      const container = e.currentTarget.parentElement;
+                      if (!container) return;
+                      const containerWidth = container.getBoundingClientRect().width;
+
+                      const handleMouseMove = (moveEvent: MouseEvent) => {
+                        const delta = moveEvent.clientX - startX;
+                        const newRatio = Math.min(80, Math.max(20, startRatio + (delta / containerWidth) * 100));
+                        setSplitRatio(newRatio);
+                      };
+                      const handleMouseUp = () => {
+                        document.removeEventListener('mousemove', handleMouseMove);
+                        document.removeEventListener('mouseup', handleMouseUp);
+                      };
+                      document.addEventListener('mousemove', handleMouseMove);
+                      document.addEventListener('mouseup', handleMouseUp);
+                    }}
+                  >
+                    <div className="w-0.5 h-8 bg-gray-400 dark:bg-gray-500 rounded-full" />
+                  </div>
+
+                  {/* Right: Drawing canvas */}
+                  <div className="flex flex-col overflow-hidden" style={{ width: `${100 - splitRatio}%` }}>
+                    <div className="flex items-center gap-2 px-3 py-2 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
+                      <PenLine className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                      <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{t('notebooks.handwriting_panel')}</span>
+                      <span className="text-xs text-gray-400 dark:text-gray-500 ml-auto">{t('notebooks.finger_stylus_hint')}</span>
+                    </div>
+                    <div className="flex-1 overflow-hidden">
+                      <DrawingCanvas
+                        backgroundType={currentPage.background === 'music' || currentPage.background === 'calligraphy' ? 'blank' : (currentPage.background as 'blank' | 'lined' | 'grid' | 'dotted') ?? (notebook.notebookType as 'blank' | 'lined' | 'grid' | 'dotted')}
+                        initialDrawingData={currentPage.drawingData ?? undefined}
+                        onSave={handleDrawingSave}
+                        title={currentPage.title ?? `${t('notebooks.page')} ${currentPage.pageNumber}`}
+                      />
+                    </div>
+                  </div>
+                </div>
               ) : (
-                /* Text editing area with WYSIWYG toolbar and page background */
+                /* Text-only mode with WYSIWYG toolbar and page background */
                 <div className="flex-1 flex flex-col overflow-hidden">
                   {/* WYSIWYG toolbar */}
                   <WysiwygToolbar editorRef={editorRef} onFormatChange={handleFormatChange} />
@@ -1802,7 +1967,7 @@ function NotebookDetailView({
                 <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
                   <span>{t('notebooks.page')} {currentPage.pageNumber} / {pages.length}</span>
                   {/* Drawing indicator when not in drawing mode */}
-                  {currentPage.drawingData && !drawingMode && (
+                  {currentPage.drawingData && viewMode === 'text' && (
                     <Badge variant="outline" className="text-xs gap-1 border-emerald-300 text-emerald-600 dark:border-emerald-700 dark:text-emerald-400">
                       <ImageIcon className="w-3 h-3" />
                       {t('notebooks.view_drawing')}
@@ -1811,11 +1976,11 @@ function NotebookDetailView({
                 </div>
                 <div className="flex items-center gap-2">
                   {/* View drawing button if page has drawing data */}
-                  {currentPage.drawingData && !drawingMode && (
+                  {currentPage.drawingData && viewMode === 'text' && (
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => setDrawingMode(true)}
+                      onClick={() => setViewMode('split')}
                       className="min-h-[44px]"
                     >
                       <ImageIcon className="w-4 h-4 mr-1" />

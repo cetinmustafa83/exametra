@@ -1605,3 +1605,43 @@ Unresolved Issues:
 - Email notification integration (SMTP) still pending
 - Advanced analytics dashboard refinements
 - Performance optimization for older tablets
+
+---
+Task ID: Round-20
+Agent: Main Agent
+Task: Fix Forbidden errors, enhance notebooks with split view, add German curriculum templates, fix role-based navigation
+Date: 2025-07-29
+
+Work Log:
+- **Fixed Forbidden (403) errors** for student and parent roles:
+  - `src/app/api/attendance/route.ts` — Students can now view their own attendance records (filtered by student record matching user name + school). Parents can view their children's attendance.
+  - `src/app/api/competitions/route.ts` — All authenticated users can now view competitions (GET). Only teachers/admins can create (POST).
+  - Fixed Student/User model mismatch: attendance API now correctly maps User.id to Student.id via name+school lookup.
+- **Enhanced notebooks with split view** (Text + Handwriting simultaneously):
+  - Replaced `drawingMode` boolean toggle with `viewMode` state: 'text' | 'split' | 'drawing'
+  - Added three view mode buttons: "Nur Text", "Text + Handschrift", "Nur Zeichnung"
+  - Split view shows text editor on left, drawing canvas on right with resizable divider
+  - Drawing canvas in split mode has "Handschrift-Panel" header with "Finger oder Stift" hint
+  - Resizable divider with mouse drag support (min 20%, max 80%)
+  - Added `Columns2` icon import from lucide-react
+- **Added more German curriculum notebook templates**:
+  - Enhanced Math template with formula tables and control table
+  - Enhanced German template with essay structure (Einleitung/Hauptteil/Schluss), reading journal, grammar rules, spelling table, text analysis
+  - Added Grundschule (Primary School) template with vocabulary, writing, math, reading, Sachkunde pages
+  - Added Geschichte (History) template with timeline, source analysis, terms, causes/effects
+  - Added Religion/Ethik template with Bible references, ethics, world religions comparison
+- **Fixed role-based navigation**:
+  - `src/components/competitions-view.tsx` — Fixed role comparisons from lowercase ('admin', 'teacher', 'student') to uppercase ('SCHOOL_ADMIN', 'TEACHER', 'STUDENT')
+  - `src/components/app-layout.tsx` — Added Resources and Settings to student navigation, added Grading, Attendance, and Competitions to parent navigation
+  - Added `FolderOpen` icon import
+- **Added i18n keys** for new features:
+  - German: view_text_only, view_split, view_drawing_only, handwriting_panel, finger_stylus_hint, template_grundschule, template_history, template_religion
+  - English: same keys with English translations
+
+Stage Summary:
+- Forbidden 403 errors for students/parents are now fixed for attendance and competitions
+- Notebooks now support split view (text + handwriting simultaneously) with resizable divider
+- Added 3 new German curriculum templates (Grundschule, Geschichte, Religion/Ethik)
+- Enhanced existing templates with more detailed content (math formulas, German essay structure, etc.)
+- Role-based navigation properly shows different menus for teacher, student, parent, admin
+- QA verified: student login works, student dashboard shows correct nav, attendance no longer 403, competitions no longer 403, split view works in notebooks

@@ -42,9 +42,7 @@ async function getCompetitions(request: Request): Promise<NextResponse> {
   try {
     const session = await getSession();
     if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
-    if (!isTeacherOrAdmin(session.user?.role)) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
+    // All authenticated users can view competitions (students, parents, teachers, admins)
 
     const { searchParams } = new URL(request.url);
     const schoolIdParam = searchParams.get('schoolId');
