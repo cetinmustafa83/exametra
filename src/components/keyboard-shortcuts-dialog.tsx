@@ -30,6 +30,10 @@ import {
   MessageSquareText,
   CalendarDays,
   Settings,
+  Palette,
+  FileDown,
+  Archive,
+  ArrowLeft,
 } from 'lucide-react';
 import {
   Dialog,
@@ -118,6 +122,18 @@ export default function KeyboardShortcutsDialog({ open, onOpenChange }: Keyboard
         { keys: ['Arrow Down'], labelKey: 'shortcuts.navigation', icon: ArrowDown },
         { keys: ['Enter'], labelKey: 'action.select', icon: Command },
         { keys: ['Esc'], labelKey: 'shortcuts.close_dialog', icon: X },
+      ],
+    },
+    {
+      titleKey: 'shortcuts.notebooks_drawing',
+      icon: BookOpen,
+      entries: [
+        { keys: ['Cmd/Ctrl', 'N'], labelKey: 'shortcuts.new_notebook', icon: BookOpen },
+        { keys: ['Cmd/Ctrl', 'D'], labelKey: 'shortcuts.drawing', icon: Palette },
+        { keys: ['Cmd/Ctrl', 'Shift', 'N'], labelKey: 'shortcuts.new_page', icon: Plus },
+        { keys: ['Cmd/Ctrl', 'E'], labelKey: 'shortcuts.export_pdf', icon: FileDown },
+        { keys: ['Cmd/Ctrl', 'Shift', 'A'], labelKey: 'shortcuts.archive_toggle', icon: Archive },
+        { keys: ['Cmd/Ctrl', '.'], labelKey: 'shortcuts.close_notebook', icon: ArrowLeft },
       ],
     },
   ];

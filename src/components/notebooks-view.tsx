@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState, useMemo, useCallback } from 'react';
+import React, { useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   BookOpen, Book, Archive, Grid3X3, AlignLeft, File,
@@ -8,6 +8,11 @@ import {
   MoreHorizontal, Music, PenTool, Search, X,
   Share2, Eye, EyeOff, Edit3, Hash, Bookmark,
   PenLine, Layers, BookMarked, Globe, Sparkles,
+  Bold, Italic as ItalicIcon, Underline as UnderlineIcon,
+  List, ListOrdered, AlignLeftIcon, AlignCenterIcon, AlignRightIcon,
+  Heading1, Heading2, Heading3, CheckCircle2,
+  User as UserIcon, GraduationCap, FileDown,
+  Copy, FlaskConical, Languages, Calculator, Paintbrush, Megaphone,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -16,10 +21,12 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { Switch } from '@/components/ui/switch';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useAppStore } from '@/lib/store';
 import { t } from '@/lib/i18n';
 import { apiGet, apiPost, apiPut, apiDelete } from '@/lib/api';
@@ -59,6 +66,10 @@ interface Notebook {
   createdAt: string;
   updatedAt: string;
   pages?: NotebookPage[];
+  _count?: { pages: number };
+  subject?: { id: string; name: string } | null;
+  classGroup?: { id: string; name: string } | null;
+  owner?: { id: string; firstName: string; lastName: string; role: string } | null;
 }
 
 interface Subject {
@@ -105,6 +116,118 @@ const ICON_MAP: Record<string, React.ElementType> = {
   BookOpen, Book, PenLine, Music, PenTool, Palette,
   Leaf, Star, Globe, Sparkles, Hash, Layers,
 };
+
+// ─── Template Definitions ────────────────────────────────────────────
+
+interface NotebookTemplate {
+  key: string;
+  titleKey: string;
+  descKey: string;
+  notebookType: string;
+  color: string;
+  icon: string;
+  iconComponent: React.ElementType;
+  pages: Array<{ title: string | null; content: string }>;
+}
+
+const NOTEBOOK_TEMPLATES: NotebookTemplate[] = [
+  {
+    key: 'math',
+    titleKey: 'notebooks.template_math',
+    descKey: 'notebooks.template_math_desc',
+    notebookType: 'grid',
+    color: '#3b82f6',
+    icon: 'Hash',
+    iconComponent: Calculator,
+    pages: [
+      { title: 'Aufgaben', content: '# Aufgaben\n\n1. \n2. \n3. \n' },
+      { title: 'Rechnungen', content: '# Rechnungen\n\n' },
+      { title: 'Formeln', content: '# Formeln\n\n' },
+      { title: 'Geometrie', content: '# Geometrie\n\n' },
+      { title: 'Ergebnisse', content: '# Ergebnisse\n\n' },
+    ],
+  },
+  {
+    key: 'german',
+    titleKey: 'notebooks.template_german',
+    descKey: 'notebooks.template_german_desc',
+    notebookType: 'lined',
+    color: '#ef4444',
+    icon: 'BookOpen',
+    iconComponent: BookOpen,
+    pages: [
+      { title: 'Aufsaetze', content: '# Aufsaetze\n\n' },
+      { title: 'Lesetagebuch', content: '# Lesetagebuch\n\n' },
+      { title: 'Grammatik', content: '# Grammatik\n\n' },
+      { title: 'Rechtschreibung', content: '# Rechtschreibung\n\n' },
+      { title: 'Kreatives Schreiben', content: '# Kreatives Schreiben\n\n' },
+    ],
+  },
+  {
+    key: 'english',
+    titleKey: 'notebooks.template_english',
+    descKey: 'notebooks.template_english_desc',
+    notebookType: 'lined',
+    color: '#f59e0b',
+    icon: 'Globe',
+    iconComponent: Languages,
+    pages: [
+      { title: 'Vocabulary', content: '# Vocabulary\n\n| English | Deutsch |\n|---------|--------|\n| | |\n| | |\n' },
+      { title: 'Grammar', content: '# Grammar\n\n' },
+      { title: 'Reading', content: '# Reading\n\n' },
+      { title: 'Writing', content: '# Writing\n\n' },
+      { title: 'Exercises', content: '# Exercises\n\n' },
+    ],
+  },
+  {
+    key: 'art',
+    titleKey: 'notebooks.template_art',
+    descKey: 'notebooks.template_art_desc',
+    notebookType: 'blank',
+    color: '#8b5cf6',
+    icon: 'Palette',
+    iconComponent: Paintbrush,
+    pages: [
+      { title: 'Skizzen', content: '' },
+      { title: 'Farbstudien', content: '' },
+      { title: 'Komposition', content: '' },
+      { title: 'Perspektive', content: '' },
+      { title: 'Portfolio', content: '' },
+    ],
+  },
+  {
+    key: 'music',
+    titleKey: 'notebooks.template_music',
+    descKey: 'notebooks.template_music_desc',
+    notebookType: 'music',
+    color: '#10b981',
+    icon: 'Music',
+    iconComponent: Music,
+    pages: [
+      { title: 'Noten', content: '' },
+      { title: 'Rhythmus', content: '' },
+      { title: 'Melodie', content: '' },
+      { title: 'Harmonie', content: '' },
+      { title: 'Komposition', content: '' },
+    ],
+  },
+  {
+    key: 'science',
+    titleKey: 'notebooks.template_science',
+    descKey: 'notebooks.template_science_desc',
+    notebookType: 'grid',
+    color: '#14b8a6',
+    icon: 'Book',
+    iconComponent: FlaskConical,
+    pages: [
+      { title: 'Versuche', content: '# Versuche\n\n**Fragestellung:**\n\n**Vermutung:**\n\n**Durchfuehrung:**\n\n**Beobachtung:**\n\n**Ergebnis:**\n' },
+      { title: 'Beobachtungen', content: '# Beobachtungen\n\n' },
+      { title: 'Ergebnisse', content: '# Ergebnisse\n\n' },
+      { title: 'Versuchsprotokoll', content: '# Versuchsprotokoll\n\nDatum:\n\nMaterial:\n\n' },
+      { title: 'Fragen', content: '# Fragen\n\n' },
+    ],
+  },
+];
 
 // ─── CSS Background Patterns ─────────────────────────────────────────
 
@@ -156,6 +279,173 @@ function getPageBackgroundCSS(type: string): React.CSSProperties {
   }
 }
 
+// ─── Rich Text Toolbar ───────────────────────────────────────────────
+
+function RichTextToolbar({ textareaRef }: { textareaRef: React.RefObject<HTMLTextAreaElement | null> }) {
+  // These functions only access ref.current inside event handlers (onClick), never during render
+  const applyFormat = (before: string, after: string) => () => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const text = textarea.value;
+    const selectedText = text.substring(start, end);
+    const newText = text.substring(0, start) + before + selectedText + after + text.substring(end);
+    const nativeInputValueSetter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value')?.set;
+    if (nativeInputValueSetter) {
+      nativeInputValueSetter.call(textarea, newText);
+    }
+    textarea.dispatchEvent(new Event('input', { bubbles: true }));
+    textarea.setSelectionRange(start + before.length + selectedText.length, start + before.length + selectedText.length);
+    textarea.focus();
+  };
+
+  const applyLinePrefix = (prefix: string) => () => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+    const start = textarea.selectionStart;
+    const text = textarea.value;
+    const lineStart = text.lastIndexOf('\n', start - 1) + 1;
+    const newText = text.substring(0, lineStart) + prefix + text.substring(lineStart);
+    const nativeInputValueSetter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value')?.set;
+    if (nativeInputValueSetter) {
+      nativeInputValueSetter.call(textarea, newText);
+    }
+    textarea.dispatchEvent(new Event('input', { bubbles: true }));
+    textarea.setSelectionRange(start + prefix.length, start + prefix.length);
+    textarea.focus();
+  };
+
+  const applyBlockPrefix = (prefix: string) => () => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const text = textarea.value;
+    const lineStart = text.lastIndexOf('\n', start - 1) + 1;
+    const lineEnd = text.indexOf('\n', end);
+    const actualEnd = lineEnd === -1 ? text.length : lineEnd;
+    const selectedLines = text.substring(lineStart, actualEnd);
+    const newLines = selectedLines.split('\n').map(line => prefix + line).join('\n');
+    const newText = text.substring(0, lineStart) + newLines + text.substring(actualEnd);
+    const nativeInputValueSetter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value')?.set;
+    if (nativeInputValueSetter) {
+      nativeInputValueSetter.call(textarea, newText);
+    }
+    textarea.dispatchEvent(new Event('input', { bubbles: true }));
+    textarea.setSelectionRange(start + prefix.length, start + prefix.length);
+    textarea.focus();
+  };
+
+  return (
+    <TooltipProvider delayDuration={300}>
+      <div className="flex items-center gap-1 px-3 py-2 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 overflow-x-auto">
+        {/* Format group */}
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button variant="ghost" size="sm" onClick={applyFormat('**', '**')} className="min-h-[36px] min-w-[36px] h-9 w-9 p-0 shrink-0">
+              <Bold className="w-4 h-4" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="bottom" className="text-xs">{t('notebooks.toolbar_bold')}</TooltipContent>
+        </Tooltip>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button variant="ghost" size="sm" onClick={applyFormat('*', '*')} className="min-h-[36px] min-w-[36px] h-9 w-9 p-0 shrink-0">
+              <ItalicIcon className="w-4 h-4" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="bottom" className="text-xs">{t('notebooks.toolbar_italic')}</TooltipContent>
+        </Tooltip>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button variant="ghost" size="sm" onClick={applyFormat('_', '_')} className="min-h-[36px] min-w-[36px] h-9 w-9 p-0 shrink-0">
+              <UnderlineIcon className="w-4 h-4" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="bottom" className="text-xs">{t('notebooks.toolbar_underline')}</TooltipContent>
+        </Tooltip>
+
+        <Separator orientation="vertical" className="h-5 mx-1" />
+
+        {/* Heading group */}
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button variant="ghost" size="sm" onClick={applyLinePrefix('# ')} className="min-h-[36px] min-w-[36px] h-9 w-9 p-0 shrink-0">
+              <Heading1 className="w-4 h-4" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="bottom" className="text-xs">{t('notebooks.toolbar_heading1')}</TooltipContent>
+        </Tooltip>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button variant="ghost" size="sm" onClick={applyLinePrefix('## ')} className="min-h-[36px] min-w-[36px] h-9 w-9 p-0 shrink-0">
+              <Heading2 className="w-4 h-4" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="bottom" className="text-xs">{t('notebooks.toolbar_heading2')}</TooltipContent>
+        </Tooltip>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button variant="ghost" size="sm" onClick={applyLinePrefix('### ')} className="min-h-[36px] min-w-[36px] h-9 w-9 p-0 shrink-0">
+              <Heading3 className="w-4 h-4" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="bottom" className="text-xs">{t('notebooks.toolbar_heading3')}</TooltipContent>
+        </Tooltip>
+
+        <Separator orientation="vertical" className="h-5 mx-1" />
+
+        {/* List group */}
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button variant="ghost" size="sm" onClick={applyBlockPrefix('- ')} className="min-h-[36px] min-w-[36px] h-9 w-9 p-0 shrink-0">
+              <List className="w-4 h-4" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="bottom" className="text-xs">{t('notebooks.toolbar_bullet_list')}</TooltipContent>
+        </Tooltip>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button variant="ghost" size="sm" onClick={applyBlockPrefix('1. ')} className="min-h-[36px] min-w-[36px] h-9 w-9 p-0 shrink-0">
+              <ListOrdered className="w-4 h-4" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="bottom" className="text-xs">{t('notebooks.toolbar_numbered_list')}</TooltipContent>
+        </Tooltip>
+
+        <Separator orientation="vertical" className="h-5 mx-1" />
+
+        {/* Alignment group */}
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button variant="ghost" size="sm" onClick={applyLinePrefix('')} className="min-h-[36px] min-w-[36px] h-9 w-9 p-0 shrink-0">
+              <AlignLeftIcon className="w-4 h-4" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="bottom" className="text-xs">{t('notebooks.toolbar_align_left')}</TooltipContent>
+        </Tooltip>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button variant="ghost" size="sm" onClick={applyLinePrefix('::center::\n')} className="min-h-[36px] min-w-[36px] h-9 w-9 p-0 shrink-0">
+              <AlignCenterIcon className="w-4 h-4" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="bottom" className="text-xs">{t('notebooks.toolbar_align_center')}</TooltipContent>
+        </Tooltip>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button variant="ghost" size="sm" onClick={applyLinePrefix('::right::\n')} className="min-h-[36px] min-w-[36px] h-9 w-9 p-0 shrink-0">
+              <AlignRightIcon className="w-4 h-4" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="bottom" className="text-xs">{t('notebooks.toolbar_align_right')}</TooltipContent>
+        </Tooltip>
+      </div>
+    </TooltipProvider>
+  );
+}
+
 // ─── Notebook Card Component ─────────────────────────────────────────
 
 function NotebookCard({
@@ -164,17 +454,26 @@ function NotebookCard({
   onOpen,
   onArchive,
   onDelete,
+  onShare,
+  onDuplicate,
+  isShared = false,
 }: {
   notebook: Notebook;
   subjectName: string | null;
   onOpen: () => void;
   onArchive: () => void;
   onDelete: () => void;
+  onShare?: () => void;
+  onDuplicate?: () => void;
+  isShared?: boolean;
 }) {
-  const pageCount = notebook.pages?.length ?? 0;
+  const pageCount = notebook._count?.pages ?? notebook.pages?.length ?? 0;
   const IconComponent = notebook.icon ? ICON_MAP[notebook.icon] ?? BookOpen : BookOpen;
   const typeInfo = NOTEBOOK_TYPES.find(nt => nt.key === notebook.notebookType) ?? NOTEBOOK_TYPES[0];
   const TypeIcon = typeInfo.icon;
+  const ownerName = notebook.owner
+    ? `${notebook.owner.firstName} ${notebook.owner.lastName}`
+    : null;
 
   return (
     <motion.div
@@ -201,10 +500,17 @@ function NotebookCard({
           />
           <IconComponent className="w-12 h-12 text-white/90 drop-shadow-md" />
           {/* Public badge */}
-          {notebook.isPublic && (
+          {notebook.isPublic && !isShared && (
             <Badge className="absolute top-2 right-2 bg-white/90 text-gray-700 text-xs border-0 shadow-sm">
+              <Globe className="w-3 h-3 mr-1" />
+              {t('notebooks.shared')}
+            </Badge>
+          )}
+          {/* Shared badge */}
+          {isShared && (
+            <Badge className="absolute top-2 right-2 bg-amber-50 text-amber-700 text-xs border-0 shadow-sm">
               <Share2 className="w-3 h-3 mr-1" />
-              {t('notebooks.public')}
+              {t('notebooks.shared_notebook')}
             </Badge>
           )}
           {/* Archive overlay */}
@@ -237,6 +543,14 @@ function NotebookCard({
             )}
           </div>
 
+          {/* Owner name for shared notebooks */}
+          {isShared && ownerName && (
+            <div className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400">
+              <UserIcon className="w-3 h-3" />
+              <span>{ownerName}</span>
+            </div>
+          )}
+
           {/* Page count */}
           <div className="flex items-center justify-between text-sm text-gray-500 dark:text-gray-400">
             <span className="flex items-center gap-1">
@@ -251,27 +565,51 @@ function NotebookCard({
             <span>{t('notebooks.eco_tip')}</span>
           </div>
 
-          {/* Action buttons */}
-          <div className="flex items-center gap-2 pt-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-8 px-2 text-xs"
-              onClick={(e) => { e.stopPropagation(); onArchive(); }}
-            >
-              <Archive className="w-3.5 h-3.5 mr-1" />
-              {notebook.isArchived ? t('notebooks.unarchive') : t('notebooks.archive')}
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-8 px-2 text-xs text-red-500 hover:text-red-600"
-              onClick={(e) => { e.stopPropagation(); onDelete(); }}
-            >
-              <Trash2 className="w-3.5 h-3.5 mr-1" />
-              {t('notebooks.delete')}
-            </Button>
-          </div>
+          {/* Action buttons — only show for own notebooks, not shared */}
+          {!isShared && (
+            <div className="flex items-center gap-1 pt-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex-wrap">
+              {onShare && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 px-2 text-xs"
+                  onClick={(e) => { e.stopPropagation(); onShare(); }}
+                >
+                  {notebook.isPublic ? <EyeOff className="w-3.5 h-3.5 mr-1" /> : <Share2 className="w-3.5 h-3.5 mr-1" />}
+                  {notebook.isPublic ? t('notebooks.unshare_confirm') : t('notebooks.share')}
+                </Button>
+              )}
+              {onDuplicate && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 px-2 text-xs"
+                  onClick={(e) => { e.stopPropagation(); onDuplicate(); }}
+                >
+                  <Copy className="w-3.5 h-3.5 mr-1" />
+                  {t('notebooks.duplicate')}
+                </Button>
+              )}
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8 px-2 text-xs"
+                onClick={(e) => { e.stopPropagation(); onArchive(); }}
+              >
+                <Archive className="w-3.5 h-3.5 mr-1" />
+                {notebook.isArchived ? t('notebooks.unarchive') : t('notebooks.archive')}
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8 px-2 text-xs text-red-500 hover:text-red-600"
+                onClick={(e) => { e.stopPropagation(); onDelete(); }}
+              >
+                <Trash2 className="w-3.5 h-3.5 mr-1" />
+                {t('notebooks.delete')}
+              </Button>
+            </div>
+          )}
         </CardContent>
       </Card>
     </motion.div>
@@ -291,7 +629,7 @@ function CreateNotebookDialog({
   onClose: () => void;
   subjects: Subject[];
   classes: ClassGroup[];
-  onCreate: (data: Partial<Notebook>) => void;
+  onCreate: (data: Partial<Notebook>) => Promise<void>;
 }) {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -517,6 +855,37 @@ function PageBackgroundPreview({ type }: { type: string }) {
   );
 }
 
+// ─── Page Thumbnail Component ────────────────────────────────────────
+
+function PageThumbnail({ page, notebookType }: { page: NotebookPage; notebookType: string }) {
+  const bgType = page.background || notebookType;
+  const previewText = page.textContent?.substring(0, 80) ?? '';
+  const hasTitle = !!page.title;
+
+  return (
+    <div
+      className="w-full h-24 rounded-md overflow-hidden border border-gray-200 dark:border-gray-600 relative"
+      style={{ ...getPageBackgroundCSS(bgType), backgroundColor: '#fff' }}
+    >
+      <div className="p-1.5 text-xs text-gray-400 dark:text-gray-500 truncate leading-tight">
+        {hasTitle ? (
+          <span className="font-semibold text-gray-600 dark:text-gray-400">{page.title}</span>
+        ) : previewText ? (
+          previewText
+        ) : (
+          <span className="text-gray-300 dark:text-gray-600 italic">Leere Seite</span>
+        )}
+      </div>
+      {/* Bookmark indicator */}
+      {page.isBookmark && (
+        <div className="absolute top-0 right-0">
+          <Bookmark className="w-3 h-3 text-amber-500 fill-amber-500" />
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Notebook Detail View ────────────────────────────────────────────
 
 function NotebookDetailView({
@@ -532,7 +901,7 @@ function NotebookDetailView({
   notebook: Notebook;
   subjectName: string | null;
   onBack: () => void;
-  onUpdatePage: (pageId: string, data: Partial<NotebookPage>) => void;
+  onUpdatePage: (pageId: string, data: Partial<NotebookPage>) => Promise<void>;
   onAddPage: () => void;
   onDeletePage: (pageId: string) => void;
   onToggleBookmark: (pageId: string) => void;
@@ -543,6 +912,12 @@ function NotebookDetailView({
   const [pageTitle, setPageTitle] = useState('');
   const [drawingMode, setDrawingMode] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [autoSaveStatus, setAutoSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
+
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastSavedContentRef = useRef<string>('');
+  const lastSavedTitleRef = useRef<string>('');
 
   const pages = notebook.pages ?? [];
   const currentPage = pages.find(p => p.id === currentPageId) ?? pages[0] ?? null;
@@ -552,10 +927,14 @@ function NotebookDetailView({
       setCurrentPageId(currentPage.id);
       setPageContent(currentPage.textContent ?? '');
       setPageTitle(currentPage.title ?? '');
+      lastSavedContentRef.current = currentPage.textContent ?? '';
+      lastSavedTitleRef.current = currentPage.title ?? '';
     } else if (pages.length > 0) {
       setCurrentPageId(pages[0].id);
       setPageContent(pages[0].textContent ?? '');
       setPageTitle(pages[0].title ?? '');
+      lastSavedContentRef.current = pages[0].textContent ?? '';
+      lastSavedTitleRef.current = pages[0].title ?? '';
     }
   }, [notebook.id]);
 
@@ -563,18 +942,66 @@ function NotebookDetailView({
     if (currentPage) {
       setPageContent(currentPage.textContent ?? '');
       setPageTitle(currentPage.title ?? '');
+      lastSavedContentRef.current = currentPage.textContent ?? '';
+      lastSavedTitleRef.current = currentPage.title ?? '';
+      setAutoSaveStatus('idle');
     }
   }, [currentPageId]);
 
+  // Auto-save with 3 second debounce
+  const triggerAutoSave = useCallback(() => {
+    if (autoSaveTimerRef.current) {
+      clearTimeout(autoSaveTimerRef.current);
+    }
+    autoSaveTimerRef.current = setTimeout(async () => {
+      if (!currentPage) return;
+      const contentChanged = pageContent !== lastSavedContentRef.current;
+      const titleChanged = pageTitle !== lastSavedTitleRef.current;
+      if (!contentChanged && !titleChanged) return;
+
+      setAutoSaveStatus('saving');
+      try {
+        await onUpdatePage(currentPage.id, {
+          textContent: pageContent,
+          title: pageTitle.trim() || null,
+        });
+        lastSavedContentRef.current = pageContent;
+        lastSavedTitleRef.current = pageTitle;
+        setAutoSaveStatus('saved');
+        // Reset status after 2 seconds
+        setTimeout(() => setAutoSaveStatus('idle'), 2000);
+      } catch {
+        setAutoSaveStatus('idle');
+      }
+    }, 3000);
+  }, [currentPage, pageContent, pageTitle, onUpdatePage]);
+
+  // Trigger auto-save on content or title change
+  useEffect(() => {
+    triggerAutoSave();
+    return () => {
+      if (autoSaveTimerRef.current) {
+        clearTimeout(autoSaveTimerRef.current);
+      }
+    };
+  }, [pageContent, pageTitle, triggerAutoSave]);
+
   const handleSavePage = async () => {
     if (!currentPage) return;
+    // Cancel pending auto-save
+    if (autoSaveTimerRef.current) {
+      clearTimeout(autoSaveTimerRef.current);
+    }
     setSaving(true);
     try {
       await onUpdatePage(currentPage.id, {
         textContent: pageContent,
         title: pageTitle.trim() || null,
       });
+      lastSavedContentRef.current = pageContent;
+      lastSavedTitleRef.current = pageTitle;
       toast.success(t('notebooks.page_saved'));
+      setAutoSaveStatus('idle');
     } catch {
       toast.error(t('notebooks.error_save'));
     } finally {
@@ -615,14 +1042,29 @@ function NotebookDetailView({
             </Badge>
             {notebook.isPublic ? (
               <Badge className="text-xs bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 border-0">
-                <Share2 className="w-3 h-3 mr-1" />
-                {t('notebooks.public')}
+                <Globe className="w-3 h-3 mr-1" />
+                {t('notebooks.shared')}
               </Badge>
             ) : (
               <Badge variant="outline" className="text-xs">{t('notebooks.private')}</Badge>
             )}
           </div>
         </div>
+
+        {/* Auto-save indicator */}
+        {autoSaveStatus !== 'idle' && (
+          <div className="flex items-center gap-1.5 text-sm shrink-0">
+            {autoSaveStatus === 'saving' && (
+              <div className="w-3 h-3 animate-spin rounded-full border-2 border-emerald-500 border-t-transparent" />
+            )}
+            {autoSaveStatus === 'saved' && (
+              <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+            )}
+            <span className={`text-xs ${autoSaveStatus === 'saved' ? 'text-emerald-600 dark:text-emerald-400' : 'text-gray-500 dark:text-gray-400'}`}>
+              {autoSaveStatus === 'saving' ? t('notebooks.auto_saving') : t('notebooks.auto_saved')}
+            </span>
+          </div>
+        )}
 
         {/* Drawing mode toggle */}
         <Button
@@ -658,7 +1100,7 @@ function NotebookDetailView({
       {/* Content: sidebar + main area */}
       <div className="flex flex-1 overflow-hidden">
         {/* Left sidebar: page navigation */}
-        <div className="w-56 border-r border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50 flex flex-col">
+        <div className="w-64 border-r border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50 flex flex-col">
           <div className="p-3">
             <Button
               onClick={onAddPage}
@@ -670,29 +1112,40 @@ function NotebookDetailView({
             </Button>
           </div>
 
-          <ScrollArea className="flex-1">
-            <div className="p-2 space-y-1">
+          <ScrollArea className="flex-1 max-h-[calc(100vh-280px)]">
+            <div className="p-2 space-y-2">
               {pages.map((page, idx) => (
                 <motion.div
                   key={page.id}
                   initial={{ opacity: 0, x: -10 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: idx * 0.03 }}
+                  className={`rounded-lg transition-all ${
+                    currentPageId === page.id
+                      ? 'ring-2 ring-emerald-500'
+                      : ''
+                  }`}
                 >
+                  {/* Page thumbnail */}
+                  <PageThumbnail page={page} notebookType={notebook.notebookType} />
+
+                  {/* Page info below thumbnail */}
                   <button
                     onClick={() => { setCurrentPageId(page.id); setDrawingMode(false); }}
-                    className={`w-full text-left p-2 rounded-lg text-sm transition-all min-h-[44px] flex items-center gap-2 ${
+                    className={`w-full text-left p-2 rounded-b-lg text-sm transition-all min-h-[44px] flex items-center gap-2 ${
                       currentPageId === page.id
                         ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 font-medium'
                         : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
                     }`}
                   >
-                    <Hash className="w-3.5 h-3.5 shrink-0" />
+                    <span className="text-xs font-mono text-gray-400 dark:text-gray-500 shrink-0">
+                      {page.pageNumber}
+                    </span>
                     <span className="truncate flex-1">
                       {page.title ?? `${t('notebooks.page')} ${page.pageNumber}`}
                     </span>
                     {page.isBookmark && (
-                      <Star className="w-3.5 h-3.5 text-amber-500 fill-amber-500 shrink-0" />
+                      <Bookmark className="w-3.5 h-3.5 text-amber-500 fill-amber-500 shrink-0" />
                     )}
                   </button>
                 </motion.div>
@@ -700,11 +1153,17 @@ function NotebookDetailView({
             </div>
           </ScrollArea>
 
-          {/* Eco message in sidebar */}
+          {/* Page count footer */}
           <div className="p-3 border-t border-gray-200 dark:border-gray-700">
-            <div className="flex items-center gap-2 text-xs text-emerald-600 dark:text-emerald-400">
-              <Leaf className="w-3.5 h-3.5" />
-              <span>{t('notebooks.eco_message')}</span>
+            <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
+              <span className="flex items-center gap-1">
+                <BookMarked className="w-3.5 h-3.5" />
+                {pages.length} {t('notebooks.pages')}
+              </span>
+              <span className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400">
+                <Leaf className="w-3 h-3" />
+                {t('notebooks.eco_message')}
+              </span>
             </div>
           </div>
         </div>
@@ -761,26 +1220,33 @@ function NotebookDetailView({
                   </motion.div>
                 </div>
               ) : (
-                /* Text editing area with page background */
-                <div className="flex-1 overflow-hidden p-4">
-                  <div
-                    className="w-full h-full max-w-3xl mx-auto rounded-xl overflow-hidden"
-                    style={{ backgroundColor: '#fff' }}
-                  >
-                    <ScrollArea className="h-full">
-                      <div
-                        className="min-h-full p-6"
-                        style={getPageBackgroundCSS(currentPage.background ?? notebook.notebookType)}
-                      >
-                        <textarea
-                          value={pageContent}
-                          onChange={(e) => setPageContent(e.target.value)}
-                          placeholder={t('notebooks.page_content') + '...'}
-                          className="w-full min-h-[500px] bg-transparent border-0 outline-none resize-none text-base leading-8 text-gray-800 dark:text-gray-200 placeholder:text-gray-300 dark:placeholder:text-gray-600 focus:ring-0"
-                          style={{ lineHeight: notebook.notebookType === 'lined' || notebook.notebookType === 'calligraphy' ? '32px' : '1.5' }}
-                        />
-                      </div>
-                    </ScrollArea>
+                /* Text editing area with rich text toolbar and page background */
+                <div className="flex-1 flex flex-col overflow-hidden">
+                  {/* Rich text toolbar */}
+                  <RichTextToolbar textareaRef={textareaRef} />
+
+                  {/* Page content area */}
+                  <div className="flex-1 overflow-hidden p-4">
+                    <div
+                      className="w-full h-full max-w-3xl mx-auto rounded-xl overflow-hidden"
+                      style={{ backgroundColor: '#fff' }}
+                    >
+                      <ScrollArea className="h-full">
+                        <div
+                          className="min-h-full p-6"
+                          style={getPageBackgroundCSS(currentPage.background ?? notebook.notebookType)}
+                        >
+                          <textarea
+                            ref={textareaRef}
+                            value={pageContent}
+                            onChange={(e) => setPageContent(e.target.value)}
+                            placeholder={t('notebooks.page_content') + '...'}
+                            className="w-full min-h-[500px] bg-transparent border-0 outline-none resize-none text-base leading-8 text-gray-800 dark:text-gray-200 placeholder:text-gray-300 dark:placeholder:text-gray-600 focus:ring-0"
+                            style={{ lineHeight: notebook.notebookType === 'lined' || notebook.notebookType === 'calligraphy' ? '32px' : '1.5' }}
+                          />
+                        </div>
+                      </ScrollArea>
+                    </div>
                   </div>
                 </div>
               )}
@@ -842,6 +1308,9 @@ export default function NotebooksView() {
   const [subjectFilter, setSubjectFilter] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedNotebook, setSelectedNotebook] = useState<Notebook | null>(null);
+  const [activeTab, setActiveTab] = useState<'all' | 'shared' | 'templates'>('all');
+  const [sharedNotebooksFromApi, setSharedNotebooksFromApi] = useState<Notebook[]>([]);
+  const [shareConfirmNotebook, setShareConfirmNotebook] = useState<Notebook | null>(null);
 
   // Load data
   const loadData = useCallback(async () => {
@@ -857,7 +1326,6 @@ export default function NotebooksView() {
       setClasses(clsData);
     } catch {
       toast.error(t('notebooks.error_load'));
-      // Show empty state on error
       setNotebooks([]);
       setSubjects([]);
       setClasses([]);
@@ -866,9 +1334,24 @@ export default function NotebooksView() {
     }
   }, [schoolId]);
 
+  // Load shared notebooks from other teachers
+  const loadSharedNotebooks = useCallback(async () => {
+    if (!schoolId) return;
+    try {
+      const data = await apiGet<Notebook[]>(`/api/notebooks/shared?schoolId=${schoolId}`);
+      setSharedNotebooksFromApi(data);
+    } catch {
+      setSharedNotebooksFromApi([]);
+    }
+  }, [schoolId]);
+
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  useEffect(() => {
+    loadSharedNotebooks();
+  }, [loadSharedNotebooks]);
 
   // Computed data
   const activeNotebooks = useMemo(
@@ -914,23 +1397,24 @@ export default function NotebooksView() {
   }, [subjects]);
 
   const totalPaperSaved = useMemo(
-    () => notebooks.reduce((sum, n) => sum + (n.pages?.length ?? 0) * 50, 0),
+    () => notebooks.reduce((sum, n) => sum + (n._count?.pages ?? n.pages?.length ?? 0) * 50, 0),
     [notebooks]
   );
 
   // Handlers
+  // BUG FIX: Call loadData() instead of just appending to local state
   const handleCreate = useCallback(async (data: Partial<Notebook>) => {
-    const result = await apiPost<Notebook>('/api/notebooks', {
+    await apiPost<Notebook>('/api/notebooks', {
       ...data,
       schoolId,
       ownerId: currentUser?.id ?? '',
-      ownerType: 'TEACHER',
+      ownerType: currentUser?.role === 'STUDENT' ? 'STUDENT' : 'TEACHER',
       subjectId: data.subjectId === 'none' ? null : data.subjectId,
       classGroupId: data.classGroupId === 'none' ? null : data.classGroupId,
     });
-    setNotebooks(prev => [...prev, result]);
+    await loadData();
     toast.success(t('notebooks.created'));
-  }, [schoolId, currentUser]);
+  }, [schoolId, currentUser, loadData]);
 
   const handleArchive = useCallback(async (notebook: Notebook) => {
     const updated = await apiPut<Notebook>(`/api/notebooks/${notebook.id}`, {
@@ -947,13 +1431,11 @@ export default function NotebooksView() {
   }, []);
 
   const handleOpenNotebook = useCallback(async (notebook: Notebook) => {
-    // Load pages for the notebook if not already loaded
     try {
       const pages = await apiGet<NotebookPage[]>(`/api/notebooks/${notebook.id}/pages`);
       const fullNotebook = { ...notebook, pages };
       setSelectedNotebook(fullNotebook);
     } catch {
-      // Fallback: open notebook without pages
       setSelectedNotebook({ ...notebook, pages: [] });
     }
   }, []);
@@ -1025,7 +1507,132 @@ export default function NotebooksView() {
     setNotebooks(prev => prev.map(n => n.id === updated.id ? updated : n));
   }, [selectedNotebook]);
 
-  // ─── Render ────────────────────────────────────────────────────
+  const handleShare = useCallback(async (notebook: Notebook) => {
+    setShareConfirmNotebook(notebook);
+  }, []);
+
+  const handleConfirmShare = useCallback(async () => {
+    if (!shareConfirmNotebook) return;
+    try {
+      const updated = await apiPut<Notebook>(`/api/notebooks/${shareConfirmNotebook.id}`, {
+        isPublic: !shareConfirmNotebook.isPublic,
+      });
+      setNotebooks(prev => prev.map(n => n.id === updated.id ? updated : n));
+      toast.success(updated.isPublic ? t('notebooks.shared') : t('notebooks.private'));
+    } catch {
+      toast.error(t('notebooks.error_save'));
+    } finally {
+      setShareConfirmNotebook(null);
+    }
+  }, [shareConfirmNotebook]);
+
+  const handleDuplicate = useCallback(async (notebook: Notebook) => {
+    try {
+      await apiPost<Notebook>(`/api/notebooks/${notebook.id}/duplicate`);
+      await loadData();
+      toast.success(t('notebooks.duplicated'));
+    } catch {
+      toast.error(t('notebooks.duplicate_error'));
+    }
+  }, [loadData]);
+
+  const handleCreateFromTemplate = useCallback(async (template: NotebookTemplate) => {
+    try {
+      const newNotebook = await apiPost<Notebook>('/api/notebooks', {
+        schoolId,
+        ownerId: currentUser?.id ?? '',
+        ownerType: 'TEACHER',
+        title: t(template.titleKey),
+        description: t(template.descKey),
+        notebookType: template.notebookType,
+        color: template.color,
+        icon: template.icon,
+        isPublic: false,
+        subjectId: null,
+        classGroupId: null,
+      });
+      // Create pages from the template
+      for (let i = 0; i < template.pages.length; i++) {
+        const page = template.pages[i];
+        await apiPost<NotebookPage>(`/api/notebooks/${newNotebook.id}/pages`, {
+          pageNumber: i + 1,
+          title: page.title,
+          textContent: page.content,
+          background: template.notebookType,
+        });
+      }
+      await loadData();
+      toast.success(t('notebooks.created'));
+    } catch {
+      toast.error(t('notebooks.error_create'));
+    }
+  }, [schoolId, currentUser, loadData]);
+
+  // Role detection
+  const isStudent = currentUser?.role === 'STUDENT';
+
+  // Separate own notebooks and shared notebooks (for students)
+  const ownNotebooks = useMemo(
+    () => notebooks.filter(n => n.ownerId === currentUser?.id),
+    [notebooks, currentUser?.id]
+  );
+
+  const sharedNotebooks = useMemo(
+    () => notebooks.filter(n => n.ownerId !== currentUser?.id && n.isPublic),
+    [notebooks, currentUser?.id]
+  );
+
+  const ownActiveNotebooks = useMemo(
+    () => ownNotebooks.filter(n => !n.isArchived),
+    [ownNotebooks]
+  );
+
+  const ownArchivedNotebooks = useMemo(
+    () => ownNotebooks.filter(n => n.isArchived),
+    [ownNotebooks]
+  );
+
+  // Keyboard shortcuts listener
+  useEffect(() => {
+    function onShortcut(e: Event) {
+      const detail = (e as CustomEvent).detail;
+      switch (detail) {
+        case 'new-notebook':
+          setCreateOpen(true);
+          break;
+        case 'new-page':
+          if (selectedNotebook) {
+            handleAddPage();
+          }
+          break;
+        case 'drawing':
+          if (selectedNotebook) {
+            // The NotebookDetailView handles drawing mode internally
+            toast.info(t('shortcuts.drawing'));
+          } else {
+            // Navigate to drawing view
+            const setCurrentView = useAppStore.getState().setCurrentView;
+            setCurrentView('drawing');
+          }
+          break;
+        case 'export-pdf':
+          if (selectedNotebook) {
+            toast.info(t('shortcuts.export_pdf'));
+          }
+          break;
+        case 'archive-toggle':
+          setShowArchived(prev => !prev);
+          break;
+        case 'close-notebook':
+          if (selectedNotebook) {
+            setSelectedNotebook(null);
+          }
+          break;
+      }
+    }
+    window.addEventListener('ct-shortcut', onShortcut);
+    return () => window.removeEventListener('ct-shortcut', onShortcut);
+  }, [selectedNotebook, handleAddPage]);
 
   if (selectedNotebook) {
     return (
@@ -1057,6 +1664,18 @@ export default function NotebooksView() {
             <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 flex items-center gap-2">
               <BookOpen className="w-6 h-6 text-emerald-500" />
               {t('notebooks.title')}
+              {/* Role indicator */}
+              {isStudent ? (
+                <Badge className="bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 border-0 text-xs ml-1">
+                  <GraduationCap className="w-3 h-3 mr-1" />
+                  {t('role.student')}
+                </Badge>
+              ) : (
+                <Badge className="bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 border-0 text-xs ml-1">
+                  <UserIcon className="w-3 h-3 mr-1" />
+                  {t('role.teacher')}
+                </Badge>
+              )}
             </h1>
             <div className="flex items-center gap-2 text-sm text-emerald-600 dark:text-emerald-400 mt-1">
               <Leaf className="w-4 h-4" />
@@ -1108,86 +1727,345 @@ export default function NotebooksView() {
         </div>
       </motion.div>
 
-      {/* Subject Filter Bar */}
+      {/* Tab Bar */}
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
-        transition={{ delay: 0.1 }}
+        transition={{ delay: 0.05 }}
         className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 px-4 sm:px-6 py-2"
       >
-        <div className="flex items-center gap-2 flex-wrap">
-          {/* All filter */}
+        <div className="flex items-center gap-2">
           <button
-            onClick={() => setSubjectFilter('all')}
-            className={`px-4 py-2 rounded-full text-sm font-medium min-h-[36px] transition-all ${
-              subjectFilter === 'all'
+            onClick={() => { setActiveTab('all'); setSubjectFilter('all'); }}
+            className={`px-4 py-2 rounded-full text-sm font-medium min-h-[44px] transition-all ${
+              activeTab === 'all'
                 ? 'bg-emerald-600 text-white shadow-md'
                 : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'
             }`}
           >
-            {t('notebooks.filter_all')}
-            <span className="ml-1 text-xs opacity-75">
-              {(showArchived ? archivedNotebooks : activeNotebooks).length}
-            </span>
+            <BookOpen className="w-4 h-4 inline mr-1.5" />
+            {t('notebooks.tab_all')}
+            <span className="ml-1 text-xs opacity-75">{activeNotebooks.length}</span>
           </button>
-
-          {/* Subject filters */}
-          {subjects.map((s) => {
-            const count = subjectCounts[s.id] ?? 0;
-            if (count === 0) return null;
-            return (
-              <button
-                key={s.id}
-                onClick={() => setSubjectFilter(s.id)}
-                className={`px-4 py-2 rounded-full text-sm font-medium min-h-[36px] transition-all ${
-                  subjectFilter === s.id
-                    ? 'bg-emerald-600 text-white shadow-md'
-                    : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'
-                }`}
-              >
-                {s.name}
-                <span className="ml-1 text-xs opacity-75">{count}</span>
-              </button>
-            );
-          })}
-
-          {/* No subject filter */}
-          {subjectCounts['none'] > 0 && (
+          {!isStudent && (
             <button
-              onClick={() => setSubjectFilter('none')}
-              className={`px-4 py-2 rounded-full text-sm font-medium min-h-[36px] transition-all ${
-                subjectFilter === 'none'
+              onClick={() => { setActiveTab('shared'); setSubjectFilter('all'); }}
+              className={`px-4 py-2 rounded-full text-sm font-medium min-h-[44px] transition-all ${
+                activeTab === 'shared'
                   ? 'bg-emerald-600 text-white shadow-md'
                   : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'
               }`}
             >
-              {t('notebooks.no_subject')}
-              <span className="ml-1 text-xs opacity-75">{subjectCounts['none']}</span>
+              <Globe className="w-4 h-4 inline mr-1.5" />
+              {t('notebooks.tab_shared')}
+              <span className="ml-1 text-xs opacity-75">{sharedNotebooksFromApi.length}</span>
             </button>
           )}
-
-          {/* Archive toggle */}
-          <div className="ml-auto flex items-center gap-2">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setShowArchived(!showArchived)}
-              className={`min-h-[36px] ${showArchived ? 'text-emerald-600' : 'text-gray-500'}`}
-            >
-              <Archive className="w-4 h-4 mr-1" />
-              {showArchived ? t('notebooks.hide_archived') : t('notebooks.show_archived')}
-            </Button>
-          </div>
+          <button
+            onClick={() => { setActiveTab('templates'); setSubjectFilter('all'); }}
+            className={`px-4 py-2 rounded-full text-sm font-medium min-h-[44px] transition-all ${
+              activeTab === 'templates'
+                ? 'bg-emerald-600 text-white shadow-md'
+                : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'
+            }`}
+          >
+            <Sparkles className="w-4 h-4 inline mr-1.5" />
+            {t('notebooks.tab_templates')}
+          </button>
         </div>
       </motion.div>
 
-      {/* Notebook Grid */}
+      {/* Subject Filter Bar — only show in "all" tab */}
+      {activeTab === 'all' && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.1 }}
+          className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 px-4 sm:px-6 py-2"
+        >
+          <div className="flex items-center gap-2 flex-wrap">
+            {/* All filter */}
+            <button
+              onClick={() => setSubjectFilter('all')}
+              className={`px-4 py-2 rounded-full text-sm font-medium min-h-[36px] transition-all ${
+                subjectFilter === 'all'
+                  ? 'bg-emerald-600 text-white shadow-md'
+                  : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'
+              }`}
+            >
+              {t('notebooks.filter_all')}
+              <span className="ml-1 text-xs opacity-75">
+                {(showArchived ? archivedNotebooks : activeNotebooks).length}
+              </span>
+            </button>
+
+            {/* Subject filters */}
+            {subjects.map((s) => {
+              const count = subjectCounts[s.id] ?? 0;
+              if (count === 0) return null;
+              return (
+                <button
+                  key={s.id}
+                  onClick={() => setSubjectFilter(s.id)}
+                  className={`px-4 py-2 rounded-full text-sm font-medium min-h-[36px] transition-all ${
+                    subjectFilter === s.id
+                      ? 'bg-emerald-600 text-white shadow-md'
+                      : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'
+                  }`}
+                >
+                  {s.name}
+                  <span className="ml-1 text-xs opacity-75">{count}</span>
+                </button>
+              );
+            })}
+
+            {/* No subject filter */}
+            {subjectCounts['none'] > 0 && (
+              <button
+                onClick={() => setSubjectFilter('none')}
+                className={`px-4 py-2 rounded-full text-sm font-medium min-h-[36px] transition-all ${
+                  subjectFilter === 'none'
+                    ? 'bg-emerald-600 text-white shadow-md'
+                    : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'
+                }`}
+              >
+                {t('notebooks.no_subject')}
+                <span className="ml-1 text-xs opacity-75">{subjectCounts['none']}</span>
+              </button>
+            )}
+
+            {/* Archive toggle */}
+            <div className="ml-auto flex items-center gap-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowArchived(!showArchived)}
+                className={`min-h-[36px] ${showArchived ? 'text-emerald-600' : 'text-gray-500'}`}
+              >
+                <Archive className="w-4 h-4 mr-1" />
+                {showArchived ? t('notebooks.hide_archived') : t('notebooks.show_archived')}
+              </Button>
+            </div>
+          </div>
+        </motion.div>
+      )}
+
+      {/* Content Area */}
       <div className="flex-1 p-4 sm:p-6">
         {loading ? (
           <div className="flex items-center justify-center py-20">
             <div className="flex items-center gap-3">
               <div className="h-6 w-6 animate-spin rounded-full border-2 border-emerald-500 border-t-transparent" />
               <span className="text-gray-500">{t('notebooks.loading')}</span>
+            </div>
+          </div>
+        ) : activeTab === 'templates' ? (
+          /* Templates Tab */
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.1 }}
+          >
+            <div className="mb-6">
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2">
+                <Sparkles className="w-5 h-5 text-emerald-500" />
+                {t('notebooks.templates')}
+              </h2>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{t('notebooks.template_desc')}</p>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
+              {NOTEBOOK_TEMPLATES.map((template, idx) => {
+                const TemplateIcon = template.iconComponent;
+                return (
+                  <motion.div
+                    key={template.key}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: idx * 0.05 }}
+                  >
+                    <Card className="relative overflow-hidden cursor-pointer group transition-shadow duration-300 hover:shadow-lg border-0" style={{ boxShadow: `4px 4px 12px rgba(0,0,0,0.15), 1px 1px 3px rgba(0,0,0,0.1)` }}>
+                      <div
+                        className="relative h-28 flex items-center justify-center overflow-hidden"
+                        style={{ background: `linear-gradient(135deg, ${template.color}, ${template.color}cc)` }}
+                      >
+                        <div
+                          className="absolute left-0 top-0 bottom-0 w-3 opacity-80"
+                          style={{ background: `linear-gradient(90deg, ${template.color}99, ${template.color}66)` }}
+                        />
+                        <TemplateIcon className="w-12 h-12 text-white/90 drop-shadow-md" />
+                        <Badge className="absolute top-2 right-2 bg-white/90 text-gray-700 text-xs border-0 shadow-sm">
+                          {template.pages.length} {t('notebooks.pages')}
+                        </Badge>
+                      </div>
+                      <CardContent className="p-4 space-y-3">
+                        <div className="font-semibold text-base text-gray-900 dark:text-gray-100">
+                          {t(template.titleKey)}
+                        </div>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">{t(template.descKey)}</p>
+                        <Button
+                          onClick={() => handleCreateFromTemplate(template)}
+                          className="w-full min-h-[44px] bg-emerald-600 hover:bg-emerald-700"
+                        >
+                          <Plus className="w-4 h-4 mr-1" />
+                          {t('notebooks.create_from_template')}
+                        </Button>
+                      </CardContent>
+                    </Card>
+                  </motion.div>
+                );
+              })}
+            </div>
+          </motion.div>
+        ) : activeTab === 'shared' ? (
+          /* Shared Notebooks Tab */
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.1 }}
+          >
+            <div className="mb-6">
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2">
+                <Globe className="w-5 h-5 text-emerald-500" />
+                {t('notebooks.shared_notebooks')}
+              </h2>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{t('notebooks.shared_empty_desc')}</p>
+            </div>
+            {sharedNotebooksFromApi.length === 0 ? (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="flex flex-col items-center justify-center py-20 gap-4"
+              >
+                <Globe className="w-16 h-16 text-gray-300 dark:text-gray-600" />
+                <p className="text-gray-500 dark:text-gray-400 text-lg">{t('notebooks.shared_empty')}</p>
+              </motion.div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
+                <AnimatePresence mode="popLayout">
+                  {sharedNotebooksFromApi.map((notebook, idx) => (
+                    <motion.div
+                      key={notebook.id}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, scale: 0.9 }}
+                      transition={{ delay: idx * 0.05 }}
+                    >
+                      <NotebookCard
+                        notebook={notebook}
+                        subjectName={notebook.subject?.name ?? null}
+                        onOpen={() => handleOpenNotebook(notebook)}
+                        onArchive={() => handleArchive(notebook)}
+                        onDelete={() => handleDelete(notebook)}
+                        isShared
+                      />
+                    </motion.div>
+                  ))}
+                </AnimatePresence>
+              </div>
+            )}
+          </motion.div>
+        ) : isStudent && sharedNotebooks.length > 0 ? (
+          /* Student view: show "My Notebooks" and "Shared with me" sections */
+          <div className="space-y-8">
+            {/* My Notebooks section */}
+            <div>
+              <div className="flex items-center gap-2 mb-4">
+                <BookOpen className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+                <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+                  {t('notebooks.my_notebooks')}
+                </h2>
+                <Badge variant="secondary" className="text-xs">{ownActiveNotebooks.length}</Badge>
+              </div>
+              {ownActiveNotebooks.length === 0 ? (
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  className="flex flex-col items-center justify-center py-12 gap-4"
+                >
+                  <BookOpen className="w-12 h-12 text-gray-300 dark:text-gray-600" />
+                  <p className="text-gray-500 dark:text-gray-400">{t('notebooks.no_notebooks')}</p>
+                  <Button
+                    onClick={() => setCreateOpen(true)}
+                    className="min-h-[44px] bg-emerald-600 hover:bg-emerald-700"
+                  >
+                    <Plus className="w-4 h-4 mr-2" />
+                    {t('notebooks.no_notebooks_create')}
+                  </Button>
+                </motion.div>
+              ) : (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6"
+                >
+                  <AnimatePresence mode="popLayout">
+                    {ownActiveNotebooks.map((notebook, idx) => (
+                      <motion.div
+                        key={notebook.id}
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, scale: 0.9 }}
+                        transition={{ delay: idx * 0.05 }}
+                      >
+                        <NotebookCard
+                          notebook={notebook}
+                          subjectName={notebook.subjectId ? subjectNameMap[notebook.subjectId] ?? null : null}
+                          onOpen={() => handleOpenNotebook(notebook)}
+                          onArchive={() => handleArchive(notebook)}
+                          onDelete={() => handleDelete(notebook)}
+                          onShare={() => handleShare(notebook)}
+                          onDuplicate={() => handleDuplicate(notebook)}
+                        />
+                      </motion.div>
+                    ))}
+                  </AnimatePresence>
+                </motion.div>
+              )}
+            </div>
+
+            {/* Shared with me section */}
+            <div>
+              <div className="flex items-center gap-2 mb-4">
+                <Share2 className="w-5 h-5 text-amber-600 dark:text-amber-400" />
+                <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+                  {t('notebooks.shared_with_me')}
+                </h2>
+                <Badge variant="secondary" className="text-xs">{sharedNotebooks.length}</Badge>
+              </div>
+              {sharedNotebooks.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-8 gap-3">
+                  <Share2 className="w-10 h-10 text-gray-300 dark:text-gray-600" />
+                  <p className="text-gray-400 dark:text-gray-500 text-sm">{t('notebooks.no_notebooks')}</p>
+                </div>
+              ) : (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: 0.1 }}
+                  className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6"
+                >
+                  <AnimatePresence mode="popLayout">
+                    {sharedNotebooks.map((notebook, idx) => (
+                      <motion.div
+                        key={notebook.id}
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, scale: 0.9 }}
+                        transition={{ delay: idx * 0.05 }}
+                      >
+                        <NotebookCard
+                          notebook={notebook}
+                          subjectName={notebook.subjectId ? subjectNameMap[notebook.subjectId] ?? null : null}
+                          onOpen={() => handleOpenNotebook(notebook)}
+                          onArchive={() => handleArchive(notebook)}
+                          onDelete={() => handleDelete(notebook)}
+                          isShared
+                        />
+                      </motion.div>
+                    ))}
+                  </AnimatePresence>
+                </motion.div>
+              )}
             </div>
           </div>
         ) : filteredNotebooks.length === 0 ? (
@@ -1232,6 +2110,8 @@ export default function NotebooksView() {
                     onOpen={() => handleOpenNotebook(notebook)}
                     onArchive={() => handleArchive(notebook)}
                     onDelete={() => handleDelete(notebook)}
+                    onShare={() => handleShare(notebook)}
+                    onDuplicate={() => handleDuplicate(notebook)}
                   />
                 </motion.div>
               ))}
@@ -1254,6 +2134,27 @@ export default function NotebooksView() {
           <span className="text-xs">{t('notebooks.eco_message')}</span>
         </div>
       </div>
+
+      {/* Share Confirmation Dialog */}
+      <AlertDialog open={!!shareConfirmNotebook} onOpenChange={(open) => { if (!open) setShareConfirmNotebook(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              {shareConfirmNotebook?.isPublic ? <EyeOff className="w-5 h-5" /> : <Share2 className="w-5 h-5 text-emerald-500" />}
+              {shareConfirmNotebook?.isPublic ? t('notebooks.unshare_confirm') : t('notebooks.share_confirm')}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {shareConfirmNotebook?.isPublic ? t('notebooks.unshare_confirm_desc') : t('notebooks.share_confirm_desc')}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="min-h-[44px]">{t('action.cancel')}</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmShare} className="min-h-[44px] bg-emerald-600 hover:bg-emerald-700">
+              {t('action.confirm')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Create Dialog */}
       <CreateNotebookDialog

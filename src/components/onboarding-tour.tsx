@@ -2,7 +2,12 @@
 
 import React, { useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, BookOpen, BarChart3, Pencil, Flower2, FileText, PartyPopper } from 'lucide-react';
+import {
+  X, BookOpen, BarChart3, Pencil, Flower2, FileText, PartyPopper,
+  Users, ClipboardCheck, GraduationCap, Palette, Leaf,
+  TreePine, CalendarDays, MessageSquare, BarChart, Target,
+  Zap, Award, Shield, Notebook,
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -36,6 +41,12 @@ const steps: OnboardingStep[] = [
     accent: 'from-teal-400 to-emerald-500',
   },
   {
+    iconComponent: Users,
+    titleKey: 'onboarding.classes_title',
+    descKey: 'onboarding.classes_desc',
+    accent: 'from-emerald-400 to-cyan-500',
+  },
+  {
     iconComponent: Pencil,
     titleKey: 'onboarding.progress_title',
     descKey: 'onboarding.progress_desc',
@@ -48,10 +59,52 @@ const steps: OnboardingStep[] = [
     accent: 'from-rose-400 to-emerald-500',
   },
   {
+    iconComponent: ClipboardCheck,
+    titleKey: 'onboarding.assessments_title',
+    descKey: 'onboarding.assessments_desc',
+    accent: 'from-amber-400 to-rose-500',
+  },
+  {
+    iconComponent: GraduationCap,
+    titleKey: 'onboarding.grading_title',
+    descKey: 'onboarding.grading_desc',
+    accent: 'from-violet-400 to-emerald-500',
+  },
+  {
     iconComponent: FileText,
     titleKey: 'onboarding.reports_title',
     descKey: 'onboarding.reports_desc',
     accent: 'from-violet-400 to-emerald-500',
+  },
+  {
+    iconComponent: Notebook,
+    titleKey: 'onboarding.notebooks_title',
+    descKey: 'onboarding.notebooks_desc',
+    accent: 'from-teal-400 to-emerald-500',
+  },
+  {
+    iconComponent: Palette,
+    titleKey: 'onboarding.drawing_title',
+    descKey: 'onboarding.drawing_desc',
+    accent: 'from-rose-400 to-violet-500',
+  },
+  {
+    iconComponent: CalendarDays,
+    titleKey: 'onboarding.calendar_title',
+    descKey: 'onboarding.calendar_desc',
+    accent: 'from-amber-400 to-teal-500',
+  },
+  {
+    iconComponent: MessageSquare,
+    titleKey: 'onboarding.parents_title',
+    descKey: 'onboarding.parents_desc',
+    accent: 'from-cyan-400 to-emerald-500',
+  },
+  {
+    iconComponent: Leaf,
+    titleKey: 'onboarding.environmental_title',
+    descKey: 'onboarding.environmental_desc',
+    accent: 'from-emerald-400 to-green-500',
   },
   {
     iconComponent: PartyPopper,
@@ -130,12 +183,12 @@ export default function OnboardingTour({ open, onClose }: OnboardingTourProps) {
               transition={{ duration: 0.3, ease: 'easeInOut' }}
               className="flex flex-col items-center text-center px-8 pt-10 pb-6"
             >
-              {/* Emoji illustration */}
+              {/* Icon illustration */}
               <motion.div
                 initial={{ scale: 0.5, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
                 transition={{ delay: 0.15, duration: 0.4, type: 'spring', stiffness: 200 }}
-                className={`w-24 h-24 rounded-3xl bg-gradient-to-br ${step.accent} flex items-center justify-center text-5xl shadow-lg mb-6`}
+                className={`w-24 h-24 rounded-3xl bg-gradient-to-br ${step.accent} flex items-center justify-center shadow-lg mb-6`}
               >
                 <step.iconComponent className="w-10 h-10 text-white" />
               </motion.div>
@@ -164,7 +217,7 @@ export default function OnboardingTour({ open, onClose }: OnboardingTourProps) {
         </div>
 
         {/* Step indicator dots */}
-        <div className="flex items-center justify-center gap-2 pb-4">
+        <div className="flex items-center justify-center gap-1.5 pb-4 flex-wrap px-4">
           {steps.map((_, i) => (
             <button
               key={i}

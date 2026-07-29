@@ -7,6 +7,7 @@ import { getSession } from '@/lib/auth';
 const updatePageSchema = z.object({
   textContent: z.string().optional().nullable(),
   drawingData: z.string().optional().nullable(),
+  contentType: z.enum(['text', 'drawing', 'mixed']).optional(),
   background: z
     .enum(['lined', 'grid', 'blank', 'dotted', 'music'])
     .optional(),

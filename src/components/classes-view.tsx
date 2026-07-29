@@ -580,6 +580,21 @@ export default function ClassesView() {
               </div>
               <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">{t('polish.empty_title_no_data')}</h3>
               <p className="text-sm text-muted-foreground max-w-md mx-auto leading-relaxed">{t('classes.no_classes')}</p>
+              {/* Illustration-like decorative elements */}
+              <div className="mt-6 flex items-center justify-center gap-3">
+                <div className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-emerald-50/60 dark:bg-emerald-900/20 border border-emerald-200/30 dark:border-emerald-800/20">
+                  <Users className="h-4 w-4 text-emerald-500 dark:text-emerald-400" />
+                  <span className="text-[11px] text-emerald-600/70 dark:text-emerald-400/60">{locale === 'de' ? 'Klasse erstellen' : 'Create class'}</span>
+                </div>
+                <div className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-teal-50/60 dark:bg-teal-900/20 border border-teal-200/30 dark:border-teal-800/20">
+                  <UserPlus className="h-4 w-4 text-teal-500 dark:text-teal-400" />
+                  <span className="text-[11px] text-teal-600/70 dark:text-teal-400/60">{locale === 'de' ? 'Schüler hinzufuegen' : 'Add students'}</span>
+                </div>
+                <div className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-amber-50/60 dark:bg-amber-900/20 border border-amber-200/30 dark:border-amber-800/20">
+                  <PenLine className="h-4 w-4 text-amber-500 dark:text-amber-400" />
+                  <span className="text-[11px] text-amber-600/70 dark:text-amber-400/60">{locale === 'de' ? 'Fortschritte loggen' : 'Log progress'}</span>
+                </div>
+              </div>
               <div className="mt-4 flex justify-center">
                 <div className="h-1 w-16 rounded-full bg-gradient-to-r from-emerald-300 to-teal-300 dark:from-emerald-600 dark:to-teal-600" />
               </div>
@@ -614,6 +629,17 @@ export default function ClassesView() {
                         <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
                           {t('label.grade')} {cls.gradeLevel} · {cls.schoolYear?.label}
                         </p>
+                        {/* Student count + subject count with icons */}
+                        <div className="flex items-center gap-3 mt-2">
+                          <span className="inline-flex items-center gap-1 text-[11px] text-emerald-600/70 dark:text-emerald-400/60">
+                            <Users className="h-3 w-3" />
+                            {cls.studentCount ?? 0} {t('label.student_count').toLowerCase()}
+                          </span>
+                          <span className="inline-flex items-center gap-1 text-[11px] text-teal-600/70 dark:text-teal-400/60">
+                            <BookOpen className="h-3 w-3" />
+                            {cls._count?.competencyAssignments ?? 0} {locale === 'de' ? 'Faecher' : 'subjects'}
+                          </span>
+                        </div>
                       </div>
                       <div className="flex items-center gap-2 shrink-0">
                         {/* Small progress indicator */}

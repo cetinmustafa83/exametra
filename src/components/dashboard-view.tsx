@@ -37,6 +37,10 @@ import {
   Star,
   MessageSquare,
   Timer,
+  Globe,
+  Palette,
+  Notebook,
+  CircleDot,
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -654,6 +658,51 @@ export default function DashboardView() {
         </Card>
       </motion.div>
 
+      {/* ===== TODAY'S SCHEDULE ===== */}
+      <motion.div variants={itemVariants}>
+        <Card className="border-0 shadow-sm rounded-xl border-l-3 border-l-amber-500 overflow-hidden ring-1 ring-black/[0.03] dark:ring-white/[0.05] card-hover-lift">
+          <CardHeader className="pb-3 pt-5 bg-gradient-to-r from-amber-50/50 via-emerald-50/20 to-transparent dark:from-amber-900/10 dark:via-emerald-900/5 dark:to-transparent">
+            <CardTitle className="text-lg font-bold flex items-center gap-2">
+              <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-gradient-to-br from-amber-400 to-emerald-500 text-white shadow-sm">
+                <CalendarDays className="h-4 w-4" />
+              </div>
+              {locale === 'de' ? 'Heutige Aufgaben' : 'Today\'s Schedule'}
+              <span className="text-xs font-normal text-gray-500 dark:text-gray-400 ml-1 hidden sm:inline">
+                · {new Date().toLocaleDateString(locale === 'de' ? 'de-DE' : 'en-GB', { weekday: 'short', day: 'numeric', month: 'short' })}
+              </span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              {[
+                { icon: PenLine, label: locale === 'de' ? 'Fortschritte erfassen' : 'Log progress entries', desc: locale === 'de' ? 'Neue Beobachtungen eintragen' : 'Record new observations', view: 'progress', color: 'from-emerald-400 to-teal-500' },
+                { icon: ClipboardCheck, label: locale === 'de' ? 'Uberpruefung erstellen' : 'Create assessment', desc: locale === 'de' ? 'Leistungsueberpruefung planen' : 'Plan performance assessment', view: 'assessments', color: 'from-amber-400 to-rose-500' },
+                { icon: BookOpen, label: locale === 'de' ? 'Kompetenzblume ansehen' : 'View competence flower', desc: locale === 'de' ? 'Radar-Chart pruefen' : 'Check radar chart', view: 'flower', color: 'from-violet-400 to-emerald-500' },
+                { icon: Notebook, label: locale === 'de' ? 'Notizbuch aktualisieren' : 'Update notebook', desc: locale === 'de' ? 'Hefte bearbeiten' : 'Edit notebooks', view: 'notebooks', color: 'from-teal-400 to-emerald-500' },
+              ].map((item, i) => (
+                <motion.button
+                  key={i}
+                  whileHover={{ scale: 1.01, x: 2 }}
+                  whileTap={{ scale: 0.98 }}
+                  transition={{ duration: 0.15 }}
+                  onClick={() => setCurrentView(item.view)}
+                  className="w-full group flex items-center gap-3 p-3 rounded-xl bg-gradient-to-r from-gray-50/80 to-gray-50/0 dark:from-gray-800/50 dark:to-gray-800/0 border border-gray-100/60 dark:border-gray-800/40 hover:border-emerald-200/60 dark:hover:border-emerald-800/30 transition-all relative overflow-hidden"
+                >
+                  <div className={`flex items-center justify-center w-9 h-9 rounded-lg bg-gradient-to-br ${item.color} text-white shadow-sm shrink-0 transition-transform duration-200 group-hover:scale-110`}>
+                    <item.icon className="h-4 w-4" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-semibold text-gray-900 dark:text-gray-100 truncate">{item.label}</p>
+                    <p className="text-[11px] text-gray-500 dark:text-gray-400 truncate">{item.desc}</p>
+                  </div>
+                  <ChevronRight className="h-4 w-4 text-gray-300 dark:text-gray-600 group-hover:text-emerald-500 transition-colors shrink-0" />
+                </motion.button>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      </motion.div>
+
       {/* ===== QUICK ACTION BUTTONS ===== */}
       <motion.div variants={itemVariants} className="flex flex-col sm:flex-row flex-wrap gap-3">
         <motion.div whileHover={{ scale: 1.02, y: -1 }} whileTap={{ scale: 0.98 }} transition={{ duration: 0.15 }}>
@@ -1145,34 +1194,88 @@ export default function DashboardView() {
         </Card>
       </motion.div>
 
-      {/* ===== ENVIRONMENTAL TIPS SECTION ===== */}
-      <motion.div variants={itemVariants}>
-        <Card className="border-0 shadow-sm rounded-xl overflow-hidden bg-white dark:bg-gray-950 ring-1 ring-black/[0.03] dark:ring-white/[0.05]">
-          <CardContent className="p-5">
-            <div className="flex items-center gap-4">
-              <div className="flex items-center justify-center w-12 h-12 rounded-xl bg-gradient-to-br from-emerald-400 to-teal-500 text-white shadow-md shrink-0">
-                <Leaf className="h-6 w-6" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <h3 className="text-sm font-bold text-emerald-700 dark:text-emerald-300 mb-1">
-                  {t('dashboard.env_tip_title')}
-                </h3>
-                <p className="text-xs text-gray-600 dark:text-gray-400 leading-relaxed">
-                  {t('dashboard.env_tip_text')}
-                </p>
-              </div>
-              <div className="hidden md:flex items-center gap-2 shrink-0">
-                <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400">
-                  <TreePine className="h-4 w-4" />
+      {/* ===== PAPER SAVED & ENVIRONMENTAL SECTION ===== */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Paper Saved Counter */}
+        <motion.div variants={itemVariants}>
+          <Card className="border-0 shadow-sm rounded-xl border-l-3 border-l-emerald-500 overflow-hidden bg-white dark:bg-gray-950 ring-1 ring-black/[0.03] dark:ring-white/[0.05] card-hover-lift">
+            <CardContent className="p-6">
+              <div className="flex items-center gap-4">
+                <motion.div
+                  initial={{ scale: 0.8, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  transition={{ delay: 0.2, duration: 0.4, type: 'spring', stiffness: 150 }}
+                  className="flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-emerald-400 to-teal-500 text-white shadow-lg shadow-emerald-300/30 shrink-0"
+                >
+                  <Leaf className="h-8 w-8" />
+                </motion.div>
+                <div className="flex-1 min-w-0">
+                  <h3 className="text-sm font-bold text-emerald-700 dark:text-emerald-300 mb-1">
+                    {locale === 'de' ? 'Papier gespart' : 'Paper Saved'}
+                  </h3>
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-3xl font-bold text-gray-900 dark:text-gray-100">
+                      {data.stats.totalProgressEntries * 50}
+                    </span>
+                    <span className="text-sm text-emerald-600/70 dark:text-emerald-400/60 font-medium">
+                      {locale === 'de' ? 'Seiten' : 'pages'}
+                    </span>
+                  </div>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 leading-relaxed mt-2">
+                    {locale === 'de'
+                      ? 'Jeder digitale Eintrag spart ca. 50 Seiten Papier. Danke fuer Ihren Beitrag zum Umweltschutz!'
+                      : 'Each digital entry saves ~50 pages of paper. Thank you for contributing to environmental protection!'}
+                  </p>
+                  <div className="flex items-center gap-2 mt-3">
+                    <div className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-emerald-100/60 dark:bg-emerald-900/30 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">
+                      <TreePine className="h-3 w-3" />
+                      {locale === 'de' ? '~0.5 Baume' : '~0.5 trees'}
+                    </div>
+                    <div className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-teal-100/60 dark:bg-teal-900/30 text-[11px] font-semibold text-teal-600 dark:text-teal-400">
+                      <Sprout className="h-3 w-3" />
+                      {locale === 'de' ? 'CO2 reduziert' : 'CO2 reduced'}
+                    </div>
+                  </div>
                 </div>
-                <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-teal-100 dark:bg-teal-900/30 text-teal-600 dark:text-teal-400">
-                  <Sprout className="h-4 w-4" />
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+
+        {/* Environmental Tips — visually enhanced */}
+        <motion.div variants={itemVariants}>
+          <Card className="border-0 shadow-sm rounded-xl border-l-3 border-l-teal-500 overflow-hidden bg-white dark:bg-gray-950 ring-1 ring-black/[0.03] dark:ring-white/[0.05] card-hover-lift">
+            <CardContent className="p-6">
+              <div className="flex items-start gap-4">
+                <div className="flex items-center justify-center w-12 h-12 rounded-xl bg-gradient-to-br from-teal-400 to-emerald-500 text-white shadow-md shrink-0">
+                  <TreePine className="h-6 w-6" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h3 className="text-sm font-bold text-emerald-700 dark:text-emerald-300 mb-1">
+                    {t('dashboard.env_tip_title')}
+                  </h3>
+                  <p className="text-xs text-gray-600 dark:text-gray-400 leading-relaxed">
+                    {t('dashboard.env_tip_text')}
+                  </p>
+                  <div className="grid grid-cols-2 gap-2 mt-3">
+                    {[
+                      { icon: Leaf, text: locale === 'de' ? 'Digital statt Papier' : 'Digital instead of paper' },
+                      { icon: Sprout, text: locale === 'de' ? 'Nachhaltig dokumentieren' : 'Sustainable documentation' },
+                      { icon: TreePine, text: locale === 'de' ? 'Baeume schuetzen' : 'Protect trees' },
+                      { icon: Trees, text: locale === 'de' ? 'CO2 einsparen' : 'Reduce CO2' },
+                    ].map((tip, i) => (
+                      <div key={i} className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg bg-emerald-50/60 dark:bg-emerald-900/20 border border-emerald-200/30 dark:border-emerald-800/20">
+                        <tip.icon className="h-3.5 w-3.5 text-emerald-500 dark:text-emerald-400 shrink-0" />
+                        <span className="text-[11px] text-emerald-700/80 dark:text-emerald-300/80 font-medium">{tip.text}</span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
-            </div>
-          </CardContent>
-        </Card>
-      </motion.div>
+            </CardContent>
+          </Card>
+        </motion.div>
+      </div>
     </motion.div>
   );
 }

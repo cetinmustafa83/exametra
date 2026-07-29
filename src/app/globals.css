@@ -594,6 +594,87 @@
   .animate-tooltip-enter {
     animation: tooltip-enter 0.15s ease-out;
   }
+
+  /* ─── Smooth Dark Mode Scrollbar ───────────────────────────────────── */
+  .dark ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  .dark ::-webkit-scrollbar-track {
+    background: oklch(0.15 0.01 260);
+  }
+  .dark ::-webkit-scrollbar-thumb {
+    background: oklch(0.35 0.015 260 / 0.6);
+    border-radius: 4px;
+    border: 2px solid transparent;
+    background-clip: padding-box;
+  }
+  .dark ::-webkit-scrollbar-thumb:hover {
+    background: oklch(0.50 0.10 155 / 0.7);
+    border: 2px solid transparent;
+    background-clip: padding-box;
+  }
+  /* Firefox scrollbar for dark mode */
+  .dark * {
+    scrollbar-width: thin;
+    scrollbar-color: oklch(0.35 0.015 260 / 0.6) oklch(0.15 0.01 260);
+  }
+
+  /* ─── Better Focus-Visible Styles ──────────────────────────────────── */
+  @media (prefers-reduced-motion: reduce) {
+    *:focus-visible {
+      transition: none;
+    }
+  }
+  /* Enhanced focus ring for card-based interactive elements */
+  [role="button"]:focus-visible,
+  button:focus-visible {
+    outline: 2px solid oklch(0.55 0.17 155);
+    outline-offset: 2px;
+    box-shadow: 0 0 0 4px oklch(0.55 0.17 155 / 0.15);
+    border-radius: 8px;
+    transition: box-shadow 0.15s ease-out;
+  }
+  .dark [role="button"]:focus-visible,
+  .dark button:focus-visible {
+    outline: 2px solid oklch(0.65 0.17 155);
+    box-shadow: 0 0 0 4px oklch(0.65 0.17 155 / 0.2);
+  }
+
+  /* ─── Subtle Card Hover Effects ────────────────────────────────────── */
+  .card-hover-glow {
+    transition: transform 0.2s ease-out, box-shadow 0.2s ease-out;
+  }
+  .card-hover-glow:hover {
+    transform: translateY(-2px);
+    box-shadow:
+      0 8px 24px -6px oklch(0.55 0.17 155 / 0.12),
+      0 0 0 1px oklch(0.55 0.17 155 / 0.08);
+  }
+  .dark .card-hover-glow:hover {
+    box-shadow:
+      0 8px 24px -6px oklch(0.65 0.17 155 / 0.2),
+      0 0 0 1px oklch(0.65 0.17 155 / 0.12);
+  }
+
+  /* ─── Staggered Entry Animation ────────────────────────────────────── */
+  @keyframes stagger-fade-in {
+    from { opacity: 0; transform: translateY(8px) scale(0.98); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+  }
+  .animate-stagger-in {
+    animation: stagger-fade-in 0.35s ease-out backwards;
+  }
+
+  /* ─── Chart Shimmer on Load ────────────────────────────────────────── */
+  @keyframes chart-shimmer {
+    0% { opacity: 0.5; transform: translateX(-100%); }
+    50% { opacity: 0.3; }
+    100% { opacity: 0; transform: translateX(100%); }
+  }
+  .animate-chart-shimmer {
+    animation: chart-shimmer 1.5s ease-out forwards;
+  }
 }
 
 /* Print-specific styling — expands to all reports when printing */
@@ -681,6 +762,22 @@
   }
 }
 
+/* Tablet-specific viewport styles (768px-1024px) */
+@media (min-width: 768px) and (max-width: 1024px) {
+  /* Adjust grid layouts for tablet */
+  .lg\:grid-cols-5 {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  /* More compact spacing for tablet */
+  .space-y-7 > * + * {
+    margin-top: 1.25rem;
+  }
+  /* Ensure sidebar doesn't collapse too much */
+  [data-sidebar] {
+    min-width: 220px;
+  }
+}
+
 /* Stylus-specific improvements */
 @media (pointer: fine) and (hover: none) {
   /* Stylus devices often lack hover — replace hover effects with active */
@@ -751,7 +848,8 @@
   /* Remove animations for print */
   .animate-float, .animate-float-reverse, .animate-float-slow,
   .animate-pulse-soft, .animate-shimmer, .animate-progress-fill,
-  .animate-view-fade-in, .animate-enter-fade, .animate-count-up {
+  .animate-view-fade-in, .animate-enter-fade, .animate-count-up,
+  .animate-stagger-in, .animate-chart-shimmer {
     animation: none !important;
   }
 
@@ -764,5 +862,24 @@
   .shadow-sm, .shadow-md, .shadow-lg, .shadow-xl,
   [class*="shadow-"] {
     box-shadow: none !important;
+  }
+
+  /* Notebook export specific styles */
+  .no-print { display: none !important; }
+  .notebook-export {
+    padding: 2cm;
+    font-size: 12pt;
+  }
+  .notebook-export .page-break {
+    page-break-after: always;
+  }
+  .notebook-export .page-content {
+    min-height: 24cm;
+  }
+  /* Lined background for print */
+  .notebook-export .page-lined {
+    background-image: repeating-linear-gradient(
+      transparent, transparent 31px, #e5e7eb 31px, #e5e7eb 32px
+    );
   }
 }

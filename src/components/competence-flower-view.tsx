@@ -599,6 +599,14 @@ export default function CompetenceFlowerView() {
             </CardHeader>
             <CardContent>
               <div ref={chartRef} className="w-full relative">
+                {/* Shimmer overlay on load */}
+                <motion.div
+                  initial={{ opacity: 0.6 }}
+                  animate={{ opacity: 0 }}
+                  transition={{ duration: 1.5, delay: 0.3 }}
+                  className="absolute inset-0 z-10 pointer-events-none rounded-xl bg-gradient-to-r from-transparent via-white/30 to-transparent"
+                  style={{ backgroundSize: '200% 100%', animation: 'shimmer 2s linear' }}
+                />
                 <ResponsiveContainer width="100%" height={400}>
                   <RadarChart data={chartData} cx="50%" cy="50%" outerRadius="70%">
                     <defs>
@@ -614,6 +622,10 @@ export default function CompetenceFlowerView() {
                         <stop offset="0%" stopColor="#f59e0b" stopOpacity={0.25} />
                         <stop offset="100%" stopColor="#f59e0b" stopOpacity={0.05} />
                       </linearGradient>
+                      {/* Shadow filter for chart */}
+                      <filter id="chartShadow" x="-20%" y="-20%" width="140%" height="140%">
+                        <feDropShadow dx="0" dy="2" stdDeviation="6" floodColor={primaryColor} floodOpacity="0.12" />
+                      </filter>
                     </defs>
                     <PolarGrid stroke="#e5e7eb" strokeDasharray="3 3" />
                     <PolarAngleAxis
@@ -635,6 +647,7 @@ export default function CompetenceFlowerView() {
                       fillOpacity={1}
                       strokeWidth={2.5}
                       dot={{ r: 4, fill: primaryColor, stroke: '#fff', strokeWidth: 2 }}
+                      filter="url(#chartShadow)"
                     />
                     {/* Class average comparison line */}
                     {showClassAverage && (
@@ -667,7 +680,8 @@ export default function CompetenceFlowerView() {
                         borderRadius: '12px',
                         border: '1px solid #e5e7eb',
                         fontSize: '12px',
-                        boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)',
+                        boxShadow: '0 4px 12px -2px rgba(0,0,0,0.12), 0 0 0 1px rgba(16,185,129,0.1)',
+                        padding: '10px 14px',
                       }}
                       formatter={(value: number, _name: string, props: { payload?: { trueValue?: number; assessed?: number; total?: number } }) => {
                         const p = props?.payload ?? {};
@@ -739,6 +753,32 @@ export default function CompetenceFlowerView() {
                     </div>
                   ))}
                 </div>
+              </div>
+
+              {/* Mastery Summary Section */}
+              <div className="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-3">
+                {[
+                  { label: locale === 'de' ? 'Gesamtdurchschnitt' : 'Overall Average', value: overallAverage.toFixed(2), icon: Target, color: primaryColor, bg: `rgba(${parseInt(primaryColor.slice(1,3),16)},${parseInt(primaryColor.slice(3,5),16)},${parseInt(primaryColor.slice(5,7),16)},0.1)` },
+                  { label: locale === 'de' ? 'Kategorien' : 'Categories', value: flowerData.categories.length, icon: BarChart3, color: '#10b981', bg: 'rgba(16,185,129,0.1)' },
+                  { label: locale === 'de' ? 'Erfasst' : 'Assessed', value: flowerData.categories.reduce((s, c) => s + c.assessedCompetencyCount, 0), icon: Check, color: '#14b8a6', bg: 'rgba(20,184,166,0.1)' },
+                  { label: locale === 'de' ? 'Gesamt' : 'Total', value: flowerData.categories.reduce((s, c) => s + c.competencyCount, 0), icon: Star, color: '#f59e0b', bg: 'rgba(245,158,11,0.1)' },
+                ].map((item, i) => (
+                  <motion.div
+                    key={i}
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.1 + i * 0.05, duration: 0.3 }}
+                    className="p-3 rounded-xl border border-gray-200/40 dark:border-gray-700/30 bg-white/60 dark:bg-gray-800/30"
+                  >
+                    <div className="flex items-center gap-2 mb-1.5">
+                      <div className="flex items-center justify-center w-7 h-7 rounded-lg" style={{ backgroundColor: item.bg }}>
+                        <item.icon className="h-3.5 w-3.5" style={{ color: item.color }} />
+                      </div>
+                      <p className="text-[10px] uppercase tracking-wider font-semibold text-gray-500/70 dark:text-gray-400/60 truncate">{item.label}</p>
+                    </div>
+                    <p className="text-lg font-bold text-gray-900 dark:text-gray-100">{item.value}</p>
+                  </motion.div>
+                ))}
               </div>
             </CardContent>
           </Card>

@@ -6,7 +6,7 @@ import {
   PenLine, User, Clock, Plus, ChevronDown, BadgeCheck,
   Download, CalendarDays, Keyboard, Sparkles, BookOpen,
   GraduationCap, Trash2, CheckSquare, X, ListChecks,
-  Sprout, Leaf, TreePine, Trees,
+  Sprout, Leaf, TreePine, Trees, BarChart3,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -675,7 +675,61 @@ export default function ProgressEntriesView() {
           </Card>
 
           {/* Student timeline */}
-          <div className="lg:col-span-2">
+          <div className="lg:col-span-2 space-y-6">
+            {/* Mastery Distribution mini chart */}
+            {selectedStudent && studentEntries.length > 0 && (
+              <motion.div
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3 }}
+              >
+                <Card className="border-0 shadow-sm rounded-xl border-l-3 border-l-emerald-500 overflow-hidden card-hover-lift">
+                  <CardContent className="p-4">
+                    <p className="text-[10px] uppercase tracking-wider font-semibold text-emerald-600/70 dark:text-emerald-400/60 mb-3 flex items-center gap-1.5">
+                      <BarChart3 className="h-3 w-3" />
+                      {locale === 'de' ? 'Mastery-Verteilung' : 'Mastery Distribution'}
+                    </p>
+                    <div className="flex items-center gap-3">
+                      {[1, 2, 3, 4].map((level) => {
+                        const count = studentEntries.filter((e) => e.masteryLevelValue === level).length;
+                        const pct = studentEntries.length > 0 ? (count / studentEntries.length) * 100 : 0;
+                        const colors = [
+                          'bg-red-400 dark:bg-red-500',
+                          'bg-amber-400 dark:bg-amber-500',
+                          'bg-emerald-400 dark:bg-emerald-500',
+                          'bg-teal-400 dark:bg-teal-500',
+                        ];
+                        const labelColors = [
+                          'text-red-600 dark:text-red-400',
+                          'text-amber-600 dark:text-amber-400',
+                          'text-emerald-600 dark:text-emerald-400',
+                          'text-teal-600 dark:text-teal-400',
+                        ];
+                        return (
+                          <div key={level} className="flex-1 text-center">
+                            <div className="h-16 bg-gray-100 dark:bg-gray-800/50 rounded-lg overflow-hidden relative mb-1">
+                              <motion.div
+                                initial={{ height: 0 }}
+                                animate={{ height: `${Math.max(pct, 2)}%` }}
+                                transition={{ duration: 0.5, delay: 0.1 + level * 0.08 }}
+                                className={`absolute bottom-0 left-0 right-0 ${colors[level - 1]} rounded-t-md`}
+                              />
+                              <span className="absolute inset-0 flex items-center justify-center text-xs font-bold text-gray-700 dark:text-gray-300">
+                                {count}
+                              </span>
+                            </div>
+                            <span className={`text-[10px] font-semibold ${labelColors[level - 1]}`}>
+                              {getMasteryIcon(level)} {level}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </CardContent>
+                </Card>
+              </motion.div>
+            )}
+
             <Card className="border-0 shadow-sm rounded-xl border-l-3 border-l-teal-500 overflow-hidden">
               <CardHeader className="pb-3 pt-6 bg-gradient-to-r from-teal-50/50 to-transparent dark:from-teal-900/10 dark:to-transparent">
                 <div className="flex flex-wrap items-center justify-between gap-2">

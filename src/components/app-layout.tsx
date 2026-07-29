@@ -279,7 +279,7 @@ export default function AppLayout() {
       const isMod = e.metaKey || e.ctrlKey;
 
       // Ctrl/Cmd + K: Open command palette
-      if (isMod && e.key.toLowerCase() === 'k') {
+      if (isMod && !e.shiftKey && e.key.toLowerCase() === 'k') {
         e.preventDefault();
         setSearchOpen((v) => !v);
         return;
@@ -292,13 +292,67 @@ export default function AppLayout() {
         return;
       }
 
-      // Ctrl/Cmd + N: Create new entry (navigate to progress)
-      if (isMod && e.key.toLowerCase() === 'n') {
+      // Ctrl/Cmd + Shift + N: Add new page to current notebook (when on notebooks view)
+      if (isMod && e.shiftKey && e.key.toLowerCase() === 'n') {
+        e.preventDefault();
+        if (currentView === 'notebooks') {
+          window.dispatchEvent(new CustomEvent('ct-shortcut', { detail: 'new-page' }));
+          return;
+        }
+      }
+
+      // Ctrl/Cmd + Shift + A: Toggle archive mode (when on notebooks view)
+      if (isMod && e.shiftKey && e.key.toLowerCase() === 'a') {
+        e.preventDefault();
+        if (currentView === 'notebooks') {
+          window.dispatchEvent(new CustomEvent('ct-shortcut', { detail: 'archive-toggle' }));
+          return;
+        }
+      }
+
+      // Ctrl/Cmd + N: Context-dependent new action
+      if (isMod && !e.shiftKey && e.key.toLowerCase() === 'n') {
         e.preventDefault();
         setSearchOpen(false);
-        setCurrentView('progress');
-        trackAction('new-entry', t('shortcuts.new_entry'), 'progress');
-        toast.info(t('shortcuts.new_entry'));
+        if (currentView === 'notebooks') {
+          // Open create notebook dialog
+          window.dispatchEvent(new CustomEvent('ct-shortcut', { detail: 'new-notebook' }));
+        } else {
+          // Default: navigate to progress
+          setCurrentView('progress');
+          trackAction('new-entry', t('shortcuts.new_entry'), 'progress');
+          toast.info(t('shortcuts.new_entry'));
+        }
+        return;
+      }
+
+      // Ctrl/Cmd + D: Open drawing canvas
+      if (isMod && e.key.toLowerCase() === 'd') {
+        e.preventDefault();
+        if (currentView === 'notebooks') {
+          window.dispatchEvent(new CustomEvent('ct-shortcut', { detail: 'drawing' }));
+        } else {
+          setCurrentView('drawing');
+          trackAction('drawing', t('shortcuts.drawing'), 'drawing');
+        }
+        return;
+      }
+
+      // Ctrl/Cmd + E: Export current notebook as PDF
+      if (isMod && e.key.toLowerCase() === 'e') {
+        e.preventDefault();
+        if (currentView === 'notebooks') {
+          window.dispatchEvent(new CustomEvent('ct-shortcut', { detail: 'export-pdf' }));
+        }
+        return;
+      }
+
+      // Ctrl/Cmd + .: Close current notebook (go back to library)
+      if (isMod && e.key === '.') {
+        e.preventDefault();
+        if (currentView === 'notebooks') {
+          window.dispatchEvent(new CustomEvent('ct-shortcut', { detail: 'close-notebook' }));
+        }
         return;
       }
 
@@ -326,7 +380,7 @@ export default function AppLayout() {
     }
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [searchOpen, shortcutsOpen, helpOpen, setCurrentView, trackAction]);
+  }, [searchOpen, shortcutsOpen, helpOpen, currentView, setCurrentView, trackAction]);
 
   // Debounced search
   useEffect(() => {
