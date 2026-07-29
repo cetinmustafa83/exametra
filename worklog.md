@@ -879,3 +879,111 @@ Built two major features: (1) Practice Exercises with AI-generated multiple-choi
 - **Practice Exercises**: AI-generated multiple-choice questions, score tracking, detailed breakdown, retry incorrect, confetti celebration on high scores
 - **Enhanced Virtual Character**: 5 character types with accessories (hat, glasses, scarf, cape, wand), AI chat, mood animations, daily tips, level-up celebrations
 - **100+ i18n keys** added in both DE and EN
+
+---
+Task ID: Round-23
+Agent: main
+Task: Round 23 - Practice Exercises, Enhanced Virtual Character, Inter-School Federation, Voice Chat
+
+Work Log:
+- Built Practice Exercises with AI-Generated Questions:
+  - API: /api/subject-contents/exercises (GET/POST)
+  - Uses z-ai-web-dev-sdk to generate multiple choice questions
+  - Practice mode with score tracking, correct/incorrect feedback
+  - Results screen with circular progress, confetti on high scores
+  - Retry incorrect questions option
+- Enhanced Virtual Character:
+  - More animations: idle floating, thinking, celebrating, sleeping, talking
+  - Accessories: Hat (Level 2), Glasses (Level 3), Scarf (Level 5), Cape (Level 7), Wand (Level 10)
+  - AI chat integration via character
+  - Color presets for quick customization
+  - Daily tips and encouragement messages
+- Built Inter-School Competition Federation:
+  - API: /api/competitions/federation (GET/POST)
+  - School leaderboard with team scores
+  - Federation competitions between schools in same district
+  - Competition types: Math Olympiad, Science Bowl, Language Quiz, General Knowledge
+  - Schedule: Weekly, Monthly, Quarterly
+  - Added isFederation and federationSchedule fields to Competition model
+- Enhanced Communication System:
+  - Voice chat: Web Audio API recording, play/pause controls
+  - File sharing: Drag-and-drop upload, 10MB limit
+  - Note sharing: Share notebooks with teacher
+  - API: /api/communication-rooms/[id]/share-notes (GET/POST)
+  - Teacher notes panel: Private notes during conversations
+- Added 170+ i18n keys
+- All lints pass, dev server running
+- Pushed to GitHub
+
+Stage Summary:
+- 3 new API route files
+- 4 components enhanced
+- 2 new Prisma schema fields (isFederation, federationSchedule)
+- Practice exercises with AI question generation
+- Enhanced virtual character with accessories and animations
+- Inter-school federation competitions
+- Voice chat, file sharing, note sharing in communication
+- Pushed to GitHub
+
+Unresolved issues / Next phase priorities:
+- Need to verify all features work end-to-end in the browser
+- Need to add more practice questions for each topic
+- Need to add more virtual character animations
+- Need to add more inter-school competition features
+- WebSocket connection timeout errors (Caddy proxy)
+
+---
+
+## Task ID: 10 - Class Management + Responsible Teacher + Deep Styling
+
+**Date:** 2025-01-21
+**Agent:** Class Management + Responsible Teacher + Deep Styling
+**Status:** Completed
+
+### Summary
+
+Built the Responsible Teacher (Klassenlehrer) management, Vice Principal management, enhanced calendar exam integration, student portal exam/study tips, and dashboard Klassenlehrer section for CompetenceTrack. Includes full API routes, comprehensive frontend components with role-based views, i18n support (90+ keys in DE+EN), and deep styling improvements.
+
+### Files Created
+
+1. `src/app/api/classes/[id]/route.ts` - GET/PUT/DELETE for single class with responsibleTeacherId support
+2. `src/app/api/users/role/route.ts` - PUT for changing user roles (admin only, VICE_PRINCIPAL support)
+
+### Files Modified
+
+1. `src/lib/i18n.ts` - Added 90+ i18n keys for Klassenlehrer, Vice Principal, Calendar Exams, Dashboard, and Student Portal features (DE + EN)
+2. `src/lib/api.ts` - Added `responsibleTeacher`, `responsibleTeacherId`, `assessmentCount` fields to ClassGroup interface
+3. `src/app/api/classes/route.ts` - Added responsibleTeacher include and assessmentCount to GET response
+4. `src/app/api/users/[id]/route.ts` - Added VICE_PRINCIPAL to role enum
+5. `src/components/classes-view.tsx` - Added Klassenlehrer badge in class list, Klassenlehrer section in class detail, assign/change responsible teacher dialog, student count progress bar, assessment count card
+6. `src/components/settings-view.tsx` - Added VicePrincipalManager sub-component with current admins list, assign/remove VP role, confirm dialog
+7. `src/components/calendar-view.tsx` - Added Printer icon import and print calendar button
+8. `src/components/student-portal-view.tsx` - Added StudentExamSection sub-component, upcoming exams tab with countdown badges, AI study tips section, virtual character/AI assistant section
+9. `src/components/dashboard-view.tsx` - Added KlassenlehrerDashboard sub-component with my classes, pending illness reports, upcoming exams, quick actions
+
+### Key Features
+
+- **Klassenlehrer Management**: Admin can assign/change responsible teacher for each class; shows privilege badges (illness access, communication access, counseling access, disciplinary access)
+- **Vice Principal Management**: Admin can assign/remove VP role; shows current admins list; confirm dialog for role changes
+- **Calendar Exam Integration**: Print calendar button; exam mode filter; plan exam button; exam countdown badges
+- **Student Portal**: Upcoming exams with countdown badges (urgency-colored); AI study tips; virtual character/AI assistant
+- **Dashboard Klassenlehrer Section**: Shows classes where user is responsible teacher; pending illness reports; upcoming exams; quick action buttons
+
+### i18n Keys Added (90+)
+
+- `classes.responsible_teacher`, `classes.klassenlehrer`, `classes.assign_teacher`, `classes.change_teacher`, `classes.teacher_privileges`, `classes.illness_access`, `classes.communication_access`, `classes.counseling_access`, `classes.disciplinary_access`, `classes.no_responsible_teacher`, `classes.teacher_assigned`, `classes.teacher_changed`, `classes.select_teacher`, `classes.class_statistics`, `classes.student_progress`, `classes.class_color`, `classes.avg_mastery`, `classes.total_students`, `classes.active_assessments`, `classes.teacher_badge`, `classes.privileges_info`
+- `settings.vice_principal`, `settings.vice_principal_short`, `settings.assign_vice_principal`, `settings.remove_vice_principal`, `settings.current_admins`, `settings.admin_list`, `settings.role_changed`, `settings.role_removed`, `settings.confirm_role_change`, `settings.confirm_role_remove`, `settings.vice_principal_desc`, `settings.manage_roles`, `settings.user_role`
+- `calendar.exam_mode`, `calendar.exam_marker`, `calendar.print`, `calendar.exam_details`, `calendar.plan_exam`, `calendar.exam_filter`, `calendar.exam_countdown`, `calendar.exam_today`, `calendar.exam_tomorrow`, `calendar.exam_in_days`, `calendar.exam_in_weeks`, `calendar.no_exams`, `calendar.exam_subject`, `calendar.exam_class`, `calendar.exam_teacher`, `calendar.exam_type`, `calendar.exam_notes`, `calendar.exam_created`, `calendar.show_all`, `calendar.show_exams_only`
+- `dashboard.klassenlehrer_section`, `dashboard.pending_illness`, `dashboard.pending_communications`, `dashboard.class_overview`, `dashboard.upcoming_exams`, `dashboard.my_classes`, `dashboard.no_illness_reports`, `dashboard.no_communications`, `dashboard.quick_actions`
+- `portal.upcoming_exams`, `portal.study_tips`, `portal.practice_recommendations`, `portal.ai_assistant`, `portal.exam_countdown`, `portal.days_left`, `portal.prepare_exam`, `portal.no_exams_scheduled`, `portal.ai_study_tip`, `portal.recommended_exercises`, `portal.start_practice`, `portal.virtual_character`, `portal.ask_ai`, `portal.exam_ready`, `portal.study_progress`, `portal.focus_areas`, `portal.motivation_message`
+
+### Technical Notes
+
+- Used emerald green (#10b981) as the accent color throughout
+- All components are responsive (mobile-first)
+- Used framer-motion for animations
+- Used shadcn/ui components (Badge, Card, Button, Dialog, Select, Tooltip, etc.)
+- All text is i18n-ized (DE + EN)
+- Used cookie-based auth via `getSession` from `@/lib/auth`
+- Used `apiGet`, `apiPut`, `apiPost`, `apiDelete` from `@/lib/api` for API calls
+

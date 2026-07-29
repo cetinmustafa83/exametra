@@ -1032,6 +1032,193 @@ function SchoolAdminDashboard({ currentUser, setCurrentView, locale, data }: {
   );
 }
 
+// ── Klassenlehrer Dashboard Sub-Component ─────────────────────────────────
+function KlassenlehrerDashboard({ schoolId, userId }: { schoolId: string; userId: string }) {
+  const [responsibleClasses, setResponsibleClasses] = useState<Array<{
+    id: string;
+    name: string;
+    gradeLevel: number;
+    studentCount: number;
+    responsibleTeacherId: string | null;
+  }>>([]);
+  const [pendingIllness, setPendingIllness] = useState<Array<{
+    id: string;
+    student: { firstName: string; lastName: string };
+    reason: string;
+    startDate: string;
+    status: string;
+  }>>([]);
+  const [upcomingExams, setUpcomingExams] = useState<Array<{
+    id: string;
+    title: string;
+    date: string;
+    subject: { name: string } | null;
+    classGroup: { name: string } | null;
+    daysUntil: number;
+  }>>([]);
+  const [loading, setLoading] = useState(true);
+  const locale = useAppStore((s) => s.locale);
+  const setCurrentView = useAppStore((s) => s.setCurrentView);
+
+  useEffect(() => {
+    if (!schoolId) return;
+    setLoading(true);
+    Promise.all([
+      fetch(`/api/classes?schoolId=${schoolId}`).then(r => r.json()).catch(() => []),
+      fetch(`/api/illness-reports?schoolId=${schoolId}&status=pending`).then(r => r.json()).catch(() => []),
+      fetch(`/api/calendar-events/exams?schoolId=${schoolId}&limit=5`).then(r => r.json()).catch(() => []),
+    ]).then(([classesData, illnessData, examsData]) => {
+      const allClasses = Array.isArray(classesData) ? classesData : [];
+      // Filter to classes where the current user is the responsible teacher
+      const myClasses = allClasses.filter((c: Record<string, unknown>) =>
+        c.responsibleTeacherId === userId ||
+        (c.responsibleTeacher && (c.responsibleTeacher as Record<string, unknown>).id === userId)
+      );
+      setResponsibleClasses(myClasses.map((c: Record<string, unknown>) => ({
+        id: c.id as string,
+        name: c.name as string,
+        gradeLevel: c.gradeLevel as number,
+        studentCount: (c.studentCount ?? c._count?.enrollments ?? 0) as number,
+        responsibleTeacherId: c.responsibleTeacherId as string | null,
+      })));
+      setPendingIllness(Array.isArray(illnessData) ? illnessData.slice(0, 5) : []);
+      setUpcomingExams(Array.isArray(examsData) ? examsData.slice(0, 5) : []);
+    }).catch(() => {
+      // ignore
+    }).finally(() => {
+      setLoading(false);
+    });
+  }, [schoolId, userId]);
+
+  if (loading) {
+    return (
+      <div className="space-y-3">
+        {[1, 2, 3].map((i) => (
+          <div key={i} className="flex items-center gap-3 p-3 rounded-xl bg-gray-50/60 dark:bg-gray-800/40">
+            <div className="h-9 w-9 rounded-full bg-gray-200 dark:bg-gray-700 animate-pulse" />
+            <div className="flex-1 space-y-1.5">
+              <div className="h-3 w-1/3 rounded bg-gray-200 dark:bg-gray-700 animate-pulse" />
+              <div className="h-2.5 w-2/3 rounded bg-gray-200 dark:bg-gray-700 animate-pulse" />
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* My Classes */}
+      <div>
+        <p className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2 flex items-center gap-2">
+          <GraduationCap className="h-4 w-4 text-emerald-500" />
+          {t('dashboard.my_classes')}
+        </p>
+        {responsibleClasses.length === 0 ? (
+          <p className="text-xs text-gray-500 dark:text-gray-400">{locale === 'de' ? 'Keine Klassen als Klassenlehrer zugewiesen' : 'No classes assigned as homeroom teacher'}</p>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+            {responsibleClasses.map((cls) => (
+              <motion.div
+                key={cls.id}
+                whileHover={{ scale: 1.02 }}
+                className="p-3 rounded-xl bg-gradient-to-r from-emerald-50/40 to-transparent dark:from-emerald-900/10 dark:to-transparent border border-emerald-100/40 dark:border-emerald-900/20 cursor-pointer"
+                onClick={() => setCurrentView('classes')}
+              >
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">{cls.name}</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">{t('label.grade')} {cls.gradeLevel}</p>
+                  </div>
+                  <Badge className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300 text-xs">
+                    {cls.studentCount} <Users className="h-3 w-3 ml-1" />
+                  </Badge>
+                </div>
+              </motion.div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Pending Illness Reports */}
+      <div>
+        <p className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2 flex items-center gap-2">
+          <Heart className="h-4 w-4 text-amber-500" />
+          {t('dashboard.pending_illness')}
+        </p>
+        {pendingIllness.length === 0 ? (
+          <p className="text-xs text-gray-500 dark:text-gray-400">{t('dashboard.no_illness_reports')}</p>
+        ) : (
+          <div className="space-y-2">
+            {pendingIllness.map((report: Record<string, unknown>) => (
+              <div key={report.id as string} className="flex items-center justify-between p-2 rounded-lg bg-amber-50/50 dark:bg-amber-900/10 border border-amber-100/40 dark:border-amber-900/20">
+                <div className="flex items-center gap-2">
+                  <Heart className="h-3.5 w-3.5 text-amber-500" />
+                  <span className="text-xs font-medium text-gray-900 dark:text-gray-100">
+                    {(report.student as Record<string, string>)?.firstName} {(report.student as Record<string, string>)?.lastName}
+                  </span>
+                </div>
+                <Badge className="bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300 text-[10px]">
+                  {report.reason as string}
+                </Badge>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Upcoming Exams */}
+      <div>
+        <p className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2 flex items-center gap-2">
+          <CalendarDays className="h-4 w-4 text-red-500" />
+          {t('dashboard.upcoming_exams')}
+        </p>
+        {upcomingExams.length === 0 ? (
+          <p className="text-xs text-gray-500 dark:text-gray-400">{t('calendar.no_exams')}</p>
+        ) : (
+          <div className="space-y-2">
+            {upcomingExams.map((exam: Record<string, unknown>) => {
+              const daysUntil = exam.daysUntil as number;
+              const urgencyClass = daysUntil <= 1
+                ? 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300'
+                : daysUntil <= 3
+                  ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300'
+                  : 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300';
+              return (
+                <div key={exam.id as string} className="flex items-center justify-between p-2 rounded-lg bg-red-50/50 dark:bg-red-900/10 border border-red-100/40 dark:border-red-900/20">
+                  <div className="flex items-center gap-2">
+                    <GraduationCap className="h-3.5 w-3.5 text-red-500" />
+                    <span className="text-xs font-medium text-gray-900 dark:text-gray-100">{exam.title as string}</span>
+                  </div>
+                  <Badge className={`${urgencyClass} text-[10px]`}>
+                    {daysUntil === 0 ? t('calendar.exam_today') : daysUntil === 1 ? t('calendar.exam_tomorrow') : t('calendar.exam_in_days', { days: daysUntil })}
+                  </Badge>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* Quick Actions */}
+      <div className="flex flex-wrap gap-2 pt-2">
+        <Button size="sm" variant="outline" className="rounded-xl text-xs" onClick={() => setCurrentView('illness')}>
+          <Heart className="h-3 w-3 mr-1" />
+          {t('dashboard.pending_illness')}
+        </Button>
+        <Button size="sm" variant="outline" className="rounded-xl text-xs" onClick={() => setCurrentView('communication')}>
+          <MessageSquare className="h-3 w-3 mr-1" />
+          {t('dashboard.pending_communications')}
+        </Button>
+        <Button size="sm" variant="outline" className="rounded-xl text-xs" onClick={() => setCurrentView('calendar')}>
+          <CalendarDays className="h-3 w-3 mr-1" />
+          {t('dashboard.upcoming_exams')}
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 export default function DashboardView() {
   const currentUser = useAppStore((s) => s.currentUser);
   const setCurrentView = useAppStore((s) => s.setCurrentView);
@@ -2245,6 +2432,26 @@ export default function DashboardView() {
           </CardContent>
         </Card>
       </motion.div>
+
+      {/* ===== KLASSENLEHRER SECTION (for teachers) ===== */}
+      {(currentUser?.role === 'TEACHER' || currentUser?.role === 'SCHOOL_ADMIN' || currentUser?.role === 'VICE_PRINCIPAL' || currentUser?.role === 'SUPER_ADMIN') && (
+        <motion.div variants={itemVariants}>
+          <Card className="border-0 shadow-sm rounded-xl border-l-3 border-l-emerald-500 overflow-hidden ring-1 ring-black/[0.03] dark:ring-white/[0.05]">
+            <CardHeader className="pb-3 pt-5 bg-gradient-to-r from-emerald-50/50 to-transparent dark:from-emerald-900/10 dark:to-transparent">
+              <CardTitle className="text-lg font-bold flex items-center gap-2">
+                <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-400 to-teal-500 text-white shadow-sm">
+                  <UserCheck className="h-4 w-4" />
+                </div>
+                {t('dashboard.klassenlehrer_section')}
+                <div className="h-0.5 w-16 rounded-full bg-gradient-to-r from-emerald-400 to-transparent" />
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <KlassenlehrerDashboard schoolId={currentUser?.schoolId ?? ''} userId={currentUser?.id ?? ''} />
+            </CardContent>
+          </Card>
+        </motion.div>
+      )}
 
       {/* ===== QUICK ACTION BUTTONS ===== */}
       <motion.div variants={itemVariants} className="flex flex-col sm:flex-row flex-wrap gap-3">

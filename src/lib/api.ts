@@ -155,10 +155,13 @@ export interface ClassGroup {
   schoolType: string;
   school: { id: string; name: string };
   schoolYear: { id: string; label: string };
+  responsibleTeacherId?: string | null;
+  responsibleTeacher?: { id: string; firstName: string; lastName: string; email: string } | null;
   teachers: Array<{ id: string; userId: string; role: string; user: { id: string; firstName: string; lastName: string; email: string } }>;
   studentCount?: number;
+  assessmentCount?: number;
   teacherList?: Array<{ id: string; firstName: string; lastName: string; teacherRole: string }>;
-  _count?: { enrollments?: number; competencyAssignments?: number; [key: string]: unknown };
+  _count?: { enrollments?: number; competencyAssignments?: number; assessments?: number; [key: string]: unknown };
 }
 
 export function fetchClasses(schoolId?: string, schoolYearId?: string): Promise<ClassGroup[]> {

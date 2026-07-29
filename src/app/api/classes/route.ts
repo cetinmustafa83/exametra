@@ -40,6 +40,14 @@ export async function GET(request: Request) {
       include: {
         school: { select: { id: true, name: true } },
         schoolYear: { select: { id: true, label: true } },
+        responsibleTeacher: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+          },
+        },
         teachers: {
           include: {
             user: {
@@ -57,6 +65,7 @@ export async function GET(request: Request) {
             enrollments: {
               where: { endDate: null },
             },
+            assessments: true,
           },
         },
       },
@@ -65,6 +74,7 @@ export async function GET(request: Request) {
     const result = classes.map((cls) => ({
       ...cls,
       studentCount: cls._count.enrollments,
+      assessmentCount: cls._count.assessments,
       teacherList: cls.teachers.map((t) => ({
         ...t.user,
         teacherRole: t.role,

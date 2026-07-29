@@ -12,6 +12,7 @@ import {
   QrCode, FileDown,
   Shuffle, Printer, Eraser, Columns3, Rows3, Move,
   Camera,
+  UserCheck, Shield, Eye, MessageSquare, CalendarDays, AlertCircle,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -19,9 +20,11 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Progress } from '@/components/ui/progress';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useAppStore } from '@/lib/store';
 import { t } from '@/lib/i18n';
 import StudentAvatar from '@/components/student-avatar';
@@ -30,10 +33,10 @@ import {
   fetchSubjects, fetchCompetencyTemplates, createClassCompetencyAssignment,
   fetchClassCompetencyAssignments, downloadCsvExport, bulkCreateStudents,
   fetchLearningProgress, reorderStudents,
+  apiGet, apiPut,
   type LearningProgressEntry,
   type ClassGroup, type Student, type Subject, type CompetencyTemplate, type ClassCompetencyAssignment,
 } from '@/lib/api';
-import { apiGet, apiPut } from '@/lib/api';
 import { generateQRCodeSync, downloadQRCode, type QRCodeData } from '@/lib/qrcode';
 import { toast } from 'sonner';
 
@@ -214,6 +217,12 @@ export default function ClassesView() {
   // QR Code dialog
   const [classQrOpen, setClassQrOpen] = useState(false);
   const [classQrDataUrl, setClassQrDataUrl] = useState<string>('');
+
+  // Klassenlehrer dialog
+  const [responsibleTeacherOpen, setResponsibleTeacherOpen] = useState(false);
+  const [selectedTeacherId, setSelectedTeacherId] = useState<string>('');
+  const [assigningTeacher, setAssigningTeacher] = useState(false);
+  const [teachers, setTeachers] = useState<Array<{ id: string; firstName: string; lastName: string; email: string }>>([]);
 
   // Parse a CSV file (client-side). Supports quoted fields with escaped quotes.
   function parseCsv(text: string): string[][] {
@@ -488,6 +497,38 @@ export default function ClassesView() {
       // ignore
     }
     setEnrollOpen(true);
+  };
+
+  const openResponsibleTeacherDialog = async () => {
+    if (!currentUser?.schoolId) return;
+    try {
+      const resp = await apiGet<Array<{ id: string; firstName: string; lastName: string; email: string; role: string }>>(`/api/users?schoolId=${currentUser.schoolId}&role=TEACHER`);
+      setTeachers(resp);
+      setSelectedTeacherId(selectedClass?.responsibleTeacherId ?? '');
+    } catch {
+      // ignore
+    }
+    setResponsibleTeacherOpen(true);
+  };
+
+  const handleAssignResponsibleTeacher = async () => {
+    if (!selectedClass) return;
+    setAssigningTeacher(true);
+    try {
+      const teacherId = selectedTeacherId === 'none' ? null : (selectedTeacherId || null);
+      const updated = await apiPut<ClassGroup>(`/api/classes/${selectedClass.id}`, {
+        responsibleTeacherId: teacherId,
+      });
+      setSelectedClass(updated);
+      // Also update the class in the list
+      setClasses((prev) => prev.map((c) => c.id === updated.id ? updated : c));
+      toast.success(t('classes.teacher_assigned'));
+      setResponsibleTeacherOpen(false);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : t('error.generic'));
+    } finally {
+      setAssigningTeacher(false);
+    }
   };
 
   const openAssignDialog = async () => {
@@ -874,12 +915,18 @@ export default function ClassesView() {
                   <div className="p-4">
                     <div className="flex items-center justify-between">
                       <div className="min-w-0">
-                        <div className="flex items-center gap-2 mb-1">
+                        <div className="flex items-center gap-2 mb-1 flex-wrap">
                           <p className="font-semibold text-gray-900 dark:text-gray-100">{cls.name}</p>
                           <Badge className={`${schoolTypeBadgeBg[cls.schoolType] ?? schoolTypeBadgeBg.OTHER} text-[10px] font-semibold rounded-md px-1.5 py-0.5 flex items-center gap-1`}>
                             {schoolTypeIcon[cls.schoolType] ?? <Backpack className="w-3 h-3" />}
                             {t(`school_type.${cls.schoolType.toLowerCase()}`)}
                           </Badge>
+                          {cls.responsibleTeacher && (
+                            <Badge className="bg-gradient-to-r from-emerald-500 to-teal-500 text-white text-[10px] font-semibold rounded-md px-1.5 py-0.5 flex items-center gap-1 shadow-sm">
+                              <UserCheck className="w-3 h-3" />
+                              {cls.responsibleTeacher.firstName} {cls.responsibleTeacher.lastName}
+                            </Badge>
+                          )}
                         </div>
                         <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
                           {t('label.grade')} {cls.gradeLevel} · {cls.schoolYear?.label}
@@ -1055,6 +1102,96 @@ export default function ClassesView() {
                 </div>
               </CardHeader>
               <CardContent className="space-y-4">
+                {/* Klassenlehrer Section */}
+                <div className="rounded-xl border border-emerald-200/40 dark:border-emerald-900/30 bg-gradient-to-r from-emerald-50/50 to-teal-50/30 dark:from-emerald-900/10 dark:to-teal-900/5 p-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                      <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-500 to-teal-500 text-white shadow-sm">
+                        <UserCheck className="h-4 w-4" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">{t('classes.klassenlehrer')}</p>
+                        <p className="text-[11px] text-emerald-600/70 dark:text-emerald-400/60">{t('classes.responsible_teacher')}</p>
+                      </div>
+                    </div>
+                    {(currentUser?.role === 'SUPER_ADMIN' || currentUser?.role === 'SCHOOL_ADMIN') && (
+                      <Button size="sm" variant="outline" className="border-emerald-300 dark:border-emerald-700 rounded-xl text-xs" onClick={openResponsibleTeacherDialog}>
+                        <PenLine className="h-3 w-3 mr-1" />
+                        {selectedClass.responsibleTeacher ? t('classes.change_teacher') : t('classes.assign_teacher')}
+                      </Button>
+                    )}
+                  </div>
+                  {selectedClass.responsibleTeacher ? (
+                    <div className="flex items-center gap-3">
+                      <div className="flex items-center justify-center w-10 h-10 rounded-full bg-gradient-to-br from-emerald-400 to-teal-500 text-white shadow-sm text-sm font-bold">
+                        {selectedClass.responsibleTeacher.firstName[0]}{selectedClass.responsibleTeacher.lastName[0]}
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+                          {selectedClass.responsibleTeacher.firstName} {selectedClass.responsibleTeacher.lastName}
+                        </p>
+                        <p className="text-xs text-gray-500 dark:text-gray-400">{selectedClass.responsibleTeacher.email}</p>
+                      </div>
+                      <Badge className="bg-gradient-to-r from-emerald-500 to-teal-500 text-white text-[10px] font-semibold rounded-md px-2 py-0.5 flex items-center gap-1 shadow-sm ml-2">
+                        <Shield className="w-3 h-3" />
+                        {t('classes.teacher_badge')}
+                      </Badge>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2 text-gray-500 dark:text-gray-400">
+                      <AlertCircle className="h-4 w-4 text-amber-500" />
+                      <p className="text-sm">{t('classes.no_responsible_teacher')}</p>
+                    </div>
+                  )}
+                  {selectedClass.responsibleTeacher && (
+                    <div className="mt-3 grid grid-cols-2 sm:grid-cols-4 gap-2">
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <div className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg bg-emerald-100/60 dark:bg-emerald-900/20 border border-emerald-200/30 dark:border-emerald-800/20">
+                              <Eye className="h-3 w-3 text-emerald-600 dark:text-emerald-400" />
+                              <span className="text-[10px] text-emerald-700 dark:text-emerald-300 font-medium">{t('classes.illness_access')}</span>
+                            </div>
+                          </TooltipTrigger>
+                          <TooltipContent>{t('classes.illness_access')}</TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <div className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg bg-teal-100/60 dark:bg-teal-900/20 border border-teal-200/30 dark:border-teal-800/20">
+                              <MessageSquare className="h-3 w-3 text-teal-600 dark:text-teal-400" />
+                              <span className="text-[10px] text-teal-700 dark:text-teal-300 font-medium">{t('classes.communication_access')}</span>
+                            </div>
+                          </TooltipTrigger>
+                          <TooltipContent>{t('classes.communication_access')}</TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <div className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg bg-amber-100/60 dark:bg-amber-900/20 border border-amber-200/30 dark:border-amber-800/20">
+                              <CalendarDays className="h-3 w-3 text-amber-600 dark:text-amber-400" />
+                              <span className="text-[10px] text-amber-700 dark:text-amber-300 font-medium">{t('classes.counseling_access')}</span>
+                            </div>
+                          </TooltipTrigger>
+                          <TooltipContent>{t('classes.counseling_access')}</TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <div className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg bg-rose-100/60 dark:bg-rose-900/20 border border-rose-200/30 dark:border-rose-800/20">
+                              <AlertCircle className="h-3 w-3 text-rose-600 dark:text-rose-400" />
+                              <span className="text-[10px] text-rose-700 dark:text-rose-300 font-medium">{t('classes.disciplinary_access')}</span>
+                            </div>
+                          </TooltipTrigger>
+                          <TooltipContent>{t('classes.disciplinary_access')}</TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    </div>
+                  )}
+                </div>
                 {/* Teachers */}
                 <div>
                   <p className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">{t('classes.teacher_list')}</p>
@@ -1095,6 +1232,9 @@ export default function ClassesView() {
                   <div>
                     <p className="text-[10px] uppercase tracking-wider text-emerald-600/70 dark:text-emerald-400/60 font-semibold">{t('polish.total_students')}</p>
                     <p className="text-lg font-bold text-gray-900 dark:text-gray-100">{classStats.total}</p>
+                    <div className="w-16 h-1.5 rounded-full bg-gray-200 dark:bg-gray-700 mt-1 overflow-hidden">
+                      <div className="h-full rounded-full bg-gradient-to-r from-emerald-400 to-teal-400" style={{ width: `${Math.min(100, (classStats.total / 30) * 100)}%` }} />
+                    </div>
                   </div>
                 </div>
                 <div className="flex items-center gap-2.5">
@@ -1115,6 +1255,17 @@ export default function ClassesView() {
                     <p className="text-lg font-bold text-gray-900 dark:text-gray-100">Ø {classStats.avgEntries.toFixed(1)}</p>
                   </div>
                 </div>
+                <div className="flex items-center gap-2.5">
+                  <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-gradient-to-br from-violet-400 to-violet-500 text-white shadow-sm">
+                    <FileText className="h-4 w-4" />
+                  </div>
+                  <div>
+                    <p className="text-[10px] uppercase tracking-wider text-violet-600/70 dark:text-violet-400/60 font-semibold">{t('classes.active_assessments')}</p>
+                    <p className="text-lg font-bold text-gray-900 dark:text-gray-100">{selectedClass.assessmentCount ?? selectedClass._count?.assessments ?? 0}</p>
+                  </div>
+                </div>
+              </div>
+              <div className="px-4 pb-4">
                 <div className={`flex items-center gap-2.5 rounded-lg px-3 py-2 border ${healthMeta[classStats.health].bg}`}>
                   <div className={`flex items-center justify-center w-9 h-9 rounded-lg bg-white/70 dark:bg-gray-800/60 ${healthMeta[classStats.health].text} shrink-0`}>
                     <HeartPulse className="h-4 w-4" />
@@ -2022,6 +2173,75 @@ export default function ClassesView() {
               {t('qr.download')}
             </Button>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Klassenlehrer Assign/Change Dialog */}
+      <Dialog open={responsibleTeacherOpen} onOpenChange={setResponsibleTeacherOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <UserCheck className="h-5 w-5 text-emerald-600" />
+              {selectedClass?.responsibleTeacher ? t('classes.change_teacher') : t('classes.assign_teacher')}
+            </DialogTitle>
+            <DialogDescription>{t('classes.privileges_info')}</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label className="text-sm font-medium mb-2 block">{t('classes.select_teacher')}</Label>
+              <Select value={selectedTeacherId} onValueChange={setSelectedTeacherId}>
+                <SelectTrigger className="rounded-xl">
+                  <SelectValue placeholder={t('classes.select_teacher')} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">{t('classes.no_responsible_teacher')}</SelectItem>
+                  {teachers.map((teacher) => (
+                    <SelectItem key={teacher.id} value={teacher.id}>
+                      {teacher.firstName} {teacher.lastName} ({teacher.email})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            {selectedTeacherId && selectedTeacherId !== 'none' && (
+              <div className="rounded-xl border border-emerald-200/40 dark:border-emerald-900/30 bg-emerald-50/50 dark:bg-emerald-900/10 p-3">
+                <p className="text-xs font-medium text-emerald-700 dark:text-emerald-300 mb-2">{t('classes.teacher_privileges')}</p>
+                <div className="space-y-1.5">
+                  <div className="flex items-center gap-2">
+                    <Eye className="h-3.5 w-3.5 text-emerald-500" />
+                    <span className="text-xs text-gray-700 dark:text-gray-300">{t('classes.illness_access')}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <MessageSquare className="h-3.5 w-3.5 text-teal-500" />
+                    <span className="text-xs text-gray-700 dark:text-gray-300">{t('classes.communication_access')}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <CalendarDays className="h-3.5 w-3.5 text-amber-500" />
+                    <span className="text-xs text-gray-700 dark:text-gray-300">{t('classes.counseling_access')}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <AlertCircle className="h-3.5 w-3.5 text-rose-500" />
+                    <span className="text-xs text-gray-700 dark:text-gray-300">{t('classes.disciplinary_access')}</span>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setResponsibleTeacherOpen(false)} className="rounded-xl">{t('action.cancel')}</Button>
+            <Button
+              onClick={handleAssignResponsibleTeacher}
+              disabled={assigningTeacher}
+              className="bg-gradient-to-r from-emerald-500 to-teal-500 text-white rounded-xl"
+            >
+              {assigningTeacher ? (
+                <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full mr-2" />
+              ) : (
+                <UserCheck className="h-4 w-4 mr-2" />
+              )}
+              {t('action.assign')}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

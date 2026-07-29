@@ -1304,6 +1304,210 @@ function PrivacyTab({ currentUser }: { currentUser: { id: string; role: string; 
   );
 }
 
+// ── Vice Principal Manager Sub-Component ────────────────────────────────
+function VicePrincipalManager({ schoolId }: { schoolId: string }) {
+  const [users, setUsers] = useState<Array<{ id: string; firstName: string; lastName: string; email: string; role: string; schoolId: string | null }>>([]);
+  const [loading, setLoading] = useState(true);
+  const [changingRole, setChangingRole] = useState<string | null>(null);
+  const [confirmDialog, setConfirmDialog] = useState<{ userId: string; newRole: string; userName: string } | null>(null);
+  const locale = useAppStore((s) => s.locale);
+
+  const loadUsers = useCallback(async () => {
+    if (!schoolId) return;
+    setLoading(true);
+    try {
+      const data = await apiGet<Array<{ id: string; firstName: string; lastName: string; email: string; role: string; schoolId: string | null }>>(`/api/users?schoolId=${schoolId}`);
+      setUsers(data);
+    } catch {
+      // ignore
+    } finally {
+      setLoading(false);
+    }
+  }, [schoolId]);
+
+  useEffect(() => { loadUsers(); }, [loadUsers]);
+
+  const vicePrincipals = users.filter((u) => u.role === 'VICE_PRINCIPAL');
+  const admins = users.filter((u) => u.role === 'SCHOOL_ADMIN' || u.role === 'SUPER_ADMIN' || u.role === 'VICE_PRINCIPAL');
+  const teachers = users.filter((u) => u.role === 'TEACHER');
+
+  const handleRoleChange = async (userId: string, newRole: string) => {
+    setChangingRole(userId);
+    try {
+      await apiPut('/api/users/role', { userId, role: newRole });
+      await loadUsers();
+      toast.success(t('settings.role_changed'));
+      setConfirmDialog(null);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : t('error.generic'));
+    } finally {
+      setChangingRole(null);
+    }
+  };
+
+  const roleLabel = (role: string) => {
+    switch (role) {
+      case 'SUPER_ADMIN': return 'Super Admin';
+      case 'SCHOOL_ADMIN': return locale === 'de' ? 'Schulleiter' : 'School Admin';
+      case 'VICE_PRINCIPAL': return t('settings.vice_principal_short');
+      case 'TEACHER': return locale === 'de' ? 'Lehrer' : 'Teacher';
+      default: return role;
+    }
+  };
+
+  const roleBadgeClass = (role: string) => {
+    switch (role) {
+      case 'SUPER_ADMIN': return 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-300';
+      case 'SCHOOL_ADMIN': return 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300';
+      case 'VICE_PRINCIPAL': return 'bg-gradient-to-r from-teal-500 to-teal-600 text-white';
+      case 'TEACHER': return 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300';
+      default: return 'bg-gray-100 text-gray-700 dark:bg-gray-900/30 dark:text-gray-300';
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="space-y-3">
+        {[1, 2, 3].map((i) => (
+          <div key={i} className="flex items-center gap-3 p-3 rounded-xl bg-gray-50/60 dark:bg-gray-800/40">
+            <div className="h-9 w-9 rounded-full bg-gray-200 dark:bg-gray-700 animate-pulse" />
+            <div className="flex-1 space-y-1.5">
+              <div className="h-3 w-1/3 rounded bg-gray-200 dark:bg-gray-700 animate-pulse" />
+              <div className="h-2.5 w-2/3 rounded bg-gray-200 dark:bg-gray-700 animate-pulse" />
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Current Vice Principals */}
+      <div>
+        <p className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3 flex items-center gap-2">
+          <Shield className="h-4 w-4 text-teal-500" />
+          {t('settings.current_admins')}
+        </p>
+        {admins.length === 0 ? (
+          <div className="text-center py-6">
+            <div className="flex items-center justify-center w-12 h-12 rounded-xl bg-teal-100 dark:bg-teal-900/30 mx-auto mb-3">
+              <Shield className="h-6 w-6 text-teal-600 dark:text-teal-400" />
+            </div>
+            <p className="text-sm text-gray-500 dark:text-gray-400">{locale === 'de' ? 'Keine Administratoren gefunden' : 'No administrators found'}</p>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {admins.map((admin) => (
+              <motion.div
+                key={admin.id}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="flex items-center justify-between p-3 rounded-xl bg-gradient-to-r from-teal-50/40 to-transparent dark:from-teal-900/10 dark:to-transparent border border-teal-100/40 dark:border-teal-900/20"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center justify-center w-9 h-9 rounded-full bg-gradient-to-br from-teal-400 to-teal-500 text-white shadow-sm text-sm font-bold">
+                    {admin.firstName[0]}{admin.lastName[0]}
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">{admin.firstName} {admin.lastName}</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">{admin.email}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Badge className={`${roleBadgeClass(admin.role)} text-xs font-medium rounded-md px-2 py-0.5`}>
+                    {roleLabel(admin.role)}
+                  </Badge>
+                  {admin.role === 'VICE_PRINCIPAL' && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="border-rose-300 dark:border-rose-700 text-rose-600 dark:text-rose-400 rounded-xl text-xs h-7"
+                      disabled={changingRole === admin.id}
+                      onClick={() => setConfirmDialog({ userId: admin.id, newRole: 'TEACHER', userName: `${admin.firstName} ${admin.lastName}` })}
+                    >
+                      {changingRole === admin.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <Trash2 className="h-3 w-3 mr-1" />}
+                      {t('settings.remove_vice_principal')}
+                    </Button>
+                  )}
+                </div>
+              </motion.div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Assign Vice Principal */}
+      <div>
+        <p className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3 flex items-center gap-2">
+          <UserPlus className="h-4 w-4 text-emerald-500" />
+          {t('settings.assign_vice_principal')}
+        </p>
+        {teachers.length === 0 ? (
+          <div className="text-center py-4">
+            <p className="text-sm text-gray-500 dark:text-gray-400">{locale === 'de' ? 'Keine Lehrer verfuegbar' : 'No teachers available'}</p>
+          </div>
+        ) : (
+          <div className="space-y-2 max-h-96 overflow-y-auto scrollbar-education">
+            {teachers.map((teacher) => (
+              <div
+                key={teacher.id}
+                className="flex items-center justify-between p-3 rounded-xl bg-gradient-to-r from-emerald-50/30 to-transparent dark:from-emerald-900/5 dark:to-transparent border border-emerald-100/30 dark:border-emerald-900/10"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center justify-center w-8 h-8 rounded-full bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 text-xs font-bold">
+                    {teacher.firstName[0]}{teacher.lastName[0]}
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-gray-900 dark:text-gray-100">{teacher.firstName} {teacher.lastName}</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">{teacher.email}</p>
+                  </div>
+                </div>
+                <Button
+                  size="sm"
+                  className="rounded-xl bg-gradient-to-r from-teal-500 to-teal-600 text-white shadow-md text-xs h-7"
+                  disabled={changingRole === teacher.id}
+                  onClick={() => setConfirmDialog({ userId: teacher.id, newRole: 'VICE_PRINCIPAL', userName: `${teacher.firstName} ${teacher.lastName}` })}
+                >
+                  {changingRole === teacher.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <Shield className="h-3 w-3 mr-1" />}
+                  {t('settings.assign_vice_principal')}
+                </Button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Confirm Dialog */}
+      <Dialog open={!!confirmDialog} onOpenChange={(open) => !open && setConfirmDialog(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertCircle className="h-5 w-5 text-amber-500" />
+              {t('settings.confirm_role_change')}
+            </DialogTitle>
+            <DialogDescription>
+              {confirmDialog?.newRole === 'VICE_PRINCIPAL'
+                ? t('settings.assign_vice_principal')
+                : t('settings.confirm_role_remove')
+              } — {confirmDialog?.userName}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setConfirmDialog(null)} className="rounded-xl">{t('action.cancel')}</Button>
+            <Button
+              onClick={() => confirmDialog && handleRoleChange(confirmDialog.userId, confirmDialog.newRole)}
+              className="rounded-xl bg-gradient-to-r from-teal-500 to-teal-600 text-white"
+            >
+              {t('action.confirm')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
 export default function SettingsView() {
   const currentUser = useAppStore((s) => s.currentUser);
   const [activeTab, setActiveTab] = useState('school');
@@ -5319,16 +5523,7 @@ export default function SettingsView() {
               <CardDescription>{t('settings.vice_principal_desc')}</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="text-center py-6">
-                <div className="flex items-center justify-center w-12 h-12 rounded-xl bg-teal-100 dark:bg-teal-900/30 mx-auto mb-3">
-                  <Shield className="h-6 w-6 text-teal-600 dark:text-teal-400" />
-                </div>
-                <p className="text-sm text-gray-500 dark:text-gray-400 mb-3">{locale === 'de' ? 'Keine Stellvertretenden Schulleiter zugewiesen' : 'No vice principals assigned'}</p>
-                <Button className="rounded-xl bg-gradient-to-r from-teal-500 to-teal-600 text-white shadow-md" onClick={() => toast.info(locale === 'de' ? 'Funktion wird bald verfuegbar sein' : 'Feature coming soon')}>
-                  <UserPlus className="h-4 w-4 mr-1" />
-                  {t('action.add')}
-                </Button>
-              </div>
+              <VicePrincipalManager schoolId={currentUser?.schoolId ?? ''} />
             </CardContent>
           </Card>
 

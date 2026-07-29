@@ -263,6 +263,113 @@ function CelebrationParticles({ active }: { active: boolean }) {
   );
 }
 
+// ── Student Exam Section Sub-Component ──────────────────────────────────
+function StudentExamSection({ schoolId }: { schoolId: string }) {
+  const [exams, setExams] = useState<Array<{
+    id: string;
+    title: string;
+    date: string;
+    startTime: string | null;
+    endTime: string | null;
+    subject: { id: string; name: string } | null;
+    classGroup: { id: string; name: string } | null;
+    teacher: { id: string; firstName: string; lastName: string } | null;
+    daysUntil: number;
+    countdownLabel: string;
+  }>>([]);
+  const [loading, setLoading] = useState(true);
+  const locale = useAppStore((s) => s.locale);
+
+  useEffect(() => {
+    if (!schoolId) return;
+    setLoading(true);
+    fetch(`/api/calendar-events/exams?schoolId=${schoolId}&limit=10`)
+      .then((res) => res.json())
+      .then((data) => {
+        setExams(Array.isArray(data) ? data : []);
+      })
+      .catch(() => {
+        // ignore
+      })
+      .finally(() => {
+        setLoading(false);
+      });
+  }, [schoolId]);
+
+  if (loading) {
+    return (
+      <div className="space-y-3">
+        {[1, 2, 3].map((i) => (
+          <div key={i} className="flex items-center gap-3 p-3 rounded-xl bg-gray-50/60 dark:bg-gray-800/40">
+            <div className="h-9 w-9 rounded-full bg-gray-200 dark:bg-gray-700 animate-pulse" />
+            <div className="flex-1 space-y-1.5">
+              <div className="h-3 w-1/3 rounded bg-gray-200 dark:bg-gray-700 animate-pulse" />
+              <div className="h-2.5 w-2/3 rounded bg-gray-200 dark:bg-gray-700 animate-pulse" />
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  if (exams.length === 0) {
+    return (
+      <div className="text-center py-6">
+        <div className="flex items-center justify-center w-12 h-12 rounded-xl bg-red-100 dark:bg-red-900/30 mx-auto mb-3">
+          <CalendarDays className="h-6 w-6 text-red-600 dark:text-red-400" />
+        </div>
+        <p className="text-sm text-gray-500 dark:text-gray-400">{t('portal.no_exams_scheduled')}</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-2">
+      {exams.map((exam, idx) => {
+        const daysUntil = exam.daysUntil;
+        const countdownText = daysUntil === 0
+          ? t('calendar.exam_today')
+          : daysUntil === 1
+            ? t('calendar.exam_tomorrow')
+            : daysUntil < 7
+              ? t('calendar.exam_in_days', { days: daysUntil })
+              : t('calendar.exam_in_weeks', { weeks: Math.floor(daysUntil / 7) });
+        const urgencyClass = daysUntil <= 1
+          ? 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 border-red-200/60 dark:border-red-900/30'
+          : daysUntil <= 3
+            ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 border-amber-200/60 dark:border-amber-900/30'
+            : 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 border-emerald-200/60 dark:border-emerald-900/30';
+
+        return (
+          <motion.div
+            key={exam.id}
+            initial={{ opacity: 0, x: -10 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.3, delay: idx * 0.05 }}
+            className="flex items-center justify-between p-3 rounded-xl bg-gradient-to-r from-red-50/30 to-transparent dark:from-red-900/5 dark:to-transparent border border-red-100/30 dark:border-red-900/10"
+          >
+            <div className="flex items-center gap-3">
+              <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-gradient-to-br from-red-400 to-red-500 text-white shadow-sm text-sm font-bold">
+                {exam.subject?.name?.substring(0, 2)?.toUpperCase() ?? 'EX'}
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">{exam.title}</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  {exam.subject?.name ?? ''} {exam.classGroup?.name ? `· ${exam.classGroup.name}` : ''}
+                </p>
+              </div>
+            </div>
+            <Badge className={`${urgencyClass} text-[10px] font-semibold rounded-md px-2 py-0.5 flex items-center gap-1 shrink-0`}>
+              <Clock className="h-3 w-3" />
+              {countdownText}
+            </Badge>
+          </motion.div>
+        );
+      })}
+    </div>
+  );
+}
+
 // ── Component ───────────────────────────────────────────────────────────
 
 export default function StudentPortalView() {
@@ -663,6 +770,11 @@ export default function StudentPortalView() {
               <MessageSquare className="h-3.5 w-3.5" />
               <span className="hidden sm:inline">{t('student_portal.my_feedback')}</span>
               <span className="sm:hidden">{t('student_portal.my_feedback').split(' ')[0]}</span>
+            </TabsTrigger>
+            <TabsTrigger value="exams" className="text-xs sm:text-sm gap-1.5 min-h-[40px] data-[state=active]:bg-white dark:data-[state=active]:bg-gray-900 data-[state=active]:shadow-sm rounded-lg">
+              <CalendarDays className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">{t('portal.upcoming_exams')}</span>
+              <span className="sm:hidden">{t('portal.upcoming_exams').split(' ')[0]}</span>
             </TabsTrigger>
           </TabsList>
 
@@ -1383,6 +1495,107 @@ export default function StudentPortalView() {
                     <p className="text-sm text-gray-500 dark:text-gray-400">{t('student_portal.no_feedback')}</p>
                   </div>
                 )}
+              </motion.div>
+            </AnimatePresence>
+          </TabsContent>
+
+          {/* ── Exams & Study Tips Tab ─────────────────────────────────── */}
+          <TabsContent value="exams">
+            <AnimatePresence mode="wait">
+              <motion.div
+                key="exams"
+                variants={tabContentVariants}
+                initial="hidden"
+                animate="visible"
+                exit="exit"
+                className="space-y-6"
+              >
+                {/* Upcoming Exams with Countdown */}
+                <Card className="border-0 shadow-sm rounded-xl border-l-3 border-l-red-500 overflow-hidden">
+                  <CardHeader className="pb-3 pt-6 bg-gradient-to-r from-red-50/50 to-transparent dark:from-red-900/10 dark:to-transparent">
+                    <CardTitle className="text-base font-bold flex items-center gap-2">
+                      <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-gradient-to-br from-red-400 to-red-500 text-white shadow-sm">
+                        <CalendarDays className="h-4 w-4" />
+                      </div>
+                      {t('portal.upcoming_exams')}
+                      <div className="h-0.5 w-12 rounded-full bg-gradient-to-r from-red-400 to-transparent" />
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <StudentExamSection schoolId={currentUser?.schoolId ?? ''} />
+                  </CardContent>
+                </Card>
+
+                {/* AI Study Tips */}
+                <Card className="border-0 shadow-sm rounded-xl border-l-3 border-l-emerald-500 overflow-hidden">
+                  <CardHeader className="pb-3 pt-6 bg-gradient-to-r from-emerald-50/50 to-transparent dark:from-emerald-900/10 dark:to-transparent">
+                    <CardTitle className="text-base font-bold flex items-center gap-2">
+                      <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-400 to-teal-500 text-white shadow-sm">
+                        <Sparkles className="h-4 w-4" />
+                      </div>
+                      {t('portal.study_tips')}
+                      <div className="h-0.5 w-12 rounded-full bg-gradient-to-r from-emerald-400 to-transparent" />
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-3">
+                      {[
+                        { title: t('portal.focus_areas'), desc: t('portal.motivation_message'), icon: Target, color: 'from-emerald-400 to-teal-500' },
+                        { title: t('portal.practice_recommendations'), desc: t('portal.start_practice'), icon: BookOpen, color: 'from-teal-400 to-emerald-500' },
+                        { title: t('portal.ai_study_tip'), desc: t('portal.motivation_message'), icon: Sparkles, color: 'from-amber-400 to-amber-500' },
+                      ].map((tip, idx) => {
+                        const Icon = tip.icon;
+                        return (
+                          <motion.div
+                            key={idx}
+                            initial={{ opacity: 0, x: -10 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            transition={{ duration: 0.3, delay: idx * 0.1 }}
+                            className="flex items-start gap-3 p-3 rounded-xl bg-gradient-to-r from-emerald-50/30 to-transparent dark:from-emerald-900/5 dark:to-transparent border border-emerald-100/30 dark:border-emerald-900/10"
+                          >
+                            <div className={`flex items-center justify-center w-8 h-8 rounded-lg bg-gradient-to-br ${tip.color} text-white shadow-sm shrink-0 mt-0.5`}>
+                              <Icon className="h-4 w-4" />
+                            </div>
+                            <div>
+                              <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">{tip.title}</p>
+                              <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{tip.desc}</p>
+                            </div>
+                          </motion.div>
+                        );
+                      })}
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Virtual Character / AI Assistant */}
+                <Card className="border-0 shadow-sm rounded-xl border-l-3 border-l-violet-500 overflow-hidden">
+                  <CardHeader className="pb-3 pt-6 bg-gradient-to-r from-violet-50/50 to-transparent dark:from-violet-900/10 dark:to-transparent">
+                    <CardTitle className="text-base font-bold flex items-center gap-2">
+                      <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-gradient-to-br from-violet-400 to-violet-500 text-white shadow-sm">
+                        <Sparkles className="h-4 w-4" />
+                      </div>
+                      {t('portal.ai_assistant')}
+                      <div className="h-0.5 w-12 rounded-full bg-gradient-to-r from-violet-400 to-transparent" />
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="flex items-center gap-4 p-4 rounded-xl bg-gradient-to-r from-violet-50/50 to-teal-50/30 dark:from-violet-900/10 dark:to-teal-900/5 border border-violet-100/40 dark:border-violet-900/20">
+                      <div className="flex items-center justify-center w-12 h-12 rounded-2xl bg-gradient-to-br from-violet-400 to-teal-500 text-white shadow-lg">
+                        <Sparkles className="h-6 w-6" />
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">{t('portal.virtual_character')}</p>
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{t('portal.motivation_message')}</p>
+                      </div>
+                      <Button size="sm" className="rounded-xl bg-gradient-to-r from-violet-500 to-teal-500 text-white shadow-md" onClick={() => {
+                        const store = useAppStore.getState();
+                        store.setCurrentView('subjects');
+                      }}>
+                        {t('portal.ask_ai')}
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
               </motion.div>
             </AnimatePresence>
           </TabsContent>

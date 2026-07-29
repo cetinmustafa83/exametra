@@ -7,7 +7,7 @@ const updateUserSchema = z.object({
   firstName: z.string().min(1).optional(),
   lastName: z.string().min(1).optional(),
   email: z.string().email().optional(),
-  role: z.enum(['TEACHER', 'SCHOOL_ADMIN', 'SUPER_ADMIN']).optional(),
+  role: z.enum(['TEACHER', 'SCHOOL_ADMIN', 'SUPER_ADMIN', 'VICE_PRINCIPAL']).optional(),
   locale: z.string().optional(),
 });
 

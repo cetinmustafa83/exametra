@@ -23,6 +23,7 @@ import {
   GraduationCap,
   Filter,
   Timer,
+  Printer,
 } from 'lucide-react';
 import {
   format,
@@ -1115,6 +1116,16 @@ export default function CalendarView() {
           >
             <Filter className="h-4 w-4 mr-1.5" />
             {showExamsOnly ? t('calendar.hide_exams') : t('calendar.show_exams')}
+          </Button>
+          {/* Print Calendar button */}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => window.print()}
+            className="border-emerald-200/60 dark:border-emerald-900/30 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 min-h-[44px]"
+          >
+            <Printer className="h-4 w-4 mr-1.5" />
+            {t('calendar.print')}
           </Button>
         </div>
       </motion.div>
