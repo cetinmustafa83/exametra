@@ -561,7 +561,7 @@ export default function CompetenceFlowerView() {
           </Collapsible>
           {/* Radar chart */}
           <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}>
-          <Card className="border-0 shadow-sm rounded-xl border-l-3 overflow-hidden" style={{ borderLeftColor: primaryColor, boxShadow: `0 2px 16px ${primaryColor}15, 0 1px 3px rgba(0,0,0,0.06)` }}>
+          <Card className="card-shadow-transition border-0 shadow-sm rounded-xl border-l-3 overflow-hidden" style={{ borderLeftColor: primaryColor, boxShadow: `0 2px 16px ${primaryColor}15, 0 1px 3px rgba(0,0,0,0.06)` }}>
             <CardHeader className="pb-3 pt-6 bg-gradient-to-r from-emerald-50/50 to-transparent dark:from-emerald-900/10 dark:to-transparent">
               <div className="flex items-center justify-between">
                 <CardTitle className="text-lg font-bold flex items-center gap-2">
@@ -786,7 +786,7 @@ export default function CompetenceFlowerView() {
           </motion.div>
 
           {/* Breakdown table */}
-          <Card className="border-0 shadow-sm rounded-xl border-l-3 overflow-hidden" style={{ borderLeftColor: lightenColor(primaryColor, 0.1) }}>
+          <Card className="card-shadow-transition border-0 shadow-sm rounded-xl border-l-3 overflow-hidden" style={{ borderLeftColor: lightenColor(primaryColor, 0.1) }}>
             <CardHeader className="pb-3 pt-6 bg-gradient-to-r from-teal-50/50 to-transparent dark:from-teal-900/10 dark:to-transparent">
               <CardTitle className="text-lg font-bold flex items-center gap-2">
                 <div className="flex items-center justify-center w-8 h-8 rounded-lg text-white" style={{ backgroundColor: lightenColor(primaryColor, 0.1) }}>
@@ -861,7 +861,7 @@ export default function CompetenceFlowerView() {
           </Card>
 
           {/* Progress over time */}
-          <Card className="border-0 shadow-sm rounded-xl border-l-3 border-l-violet-500 overflow-hidden">
+          <Card className="card-shadow-transition border-0 shadow-sm rounded-xl border-l-3 border-l-violet-500 overflow-hidden">
             <CardHeader className="pb-3 pt-6 bg-gradient-to-r from-violet-50/50 to-transparent dark:from-violet-900/10 dark:to-transparent">
               <CardTitle className="text-lg font-bold flex items-center gap-2">
                 <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-violet-100 dark:bg-violet-900/30 text-violet-600 dark:text-violet-400">
@@ -896,7 +896,7 @@ export default function CompetenceFlowerView() {
           {/* Comparison + strengths/weaknesses */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Comparison card */}
-            <Card className="border-0 shadow-sm rounded-xl border-l-3 border-l-amber-500 overflow-hidden">
+            <Card className="card-shadow-transition border-0 shadow-sm rounded-xl border-l-3 border-l-amber-500 overflow-hidden">
               <CardHeader className="pb-3 pt-6 bg-gradient-to-r from-amber-50/50 to-transparent dark:from-amber-900/10 dark:to-transparent">
                 <CardTitle className="text-lg font-bold flex items-center gap-2">
                   <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400">
@@ -963,7 +963,7 @@ export default function CompetenceFlowerView() {
             </Card>
 
             {/* Strengths & weaknesses */}
-            <Card className="border-0 shadow-sm rounded-xl border-l-3 border-l-teal-500 overflow-hidden">
+            <Card className="card-shadow-transition border-0 shadow-sm rounded-xl border-l-3 border-l-teal-500 overflow-hidden">
               <CardHeader className="pb-3 pt-6 bg-gradient-to-r from-teal-50/50 to-transparent dark:from-teal-900/10 dark:to-transparent">
                 <CardTitle className="text-lg font-bold flex items-center gap-2">
                   <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-teal-100 dark:bg-teal-900/30 text-teal-600 dark:text-teal-400">

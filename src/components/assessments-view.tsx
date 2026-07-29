@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import { motion } from 'framer-motion';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Cell, ResponsiveContainer, ReferenceLine, Tooltip as RechartsTooltip,
@@ -8,6 +8,7 @@ import {
 import {
   ClipboardCheck, Plus, PenLine, BookOpen, FileText, Mic, FolderOpen, Home,
   Download, Trophy, Heart, BarChart3, TrendingUp, Sparkles,
+  PenTool, GripVertical, ChevronLeft, ChevronRight,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -18,6 +19,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
+import DrawingCanvas from '@/components/drawing-canvas';
 import { useAppStore } from '@/lib/store';
 import { t } from '@/lib/i18n';
 import StudentAvatar from '@/components/student-avatar';
@@ -107,9 +110,9 @@ const relativeDate = (dateStr: string) => {
 };
 
 const resultCountBadge = (count: number) => {
-  if (count === 0) return 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300';
-  if (count < 5) return 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300';
-  return 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300';
+  if (count === 0) return 'grade-badge-below';
+  if (count < 5) return 'grade-badge-average';
+  return 'grade-badge-excellent';
 };
 
 // Emerald gradient colors for score distribution bars
@@ -255,6 +258,105 @@ export default function AssessmentsView() {
     gradingAssessment?.maxScore ?? null
   );
 
+  // Scratch pad state
+  const [scratchPadOpen, setScratchPadOpen] = useState(false);
+  const [scratchPadWidth, setScratchPadWidth] = useState(480);
+  const [scratchPadDrawingData, setScratchPadDrawingData] = useState<string | null>(null);
+  const [scratchPadDrawingId, setScratchPadDrawingId] = useState<string | null>(null);
+  const [scratchPadSaving, setScratchPadSaving] = useState(false);
+  const scratchPadResizeRef = useRef<{ startX: number; startWidth: number } | null>(null);
+
+  // Load existing scratch pad drawing for the current assessment
+  const loadScratchPadDrawing = useCallback(async (assessmentId: string) => {
+    try {
+      const res = await fetch(`/api/drawings?subjectId=${assessmentId}`);
+      if (res.ok) {
+        const drawings = await res.json();
+        // Find a scratch pad drawing for this assessment
+        const scratchPad = drawings.find((d: { title: string; description: string }) =>
+          d.title?.startsWith('Scratch Pad:') || d.description?.startsWith('assessment-scratch-pad:')
+        );
+        if (scratchPad) {
+          setScratchPadDrawingId(scratchPad.id);
+          setScratchPadDrawingData(scratchPad.drawingData);
+        } else {
+          setScratchPadDrawingId(null);
+          setScratchPadDrawingData(null);
+        }
+      }
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  // Save scratch pad drawing
+  const handleSaveScratchPad = useCallback(async (drawingData: string, imageData: string) => {
+    if (!gradingAssessment) return;
+    setScratchPadSaving(true);
+    try {
+      const title = `Scratch Pad: ${gradingAssessment.title}`;
+      const description = `assessment-scratch-pad:${gradingAssessment.id}`;
+      if (scratchPadDrawingId) {
+        // Update existing drawing
+        await fetch(`/api/drawings/${scratchPadDrawingId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ drawingData, imageData, title }),
+        });
+      } else {
+        // Create new drawing
+        const res = await fetch('/api/drawings', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            title,
+            description,
+            drawingData,
+            imageData,
+            subjectId: gradingAssessment.subjectId ?? undefined,
+            classGroupId: gradingAssessment.classGroupId ?? undefined,
+            schoolId: currentUser?.schoolId ?? undefined,
+            isPublic: false,
+          }),
+        });
+        if (res.ok) {
+          const created = await res.json();
+          setScratchPadDrawingId(created.id);
+        }
+      }
+      toast.success(t('assessments.scratch_pad_saved'));
+    } catch {
+      toast.error(t('error.generic'));
+    } finally {
+      setScratchPadSaving(false);
+    }
+  }, [gradingAssessment, scratchPadDrawingId, currentUser?.schoolId]);
+
+  // Handle mouse move for resizing
+  const handleResizeMouseMove = useCallback((e: MouseEvent) => {
+    if (!scratchPadResizeRef.current) return;
+    const delta = scratchPadResizeRef.current.startX - e.clientX;
+    const newWidth = Math.min(Math.max(scratchPadResizeRef.current.startWidth + delta, 320), window.innerWidth * 0.7);
+    setScratchPadWidth(newWidth);
+  }, []);
+
+  const handleResizeMouseUp = useCallback(() => {
+    scratchPadResizeRef.current = null;
+    document.removeEventListener('mousemove', handleResizeMouseMove);
+    document.removeEventListener('mouseup', handleResizeMouseUp);
+    document.body.style.cursor = '';
+    document.body.style.userSelect = '';
+  }, [handleResizeMouseMove]);
+
+  const startResize = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    scratchPadResizeRef.current = { startX: e.clientX, startWidth: scratchPadWidth };
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+    document.addEventListener('mousemove', handleResizeMouseMove);
+    document.addEventListener('mouseup', handleResizeMouseUp);
+  }, [scratchPadWidth, handleResizeMouseMove, handleResizeMouseUp]);
+
   useEffect(() => {
     async function load() {
       try {
@@ -344,6 +446,9 @@ export default function AssessmentsView() {
   const openGrading = async (assessment: Assessment) => {
     setGradingAssessment(assessment);
     setGradingOpen(true);
+    setScratchPadOpen(false);
+    setScratchPadDrawingId(null);
+    setScratchPadDrawingData(null);
     try {
       const results = await fetchAssessmentResults(assessment.id);
       setGradingResults(results);
@@ -357,6 +462,8 @@ export default function AssessmentsView() {
         };
       }
       setGradingScores(scoresMap);
+      // Load existing scratch pad drawing
+      loadScratchPadDrawing(assessment.id);
     } catch {
       setGradingResults([]);
     }
@@ -486,7 +593,7 @@ export default function AssessmentsView() {
         </Card>
         </motion.div>
       ) : (
-        <Card className="card-hover-lift border-0 shadow-sm rounded-xl border-l-3 border-l-emerald-500 overflow-hidden">
+        <Card className="card-shadow-transition border-0 shadow-sm rounded-xl border-l-3 border-l-emerald-500 overflow-hidden">
           <CardHeader className="pb-3 pt-6 bg-gradient-to-r from-emerald-50/50 to-transparent dark:from-emerald-900/10 dark:to-transparent">
             <CardTitle className="text-lg font-bold flex items-center gap-2">
               <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400">
@@ -580,10 +687,26 @@ export default function AssessmentsView() {
                           </div>
                         </TableCell>
                         <TableCell className="text-right">
-                          <Button size="sm" variant="outline" className="rounded-xl border-emerald-300 dark:border-emerald-700" onClick={() => openGrading(a)}>
-                            <PenLine className="h-3 w-3 mr-1" />
-                            {t('assessments.enter_scores')}
-                          </Button>
+                          <div className="flex items-center justify-end gap-2">
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="min-h-[44px] min-w-[44px] rounded-xl text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/20"
+                              onClick={() => {
+                                setGradingAssessment(a);
+                                setScratchPadOpen(true);
+                                loadScratchPadDrawing(a.id);
+                              }}
+                              title={t('assessments.scratch_pad_open')}
+                            >
+                              <PenTool className="h-4 w-4" />
+                              <span className="sr-only sm:not-sr-only sm:ml-1.5 text-xs">{t('assessments.scratch_pad')}</span>
+                            </Button>
+                            <Button size="sm" variant="outline" className="rounded-xl border-emerald-300 dark:border-emerald-700 min-h-[44px] min-w-[44px]" onClick={() => openGrading(a)}>
+                              <PenLine className="h-3 w-3 mr-1" />
+                              {t('assessments.enter_scores')}
+                            </Button>
+                          </div>
                         </TableCell>
                       </TableRow>
                     );
@@ -685,6 +808,15 @@ export default function AssessmentsView() {
                   <BarChart3 className="h-3 w-3" />
                   {t('label.max_score')}: <strong>{gradingAssessment.maxScore ?? '—'}</strong>
                 </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="ml-auto min-h-[44px] min-w-[44px] rounded-xl border-emerald-300 dark:border-emerald-700 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-50 dark:hover:bg-emerald-900/20"
+                  onClick={() => setScratchPadOpen(true)}
+                >
+                  <PenTool className="h-4 w-4 mr-1.5" />
+                  {t('assessments.scratch_pad')}
+                </Button>
               </DialogDescription>
             )}
           </DialogHeader>
@@ -792,6 +924,73 @@ export default function AssessmentsView() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Scratch Pad Sheet */}
+      <Sheet open={scratchPadOpen} onOpenChange={setScratchPadOpen}>
+        <SheetContent
+          side="right"
+          className="p-0 gap-0 w-auto sm:max-w-none flex flex-col"
+          style={{ width: scratchPadWidth }}
+        >
+          {/* Resize handle */}
+          <div
+            className="absolute top-0 left-0 bottom-0 w-2 cursor-col-resize hover:bg-emerald-200/40 dark:hover:bg-emerald-700/40 active:bg-emerald-300/60 dark:active:bg-emerald-600/60 transition-colors z-10 flex items-center justify-center"
+            onMouseDown={startResize}
+            role="separator"
+            aria-orientation="vertical"
+            aria-label={t('assessments.scratch_pad_resize')}
+            tabIndex={0}
+          >
+            <GripVertical className="h-4 w-4 text-gray-400 dark:text-gray-500" />
+          </div>
+          <SheetHeader className="px-6 pt-4 pb-2 border-b border-emerald-200/30 dark:border-emerald-900/20">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400">
+                  <PenTool className="h-4 w-4" />
+                </div>
+                <SheetTitle className="text-base font-semibold">
+                  {t('assessments.scratch_pad_title', { title: gradingAssessment?.title ?? '' })}
+                </SheetTitle>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="min-h-[44px] min-w-[44px] rounded-xl border-emerald-300 dark:border-emerald-700 text-emerald-700 dark:text-emerald-300"
+                  onClick={() => {
+                    if (scratchPadWidth <= 480) setScratchPadWidth(640);
+                    else if (scratchPadWidth <= 640) setScratchPadWidth(860);
+                    else setScratchPadWidth(480);
+                  }}
+                  title={t('assessments.scratch_pad_resize')}
+                >
+                  {scratchPadWidth <= 480 ? <ChevronLeft className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                </Button>
+              </div>
+            </div>
+            <SheetDescription className="text-xs text-muted-foreground mt-1">
+              {t('assessments.scratch_pad_description')}
+            </SheetDescription>
+          </SheetHeader>
+          <div className="flex-1 overflow-hidden">
+            <DrawingCanvas
+              backgroundType="lined"
+              initialDrawingData={scratchPadDrawingData ?? undefined}
+              onSave={handleSaveScratchPad}
+              title={`Scratch Pad: ${gradingAssessment?.title ?? ''}`}
+            />
+          </div>
+          {scratchPadSaving && (
+            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-20">
+              <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300 text-sm shadow-lg">
+                <div className="h-4 w-4 border-2 border-emerald-600 dark:border-emerald-400 border-t-transparent rounded-full animate-spin" />
+                {t('assessments.scratch_pad_saving')}
+              </div>
+            </div>
+          )}
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }

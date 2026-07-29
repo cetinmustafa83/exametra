@@ -69,10 +69,8 @@ function getMasteryIcon(level: number) {
 }
 
 const masteryBadge = (level: number) => {
-  // Use CSS class-based mastery badges for deeper polish
-  if (level <= 2) return 'mastery-badge-low';
-  if (level <= 4) return 'mastery-badge-medium';
-  return 'mastery-badge-high';
+  // Use CSS class-based mastery indicators for deeper polish
+  return `mastery-indicator mastery-indicator-${level}`;
 };
 
 const masteryBorderColor = (level: number) => {
@@ -899,7 +897,7 @@ export default function ProgressEntriesView() {
                         <motion.div
                           whileHover={{ scale: 1.005 }}
                           transition={{ duration: 0.15 }}
-                          className={`card-hover-lift flex-1 p-4 rounded-xl bg-gradient-to-r from-gray-50 to-gray-50/0 dark:from-gray-800/50 dark:to-gray-800/0 border-l-3 transition-shadow duration-200 hover:shadow-lg ${
+                          className={`card-shadow-transition flex-1 p-4 rounded-xl bg-gradient-to-r from-gray-50 to-gray-50/0 dark:from-gray-800/50 dark:to-gray-800/0 border-l-3 transition-shadow duration-200 hover:shadow-lg ${
                             isSelected && batchMode ? 'ring-2 ring-red-300/60 dark:ring-red-700/50 bg-red-50/30 dark:bg-red-900/10' : ''
                           }`}
                           style={{ borderLeftColor: catColor }}

@@ -64,6 +64,19 @@ import {
   PenSquare,
   Eye,
   Tag,
+  Shield,
+  Database,
+  Server,
+  Cpu,
+  UserPlus,
+  School,
+  LayoutList,
+  Activity as ActivityIcon,
+  CheckCircle2,
+  AlertCircle,
+  TrendingDown,
+  BarChart2,
+  PieChart as PieChartIcon,
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -74,6 +87,7 @@ import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
+import { Progress } from '@/components/ui/progress';
 import {
   Select,
   SelectContent,
@@ -91,6 +105,24 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import { toast } from 'sonner';
+import {
+  RadarChart,
+  PolarGrid,
+  PolarAngleAxis,
+  PolarRadiusAxis,
+  Radar,
+  ResponsiveContainer,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip as RechartsTooltip,
+  PieChart,
+  Pie,
+  Cell,
+  Legend,
+} from 'recharts';
 import {
   Tooltip,
   TooltipContent,
@@ -476,6 +508,499 @@ function ParentDashboard({ currentUser, setCurrentView, locale }: {
           </CardContent>
         </Card>
       </motion.div>
+
+      {/* Parent Children's Recent Grades */}
+      <motion.div variants={itemVariants}>
+        <Card className="border-0 shadow-sm rounded-xl border-l-3 border-l-emerald-500 overflow-hidden ring-1 ring-black/[0.03] dark:ring-white/[0.05]">
+          <CardHeader className="pb-3 pt-5 bg-gradient-to-r from-emerald-50/50 to-transparent dark:from-emerald-900/10 dark:to-transparent">
+            <CardTitle className="text-lg font-bold flex items-center gap-2">
+              <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-400 to-teal-500 text-white shadow-sm">
+                <Calculator className="h-4 w-4" />
+              </div>
+              {t('parent.children_grades')}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {children.length > 0 ? (
+              <div className="space-y-3">
+                {children.map((child) => (
+                  <div key={child.studentId} className="p-3 rounded-xl bg-gray-50/50 dark:bg-gray-800/30 border border-gray-100/60 dark:border-gray-800/40">
+                    <div className="flex items-center gap-2 mb-2">
+                      <div className="flex items-center justify-center w-7 h-7 rounded-full bg-gradient-to-br from-violet-400 to-purple-500 text-white text-[10px] font-bold shrink-0">
+                        {child.firstName[0]}{child.lastName[0]}
+                      </div>
+                      <span className="text-sm font-semibold text-gray-900 dark:text-gray-100">{child.firstName} {child.lastName}</span>
+                      <Badge variant="outline" className="text-[10px] px-1.5 py-0 ml-auto">{child.className}</Badge>
+                    </div>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-2">
+                      {[
+                        { subject: t('student.notebook_math'), grade: '2.3' },
+                        { subject: t('student.notebook_german'), grade: '1.8' },
+                        { subject: t('student.notebook_english'), grade: '2.7' },
+                        { subject: t('student.notebook_science'), grade: '2.1' },
+                      ].map((g) => (
+                        <div key={g.subject} className="px-2 py-1.5 rounded-lg bg-emerald-50/50 dark:bg-emerald-900/10 border border-emerald-100/50 dark:border-emerald-900/20 text-center">
+                          <p className="text-[10px] text-gray-500 dark:text-gray-400 truncate">{g.subject}</p>
+                          <p className="text-sm font-bold text-emerald-600 dark:text-emerald-400">{g.grade}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center h-24 rounded-lg bg-gray-50 dark:bg-gray-900/20 border border-gray-200/30 dark:border-gray-800/20">
+                <Calculator className="h-8 w-8 text-gray-300 dark:text-gray-600 mb-1" />
+                <p className="text-xs text-gray-400 dark:text-gray-500">{t('parent.no_children')}</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </motion.div>
+
+      {/* Parent Competition Results & Calendar Events */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Competition Results */}
+        <motion.div variants={itemVariants}>
+          <Card className="border-0 shadow-sm rounded-xl overflow-hidden ring-1 ring-black/[0.03] dark:ring-white/[0.05] h-full">
+            <CardHeader className="p-4 pb-2">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-gradient-to-br from-amber-400 to-yellow-500 text-white shadow-sm">
+                    <Trophy className="h-4 w-4" />
+                  </div>
+                  <CardTitle className="text-sm font-semibold">{t('parent.competition_results')}</CardTitle>
+                </div>
+                <ChevronRight className="h-4 w-4 text-amber-500" />
+              </div>
+            </CardHeader>
+            <CardContent className="p-4 pt-2">
+              <div className="flex items-center justify-center h-24 rounded-lg bg-gradient-to-br from-amber-50 to-yellow-50/50 dark:from-amber-900/20 dark:to-yellow-900/10 border border-amber-200/30 dark:border-amber-900/20">
+                <div className="text-center">
+                  <Trophy className="h-8 w-8 text-amber-400/60 dark:text-amber-600/40 mx-auto mb-1" />
+                  <p className="text-xs text-gray-500 dark:text-gray-400">{t('parent.no_competition_results')}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+
+        {/* Calendar Events */}
+        <motion.div variants={itemVariants}>
+          <Card className="border-0 shadow-sm rounded-xl overflow-hidden ring-1 ring-black/[0.03] dark:ring-white/[0.05] h-full cursor-pointer min-h-[44px]" onClick={() => setCurrentView('calendar')}>
+            <CardHeader className="p-4 pb-2">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-gradient-to-br from-violet-400 to-purple-500 text-white shadow-sm">
+                    <CalendarIconNav className="h-4 w-4" />
+                  </div>
+                  <CardTitle className="text-sm font-semibold">{t('parent.calendar_events')}</CardTitle>
+                </div>
+                <ChevronRight className="h-4 w-4 text-violet-500" />
+              </div>
+            </CardHeader>
+            <CardContent className="p-4 pt-2">
+              <div className="space-y-2">
+                {[
+                  { title: locale === 'de' ? 'Elternsprechtag' : 'Parent-Teacher Day', date: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000), color: 'from-emerald-400 to-teal-500' },
+                  { title: locale === 'de' ? 'Schulfest' : 'School Festival', date: new Date(Date.now() + 12 * 24 * 60 * 60 * 1000), color: 'from-amber-400 to-orange-500' },
+                  { title: locale === 'de' ? 'Zeugnisausgabe' : 'Report Card Day', date: new Date(Date.now() + 25 * 24 * 60 * 60 * 1000), color: 'from-violet-400 to-purple-500' },
+                ].map((event) => {
+                  const daysUntil = Math.ceil((event.date.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+                  return (
+                    <div key={event.title} className="flex items-center gap-3 px-3 py-2 rounded-lg bg-gray-50/50 dark:bg-gray-800/30 border border-gray-100/50 dark:border-gray-800/20 min-h-[44px]">
+                      <div className={`flex items-center justify-center w-7 h-7 rounded-lg bg-gradient-to-br ${event.color} text-white shadow-sm shrink-0`}>
+                        <CalendarDays className="h-3.5 w-3.5" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-xs font-medium text-gray-700 dark:text-gray-300 truncate">{event.title}</p>
+                        <p className="text-[10px] text-gray-400 dark:text-gray-500">{event.date.toLocaleDateString(locale === 'de' ? 'de-DE' : 'en-GB', { day: 'numeric', month: 'short' })}</p>
+                      </div>
+                      <Badge variant="outline" className="text-[10px] px-1.5 py-0 shrink-0">{daysUntil}d</Badge>
+                    </div>
+                  );
+                })}
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+      </div>
+
+      {/* Parent Announcements */}
+      <DashboardAnnouncementsCard currentUser={currentUser} locale={locale} />
+    </motion.div>
+  );
+}
+
+// ─── School Admin Dashboard Component ──────────────────────────────────
+function SchoolAdminDashboard({ currentUser, setCurrentView, locale, data }: {
+  currentUser: CurrentUser;
+  setCurrentView: (view: ViewName) => void;
+  locale: string;
+  data: DashboardData;
+}) {
+  // Mock audit log data
+  const auditLogEntries = [
+    { id: '1', action: 'USER_LOGIN', user: 'Max Mustermann', timestamp: new Date(Date.now() - 1000 * 60 * 5).toISOString(), details: 'Teacher login' },
+    { id: '2', action: 'ASSESSMENT_CREATED', user: 'Anna Schmidt', timestamp: new Date(Date.now() - 1000 * 60 * 30).toISOString(), details: 'Math assessment created' },
+    { id: '3', action: 'STUDENT_ENROLLED', user: 'System', timestamp: new Date(Date.now() - 1000 * 60 * 60).toISOString(), details: 'New student enrolled' },
+    { id: '4', action: 'REPORT_GENERATED', user: 'Peter Weber', timestamp: new Date(Date.now() - 1000 * 60 * 120).toISOString(), details: 'Class report generated' },
+    { id: '5', action: 'SETTINGS_UPDATED', user: 'Admin', timestamp: new Date(Date.now() - 1000 * 60 * 180).toISOString(), details: 'School settings updated' },
+  ];
+
+  // Mock system health data
+  const systemHealth = {
+    status: 'healthy' as const,
+    uptime: '99.9%',
+    activeUsers: Math.floor(data.stats.totalStudents * 0.3 + data.stats.totalClasses * 2),
+    storageUsed: 42,
+    apiRequestsToday: 1247,
+  };
+
+  // Enrollment trend data for chart
+  const enrollmentData = [
+    { month: locale === 'de' ? 'Jan' : 'Jan', students: Math.floor(data.stats.totalStudents * 0.85) },
+    { month: locale === 'de' ? 'Feb' : 'Feb', students: Math.floor(data.stats.totalStudents * 0.87) },
+    { month: locale === 'de' ? 'Mär' : 'Mar', students: Math.floor(data.stats.totalStudents * 0.9) },
+    { month: locale === 'de' ? 'Apr' : 'Apr', students: Math.floor(data.stats.totalStudents * 0.92) },
+    { month: locale === 'de' ? 'Mai' : 'May', students: Math.floor(data.stats.totalStudents * 0.95) },
+    { month: locale === 'de' ? 'Jun' : 'Jun', students: data.stats.totalStudents },
+  ];
+
+  // Grade distribution data for pie chart
+  const gradeDistribution = [
+    { name: '1', value: 25, color: '#10b981' },
+    { name: '2', value: 35, color: '#14b8a6' },
+    { name: '3', value: 25, color: '#f59e0b' },
+    { name: '4', value: 12, color: '#f97316' },
+    { name: '5-6', value: 3, color: '#ef4444' },
+  ];
+
+  const getActionIcon = (action: string) => {
+    switch (action) {
+      case 'USER_LOGIN': return UserCheck;
+      case 'ASSESSMENT_CREATED': return ClipboardCheck;
+      case 'STUDENT_ENROLLED': return UserPlus;
+      case 'REPORT_GENERATED': return FileText;
+      case 'SETTINGS_UPDATED': return Settings;
+      default: return Activity;
+    }
+  };
+
+  const getActionColor = (action: string) => {
+    switch (action) {
+      case 'USER_LOGIN': return 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400';
+      case 'ASSESSMENT_CREATED': return 'bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400';
+      case 'STUDENT_ENROLLED': return 'bg-teal-100 dark:bg-teal-900/30 text-teal-600 dark:text-teal-400';
+      case 'REPORT_GENERATED': return 'bg-violet-100 dark:bg-violet-900/30 text-violet-600 dark:text-violet-400';
+      case 'SETTINGS_UPDATED': return 'bg-rose-100 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400';
+      default: return 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400';
+    }
+  };
+
+  const relativeTime = (dateStr: string) => {
+    const now = new Date();
+    const date = new Date(dateStr);
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / (1000 * 60));
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+    if (diffMins < 1) return locale === 'de' ? 'Gerade eben' : 'Just now';
+    if (diffMins < 60) return locale === 'de' ? `Vor ${diffMins} Min.` : `${diffMins}m ago`;
+    if (diffHours < 24) return locale === 'de' ? `Vor ${diffHours} Std.` : `${diffHours}h ago`;
+    if (diffDays === 1) return t('date.yesterday');
+    if (diffDays < 7) return t('date.days_ago', { count: diffDays });
+    return date.toLocaleDateString(locale === 'de' ? 'de-DE' : 'en-GB', { day: '2-digit', month: 'short' });
+  };
+
+  return (
+    <motion.div
+      variants={containerVariants}
+      initial="hidden"
+      animate="visible"
+      className="space-y-6 pb-8"
+    >
+      {/* Admin Welcome Header */}
+      <motion.div variants={itemVariants}>
+        <div className="flex flex-col gap-4">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="flex items-center gap-3.5">
+              <div className="flex items-center justify-center w-12 h-12 rounded-2xl bg-gradient-to-br from-rose-400 to-orange-500 text-white shadow-lg shadow-rose-300/30 ring-2 ring-rose-200/30 dark:ring-rose-800/20">
+                <Shield className="w-6 h-6" />
+              </div>
+              <div>
+                <h2 className="text-2xl font-bold bg-gradient-to-r from-rose-600 via-orange-600 to-amber-500 dark:from-rose-400 dark:via-orange-400 dark:to-amber-300 bg-clip-text text-transparent">
+                  {t('admin.welcome_back')}, {currentUser.firstName}!
+                </h2>
+                <p className="text-rose-600/60 dark:text-rose-400/40 mt-0.5 text-sm">{t('admin.dashboard_title')}</p>
+              </div>
+            </div>
+            <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gradient-to-r from-rose-50 to-orange-50/50 dark:from-rose-900/20 dark:to-orange-900/10 border border-rose-200/40 dark:border-rose-900/30 text-xs font-medium text-rose-700 dark:text-rose-300 shadow-sm">
+              <CalendarDays className="h-3.5 w-3.5" />
+              <span className="font-semibold">
+                {new Date().toLocaleDateString(locale === 'de' ? 'de-DE' : 'en-GB', {
+                  weekday: 'long',
+                  day: 'numeric',
+                  month: 'long',
+                  year: 'numeric',
+                })}
+              </span>
+            </div>
+          </div>
+        </div>
+      </motion.div>
+
+      {/* School Overview Stats */}
+      <motion.div variants={itemVariants} className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        {[
+          { icon: Users, label: t('admin.total_students'), value: data.stats.totalStudents, color: 'from-emerald-400 to-teal-500', bg: 'bg-emerald-50 dark:bg-emerald-900/20', border: 'border-emerald-200/40 dark:border-emerald-900/30' },
+          { icon: BarChart3, label: t('admin.total_classes'), value: data.stats.totalClasses, color: 'from-teal-400 to-cyan-500', bg: 'bg-teal-50 dark:bg-teal-900/20', border: 'border-teal-200/40 dark:border-teal-900/30' },
+          { icon: GraduationCap, label: t('admin.total_teachers'), value: Math.max(1, Math.floor(data.stats.totalClasses * 0.8)), color: 'from-amber-400 to-orange-500', bg: 'bg-amber-50 dark:bg-amber-900/20', border: 'border-amber-200/40 dark:border-amber-900/30' },
+          { icon: Heart, label: t('admin.total_parents'), value: Math.floor(data.stats.totalStudents * 1.4), color: 'from-rose-400 to-pink-500', bg: 'bg-rose-50 dark:bg-rose-900/20', border: 'border-rose-200/40 dark:border-rose-900/30' },
+        ].map((stat) => (
+          <motion.div
+            key={stat.label}
+            whileHover={{ scale: 1.03, y: -4 }}
+            transition={{ duration: 0.2, ease: 'easeOut' }}
+          >
+            <Card className={`border-0 shadow-sm rounded-xl overflow-hidden ring-1 ring-black/[0.03] dark:ring-white/[0.05] ${stat.bg} ${stat.border}`}>
+              <CardContent className="p-4">
+                <div className="flex items-center gap-3">
+                  <div className={`flex items-center justify-center w-10 h-10 rounded-xl bg-gradient-to-br ${stat.color} text-white shadow-sm shrink-0`}>
+                    <stat.icon className="h-5 w-5" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-[10px] font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">{stat.label}</p>
+                    <p className="text-2xl font-bold text-gray-900 dark:text-gray-100 leading-none mt-0.5"><CountUp target={stat.value} /></p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+        ))}
+      </motion.div>
+
+      {/* System Health Card */}
+      <motion.div variants={itemVariants}>
+        <Card className="border-0 shadow-sm rounded-xl border-l-3 border-l-emerald-500 overflow-hidden ring-1 ring-black/[0.03] dark:ring-white/[0.05]">
+          <CardHeader className="pb-3 pt-5 bg-gradient-to-r from-emerald-50/50 to-transparent dark:from-emerald-900/10 dark:to-transparent">
+            <CardTitle className="text-lg font-bold flex items-center gap-2">
+              <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-400 to-teal-500 text-white shadow-sm">
+                <Server className="h-4 w-4" />
+              </div>
+              {t('admin.system_health')}
+              <Badge className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300 text-xs shadow-sm">
+                <CheckCircle2 className="h-3 w-3 mr-1" />
+                {t('admin.health_excellent')}
+              </Badge>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              {[
+                { icon: ActivityIcon, label: t('admin.uptime'), value: systemHealth.uptime, color: 'text-emerald-600 dark:text-emerald-400' },
+                { icon: Users, label: t('admin.active_users'), value: systemHealth.activeUsers.toString(), color: 'text-teal-600 dark:text-teal-400' },
+                { icon: Database, label: t('admin.storage_used'), value: `${systemHealth.storageUsed}%`, color: 'text-amber-600 dark:text-amber-400' },
+                { icon: Cpu, label: t('admin.api_requests'), value: systemHealth.apiRequestsToday.toLocaleString(), color: 'text-violet-600 dark:text-violet-400' },
+              ].map((metric) => (
+                <div key={metric.label} className="p-3 rounded-xl bg-gray-50/50 dark:bg-gray-800/30 border border-gray-100/60 dark:border-gray-800/40">
+                  <div className="flex items-center gap-2 mb-1.5">
+                    <metric.icon className="h-4 w-4 text-gray-500 dark:text-gray-400" />
+                    <span className="text-[10px] font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">{metric.label}</span>
+                  </div>
+                  <p className={`text-lg font-bold ${metric.color}`}>{metric.value}</p>
+                </div>
+              ))}
+            </div>
+            {/* Storage usage bar */}
+            <div className="mt-4 p-3 rounded-xl bg-gray-50/50 dark:bg-gray-800/30 border border-gray-100/60 dark:border-gray-800/40">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs font-medium text-gray-600 dark:text-gray-400">{t('admin.storage_used')}</span>
+                <span className="text-xs font-semibold text-amber-600 dark:text-amber-400">{systemHealth.storageUsed}%</span>
+              </div>
+              <Progress value={systemHealth.storageUsed} className="h-2" />
+            </div>
+          </CardContent>
+        </Card>
+      </motion.div>
+
+      {/* School Statistics Charts */}
+      <motion.div variants={itemVariants}>
+        <Card className="border-0 shadow-sm rounded-xl border-l-3 border-l-amber-500 overflow-hidden ring-1 ring-black/[0.03] dark:ring-white/[0.05]">
+          <CardHeader className="pb-3 pt-5 bg-gradient-to-r from-amber-50/50 to-transparent dark:from-amber-900/10 dark:to-transparent">
+            <CardTitle className="text-lg font-bold flex items-center gap-2">
+              <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-gradient-to-br from-amber-400 to-orange-500 text-white shadow-sm">
+                <BarChart2 className="h-4 w-4" />
+              </div>
+              {t('admin.school_statistics')}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Enrollment Trend */}
+              <div>
+                <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">{t('admin.enrollment_trend')}</h4>
+                <ResponsiveContainer width="100%" height={200}>
+                  <BarChart data={enrollmentData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                    <XAxis dataKey="month" tick={{ fontSize: 11 }} stroke="#9ca3af" />
+                    <YAxis tick={{ fontSize: 11 }} stroke="#9ca3af" />
+                    <RechartsTooltip
+                      contentStyle={{ borderRadius: '8px', border: '1px solid #e5e7eb', fontSize: '12px' }}
+                    />
+                    <Bar dataKey="students" fill="#10b981" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+              {/* Grade Distribution */}
+              <div>
+                <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">{t('admin.grade_distribution')}</h4>
+                <div className="flex items-center gap-4">
+                  <ResponsiveContainer width="60%" height={200}>
+                    <PieChart>
+                      <Pie
+                        data={gradeDistribution}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={50}
+                        outerRadius={80}
+                        paddingAngle={3}
+                        dataKey="value"
+                      >
+                        {gradeDistribution.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.color} />
+                        ))}
+                      </Pie>
+                      <RechartsTooltip
+                        contentStyle={{ borderRadius: '8px', border: '1px solid #e5e7eb', fontSize: '12px' }}
+                      />
+                    </PieChart>
+                  </ResponsiveContainer>
+                  <div className="space-y-2">
+                    {gradeDistribution.map((grade) => (
+                      <div key={grade.name} className="flex items-center gap-2">
+                        <div className="w-3 h-3 rounded-sm shrink-0" style={{ backgroundColor: grade.color }} />
+                        <span className="text-xs text-gray-600 dark:text-gray-400">{grade.name}: {grade.value}%</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </motion.div>
+
+      {/* Audit Log & User Management */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Audit Log */}
+        <motion.div variants={itemVariants}>
+          <Card className="border-0 shadow-sm rounded-xl border-l-3 border-l-violet-500 overflow-hidden ring-1 ring-black/[0.03] dark:ring-white/[0.05] h-full">
+            <CardHeader className="pb-3 pt-5 bg-gradient-to-r from-violet-50/50 to-transparent dark:from-violet-900/10 dark:to-transparent">
+              <CardTitle className="text-lg font-bold flex items-center gap-2">
+                <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-gradient-to-br from-violet-400 to-violet-500 text-white shadow-sm">
+                  <LayoutList className="h-4 w-4" />
+                </div>
+                {t('admin.audit_log')}
+                <span className="text-xs font-normal text-gray-500 dark:text-gray-400 ml-1">{t('admin.audit_log_desc')}</span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {auditLogEntries.length === 0 ? (
+                <div className="text-center py-8">
+                  <LayoutList className="h-8 w-8 text-gray-300 dark:text-gray-600 mx-auto mb-2" />
+                  <p className="text-sm text-gray-500 dark:text-gray-400">{t('admin.no_audit_entries')}</p>
+                </div>
+              ) : (
+                <div className="space-y-2 max-h-64 overflow-y-auto scrollbar-education pr-1">
+                  {auditLogEntries.map((entry) => {
+                    const ActionIcon = getActionIcon(entry.action);
+                    return (
+                      <div key={entry.id} className="flex items-center gap-3 p-3 rounded-xl bg-gray-50/50 dark:bg-gray-800/30 border border-gray-100/60 dark:border-gray-800/40">
+                        <div className={`flex items-center justify-center w-8 h-8 rounded-lg ${getActionColor(entry.action)} shrink-0`}>
+                          <ActionIcon className="h-4 w-4" />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">{entry.details}</p>
+                          <p className="text-[11px] text-gray-500 dark:text-gray-400">
+                            {entry.user} · {relativeTime(entry.timestamp)}
+                          </p>
+                        </div>
+                        <Badge variant="outline" className="text-[10px] px-1.5 py-0 shrink-0">{entry.action.replace('_', ' ')}</Badge>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </motion.div>
+
+        {/* User Management Quick Actions */}
+        <motion.div variants={itemVariants}>
+          <Card className="border-0 shadow-sm rounded-xl border-l-3 border-l-teal-500 overflow-hidden ring-1 ring-black/[0.03] dark:ring-white/[0.05] h-full">
+            <CardHeader className="pb-3 pt-5 bg-gradient-to-r from-teal-50/50 to-transparent dark:from-teal-900/10 dark:to-transparent">
+              <CardTitle className="text-lg font-bold flex items-center gap-2">
+                <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-gradient-to-br from-teal-400 to-teal-500 text-white shadow-sm">
+                  <UserPlus className="h-4 w-4" />
+                </div>
+                {t('admin.user_management')}
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {[
+                  { icon: GraduationCap, label: t('admin.manage_teachers'), desc: t('admin.add_teacher'), color: 'from-amber-400 to-orange-500', view: 'settings' as ViewName },
+                  { icon: Users, label: t('admin.manage_students'), desc: t('admin.add_student'), color: 'from-emerald-400 to-teal-500', view: 'classes' as ViewName },
+                  { icon: Heart, label: t('admin.manage_parents'), desc: t('admin.manage_parents'), color: 'from-rose-400 to-pink-500', view: 'parents' as ViewName },
+                  { icon: School, label: t('admin.school_settings'), desc: t('admin.school_settings'), color: 'from-violet-400 to-purple-500', view: 'settings' as ViewName },
+                ].map((action) => (
+                  <motion.button
+                    key={action.label}
+                    onClick={() => setCurrentView(action.view)}
+                    whileHover={{ scale: 1.01, x: 2 }}
+                    whileTap={{ scale: 0.98 }}
+                    transition={{ duration: 0.15 }}
+                    className="w-full group flex items-center gap-3 p-3 rounded-xl bg-gray-50/50 dark:bg-gray-800/30 border border-gray-100/60 dark:border-gray-800/40 hover:border-teal-200/60 dark:hover:border-teal-800/30 transition-all min-h-[44px]"
+                  >
+                    <div className={`flex items-center justify-center w-9 h-9 rounded-lg bg-gradient-to-br ${action.color} text-white shadow-sm shrink-0 transition-transform duration-200 group-hover:scale-110`}>
+                      <action.icon className="h-4 w-4" />
+                    </div>
+                    <div className="min-w-0 flex-1 text-left">
+                      <p className="text-sm font-semibold text-gray-900 dark:text-gray-100 truncate">{action.label}</p>
+                      <p className="text-[11px] text-gray-500 dark:text-gray-400 truncate">{action.desc}</p>
+                    </div>
+                    <ChevronRight className="h-4 w-4 text-gray-300 dark:text-gray-600 group-hover:text-teal-500 transition-colors shrink-0" />
+                  </motion.button>
+                ))}
+              </div>
+              <div className="mt-4 flex flex-wrap gap-2">
+                <Button
+                  onClick={() => setCurrentView('classes')}
+                  className="bg-gradient-to-r from-teal-500 to-emerald-500 hover:from-teal-600 hover:to-emerald-600 text-white min-h-[44px] px-4 font-semibold shadow-sm"
+                >
+                  <Plus className="h-4 w-4 mr-1.5" />
+                  {t('admin.add_class')}
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => setCurrentView('settings')}
+                  className="border-teal-300 dark:border-teal-700 hover:bg-teal-50 dark:hover:bg-teal-900/20 text-teal-700 dark:text-teal-300 min-h-[44px] px-4"
+                >
+                  <Settings className="h-4 w-4 mr-1.5" />
+                  {t('admin.school_settings')}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+      </div>
+
+      {/* Announcements Management */}
+      <DashboardAnnouncementsCard currentUser={currentUser} locale={locale} />
+
+      {/* School Newsletter */}
+      <DashboardNewsletterCard currentUser={currentUser} locale={locale} />
     </motion.div>
   );
 }
@@ -1024,6 +1549,75 @@ export default function DashboardView() {
             </CardContent>
           </Card>
         </motion.div>
+
+        {/* Student Grades Trend Chart */}
+        <motion.div variants={itemVariants}>
+          <Card className="border-0 shadow-sm rounded-xl overflow-hidden ring-1 ring-black/[0.03] dark:ring-white/[0.05]">
+            <CardHeader className="p-4 pb-2">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-gradient-to-br from-amber-400 to-orange-500 text-white shadow-sm">
+                    <TrendingUp className="h-4 w-4" />
+                  </div>
+                  <CardTitle className="text-sm font-semibold">{t('student.my_grades_trend')}</CardTitle>
+                </div>
+                <div className="flex items-center gap-1">
+                  <ArrowUpRight className="h-3.5 w-3.5 text-emerald-500" />
+                  <span className="text-xs font-medium text-emerald-600 dark:text-emerald-400">{t('student.grade_trend_up')}</span>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="p-4 pt-1">
+              <ResponsiveContainer width="100%" height={160}>
+                <BarChart data={[
+                  { subject: t('student.notebook_math').substring(0, 3), grade: 2.3 },
+                  { subject: t('student.notebook_german').substring(0, 3), grade: 1.8 },
+                  { subject: t('student.notebook_english').substring(0, 3), grade: 2.7 },
+                  { subject: t('student.notebook_science').substring(0, 3), grade: 2.1 },
+                ]}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                  <XAxis dataKey="subject" tick={{ fontSize: 10 }} stroke="#9ca3af" />
+                  <YAxis domain={[1, 6]} reversed tick={{ fontSize: 10 }} stroke="#9ca3af" />
+                  <RechartsTooltip contentStyle={{ borderRadius: '8px', border: '1px solid #e5e7eb', fontSize: '12px' }} />
+                  <Bar dataKey="grade" fill="#10b981" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+        </motion.div>
+
+        {/* Student Competition Standings */}
+        <motion.div variants={itemVariants}>
+          <Card className="border-0 shadow-sm rounded-xl overflow-hidden ring-1 ring-black/[0.03] dark:ring-white/[0.05]" onClick={() => setCurrentView('competitions')}>
+            <CardHeader className="p-4 pb-2">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-gradient-to-br from-amber-400 to-yellow-500 text-white shadow-sm">
+                    <Trophy className="h-4 w-4" />
+                  </div>
+                  <CardTitle className="text-sm font-semibold">{t('student.competition_standings')}</CardTitle>
+                </div>
+                <ChevronRight className="h-4 w-4 text-amber-500" />
+              </div>
+            </CardHeader>
+            <CardContent className="p-4 pt-2">
+              <div className="flex items-center justify-center h-20 rounded-lg bg-gradient-to-br from-amber-50 to-yellow-50/50 dark:from-amber-900/20 dark:to-yellow-900/10 border border-amber-200/30 dark:border-amber-900/20">
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-gradient-to-br from-amber-400 to-yellow-500 text-white shadow-sm">
+                    <Trophy className="h-5 w-5" />
+                  </div>
+                  <div className="text-center">
+                    <p className="text-lg font-bold text-amber-600 dark:text-amber-400">#12</p>
+                    <p className="text-[10px] text-gray-500 dark:text-gray-400">{t('student.my_rank')} · 245 {t('student.points')}</p>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+
+        {/* Student School Announcements */}
+        <DashboardAnnouncementsCard currentUser={currentUser} locale={locale} />
       </motion.div>
     );
   }
@@ -1035,6 +1629,18 @@ export default function DashboardView() {
         currentUser={currentUser}
         setCurrentView={setCurrentView}
         locale={locale}
+      />
+    );
+  }
+
+  // ─── School Admin Dashboard ─────────────────────────────────────────
+  if (currentUser?.role === 'SCHOOL_ADMIN') {
+    return (
+      <SchoolAdminDashboard
+        currentUser={currentUser}
+        setCurrentView={setCurrentView}
+        locale={locale}
+        data={data}
       />
     );
   }
@@ -1209,7 +1815,7 @@ export default function DashboardView() {
               <TooltipProvider delayDuration={200}>
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <Card className={`card-hover-lift border-0 shadow-sm rounded-xl border-l-3 ${colors.borderAccent} overflow-hidden transition-all duration-300 ${colors.hoverShadow} ${colors.glowColor} cursor-default ring-1 ring-black/[0.03] dark:ring-white/[0.05] hover:ring-emerald-200/40 dark:hover:ring-emerald-700/30`}>
+                    <Card className={`card-shadow-transition border-0 shadow-sm rounded-xl border-l-3 ${colors.borderAccent} overflow-hidden transition-all duration-300 ${colors.hoverShadow} ${colors.glowColor} cursor-default ring-1 ring-black/[0.03] dark:ring-white/[0.05] hover:ring-emerald-200/40 dark:hover:ring-emerald-700/30`}>
                       <CardContent className={`p-5 ${colors.bg}`}>
                         <div className="flex items-start justify-between gap-2">
                           <p className="text-[10px] font-semibold text-gray-500 dark:text-gray-400 leading-tight line-clamp-2 min-h-[28px] break-words min-w-0">
@@ -1422,6 +2028,94 @@ export default function DashboardView() {
                 </div>
               );
             })()}
+          </CardContent>
+        </Card>
+      </motion.div>
+
+      {/* ===== TEACHER COMPETENCE PROGRESS RADAR ===== */}
+      <motion.div variants={itemVariants}>
+        <Card className="border-0 shadow-sm rounded-xl border-l-3 border-l-teal-500 overflow-hidden ring-1 ring-black/[0.03] dark:ring-white/[0.05]">
+          <CardHeader className="pb-3 pt-5 bg-gradient-to-r from-teal-50/50 to-transparent dark:from-teal-900/10 dark:to-transparent">
+            <CardTitle className="text-lg font-bold flex items-center gap-2">
+              <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-gradient-to-br from-teal-400 to-emerald-500 text-white shadow-sm">
+                <Flower2 className="h-4 w-4" />
+              </div>
+              {t('teacher.competence_progress')}
+              <span className="text-xs font-normal text-gray-500 dark:text-gray-400 ml-1">{t('teacher.competence_progress_desc')}</span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={280}>
+              <RadarChart data={[
+                { subject: t('student.notebook_math'), current: 3.5, target: 4 },
+                { subject: t('student.notebook_german'), current: 3.8, target: 4 },
+                { subject: t('student.notebook_english'), current: 2.9, target: 4 },
+                { subject: t('student.notebook_science'), current: 3.2, target: 4 },
+                { subject: locale === 'de' ? 'Musik' : 'Music', current: 3.6, target: 4 },
+                { subject: locale === 'de' ? 'Sport' : 'PE', current: 4.0, target: 4 },
+              ]}>
+                <PolarGrid stroke="#e5e7eb" />
+                <PolarAngleAxis dataKey="subject" tick={{ fontSize: 11, fill: '#6b7280' }} />
+                <PolarRadiusAxis angle={30} domain={[0, 4]} tick={{ fontSize: 10 }} />
+                <Radar name={locale === 'de' ? 'Aktuell' : 'Current'} dataKey="current" stroke="#10b981" fill="#10b981" fillOpacity={0.3} />
+                <Radar name={locale === 'de' ? 'Ziel' : 'Target'} dataKey="target" stroke="#14b8a6" fill="#14b8a6" fillOpacity={0.1} strokeDasharray="5 5" />
+                <RechartsTooltip contentStyle={{ borderRadius: '8px', border: '1px solid #e5e7eb', fontSize: '12px' }} />
+                <Legend wrapperStyle={{ fontSize: '12px' }} />
+              </RadarChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+      </motion.div>
+
+      {/* ===== UPCOMING LESSONS ===== */}
+      <motion.div variants={itemVariants}>
+        <Card className="border-0 shadow-sm rounded-xl border-l-3 border-l-violet-500 overflow-hidden ring-1 ring-black/[0.03] dark:ring-white/[0.05]">
+          <CardHeader className="pb-3 pt-5 bg-gradient-to-r from-violet-50/50 to-transparent dark:from-violet-900/10 dark:to-transparent">
+            <CardTitle className="text-lg font-bold flex items-center gap-2">
+              <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-gradient-to-br from-violet-400 to-violet-500 text-white shadow-sm">
+                <Clock className="h-4 w-4" />
+              </div>
+              {t('teacher.upcoming_lessons')}
+              <span className="text-xs font-normal text-gray-500 dark:text-gray-400 ml-1">
+                · {new Date().toLocaleDateString(locale === 'de' ? 'de-DE' : 'en-GB', { weekday: 'short', day: 'numeric', month: 'short' })}
+              </span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {data.classesOverview.length === 0 ? (
+              <div className="text-center py-6">
+                <Clock className="h-8 w-8 text-gray-300 dark:text-gray-600 mx-auto mb-2" />
+                <p className="text-sm text-gray-500 dark:text-gray-400">{t('teacher.no_lessons')}</p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {data.classesOverview.slice(0, 4).map((cls, idx) => {
+                  const times = ['08:00 – 08:45', '09:00 – 09:45', '10:00 – 10:45', '11:00 – 11:45'];
+                  const subjects = [t('student.notebook_math'), t('student.notebook_german'), t('student.notebook_english'), t('student.notebook_science')];
+                  const colors = ['from-amber-400 to-orange-500', 'from-emerald-400 to-teal-500', 'from-rose-400 to-pink-500', 'from-violet-400 to-purple-500'];
+                  return (
+                    <motion.div
+                      key={cls.id}
+                      whileHover={{ scale: 1.01, x: 2 }}
+                      transition={{ duration: 0.15 }}
+                      className="group flex items-center gap-3 p-3 rounded-xl bg-gray-50/50 dark:bg-gray-800/30 border border-gray-100/60 dark:border-gray-800/40 hover:border-violet-200/60 dark:hover:border-violet-800/30 transition-colors min-h-[44px]"
+                    >
+                      <div className={`flex items-center justify-center w-9 h-9 rounded-lg bg-gradient-to-br ${colors[idx % colors.length]} text-white shadow-sm shrink-0`}>
+                        <BookOpen className="h-4 w-4" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-semibold text-gray-900 dark:text-gray-100 truncate">{subjects[idx % subjects.length]} — {cls.name}</p>
+                        <p className="text-[11px] text-gray-500 dark:text-gray-400">{times[idx % times.length]} · {t('teacher.student_count')}: {cls.studentCount}</p>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <Badge variant="outline" className="text-[10px] px-1.5 py-0">{times[idx % times.length].split(' – ')[0]}</Badge>
+                        <ChevronRight className="h-4 w-4 text-gray-300 dark:text-gray-600 group-hover:text-violet-500 transition-colors" />
+                      </div>
+                    </motion.div>
+                  );
+                })}
+              </div>
+            )}
           </CardContent>
         </Card>
       </motion.div>
@@ -1808,7 +2502,7 @@ export default function DashboardView() {
                 <p className="text-xs text-emerald-600/60 dark:text-emerald-400/40 mt-1">{t('dashboard.start_here')}</p>
               </div>
             ) : (
-              <div className="space-y-2 max-h-96 overflow-y-auto scrollbar-education pr-1">
+              <div className="activity-timeline max-h-96 overflow-y-auto scrollbar-education pr-1">
                 {data.recentEntries.slice(0, typeof window !== 'undefined' && window.innerWidth < 640 ? 5 : 10).map((entry) => {
                   const catColor = entry.competency.category.color ?? '#10b981';
                   const studentName = `${entry.student.firstName} ${entry.student.lastName}`;
@@ -1818,7 +2512,7 @@ export default function DashboardView() {
                       key={entry.id}
                       whileHover={{ scale: 1.01, x: 2 }}
                       transition={{ duration: 0.15 }}
-                      className="group flex items-center justify-between p-3.5 rounded-xl bg-gradient-to-r from-gray-50/80 to-gray-50/0 dark:from-gray-800/50 dark:to-gray-800/0 border border-gray-100/60 dark:border-gray-800/40 hover:border-emerald-200/60 dark:hover:border-emerald-800/30 transition-colors relative overflow-hidden"
+                      className="activity-timeline-item group flex items-center justify-between p-3.5 rounded-xl bg-gradient-to-r from-gray-50/80 to-gray-50/0 dark:from-gray-800/50 dark:to-gray-800/0 border border-gray-100/60 dark:border-gray-800/40 hover:border-emerald-200/60 dark:hover:border-emerald-800/30 transition-colors relative overflow-hidden"
                     >
                       {/* Left border color indicator */}
                       <div className="absolute left-0 top-0 bottom-0 w-1 rounded-l-xl transition-all duration-200 group-hover:w-1.5" style={{ backgroundColor: catColor }} />

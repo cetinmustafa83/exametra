@@ -863,7 +863,7 @@ export default function ClassesView() {
                   whileTap={{ scale: 0.98 }}
                   transition={{ duration: 0.2 }}
                   onClick={() => handleSelectClass(cls)}
-                  className={`w-full text-left rounded-xl transition-all duration-200 border-l-3 ${schoolTypeAccent[cls.schoolType] ?? 'border-l-emerald-500'} bg-gradient-to-r ${schoolTypeGradient[cls.schoolType] ?? schoolTypeGradient.OTHER} hover:shadow-xl hover:shadow-emerald-500/8 card-hover-lift ${
+                  className={`w-full text-left rounded-xl transition-all duration-200 border-l-3 ${schoolTypeAccent[cls.schoolType] ?? 'border-l-emerald-500'} bg-gradient-to-r ${schoolTypeGradient[cls.schoolType] ?? schoolTypeGradient.OTHER} hover:shadow-xl hover:shadow-emerald-500/8 card-shadow-transition ${
                     selectedClass?.id === cls.id
                       ? 'shadow-lg ring-2 ring-emerald-300/60 dark:ring-emerald-700/50'
                       : 'hover:shadow-lg hover:shadow-emerald-200/30 dark:hover:shadow-emerald-900/20'
@@ -900,7 +900,7 @@ export default function ClassesView() {
                         {/* Small progress indicator */}
                         <div className="w-16 h-2 rounded-full bg-gray-200 dark:bg-gray-700 overflow-hidden">
                           <div
-                            className="h-full rounded-full bg-gradient-to-r from-emerald-400 to-teal-400 transition-all"
+                            className="progress-bar-animated-fill h-full rounded-full bg-gradient-to-r from-emerald-400 to-teal-400 transition-all"
                             style={{ width: `${progressPercent(cls)}%` }}
                           />
                         </div>
@@ -1459,7 +1459,7 @@ export default function ClassesView() {
                           initial={{ opacity: 0, scale: 0.8 }}
                           animate={{ opacity: 1, scale: 1 }}
                           transition={{ delay: idx * 0.03, duration: 0.3 }}
-                          className="flex flex-col items-center gap-1 cursor-pointer"
+                          className="animate-student-appear flex flex-col items-center gap-1 cursor-pointer"
                           onClick={() => {
                             useAppStore.getState().navigateToStudentDetail(s.id, 'classes');
                           }}

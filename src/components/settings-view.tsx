@@ -1130,6 +1130,135 @@ function PrivacyTab({ currentUser }: { currentUser: { id: string; role: string; 
         </Card>
       )}
 
+      {/* ── Consent Management Card ─────────────────────────────── */}
+      <Card className="card-hover-lift border-0 shadow-sm rounded-xl border-l-3 border-l-teal-500 overflow-hidden">
+        <CardHeader className="bg-gradient-to-r from-teal-50/50 to-transparent dark:from-teal-900/10 dark:to-transparent">
+          <CardTitle className="flex items-center gap-2">
+            <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-teal-100 dark:bg-teal-900/30 text-teal-600 dark:text-teal-400">
+              <Shield className="h-4 w-4" />
+            </div>
+            {t('dsgvo.consent_management')}
+          </CardTitle>
+          <CardDescription>{t('dsgvo.consent_management_desc')}</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {[
+            { key: 'data_processing', icon: Database, color: 'emerald' },
+            { key: 'communication', icon: Mail, color: 'teal' },
+            { key: 'analytics', icon: BarChart3, color: 'amber' },
+            { key: 'third_party', icon: Users, color: 'violet' },
+          ].map((consent) => {
+            const Icon = consent.icon;
+            const colorMap: Record<string, { bg: string; text: string; border: string }> = {
+              emerald: { bg: 'bg-emerald-100 dark:bg-emerald-900/30', text: 'text-emerald-600 dark:text-emerald-400', border: 'border-emerald-200/30 dark:border-emerald-900/20' },
+              teal: { bg: 'bg-teal-100 dark:bg-teal-900/30', text: 'text-teal-600 dark:text-teal-400', border: 'border-teal-200/30 dark:border-teal-900/20' },
+              amber: { bg: 'bg-amber-100 dark:bg-amber-900/30', text: 'text-amber-600 dark:text-amber-400', border: 'border-amber-200/30 dark:border-amber-900/20' },
+              violet: { bg: 'bg-violet-100 dark:bg-violet-900/30', text: 'text-violet-600 dark:text-violet-400', border: 'border-violet-200/30 dark:border-violet-900/20' },
+            };
+            const c = colorMap[consent.color] || colorMap.emerald;
+            return (
+              <div key={consent.key} className={`flex items-center justify-between p-4 rounded-xl ${c.bg} border ${c.border}`}>
+                <div className="flex items-center gap-3">
+                  <Icon className={`h-5 w-5 ${c.text}`} />
+                  <div>
+                    <p className="text-sm font-medium text-gray-900 dark:text-gray-100">{t(`dsgvo.consent_${consent.key}`)}</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{t(`dsgvo.consent_${consent.key}_desc`)}</p>
+                  </div>
+                </div>
+                <Badge className={`${c.bg} ${c.text} border ${c.border} text-xs`}>
+                  {t('dsgvo.consent_granted')}
+                </Badge>
+              </div>
+            );
+          })}
+        </CardContent>
+      </Card>
+
+      {/* ── Data Retention Settings Card ─────────────────────────────── */}
+      <Card className="card-hover-lift border-0 shadow-sm rounded-xl border-l-3 border-l-amber-500 overflow-hidden">
+        <CardHeader className="bg-gradient-to-r from-amber-50/50 to-transparent dark:from-amber-900/10 dark:to-transparent">
+          <CardTitle className="flex items-center gap-2">
+            <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400">
+              <HardDrive className="h-4 w-4" />
+            </div>
+            {t('dsgvo.retention_settings')}
+          </CardTitle>
+          <CardDescription>{t('dsgvo.retention_settings_desc')}</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {[
+            { key: 'grades', icon: GraduationCap, color: 'emerald', defaultYears: 3 },
+            { key: 'attendance', icon: CalendarCheck, color: 'teal', defaultYears: 2 },
+            { key: 'behavior', icon: Heart, color: 'violet', defaultYears: 1 },
+          ].map((retention) => {
+            const Icon = retention.icon;
+            const colorMap: Record<string, { bg: string; text: string; border: string }> = {
+              emerald: { bg: 'bg-emerald-50/50 dark:bg-emerald-900/10', text: 'text-emerald-600 dark:text-emerald-400', border: 'border-emerald-200/30 dark:border-emerald-900/20' },
+              teal: { bg: 'bg-teal-50/50 dark:bg-teal-900/10', text: 'text-teal-600 dark:text-teal-400', border: 'border-teal-200/30 dark:border-teal-900/20' },
+              violet: { bg: 'bg-violet-50/50 dark:bg-violet-900/10', text: 'text-violet-600 dark:text-violet-400', border: 'border-violet-200/30 dark:border-violet-900/20' },
+            };
+            const c = colorMap[retention.color] || colorMap.emerald;
+            return (
+              <div key={retention.key} className={`flex items-center justify-between p-4 rounded-xl ${c.bg} border ${c.border}`}>
+                <div className="flex items-center gap-3">
+                  <Icon className={`h-5 w-5 ${c.text}`} />
+                  <div>
+                    <p className="text-sm font-medium text-gray-900 dark:text-gray-100">{t(`dsgvo.retention_${retention.key}`)}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-bold text-gray-700 dark:text-gray-300">{retention.defaultYears}</span>
+                  <span className="text-xs text-muted-foreground">{t('dsgvo.retention_years')}</span>
+                </div>
+              </div>
+            );
+          })}
+        </CardContent>
+      </Card>
+
+      {/* ── Cookie Consent Management Card ─────────────────────────────── */}
+      <Card className="card-hover-lift border-0 shadow-sm rounded-xl border-l-3 border-l-rose-400 overflow-hidden">
+        <CardHeader className="bg-gradient-to-r from-rose-50/50 to-transparent dark:from-rose-900/10 dark:to-transparent">
+          <CardTitle className="flex items-center gap-2">
+            <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-rose-100 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400">
+              <Shield className="h-4 w-4" />
+            </div>
+            {t('dsgvo.cookie_settings')}
+          </CardTitle>
+          <CardDescription>{t('dsgvo.cookie_consent')}</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-center justify-between p-4 rounded-xl bg-gray-50/50 dark:bg-gray-800/50 border border-gray-200/30 dark:border-gray-700/20">
+            <div className="flex items-center gap-3">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400">
+                <CheckCircle2 className="h-4 w-4" />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-gray-900 dark:text-gray-100">{t('dsgvo.cookie_essential')}</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{t('dsgvo.cookie_essential_desc')}</p>
+              </div>
+            </div>
+            <Badge className="bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 text-xs">
+              {t('dsgvo.consent_granted')}
+            </Badge>
+          </div>
+          <div className="flex items-center justify-between p-4 rounded-xl bg-gray-50/50 dark:bg-gray-800/50 border border-gray-200/30 dark:border-gray-700/20">
+            <div className="flex items-center gap-3">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400">
+                <BarChart3 className="h-4 w-4" />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-gray-900 dark:text-gray-100">{t('dsgvo.cookie_analytics')}</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{t('dsgvo.cookie_analytics_desc')}</p>
+              </div>
+            </div>
+            <Badge className="bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 text-xs">
+              {t('dsgvo.consent_revoked')}
+            </Badge>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* ── Delete Account Confirmation Dialog ─────────────────────── */}
       <AlertDialog open={deleteDialogOpen} onOpenChange={(open) => { if (!open) { setDeleteDialogOpen(false); setDeletePassword(''); } }}>
         <AlertDialogContent>

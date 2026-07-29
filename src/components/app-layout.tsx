@@ -827,7 +827,7 @@ export default function AppLayout() {
       <Sidebar
         variant="sidebar"
         collapsible="icon"
-        className="border-r border-emerald-200/50 dark:border-emerald-900/30 bg-gradient-to-b from-emerald-50/80 via-white to-white dark:from-gray-900 dark:via-emerald-950/20 dark:to-gray-950"
+        className="border-r border-emerald-200/50 dark:border-emerald-900/30 bg-gradient-to-b from-emerald-50/80 via-white to-emerald-50/30 dark:from-gray-900 dark:via-emerald-950/20 dark:to-gray-950"
       >
         <SidebarHeader className="p-4">
           <motion.div
@@ -874,16 +874,20 @@ export default function AppLayout() {
                         className={`group relative transition-all duration-200 min-h-[44px] ${
                           currentView === item.key
                             ? 'bg-gradient-to-r from-emerald-100/90 via-emerald-50/70 to-teal-50/50 dark:from-emerald-900/40 dark:via-emerald-900/25 dark:to-teal-900/15 text-emerald-700 dark:text-emerald-300 font-semibold border-l-3 border-emerald-500 rounded-l-none shadow-sm shadow-emerald-100/40 dark:shadow-emerald-900/20'
-                            : 'text-gray-600 dark:text-gray-400 hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-emerald-50/50 dark:hover:bg-emerald-900/10'
+                            : 'text-gray-600 dark:text-gray-400 hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-emerald-50/50 dark:hover:bg-emerald-900/10 hover:translate-x-0.5'
                         }`}
                       >
                         {currentView === item.key && (
-                          <span className="absolute inset-y-0 left-0 w-1 rounded-r-full bg-gradient-to-b from-emerald-400 to-teal-500" />
+                          <motion.span
+                            layoutId="sidebar-active-indicator"
+                            className="absolute inset-y-0 left-0 w-1 rounded-r-full bg-gradient-to-b from-emerald-400 to-teal-500"
+                            transition={{ type: 'spring', stiffness: 350, damping: 30 }}
+                          />
                         )}
-                        <item.icon className={`h-5 w-5 transition-colors duration-200 ${
+                        <item.icon className={`h-5 w-5 transition-all duration-200 ${
                           currentView === item.key
                             ? 'text-emerald-600 dark:text-emerald-400'
-                            : 'text-gray-400 dark:text-gray-500 group-hover:text-emerald-500 dark:group-hover:text-emerald-400'
+                            : 'text-gray-400 dark:text-gray-500 group-hover:text-emerald-500 dark:group-hover:text-emerald-400 group-hover:scale-110'
                         }`} />
                         <span className="text-sm">{t(item.labelKey)}</span>
                       </SidebarMenuButton>
@@ -970,7 +974,7 @@ export default function AppLayout() {
       <SidebarInset>
         {/* Announcement Banner */}
         <AnnouncementBanner schoolId={currentUser?.schoolId ?? null} />
-        <header className="flex h-14 items-center gap-2 border-b border-emerald-200/50 dark:border-emerald-900/30 bg-white/80 dark:bg-gray-950/80 backdrop-blur-xl px-4 sticky top-0 z-10 shadow-sm shadow-emerald-100/50 dark:shadow-emerald-900/10 transition-all duration-300">
+        <header className="header-gradient flex h-14 items-center gap-2 border-b border-emerald-200/50 dark:border-emerald-900/30 bg-white/80 dark:bg-gray-950/80 backdrop-blur-xl px-4 sticky top-0 z-10 shadow-sm shadow-emerald-100/50 dark:shadow-emerald-900/10 transition-all duration-300">
           <SidebarTrigger className="-ml-1 h-10 w-10 hover:bg-emerald-100 dark:hover:bg-emerald-900/20 shrink-0" />
           <Separator orientation="vertical" className="h-6 bg-emerald-200/50 dark:bg-emerald-900/30 shrink-0" />
           <Breadcrumb className="min-w-0 flex-1">
@@ -985,7 +989,7 @@ export default function AppLayout() {
               </BreadcrumbItem>
               <BreadcrumbSeparator><ChevronRight className="h-3 w-3 text-emerald-400/60" /></BreadcrumbSeparator>
               <BreadcrumbItem>
-                <BreadcrumbPage className="font-semibold text-gray-900 dark:text-gray-100 truncate">
+                <BreadcrumbPage className="breadcrumb-active-view truncate">
                   {breadcrumbLabel}
                 </BreadcrumbPage>
               </BreadcrumbItem>
@@ -1066,7 +1070,7 @@ export default function AppLayout() {
                       initial={{ scale: 0 }}
                       animate={{ scale: 1 }}
                       transition={{ type: 'spring', stiffness: 500, damping: 15 }}
-                      className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-0.5 rounded-full bg-gradient-to-br from-emerald-400 to-teal-500 text-white text-[9px] font-bold flex items-center justify-center shadow-sm shadow-emerald-300/30"
+                      className="animate-badge-pulse absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-0.5 rounded-full bg-gradient-to-br from-emerald-400 to-teal-500 text-white text-[9px] font-bold flex items-center justify-center shadow-sm shadow-emerald-300/30"
                     >
                       {notifData.unreadCount > 9 ? '9+' : notifData.unreadCount}
                     </motion.span>
@@ -1207,7 +1211,7 @@ export default function AppLayout() {
           </div>
         </header>
 
-        <div className="flex-1 p-4 md:p-6 bg-white dark:bg-gray-950">
+        <div className="flex-1 p-4 md:p-6 bg-gradient-to-br from-white via-white to-emerald-50/20 dark:from-gray-950 dark:via-gray-950 dark:to-emerald-950/10">
           <AnimatePresence mode="wait">
             <motion.div
               key={currentView}
@@ -1221,7 +1225,7 @@ export default function AppLayout() {
           </AnimatePresence>
         </div>
 
-        <footer className="mt-auto border-t border-emerald-200/50 dark:border-emerald-900/30 bg-white dark:bg-gray-950 py-3 px-4">
+        <footer className="mt-auto border-t border-emerald-200/50 dark:border-emerald-900/30 bg-gradient-to-r from-white via-emerald-50/20 to-white dark:from-gray-950 dark:via-emerald-950/10 dark:to-gray-950 py-3 px-4">
           <div className="flex items-center justify-between text-xs text-emerald-600/60 dark:text-emerald-400/40">
             <span className="flex items-center gap-1">
               <Leaf className="h-3 w-3 text-emerald-500" />

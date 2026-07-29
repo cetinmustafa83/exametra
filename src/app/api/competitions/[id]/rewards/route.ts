@@ -49,13 +49,25 @@ async function getRewards(
       return NextResponse.json({ error: 'Competition not found' }, { status: 404 });
     }
 
-    // Access control
+    // Access control: authenticated users can see their own school's competitions or public ones
+    // Also allow participants (e.g. inter-school competitions) and users without a schoolId viewing public ones
+    const userSchoolId = session.user?.schoolId;
+    const isSameSchool = userSchoolId === competition.schoolId;
     if (
       session.user?.role !== 'SUPER_ADMIN' &&
-      session.user?.schoolId !== competition.schoolId &&
+      !isSameSchool &&
       !competition.isPublic
     ) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      // Check if the user is a participant in this competition
+      const participant = await db.competitionParticipant.findFirst({
+        where: {
+          competitionId: id,
+          userId: session.user!.id,
+        },
+      });
+      if (!participant) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      }
     }
 
     const rewards = await db.competitionReward.findMany({

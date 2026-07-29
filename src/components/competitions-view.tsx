@@ -48,6 +48,22 @@ import {
   Theater,
   ShoppingBag,
   Tag,
+  Wallet,
+  Package,
+  Coins,
+  CreditCard,
+  Headphones,
+  Tv,
+  MonitorPlay,
+  Store,
+  Palette,
+  Coffee,
+  Armchair,
+  PencilRuler,
+  Sticker,
+  Notebook,
+  History,
+  Loader2,
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -84,6 +100,7 @@ import { useAppStore, type CurrentUser } from '@/lib/store';
 import { t } from '@/lib/i18n';
 import {
   fetchCompetitions,
+  fetchPublicCompetitions,
   fetchCompetition,
   createCompetition,
   updateCompetition,
@@ -100,6 +117,63 @@ import {
   type RewardClaimData,
 } from '@/lib/api';
 import { toast } from 'sonner';
+
+/* ── Types for Digital Reward Catalog ──────────────────────────────── */
+
+interface CatalogReward {
+  id: string;
+  title: string;
+  description?: string | null;
+  category: string;
+  pointsCost: number;
+  image?: string | null;
+  stock?: number | null;
+  isActive: boolean;
+  isDemo: boolean;
+  createdAt: string;
+  _count?: { redemptions: number };
+}
+
+interface PointsHistoryEntry {
+  id: string;
+  points: number;
+  source: string;
+  description?: string | null;
+  createdAt: string;
+}
+
+interface RedemptionEntry {
+  id: string;
+  rewardId: string;
+  pointsSpent: number;
+  status: string;
+  note?: string | null;
+  createdAt: string;
+  reward?: { title: string; category: string };
+}
+
+/* ── Constants ─────────────────────────────────────────────────────── */
+
+const REWARD_CATEGORIES = ['streaming', 'shopping', 'experience', 'merchandise', 'privilege'] as const;
+
+const DEMO_REWARDS: CatalogReward[] = [
+  { id: 'demo-netflix', title: 'Netflix-Gutschein', description: '15 EUR Netflix-Gutschein', category: 'streaming', pointsCost: 500, stock: 10, isActive: true, isDemo: true, createdAt: new Date().toISOString() },
+  { id: 'demo-spotify', title: 'Spotify Premium', description: '3 Monate Spotify Premium', category: 'streaming', pointsCost: 350, stock: 15, isActive: true, isDemo: true, createdAt: new Date().toISOString() },
+  { id: 'demo-disney', title: 'Disney+-Gutschein', description: '1 Monat Disney+', category: 'streaming', pointsCost: 300, stock: 8, isActive: true, isDemo: true, createdAt: new Date().toISOString() },
+  { id: 'demo-amazon', title: 'Amazon-Gutschein', description: '10 EUR Amazon-Gutschein', category: 'shopping', pointsCost: 400, stock: 20, isActive: true, isDemo: true, createdAt: new Date().toISOString() },
+  { id: 'demo-thalia', title: 'Thalia-Gutschein', description: '10 EUR Thalia-Gutschein', category: 'shopping', pointsCost: 400, stock: 12, isActive: true, isDemo: true, createdAt: new Date().toISOString() },
+  { id: 'demo-mediamarkt', title: 'MediaMarkt-Gutschein', description: '15 EUR MediaMarkt-Gutschein', category: 'shopping', pointsCost: 550, stock: 5, isActive: true, isDemo: true, createdAt: new Date().toISOString() },
+  { id: 'demo-cinema', title: 'Kino-Ticket', description: 'Ein Kinoticket nach Wahl', category: 'experience', pointsCost: 250, stock: 25, isActive: true, isDemo: true, createdAt: new Date().toISOString() },
+  { id: 'demo-theater', title: 'Theater-Ticket', description: 'Ein Theaterbesuch', category: 'experience', pointsCost: 300, stock: 10, isActive: true, isDemo: true, createdAt: new Date().toISOString() },
+  { id: 'demo-concert', title: 'Konzert-Ticket', description: 'Konzert-Erlebnis', category: 'experience', pointsCost: 600, stock: 5, isActive: true, isDemo: true, createdAt: new Date().toISOString() },
+  { id: 'demo-museum', title: 'Museumseintritt', description: 'Freier Eintritt ins Museum', category: 'experience', pointsCost: 150, stock: 30, isActive: true, isDemo: true, createdAt: new Date().toISOString() },
+  { id: 'demo-tshirt', title: 'Schul-T-Shirt', description: 'Offizielles Schul-T-Shirt', category: 'merchandise', pointsCost: 200, stock: 50, isActive: true, isDemo: true, createdAt: new Date().toISOString() },
+  { id: 'demo-stickers', title: 'Aufkleber-Set', description: 'Schul-Sticker-Set', category: 'merchandise', pointsCost: 50, stock: 100, isActive: true, isDemo: true, createdAt: new Date().toISOString() },
+  { id: 'demo-notebook', title: 'Schulheft', description: 'Schulheft mit Schullogo', category: 'merchandise', pointsCost: 75, stock: 80, isActive: true, isDemo: true, createdAt: new Date().toISOString() },
+  { id: 'demo-homework', title: 'Hausaufgaben-Frei', description: 'Eine Hausaufgabe aussetzen', category: 'privilege', pointsCost: 150, stock: 20, isActive: true, isDemo: true, createdAt: new Date().toISOString() },
+  { id: 'demo-break', title: 'Extra Pause', description: '5 Minuten extra Pause', category: 'privilege', pointsCost: 100, stock: 30, isActive: true, isDemo: true, createdAt: new Date().toISOString() },
+  { id: 'demo-seat', title: 'Sitzplatz wählen', description: 'Sitzplatz für eine Woche frei wählen', category: 'privilege', pointsCost: 200, stock: 10, isActive: true, isDemo: true, createdAt: new Date().toISOString() },
+];
 
 /* ── Helpers ─────────────────────────────────────────────────────── */
 
@@ -231,6 +305,92 @@ function getScoringLabel(type: string): string {
     case 'time': return t('competition.scoring.time');
     case 'badge_count': return t('competition.scoring.badge_count');
     default: return type;
+  }
+}
+
+function getCategoryLabelReward(category: string): string {
+  switch (category) {
+    case 'streaming': return t('rewards.category.streaming');
+    case 'shopping': return t('rewards.category.shopping');
+    case 'experience': return t('rewards.category.experience');
+    case 'merchandise': return t('rewards.category.merchandise');
+    case 'privilege': return t('rewards.category.privilege');
+    default: return category;
+  }
+}
+
+function getCategoryIcon(category: string, className?: string) {
+  switch (category) {
+    case 'streaming': return <Tv className={className} />;
+    case 'shopping': return <ShoppingBag className={className} />;
+    case 'experience': return <Ticket className={className} />;
+    case 'merchandise': return <Package className={className} />;
+    case 'privilege': return <Crown className={className} />;
+    default: return <Gift className={className} />;
+  }
+}
+
+function getCategoryColor(category: string): string {
+  switch (category) {
+    case 'streaming': return 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-300';
+    case 'shopping': return 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300';
+    case 'experience': return 'bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300';
+    case 'merchandise': return 'bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-300';
+    case 'privilege': return 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300';
+    default: return 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300';
+  }
+}
+
+function getCategoryBorderColor(category: string): string {
+  switch (category) {
+    case 'streaming': return 'border-l-rose-400';
+    case 'shopping': return 'border-l-amber-400';
+    case 'experience': return 'border-l-violet-400';
+    case 'merchandise': return 'border-l-teal-400';
+    case 'privilege': return 'border-l-emerald-400';
+    default: return 'border-l-gray-400';
+  }
+}
+
+function getCategoryBgGradient(category: string): string {
+  switch (category) {
+    case 'streaming': return 'from-rose-50/50 dark:from-rose-900/10';
+    case 'shopping': return 'from-amber-50/50 dark:from-amber-900/10';
+    case 'experience': return 'from-violet-50/50 dark:from-violet-900/10';
+    case 'merchandise': return 'from-teal-50/50 dark:from-teal-900/10';
+    case 'privilege': return 'from-emerald-50/50 dark:from-emerald-900/10';
+    default: return 'from-gray-50/50 dark:from-gray-800/50';
+  }
+}
+
+function getRedemptionStatusLabel(status: string): string {
+  switch (status) {
+    case 'pending': return t('rewards.redemption.pending');
+    case 'approved': return t('rewards.redemption.approved');
+    case 'rejected': return t('rewards.redemption.rejected');
+    case 'fulfilled': return t('rewards.redemption.fulfilled');
+    default: return status;
+  }
+}
+
+function getRedemptionStatusColor(status: string): string {
+  switch (status) {
+    case 'pending': return 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300';
+    case 'approved': return 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300';
+    case 'rejected': return 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-300';
+    case 'fulfilled': return 'bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-300';
+    default: return 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300';
+  }
+}
+
+function getPointsSourceLabel(source: string): string {
+  switch (source) {
+    case 'competition': return t('rewards.points_source.competition');
+    case 'grade': return t('rewards.points_source.grade');
+    case 'attendance': return t('rewards.points_source.attendance');
+    case 'homework': return t('rewards.points_source.homework');
+    case 'bonus': return t('rewards.points_source.bonus');
+    default: return source;
   }
 }
 
@@ -585,6 +745,28 @@ export default function CompetitionsView() {
   const [myClaims, setMyClaims] = useState<RewardClaimData[]>([]);
   const [claimingRewardId, setClaimingRewardId] = useState<string | null>(null);
 
+  // Digital Reward Catalog
+  const [catalogRewards, setCatalogRewards] = useState<CatalogReward[]>([]);
+  const [catalogLoading, setCatalogLoading] = useState(true);
+  const [catalogCategory, setCatalogCategory] = useState<string>('all');
+  const [pointsBalance, setPointsBalance] = useState(0);
+  const [pointsEarned, setPointsEarned] = useState(0);
+  const [pointsSpent, setPointsSpent] = useState(0);
+  const [pointsHistory, setPointsHistory] = useState<PointsHistoryEntry[]>([]);
+  const [myRedemptions, setMyRedemptions] = useState<RedemptionEntry[]>([]);
+  const [redeemDialogOpen, setRedeemDialogOpen] = useState(false);
+  const [redeemTarget, setRedeemTarget] = useState<CatalogReward | null>(null);
+  const [isRedeeming, setIsRedeeming] = useState(false);
+  const [createRewardOpen, setCreateRewardOpen] = useState(false);
+  const [newRewardForm, setNewRewardForm] = useState({
+    title: '',
+    description: '',
+    category: 'streaming',
+    pointsCost: '',
+    stock: '',
+  });
+  const [isCreatingReward, setIsCreatingReward] = useState(false);
+
   // Register
   const [isRegistering, setIsRegistering] = useState(false);
 
@@ -596,11 +778,16 @@ export default function CompetitionsView() {
 
   /* ── Fetch competitions ──────────────────────────────────────── */
   const loadCompetitions = useCallback(async () => {
-    if (!schoolId) return;
     setIsLoading(true);
     try {
-      const result = await fetchCompetitions(schoolId, undefined, undefined, undefined, 100);
-      setCompetitions(result.competitions);
+      if (schoolId) {
+        const result = await fetchCompetitions(schoolId, undefined, undefined, undefined, 100);
+        setCompetitions(result.competitions);
+      } else {
+        // Users without a schoolId can still see public competitions
+        const result = await fetchPublicCompetitions(100);
+        setCompetitions(result.competitions);
+      }
     } catch (err) {
       console.error('Failed to load competitions:', err);
       toast.error('Failed to load competitions');
@@ -615,9 +802,8 @@ export default function CompetitionsView() {
 
   /* ── Fetch my claims ─────────────────────────────────────────── */
   const loadMyClaims = useCallback(async () => {
-    if (!schoolId) return;
     try {
-      const result = await fetchRewardClaims(schoolId, undefined, undefined);
+      const result = await fetchRewardClaims(schoolId ?? undefined, undefined, undefined);
       setMyClaims(result.claims.filter((c) => c.userId === currentUser?.id));
     } catch {
       // silently fail
@@ -627,6 +813,130 @@ export default function CompetitionsView() {
   useEffect(() => {
     loadMyClaims();
   }, [loadMyClaims]);
+
+  /* ── Fetch reward catalog & points ───────────────────────────── */
+  const loadCatalogData = useCallback(async () => {
+    setCatalogLoading(true);
+    try {
+      const [rewardsRes, pointsRes] = await Promise.all([
+        fetch('/api/rewards').catch(() => null),
+        fetch('/api/reward-points').catch(() => null),
+      ]);
+
+      if (rewardsRes?.ok) {
+        const rewardsData = await rewardsRes.json();
+        if (Array.isArray(rewardsData) && rewardsData.length > 0) {
+          setCatalogRewards(rewardsData);
+        } else {
+          // Use demo rewards when no real rewards exist
+          setCatalogRewards(DEMO_REWARDS);
+        }
+      } else {
+        setCatalogRewards(DEMO_REWARDS);
+      }
+
+      if (pointsRes?.ok) {
+        const pointsData = await pointsRes.json();
+        setPointsBalance(pointsData.balance ?? 0);
+        setPointsEarned(pointsData.totalEarned ?? 0);
+        setPointsSpent(pointsData.totalSpent ?? 0);
+        setPointsHistory(pointsData.pointsHistory ?? []);
+        setMyRedemptions(pointsData.redemptions ?? []);
+      } else {
+        // Demo data
+        setPointsBalance(750);
+        setPointsEarned(1000);
+        setPointsSpent(250);
+        setPointsHistory([
+          { id: 'ph1', points: 200, source: 'competition', description: 'Wettbewerb gewonnen', createdAt: new Date(Date.now() - 86400000).toISOString() },
+          { id: 'ph2', points: 100, source: 'attendance', description: '7 Tage Anwesenheitssträhne', createdAt: new Date(Date.now() - 172800000).toISOString() },
+          { id: 'ph3', points: 50, source: 'homework', description: 'Hausaufgaben pünktlich abgegeben', createdAt: new Date(Date.now() - 259200000).toISOString() },
+          { id: 'ph4', points: 150, source: 'grade', description: 'Sehr gut in Mathematik', createdAt: new Date(Date.now() - 345600000).toISOString() },
+          { id: 'ph5', points: 500, source: 'bonus', description: 'Klassensprecher', createdAt: new Date(Date.now() - 432000000).toISOString() },
+        ]);
+        setMyRedemptions([]);
+      }
+    } catch {
+      setCatalogRewards(DEMO_REWARDS);
+      setPointsBalance(750);
+      setPointsEarned(1000);
+      setPointsSpent(250);
+    } finally {
+      setCatalogLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadCatalogData();
+  }, [loadCatalogData]);
+
+  /* ── Redeem a reward ─────────────────────────────────────────── */
+  const handleRedeemReward = useCallback(async () => {
+    if (!redeemTarget) return;
+    setIsRedeeming(true);
+    try {
+      const res = await fetch('/api/rewards/redeem', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ rewardId: redeemTarget.id }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        if (data.error === 'Insufficient points') {
+          toast.error(t('rewards.insufficient_points'));
+        } else if (data.error === 'Out of stock') {
+          toast.error(t('rewards.out_of_stock'));
+        } else {
+          toast.error(data.error || t('rewards.redeem_error'));
+        }
+        return;
+      }
+      toast.success(t('rewards.redeem_success'));
+      setRedeemDialogOpen(false);
+      setRedeemTarget(null);
+      loadCatalogData();
+    } catch {
+      toast.error(t('rewards.redeem_error'));
+    } finally {
+      setIsRedeeming(false);
+    }
+  }, [redeemTarget, loadCatalogData]);
+
+  /* ── Create a new reward (admin) ─────────────────────────────── */
+  const handleCreateReward = useCallback(async () => {
+    if (!newRewardForm.title.trim() || !newRewardForm.pointsCost) {
+      toast.error('Title and points cost are required');
+      return;
+    }
+    setIsCreatingReward(true);
+    try {
+      const res = await fetch('/api/rewards', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: newRewardForm.title.trim(),
+          description: newRewardForm.description.trim() || null,
+          category: newRewardForm.category,
+          pointsCost: parseInt(newRewardForm.pointsCost, 10),
+          stock: newRewardForm.stock ? parseInt(newRewardForm.stock, 10) : null,
+          isDemo: true,
+        }),
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        toast.error(data.error || t('rewards.redeem_error'));
+        return;
+      }
+      toast.success(t('rewards.create_reward'));
+      setCreateRewardOpen(false);
+      setNewRewardForm({ title: '', description: '', category: 'streaming', pointsCost: '', stock: '' });
+      loadCatalogData();
+    } catch {
+      toast.error(t('rewards.redeem_error'));
+    } finally {
+      setIsCreatingReward(false);
+    }
+  }, [newRewardForm, loadCatalogData]);
 
   /* ── Filtered competitions ───────────────────────────────────── */
   const filteredCompetitions = useMemo(() => {
@@ -917,6 +1227,7 @@ export default function CompetitionsView() {
           <TabsTrigger value="my" className="min-h-[44px]">{t('competition.manage')}</TabsTrigger>
           <TabsTrigger value="leaderboard" className="min-h-[44px]">{t('competition.leaderboard')}</TabsTrigger>
           <TabsTrigger value="rewards" className="min-h-[44px]">{t('competition.rewards')}</TabsTrigger>
+          <TabsTrigger value="catalog" className="min-h-[44px]">{t('rewards.title')}</TabsTrigger>
         </TabsList>
 
         {/* Overview Tab */}
@@ -1212,6 +1523,283 @@ export default function CompetitionsView() {
               </div>
             )}
           </section>
+        </TabsContent>
+
+        {/* ── Digital Reward Catalog Tab ─────────────────────────────── */}
+        <TabsContent value="catalog" className="space-y-6 mt-4">
+          {/* Points Balance Header */}
+          <Card className="border-0 shadow-sm rounded-xl overflow-hidden">
+            <CardContent className="p-6">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div className="flex items-center gap-4">
+                  <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-400 to-teal-500 shadow-lg">
+                    <Wallet className="h-7 w-7 text-white" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">{t('rewards.points_balance')}</p>
+                    <p className="text-3xl font-bold text-emerald-600 dark:text-emerald-400">{pointsBalance}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-6 text-sm">
+                  <div className="flex items-center gap-2">
+                    <TrendingUp className="h-4 w-4 text-emerald-500" />
+                    <span className="text-muted-foreground">{t('rewards.points_earned')}:</span>
+                    <span className="font-semibold text-emerald-600 dark:text-emerald-400">{pointsEarned}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <CreditCard className="h-4 w-4 text-amber-500" />
+                    <span className="text-muted-foreground">{t('rewards.points_spent')}:</span>
+                    <span className="font-semibold text-amber-600 dark:text-amber-400">{pointsSpent}</span>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Category Filter + Create Button */}
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div className="flex flex-wrap gap-2">
+              <Button
+                variant={catalogCategory === 'all' ? 'default' : 'outline'}
+                size="sm"
+                className={`min-h-[40px] rounded-lg ${catalogCategory === 'all' ? 'bg-emerald-600 hover:bg-emerald-700' : ''}`}
+                onClick={() => setCatalogCategory('all')}
+              >
+                {t('rewards.category.all')}
+              </Button>
+              {REWARD_CATEGORIES.map((cat) => (
+                <Button
+                  key={cat}
+                  variant={catalogCategory === cat ? 'default' : 'outline'}
+                  size="sm"
+                  className={`min-h-[40px] rounded-lg ${catalogCategory === cat ? 'bg-emerald-600 hover:bg-emerald-700' : ''}`}
+                  onClick={() => setCatalogCategory(cat)}
+                >
+                  {getCategoryIcon(cat, 'h-4 w-4 mr-1')}
+                  {getCategoryLabelReward(cat)}
+                </Button>
+              ))}
+            </div>
+            {canCreate && (
+              <Button
+                className="min-h-[44px] bg-amber-600 hover:bg-amber-700"
+                onClick={() => setCreateRewardOpen(true)}
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                {t('rewards.create_reward')}
+              </Button>
+            )}
+          </div>
+
+          {/* Reward Catalog Grid */}
+          {catalogLoading ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {[1, 2, 3, 4, 5, 6].map((i) => (
+                <Card key={i}><CardContent className="p-4"><Skeleton className="h-40" /></CardContent></Card>
+              ))}
+            </div>
+          ) : (
+            <AnimatePresence>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {catalogRewards
+                  .filter((r) => catalogCategory === 'all' || r.category === catalogCategory)
+                  .map((reward, idx) => (
+                    <motion.div
+                      key={reward.id}
+                      initial={{ opacity: 0, y: 12 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -12 }}
+                      transition={{ duration: 0.2, delay: idx * 0.03 }}
+                      whileHover={{ y: -2 }}
+                      className="h-full"
+                    >
+                      <Card className={`border-l-4 ${getCategoryBorderColor(reward.category)} h-full flex flex-col transition-shadow hover:shadow-md`}>
+                        <CardHeader className={`pb-3 bg-gradient-to-r ${getCategoryBgGradient(reward.category)} to-transparent`}>
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="flex items-center gap-2 min-w-0 flex-1">
+                              <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${getCategoryColor(reward.category)} shrink-0`}>
+                                {getCategoryIcon(reward.category, 'h-5 w-5')}
+                              </div>
+                              <div className="min-w-0">
+                                <CardTitle className="text-sm leading-tight truncate">{reward.title}</CardTitle>
+                                <Badge className={`${getCategoryColor(reward.category)} text-xs mt-1`}>
+                                  {getCategoryLabelReward(reward.category)}
+                                </Badge>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-1 text-amber-600 dark:text-amber-400 shrink-0">
+                              <Coins className="h-4 w-4" />
+                              <span className="font-bold text-sm">{reward.pointsCost}</span>
+                            </div>
+                          </div>
+                        </CardHeader>
+                        <CardContent className="flex-1 pb-3 space-y-3">
+                          {reward.description && (
+                            <p className="text-xs text-muted-foreground line-clamp-2">{reward.description}</p>
+                          )}
+                          <div className="flex items-center justify-between text-xs">
+                            <span className="text-muted-foreground">
+                              {reward.stock !== null && reward.stock !== undefined
+                                ? t('rewards.stock_remaining').replace('{count}', String(reward.stock))
+                                : t('rewards.unlimited')}
+                            </span>
+                            {pointsBalance >= reward.pointsCost ? (
+                              <span className="text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+                                <CheckCircle2 className="h-3 w-3" />
+                              </span>
+                            ) : (
+                              <span className="text-rose-500 dark:text-rose-400 flex items-center gap-1">
+                                <XCircle className="h-3 w-3" />
+                              </span>
+                            )}
+                          </div>
+                        </CardContent>
+                        <CardFooter className="pt-0 pb-4">
+                          <Button
+                            size="sm"
+                            className={`w-full min-h-[40px] rounded-lg ${
+                              pointsBalance >= reward.pointsCost
+                                ? 'bg-emerald-600 hover:bg-emerald-700'
+                                : 'bg-gray-300 dark:bg-gray-700 cursor-not-allowed'
+                            }`}
+                            disabled={pointsBalance < reward.pointsCost}
+                            onClick={() => {
+                              setRedeemTarget(reward);
+                              setRedeemDialogOpen(true);
+                            }}
+                          >
+                            <Gift className="h-4 w-4 mr-1" />
+                            {t('rewards.redeem')}
+                          </Button>
+                        </CardFooter>
+                      </Card>
+                    </motion.div>
+                  ))}
+              </div>
+            </AnimatePresence>
+          )}
+
+          {/* Earn Points Section */}
+          <Card className="border-0 shadow-sm rounded-xl overflow-hidden">
+            <CardHeader className="bg-gradient-to-r from-emerald-50/50 to-transparent dark:from-emerald-900/10 dark:to-transparent">
+              <CardTitle className="flex items-center gap-2 text-base">
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400">
+                  <Zap className="h-4 w-4" />
+                </div>
+                {t('rewards.earn_points')}
+              </CardTitle>
+              <CardDescription>{t('rewards.earn_points_desc')}</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+                {[
+                  { icon: Trophy, label: t('rewards.earn_competition'), color: 'emerald' },
+                  { icon: Star, label: t('rewards.earn_grades'), color: 'amber' },
+                  { icon: Calendar, label: t('rewards.earn_attendance'), color: 'teal' },
+                  { icon: BookOpen, label: t('rewards.earn_homework'), color: 'violet' },
+                  { icon: Sparkles, label: t('rewards.earn_bonus'), color: 'rose' },
+                ].map((item) => {
+                  const Icon = item.icon;
+                  const colorMap: Record<string, { bg: string; text: string }> = {
+                    emerald: { bg: 'bg-emerald-100 dark:bg-emerald-900/30', text: 'text-emerald-600 dark:text-emerald-400' },
+                    amber: { bg: 'bg-amber-100 dark:bg-amber-900/30', text: 'text-amber-600 dark:text-amber-400' },
+                    teal: { bg: 'bg-teal-100 dark:bg-teal-900/30', text: 'text-teal-600 dark:text-teal-400' },
+                    violet: { bg: 'bg-violet-100 dark:bg-violet-900/30', text: 'text-violet-600 dark:text-violet-400' },
+                    rose: { bg: 'bg-rose-100 dark:bg-rose-900/30', text: 'text-rose-600 dark:text-rose-400' },
+                  };
+                  const c = colorMap[item.color] || colorMap.emerald;
+                  return (
+                    <div key={item.label} className={`p-3 rounded-xl ${c.bg}`}>
+                      <Icon className={`h-5 w-5 ${c.text} mb-2`} />
+                      <p className="text-xs font-medium text-gray-700 dark:text-gray-300">{item.label}</p>
+                    </div>
+                  );
+                })}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Points History & My Redemptions */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Points History */}
+            <Card className="border-0 shadow-sm rounded-xl overflow-hidden">
+              <CardHeader className="bg-gradient-to-r from-emerald-50/50 to-transparent dark:from-emerald-900/10 dark:to-transparent">
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400">
+                    <History className="h-4 w-4" />
+                  </div>
+                  {t('rewards.points_history')}
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="max-h-96 overflow-y-auto">
+                {pointsHistory.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
+                    <History className="h-8 w-8 mb-2 opacity-30" />
+                    <p className="text-xs">{t('rewards.no_rewards')}</p>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {pointsHistory.map((entry) => (
+                      <div key={entry.id} className="flex items-center justify-between p-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800/50">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <div className="flex h-7 w-7 items-center justify-center rounded-md bg-emerald-100 dark:bg-emerald-900/30 shrink-0">
+                            <Plus className="h-3 w-3 text-emerald-600 dark:text-emerald-400" />
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-xs font-medium truncate">{entry.description || getPointsSourceLabel(entry.source)}</p>
+                            <p className="text-xs text-muted-foreground">{formatDate(entry.createdAt)}</p>
+                          </div>
+                        </div>
+                        <span className="text-sm font-semibold text-emerald-600 dark:text-emerald-400 shrink-0">+{entry.points}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* My Redemptions */}
+            <Card className="border-0 shadow-sm rounded-xl overflow-hidden">
+              <CardHeader className="bg-gradient-to-r from-amber-50/50 to-transparent dark:from-amber-900/10 dark:to-transparent">
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400">
+                    <Gift className="h-4 w-4" />
+                  </div>
+                  {t('rewards.my_redemptions')}
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="max-h-96 overflow-y-auto">
+                {myRedemptions.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
+                    <Gift className="h-8 w-8 mb-2 opacity-30" />
+                    <p className="text-xs">{t('rewards.no_rewards')}</p>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {myRedemptions.map((redemption) => (
+                      <div key={redemption.id} className="flex items-center justify-between p-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800/50">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <div className="flex h-7 w-7 items-center justify-center rounded-md bg-amber-100 dark:bg-amber-900/30 shrink-0">
+                            {getCategoryIcon(redemption.reward?.category ?? 'streaming', 'h-3 w-3 text-amber-600 dark:text-amber-400')}
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-xs font-medium truncate">{redemption.reward?.title ?? 'Reward'}</p>
+                            <p className="text-xs text-muted-foreground">{formatDate(redemption.createdAt)}</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <Badge className={`${getRedemptionStatusColor(redemption.status)} text-xs`}>
+                            {getRedemptionStatusLabel(redemption.status)}
+                          </Badge>
+                          <span className="text-xs font-semibold text-amber-600 dark:text-amber-400">-{redemption.pointsSpent}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
         </TabsContent>
       </Tabs>
 
@@ -1712,6 +2300,160 @@ export default function CompetitionsView() {
                   {t('competition.reward.create')}
                 </>
               )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Redeem Reward Dialog ──────────────────────────────────── */}
+      <Dialog open={redeemDialogOpen} onOpenChange={setRedeemDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Gift className="h-5 w-5 text-amber-500" />
+              {t('rewards.redeem_confirm')}
+            </DialogTitle>
+            <DialogDescription>
+              {redeemTarget
+                ? t('rewards.redeem_confirm_desc')
+                    .replace('{points}', String(redeemTarget.pointsCost))
+                    .replace('{reward}', redeemTarget.title)
+                : ''}
+            </DialogDescription>
+          </DialogHeader>
+          {redeemTarget && (
+            <div className="space-y-4">
+              <div className="flex items-center gap-3 p-4 rounded-xl bg-gradient-to-r from-amber-50/50 to-transparent dark:from-amber-900/10 dark:to-transparent">
+                <div className={`flex h-12 w-12 items-center justify-center rounded-lg ${getCategoryColor(redeemTarget.category)} shrink-0`}>
+                  {getCategoryIcon(redeemTarget.category, 'h-6 w-6')}
+                </div>
+                <div>
+                  <p className="font-semibold">{redeemTarget.title}</p>
+                  <div className="flex items-center gap-2 mt-1">
+                    <Badge className={getCategoryColor(redeemTarget.category)}>
+                      {getCategoryLabelReward(redeemTarget.category)}
+                    </Badge>
+                    <span className="flex items-center gap-1 text-amber-600 dark:text-amber-400">
+                      <Coins className="h-3 w-3" />
+                      {redeemTarget.pointsCost}
+                    </span>
+                  </div>
+                </div>
+              </div>
+              <div className="flex items-center justify-between p-3 rounded-xl bg-gray-50 dark:bg-gray-800/50">
+                <span className="text-sm text-muted-foreground">{t('rewards.points_balance')}</span>
+                <span className="font-bold text-emerald-600 dark:text-emerald-400">{pointsBalance}</span>
+              </div>
+              {pointsBalance >= redeemTarget.pointsCost && (
+                <div className="flex items-center justify-between p-3 rounded-xl bg-emerald-50/50 dark:bg-emerald-900/10">
+                  <span className="text-sm text-muted-foreground">After redemption:</span>
+                  <span className="font-bold text-emerald-600 dark:text-emerald-400">{pointsBalance - redeemTarget.pointsCost}</span>
+                </div>
+              )}
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" className="min-h-[44px]" onClick={() => setRedeemDialogOpen(false)}>
+              {t('action.cancel')}
+            </Button>
+            <Button
+              className="min-h-[44px] bg-emerald-600 hover:bg-emerald-700"
+              onClick={handleRedeemReward}
+              disabled={isRedeeming || !redeemTarget || pointsBalance < (redeemTarget?.pointsCost ?? Infinity)}
+            >
+              {isRedeeming ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <Gift className="h-4 w-4 mr-2" />
+              )}
+              {t('rewards.redeem')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Create Reward Dialog ──────────────────────────────────── */}
+      <Dialog open={createRewardOpen} onOpenChange={setCreateRewardOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Plus className="h-5 w-5 text-amber-500" />
+              {t('rewards.create_reward')}
+            </DialogTitle>
+            <DialogDescription>
+              {t('rewards.create_reward')}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 mt-4">
+            <div>
+              <Label>{t('competition.name')} *</Label>
+              <Input
+                value={newRewardForm.title}
+                onChange={(e) => setNewRewardForm((f) => ({ ...f, title: e.target.value }))}
+                placeholder="Reward title"
+                className="mt-1 min-h-[44px]"
+              />
+            </div>
+            <div>
+              <Label>{t('competition.description')}</Label>
+              <Input
+                value={newRewardForm.description}
+                onChange={(e) => setNewRewardForm((f) => ({ ...f, description: e.target.value }))}
+                placeholder="Description..."
+                className="mt-1 min-h-[44px]"
+              />
+            </div>
+            <div>
+              <Label>{t('competition.category')}</Label>
+              <Select value={newRewardForm.category} onValueChange={(v) => setNewRewardForm((f) => ({ ...f, category: v }))}>
+                <SelectTrigger className="mt-1 min-h-[44px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {REWARD_CATEGORIES.map((cat) => (
+                    <SelectItem key={cat} value={cat}>{getCategoryLabelReward(cat)}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label>{t('rewards.points_cost')} *</Label>
+                <Input
+                  type="number"
+                  value={newRewardForm.pointsCost}
+                  onChange={(e) => setNewRewardForm((f) => ({ ...f, pointsCost: e.target.value }))}
+                  placeholder="100"
+                  className="mt-1 min-h-[44px]"
+                />
+              </div>
+              <div>
+                <Label>Stock</Label>
+                <Input
+                  type="number"
+                  value={newRewardForm.stock}
+                  onChange={(e) => setNewRewardForm((f) => ({ ...f, stock: e.target.value }))}
+                  placeholder="Unlimited"
+                  className="mt-1 min-h-[44px]"
+                />
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" className="min-h-[44px]" onClick={() => setCreateRewardOpen(false)}>
+              {t('action.cancel')}
+            </Button>
+            <Button
+              className="min-h-[44px] bg-amber-600 hover:bg-amber-700"
+              onClick={handleCreateReward}
+              disabled={isCreatingReward}
+            >
+              {isCreatingReward ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <Plus className="h-4 w-4 mr-2" />
+              )}
+              {t('rewards.create_reward')}
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -54,7 +54,7 @@ export async function GET(request: Request) {
     }
 
     if (
-      session.user?.role === 'SCHOOL_ADMIN' &&
+      (session.user?.role === 'SCHOOL_ADMIN' || session.user?.role === 'TEACHER') &&
       session.user.schoolId &&
       classGroup.schoolId !== session.user.schoolId
     ) {
@@ -200,7 +200,7 @@ export async function POST(request: Request) {
     }
 
     if (
-      session.user?.role === 'SCHOOL_ADMIN' &&
+      (session.user?.role === 'SCHOOL_ADMIN' || session.user?.role === 'TEACHER') &&
       session.user.schoolId &&
       classGroup.schoolId !== session.user.schoolId
     ) {

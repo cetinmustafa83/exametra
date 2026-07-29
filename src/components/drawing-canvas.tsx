@@ -26,6 +26,7 @@ import {
   ZoomIn,
   ZoomOut,
   Activity,
+  Highlighter,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
@@ -73,7 +74,7 @@ export interface StrokePoint {
 
 export interface Stroke {
   id: string;
-  tool: 'pencil' | 'pen' | 'line' | 'rectangle' | 'circle' | 'eraser';
+  tool: 'pencil' | 'pen' | 'line' | 'rectangle' | 'circle' | 'eraser' | 'highlighter';
   color: string;
   width: number;
   points: StrokePoint[];
@@ -93,7 +94,7 @@ export interface DrawingCanvasProps {
   title?: string;
 }
 
-type ToolType = 'pencil' | 'pen' | 'line' | 'rectangle' | 'circle' | 'eraser';
+type ToolType = 'pencil' | 'pen' | 'line' | 'rectangle' | 'circle' | 'eraser' | 'highlighter';
 type BackgroundType = 'blank' | 'lined' | 'grid' | 'dotted';
 type GuideMode = 'off' | 'basic' | 'circles' | 'perspective';
 
@@ -109,6 +110,11 @@ const PRESET_COLORS = [
 const PEN_COLORS = [
   '#1a1a2e', '#16213e', '#0f3460', '#e94560',
   '#533483', '#2b2d42', '#8d99ae', '#ef233c',
+];
+
+const HIGHLIGHTER_COLORS = [
+  '#fef08a', '#bbf7d0', '#bfdbfe', '#fbcfe8',
+  '#fed7aa', '#c4b5fd', '#99f6e4', '#fca5a5',
 ];
 
 const AUTO_SAVE_INTERVAL = 30000;
@@ -355,6 +361,11 @@ function drawStroke(
     ctx.globalCompositeOperation = 'destination-out';
     ctx.strokeStyle = 'rgba(0,0,0,1)';
     ctx.lineWidth = stroke.width * 2;
+  } else if (stroke.tool === 'highlighter') {
+    ctx.globalCompositeOperation = 'multiply';
+    ctx.strokeStyle = stroke.color;
+    ctx.lineWidth = stroke.width * 4;
+    ctx.globalAlpha = 0.35;
   } else {
     ctx.strokeStyle = stroke.color;
     ctx.lineWidth = stroke.width;
@@ -364,7 +375,7 @@ function drawStroke(
     ctx.globalAlpha = 0.7;
   }
 
-  if (stroke.tool === 'pencil' || stroke.tool === 'pen' || stroke.tool === 'eraser') {
+  if (stroke.tool === 'pencil' || stroke.tool === 'pen' || stroke.tool === 'eraser' || stroke.tool === 'highlighter') {
     if (stroke.points.length === 1) {
       const p = stroke.points[0];
       const w = stroke.tool === 'eraser' ? stroke.width * 2 : stroke.width;
@@ -486,6 +497,16 @@ export default function DrawingCanvas({
   const [strokeWidth, setStrokeWidth] = useState(3);
   const [bgType, setBgType] = useState<BackgroundType>(backgroundType);
   const [guideMode, setGuideMode] = useState<GuideMode>('off');
+
+  // Set default color for highlighter
+  const handleToolChange = useCallback((tool: ToolType) => {
+    setActiveTool(tool);
+    if (tool === 'highlighter' && strokeColor === '#000000') {
+      setStrokeColor('#fef08a');
+    } else if (tool !== 'highlighter' && strokeColor === '#fef08a') {
+      setStrokeColor('#000000');
+    }
+  }, [strokeColor]);
 
   // UI state
   const [showClearDialog, setShowClearDialog] = useState(false);
@@ -885,6 +906,7 @@ export default function DrawingCanvas({
   const tools: Array<{ id: ToolType; icon: React.ReactNode; label: string }> = [
     { id: 'pencil', icon: <Pencil className="h-5 w-5" />, label: t('drawing.tool_pencil') },
     { id: 'pen', icon: <PenTool className="h-5 w-5" />, label: t('drawing.tool_pen') },
+    { id: 'highlighter', icon: <Highlighter className="h-5 w-5" />, label: t('drawing.tool_highlighter') },
     { id: 'line', icon: <Minus className="h-5 w-5" />, label: t('drawing.tool_line') },
     { id: 'rectangle', icon: <Square className="h-5 w-5" />, label: t('drawing.tool_rectangle') },
     { id: 'circle', icon: <Circle className="h-5 w-5" />, label: t('drawing.tool_circle') },
@@ -943,7 +965,7 @@ export default function DrawingCanvas({
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => setActiveTool(tool.id)}
+                    onClick={() => handleToolChange(tool.id)}
                     className={`h-10 w-10 min-touch transition-all rounded-lg ${
                       activeTool === tool.id
                         ? 'bg-emerald-600 text-white shadow-md shadow-emerald-500/30 scale-105'
@@ -997,9 +1019,9 @@ export default function DrawingCanvas({
                     />
                   ))}
                 </div>
-                <p className="mt-2 text-xs font-medium text-gray-500">
+                <div className="mt-2 text-xs font-medium text-gray-500">
                   {t('drawing.tool_pen')} {t('drawing.color').toLowerCase()}
-                </p>
+                </div>
                 <div className="grid grid-cols-8 gap-1.5">
                   {PEN_COLORS.map((color) => (
                     <button
@@ -1015,6 +1037,28 @@ export default function DrawingCanvas({
                     />
                   ))}
                 </div>
+                {activeTool === 'highlighter' && (
+                  <>
+                    <p className="mt-2 text-xs font-medium text-gray-500">
+                      {t('drawing.tool_highlighter')}
+                    </p>
+                    <div className="grid grid-cols-8 gap-1.5">
+                      {HIGHLIGHTER_COLORS.map((color) => (
+                        <button
+                          key={color}
+                          onClick={() => setStrokeColor(color)}
+                          className={`h-8 w-8 min-touch rounded-full border-2 transition-all hover:scale-110 ${
+                            strokeColor === color
+                              ? 'border-emerald-500 ring-2 ring-emerald-500/30 scale-110'
+                              : 'border-gray-300'
+                          }`}
+                          style={{ backgroundColor: color }}
+                          aria-label={`Highlighter color ${color}`}
+                        />
+                      ))}
+                    </div>
+                  </>
+                )}
                 <div className="mt-2 flex items-center gap-2">
                   <Label className="text-xs text-gray-500">{t('drawing.color')}</Label>
                   <input

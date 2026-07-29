@@ -88,11 +88,19 @@ async function getCompetition(
       return NextResponse.json({ error: 'Competition not found' }, { status: 404 });
     }
 
-    // Access control: non-admins can only see their own school's competitions or public ones
+    // Access control: authenticated users can see their own school's competitions or public ones
+    // Users without a schoolId (e.g. some PARENTs) can still see public competitions
+    // Participants can always view the competition they are in
+    const userSchoolId = session.user?.schoolId;
+    const isSameSchool = userSchoolId === competition.schoolId;
+    const isParticipant = competition.participants?.some(
+      (p) => p.userId === session.user!.id || p.participantId === session.user!.id
+    );
     if (
       session.user?.role !== 'SUPER_ADMIN' &&
-      session.user?.schoolId !== competition.schoolId &&
-      !competition.isPublic
+      !isSameSchool &&
+      !competition.isPublic &&
+      !isParticipant
     ) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }

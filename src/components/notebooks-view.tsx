@@ -17,6 +17,9 @@ import {
   Clock, History, ZoomIn, ZoomOut, Image as ImageIcon,
   Users as UsersIcon, Radio, MousePointer2, Columns2,
   ChevronRight, XCircle, Trophy, Zap, Flame, Dumbbell, Heart, RotateCcw, ArrowRight, Play,
+  StickyNote, LayoutTemplate, Network, GitCompare, CalendarDays,
+  FolderOpen, Search as SearchIcon, ClipboardCopy, Tag,
+  Minus, CircleDot, Sparkles as SparklesIcon,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -103,6 +106,101 @@ interface PageVersion {
   editSummary: string | null;
   createdAt: string;
 }
+
+// ─── Sticky Note Type ────────────────────────────────────────────────
+
+interface StickyNoteData {
+  id: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  color: string;
+  text: string;
+  pageId: string;
+}
+
+// ─── Section Type ────────────────────────────────────────────────────
+
+interface SectionData {
+  id: string;
+  name: string;
+  color: string;
+  pageIds: string[];
+}
+
+// ─── Page Template Definitions ───────────────────────────────────────
+
+const PAGE_TEMPLATES: Array<{
+  key: string;
+  titleKey: string;
+  descKey: string;
+  icon: React.ElementType;
+  background: string;
+  getContent: () => string;
+}> = [
+  {
+    key: 'blank',
+    titleKey: 'notebooks.page_template_blank',
+    descKey: 'notebooks.type_blank_desc',
+    icon: File,
+    background: 'blank',
+    getContent: () => '',
+  },
+  {
+    key: 'cornell',
+    titleKey: 'notebooks.page_template_cornell',
+    descKey: 'notebooks.page_template_cornell_desc',
+    icon: LayoutTemplate,
+    background: 'lined',
+    getContent: () => `<div style="display:grid;grid-template-columns:1fr 2fr;grid-template-rows:auto 1fr;gap:8px;min-height:500px;border:1px solid #e5e7eb;border-radius:8px;padding:8px;"><div style="border-right:1px solid #e5e7eb;padding-right:8px;font-size:12px;color:#9ca3af;"><b>Stichworte</b><br><br><br></div><div style="padding-left:8px;"><b>Notizen</b><br><br><br></div><div style="grid-column:1/-1;border-top:1px solid #e5e7eb;padding-top:8px;"><b>Zusammenfassung</b><br><br></div></div>`,
+  },
+  {
+    key: 'mindmap',
+    titleKey: 'notebooks.page_template_mindmap',
+    descKey: 'notebooks.page_template_mindmap_desc',
+    icon: Network,
+    background: 'blank',
+    getContent: () => `<div style="display:flex;align-items:center;justify-content:center;min-height:500px;"><div style="position:relative;width:100%;height:100%;"><div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:120px;height:120px;border-radius:50%;border:3px solid #10b981;display:flex;align-items:center;justify-content:center;font-weight:bold;color:#10b981;">Zentrales Thema</div><div style="position:absolute;top:20%;left:15%;width:80px;height:80px;border-radius:50%;border:2px solid #3b82f6;display:flex;align-items:center;justify-content:center;font-size:12px;color:#3b82f6;">Idee 1</div><div style="position:absolute;top:20%;right:15%;width:80px;height:80px;border-radius:50%;border:2px solid #ef4444;display:flex;align-items:center;justify-content:center;font-size:12px;color:#ef4444;">Idee 2</div><div style="position:absolute;bottom:20%;left:15%;width:80px;height:80px;border-radius:50%;border:2px solid #f59e0b;display:flex;align-items:center;justify-content:center;font-size:12px;color:#f59e0b;">Idee 3</div><div style="position:absolute;bottom:20%;right:15%;width:80px;height:80px;border-radius:50%;border:2px solid #8b5cf6;display:flex;align-items:center;justify-content:center;font-size:12px;color:#8b5cf6;">Idee 4</div></div></div>`,
+  },
+  {
+    key: 'venn',
+    titleKey: 'notebooks.page_template_venn',
+    descKey: 'notebooks.page_template_venn_desc',
+    icon: GitCompare,
+    background: 'blank',
+    getContent: () => `<div style="display:flex;align-items:center;justify-content:center;min-height:500px;position:relative;"><div style="position:absolute;width:260px;height:260px;border-radius:50%;border:3px solid #3b82f6;background:rgba(59,130,246,0.08);display:flex;align-items:center;justify-content:center;left:calc(50% - 180px);"><span style="font-size:12px;color:#3b82f6;font-weight:bold;">Menge A</span></div><div style="position:absolute;width:260px;height:260px;border-radius:50%;border:3px solid #ef4444;background:rgba(239,68,68,0.08);display:flex;align-items:center;justify-content:center;left:calc(50% - 80px);"><span style="font-size:12px;color:#ef4444;font-weight:bold;">Menge B</span></div><div style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);font-size:11px;color:#6b7280;font-weight:bold;">Gemeinsam</div></div>`,
+  },
+  {
+    key: 'tchart',
+    titleKey: 'notebooks.page_template_tchart',
+    descKey: 'notebooks.page_template_tchart_desc',
+    icon: Columns2,
+    background: 'lined',
+    getContent: () => `<div style="display:grid;grid-template-columns:1fr 1fr;min-height:500px;border:1px solid #e5e7eb;border-radius:8px;"><div style="border-right:2px solid #10b981;padding:12px;"><b>Seite A</b><br><br><br></div><div style="padding:12px;"><b>Seite B</b><br><br><br></div></div>`,
+  },
+  {
+    key: 'weekly',
+    titleKey: 'notebooks.page_template_weekly',
+    descKey: 'notebooks.page_template_weekly_desc',
+    icon: CalendarDays,
+    background: 'grid',
+    getContent: () => `<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:4px;min-height:500px;"><div style="border:1px solid #e5e7eb;border-radius:4px;padding:8px;background:#f0fdf4;"><b>Montag</b><br><br></div><div style="border:1px solid #e5e7eb;border-radius:4px;padding:8px;background:#eff6ff;"><b>Dienstag</b><br><br></div><div style="border:1px solid #e5e7eb;border-radius:4px;padding:8px;background:#fef3c7;"><b>Mittwoch</b><br><br></div><div style="border:1px solid #e5e7eb;border-radius:4px;padding:8px;background:#fce7f3;"><b>Donnerstag</b><br><br></div><div style="border:1px solid #e5e7eb;border-radius:4px;padding:8px;background:#f3e8ff;"><b>Freitag</b><br><br></div></div>`,
+  },
+];
+
+const STICKY_NOTE_COLORS = [
+  { key: 'yellow', color: '#fef08a', border: '#fbbf24' },
+  { key: 'green', color: '#bbf7d0', border: '#34d399' },
+  { key: 'blue', color: '#bfdbfe', border: '#60a5fa' },
+  { key: 'pink', color: '#fbcfe8', border: '#f472b6' },
+  { key: 'orange', color: '#fed7aa', border: '#fb923c' },
+  { key: 'purple', color: '#ddd6fe', border: '#a78bfa' },
+];
+
+const SECTION_COLORS = [
+  '#10b981', '#3b82f6', '#ef4444', '#f59e0b', '#8b5cf6', '#ec4899', '#14b8a6', '#f97316',
+];
 
 // ─── Constants ───────────────────────────────────────────────────────
 
@@ -416,7 +514,7 @@ function WysiwygToolbar({ editorRef, onFormatChange }: { editorRef: React.RefObj
 
   return (
     <TooltipProvider delayDuration={300}>
-      <div className="flex items-center gap-1 px-3 py-2 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 overflow-x-auto">
+      <div className="glass-toolbar flex items-center gap-1 px-3 py-2 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 overflow-x-auto">
         {/* Format group */}
         <Tooltip>
           <TooltipTrigger asChild>
@@ -635,7 +733,7 @@ function NotebookCard({
       >
         {/* Cover section */}
         <div
-          className="relative h-28 flex items-center justify-center overflow-hidden"
+          className="notebook-cover relative h-28 flex items-center justify-center overflow-hidden"
           style={{
             background: `linear-gradient(135deg, ${notebook.color}, ${notebook.color}cc)`,
           }}
@@ -1051,16 +1149,18 @@ function NotebookDetailView({
   onToggleBookmark,
   onTogglePublic,
   onReorderPages,
+  onDuplicatePage,
 }: {
   notebook: Notebook;
   subjectName: string | null;
   onBack: () => void;
   onUpdatePage: (pageId: string, data: Partial<NotebookPage>) => Promise<void>;
-  onAddPage: () => void;
+  onAddPage: (templateKey?: string, background?: string, content?: string) => Promise<void>;
   onDeletePage: (pageId: string) => void;
   onToggleBookmark: (pageId: string) => void;
   onTogglePublic: () => void;
   onReorderPages: (pageOrders: Array<{ id: string; pageNumber: number }>) => Promise<void>;
+  onDuplicatePage: (pageId: string) => Promise<void>;
 }) {
   const [currentPageId, setCurrentPageId] = useState<string | null>(null);
   const [pageContent, setPageContent] = useState('');
@@ -1083,6 +1183,27 @@ function NotebookDetailView({
 
   // Collaboration state
   const [collabActivityOpen, setCollabActivityOpen] = useState(false);
+
+  // Sticky notes state
+  const [stickyNotes, setStickyNotes] = useState<StickyNoteData[]>([]);
+  const [showStickyNoteDialog, setShowStickyNoteDialog] = useState(false);
+  const [newStickyNoteColor, setNewStickyNoteColor] = useState('#fef08a');
+  const [editingStickyNote, setEditingStickyNote] = useState<StickyNoteData | null>(null);
+
+  // Search within notebook state
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<Array<{ pageId: string; pageTitle: string; snippet: string; pageNumber: number }>>([]);
+
+  // Page template chooser state
+  const [templateChooserOpen, setTemplateChooserOpen] = useState(false);
+
+  // Sections state
+  const [sections, setSections] = useState<SectionData[]>([]);
+  const [showSectionDialog, setShowSectionDialog] = useState(false);
+  const [newSectionName, setNewSectionName] = useState('');
+  const [newSectionColor, setNewSectionColor] = useState('#10b981');
+  const [showTableOfContents, setShowTableOfContents] = useState(false);
 
   const editorRef = useRef<HTMLDivElement>(null);
   const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -1450,6 +1571,94 @@ function NotebookDetailView({
     setDragOverPageId(null);
   }, [dragOverPageId, handleDrop]);
 
+  // ─── Sticky Note Handlers ──────────────────────────────────────────
+
+  const addStickyNote = useCallback(() => {
+    if (!currentPage) return;
+    const note: StickyNoteData = {
+      id: `sticky_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+      x: 10 + Math.random() * 30,
+      y: 10 + Math.random() * 30,
+      width: 180,
+      height: 120,
+      color: newStickyNoteColor,
+      text: '',
+      pageId: currentPage.id,
+    };
+    setStickyNotes(prev => [...prev, note]);
+    setShowStickyNoteDialog(false);
+  }, [currentPage, newStickyNoteColor]);
+
+  const updateStickyNote = useCallback((id: string, updates: Partial<StickyNoteData>) => {
+    setStickyNotes(prev => prev.map(n => n.id === id ? { ...n, ...updates } : n));
+  }, []);
+
+  const deleteStickyNote = useCallback((id: string) => {
+    setStickyNotes(prev => prev.filter(n => n.id !== id));
+  }, []);
+
+  const currentPageStickyNotes = useMemo(
+    () => stickyNotes.filter(n => n.pageId === currentPageId),
+    [stickyNotes, currentPageId]
+  );
+
+  // ─── Search Within Notebook ────────────────────────────────────────
+
+  const handleSearch = useCallback((query: string) => {
+    setSearchQuery(query);
+    if (!query.trim()) {
+      setSearchResults([]);
+      return;
+    }
+    const q = query.toLowerCase();
+    const results: Array<{ pageId: string; pageTitle: string; snippet: string; pageNumber: number }> = [];
+    for (const page of pages) {
+      const plainText = (page.textContent ?? '').replace(/<[^>]*>/g, '');
+      const title = page.title ?? `${t('notebooks.page')} ${page.pageNumber}`;
+      const combined = (title + ' ' + plainText).toLowerCase();
+      if (combined.includes(q)) {
+        const idx = combined.indexOf(q);
+        const start = Math.max(0, idx - 30);
+        const end = Math.min(plainText.length, idx + query.length + 30);
+        const snippet = (start > 0 ? '...' : '') + plainText.substring(start, end) + (end < plainText.length ? '...' : '');
+        results.push({ pageId: page.id, pageTitle: title, snippet, pageNumber: page.pageNumber });
+      }
+    }
+    setSearchResults(results);
+  }, [pages]);
+
+  // ─── Section Handlers ──────────────────────────────────────────────
+
+  const addSection = useCallback(() => {
+    if (!newSectionName.trim()) return;
+    const section: SectionData = {
+      id: `section_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+      name: newSectionName.trim(),
+      color: newSectionColor,
+      pageIds: [],
+    };
+    setSections(prev => [...prev, section]);
+    setNewSectionName('');
+    setShowSectionDialog(false);
+  }, [newSectionName, newSectionColor]);
+
+  const deleteSection = useCallback((sectionId: string) => {
+    setSections(prev => prev.filter(s => s.id !== sectionId));
+  }, []);
+
+  const getSectionForPage = useCallback((pageId: string): SectionData | null => {
+    return sections.find(s => s.pageIds.includes(pageId)) ?? null;
+  }, [sections]);
+
+  // ─── Page Template Handler ─────────────────────────────────────────
+
+  const handleAddFromTemplate = useCallback(async (templateKey: string) => {
+    const template = PAGE_TEMPLATES.find(t => t.key === templateKey);
+    if (!template) return;
+    setTemplateChooserOpen(false);
+    await onAddPage(templateKey, template.background, template.getContent());
+  }, [onAddPage]);
+
   const IconComponent = notebook.icon ? ICON_MAP[notebook.icon] ?? BookOpen : BookOpen;
 
   return (
@@ -1626,6 +1835,219 @@ function NotebookDetailView({
           <Clock className="w-4 h-4" />
         </Button>
 
+        {/* Search within notebook */}
+        <Popover open={searchOpen} onOpenChange={setSearchOpen}>
+          <TooltipProvider delayDuration={300}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <PopoverTrigger asChild>
+                  <Button variant="ghost" size="sm" className="min-h-[44px] shrink-0">
+                    <SearchIcon className="w-4 h-4" />
+                  </Button>
+                </PopoverTrigger>
+              </TooltipTrigger>
+              <TooltipContent side="bottom" className="text-xs">{t('notebooks.search_pages')}</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+          <PopoverContent align="end" className="w-80 p-0 rounded-xl">
+            <div className="p-3">
+              <Input
+                value={searchQuery}
+                onChange={(e) => handleSearch(e.target.value)}
+                placeholder={t('notebooks.search_pages_placeholder')}
+                className="min-h-[44px]"
+                autoFocus
+              />
+            </div>
+            {searchQuery.trim() && (
+              <div className="border-t border-gray-100 dark:border-gray-800">
+                <ScrollArea className="max-h-60">
+                  {searchResults.length === 0 ? (
+                    <div className="p-4 text-center text-sm text-gray-500 dark:text-gray-400">
+                      {t('notebooks.search_no_results')}
+                    </div>
+                  ) : (
+                    <div className="p-2 space-y-1">
+                      <div className="px-2 py-1 text-xs font-medium text-gray-500 dark:text-gray-400">
+                        {searchResults.length} {t('notebooks.search_results')}
+                      </div>
+                      {searchResults.map((result) => (
+                        <button
+                          key={result.pageId}
+                          onClick={() => { setCurrentPageId(result.pageId); setSearchOpen(false); }}
+                          className="w-full text-left p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors min-h-[44px]"
+                        >
+                          <div className="text-sm font-medium text-gray-700 dark:text-gray-300 truncate">
+                            {result.pageTitle}
+                          </div>
+                          <div className="text-xs text-gray-500 dark:text-gray-400 truncate mt-0.5">
+                            {result.snippet}
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </ScrollArea>
+              </div>
+            )}
+          </PopoverContent>
+        </Popover>
+
+        {/* Sticky note button */}
+        <Popover open={showStickyNoteDialog} onOpenChange={setShowStickyNoteDialog}>
+          <TooltipProvider delayDuration={300}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <PopoverTrigger asChild>
+                  <Button variant="ghost" size="sm" className="min-h-[44px] shrink-0">
+                    <StickyNote className="w-4 h-4" />
+                  </Button>
+                </PopoverTrigger>
+              </TooltipTrigger>
+              <TooltipContent side="bottom" className="text-xs">{t('notebooks.sticky_note_add')}</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+          <PopoverContent align="end" className="w-auto p-3 rounded-xl">
+            <p className="text-sm font-medium mb-2">{t('notebooks.sticky_note_color')}</p>
+            <div className="flex items-center gap-2 mb-3">
+              {STICKY_NOTE_COLORS.map((sc) => (
+                <button
+                  key={sc.key}
+                  onClick={() => setNewStickyNoteColor(sc.color)}
+                  className={`w-8 h-8 rounded-md border-2 transition-all hover:scale-110 ${
+                    newStickyNoteColor === sc.color ? 'border-gray-900 dark:border-white scale-110 shadow-md' : 'border-transparent'
+                  }`}
+                  style={{ backgroundColor: sc.color }}
+                />
+              ))}
+            </div>
+            <Button onClick={addStickyNote} className="w-full min-h-[44px] bg-emerald-600 hover:bg-emerald-700" size="sm">
+              <Plus className="w-4 h-4 mr-1" />
+              {t('notebooks.sticky_note_add')}
+            </Button>
+          </PopoverContent>
+        </Popover>
+
+        {/* Sections button */}
+        <Popover open={showSectionDialog} onOpenChange={setShowSectionDialog}>
+          <TooltipProvider delayDuration={300}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <PopoverTrigger asChild>
+                  <Button variant="ghost" size="sm" className="min-h-[44px] shrink-0">
+                    <FolderOpen className="w-4 h-4" />
+                  </Button>
+                </PopoverTrigger>
+              </TooltipTrigger>
+              <TooltipContent side="bottom" className="text-xs">{t('notebooks.sections')}</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+          <PopoverContent align="end" className="w-72 p-0 rounded-xl">
+            <div className="p-3 border-b border-gray-100 dark:border-gray-800">
+              <h3 className="text-sm font-semibold">{t('notebooks.sections')}</h3>
+            </div>
+            <div className="p-3 space-y-3">
+              <Input
+                value={newSectionName}
+                onChange={(e) => setNewSectionName(e.target.value)}
+                placeholder={t('notebooks.section_name_placeholder')}
+                className="min-h-[44px]"
+              />
+              <div className="flex items-center gap-2 flex-wrap">
+                {SECTION_COLORS.map((color) => (
+                  <button
+                    key={color}
+                    onClick={() => setNewSectionColor(color)}
+                    className={`w-6 h-6 rounded-full border-2 transition-all hover:scale-110 ${
+                      newSectionColor === color ? 'border-gray-900 dark:border-white scale-110' : 'border-transparent'
+                    }`}
+                    style={{ backgroundColor: color }}
+                  />
+                ))}
+              </div>
+              <Button
+                onClick={addSection}
+                disabled={!newSectionName.trim()}
+                className="w-full min-h-[44px] bg-emerald-600 hover:bg-emerald-700"
+                size="sm"
+              >
+                <Plus className="w-4 h-4 mr-1" />
+                {t('notebooks.section_add')}
+              </Button>
+            </div>
+            {sections.length > 0 && (
+              <div className="border-t border-gray-100 dark:border-gray-800 p-2 space-y-1">
+                {sections.map((section) => (
+                  <div key={section.id} className="flex items-center gap-2 px-2 py-1.5 rounded-lg text-sm">
+                    <div className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: section.color }} />
+                    <span className="flex-1 truncate text-gray-700 dark:text-gray-300">{section.name}</span>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => deleteSection(section.id)}
+                      className="h-7 w-7 p-0 text-gray-400 hover:text-red-500"
+                    >
+                      <Trash2 className="w-3 h-3" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </PopoverContent>
+        </Popover>
+
+        {/* Table of Contents button */}
+        <Popover open={showTableOfContents} onOpenChange={setShowTableOfContents}>
+          <TooltipProvider delayDuration={300}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <PopoverTrigger asChild>
+                  <Button variant="ghost" size="sm" className="min-h-[44px] shrink-0">
+                    <BookMarked className="w-4 h-4" />
+                  </Button>
+                </PopoverTrigger>
+              </TooltipTrigger>
+              <TooltipContent side="bottom" className="text-xs">{t('notebooks.table_of_contents')}</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+          <PopoverContent align="end" className="w-72 p-0 rounded-xl">
+            <div className="p-3 border-b border-gray-100 dark:border-gray-800">
+              <h3 className="text-sm font-semibold">{t('notebooks.table_of_contents')}</h3>
+            </div>
+            <ScrollArea className="max-h-60">
+              {pages.length === 0 ? (
+                <div className="p-4 text-center text-sm text-gray-500 dark:text-gray-400">
+                  {t('notebooks.no_sections')}
+                </div>
+              ) : (
+                <div className="p-2 space-y-0.5">
+                  {pages.map((page) => {
+                    const section = getSectionForPage(page.id);
+                    return (
+                      <div key={page.id}>
+                        {section && page.id === section.pageIds[0] && (
+                          <div className="flex items-center gap-2 px-2 py-1 mt-1">
+                            <div className="w-2 h-2 rounded-full" style={{ backgroundColor: section.color }} />
+                            <span className="text-xs font-semibold text-gray-600 dark:text-gray-400">{section.name}</span>
+                          </div>
+                        )}
+                        <button
+                          onClick={() => { setCurrentPageId(page.id); setShowTableOfContents(false); }}
+                          className="w-full text-left px-3 py-1.5 rounded-lg text-sm hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors flex items-center gap-2 min-h-[36px]"
+                        >
+                          <span className="text-xs text-gray-400 font-mono w-5 shrink-0">{page.pageNumber}</span>
+                          <span className="truncate text-gray-700 dark:text-gray-300">{page.title ?? `${t('notebooks.page')} ${page.pageNumber}`}</span>
+                          {page.isBookmark && <Bookmark className="w-3 h-3 text-amber-500 fill-amber-500 shrink-0" />}
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </ScrollArea>
+          </PopoverContent>
+        </Popover>
+
         {/* Public toggle */}
         <Button
           variant="ghost"
@@ -1641,7 +2063,7 @@ function NotebookDetailView({
       <div className="flex flex-1 overflow-hidden">
         {/* Left sidebar: page navigation */}
         <div className="w-64 border-r border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50 flex flex-col">
-          <div className="p-3">
+          <div className="p-3 space-y-2">
             <Button
               onClick={onAddPage}
               className="w-full min-h-[44px] bg-emerald-600 hover:bg-emerald-700"
@@ -1650,6 +2072,15 @@ function NotebookDetailView({
               <Plus className="w-4 h-4 mr-1" />
               {t('notebooks.add_page')}
             </Button>
+            <Button
+              onClick={() => setTemplateChooserOpen(true)}
+              variant="outline"
+              className="w-full min-h-[44px]"
+              size="sm"
+            >
+              <LayoutTemplate className="w-4 h-4 mr-1" />
+              {t('notebooks.page_template')}
+            </Button>
           </div>
 
           <ScrollArea className="flex-1 max-h-[calc(100vh-280px)]">
@@ -1657,65 +2088,101 @@ function NotebookDetailView({
               {pages.map((page, idx) => {
                 const isDragged = draggedPageId === page.id;
                 const isDragOver = dragOverPageId === page.id;
+                const section = getSectionForPage(page.id);
+                const isFirstInSection = section && section.pageIds[0] === page.id;
                 return (
-                  <motion.div
-                    key={page.id}
-                    initial={{ opacity: 0, x: -10 }}
-                    animate={{
-                      opacity: isDragged ? 0.5 : 1,
-                      x: 0,
-                      scale: isDragged ? 0.95 : 1,
-                    }}
-                    transition={{ delay: idx * 0.03 }}
-                    layout
-                    className={`rounded-lg transition-all ${
-                      currentPageId === page.id
-                        ? 'ring-2 ring-emerald-500'
-                        : ''
-                    } ${isDragOver ? 'ring-2 ring-blue-400 shadow-lg' : ''} ${
-                      isDragged ? 'shadow-md' : ''
-                    }`}
-                    draggable
-                    onDragStart={(e) => handleDragStart(e as unknown as React.DragEvent<HTMLDivElement>, page.id)}
-                    onDragOver={(e) => handleDragOver(e as unknown as React.DragEvent<HTMLDivElement>, page.id)}
-                    onDragLeave={handleDragLeave}
-                    onDrop={() => handleDrop(page.id)}
-                    onDragEnd={handleDragEnd}
-                    onTouchStart={(e) => handleTouchStart(e, page.id)}
-                    onTouchMove={handleTouchMove}
-                    onTouchEnd={handleTouchEnd}
-                  >
-                    {/* Drag handle */}
-                    <div className="flex items-center">
-                      <div className="pl-1.5 py-1 cursor-grab active:cursor-grabbing touch-none">
-                        <GripVertical className="w-4 h-4 text-gray-400 dark:text-gray-500" />
-                      </div>
-                      <div className="flex-1">
-                        {/* Page thumbnail */}
-                        <PageThumbnail page={page} notebookType={notebook.notebookType} />
-                      </div>
-                    </div>
-
-                    {/* Page info below thumbnail */}
-                    <button
-                      onClick={() => { setCurrentPageId(page.id); }}
-                      className={`w-full text-left p-2 rounded-b-lg text-sm transition-all min-h-[44px] flex items-center gap-2 ${
+                  <React.Fragment key={page.id}>
+                    {/* Section divider */}
+                    {section && isFirstInSection && (
+                      <motion.div
+                        initial={{ opacity: 0, x: -10 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        className="flex items-center gap-2 px-2 py-1.5 rounded-lg bg-gray-100 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700"
+                      >
+                        <div className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: section.color }} />
+                        <span className="text-xs font-semibold text-gray-600 dark:text-gray-400 truncate flex-1">{section.name}</span>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => deleteSection(section.id)}
+                          className="h-6 w-6 p-0 text-gray-400 hover:text-red-500 shrink-0"
+                        >
+                          <X className="w-3 h-3" />
+                        </Button>
+                      </motion.div>
+                    )}
+                    <motion.div
+                      initial={{ opacity: 0, x: -10 }}
+                      animate={{
+                        opacity: isDragged ? 0.5 : 1,
+                        x: 0,
+                        scale: isDragged ? 0.95 : 1,
+                      }}
+                      transition={{ delay: idx * 0.03 }}
+                      layout
+                      className={`rounded-lg transition-all ${
                         currentPageId === page.id
-                          ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 font-medium'
-                          : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
+                          ? 'ring-2 ring-emerald-500'
+                          : ''
+                      } ${isDragOver ? 'ring-2 ring-blue-400 shadow-lg' : ''} ${
+                        isDragged ? 'shadow-md' : ''
                       }`}
+                      draggable
+                      onDragStart={(e) => handleDragStart(e as unknown as React.DragEvent<HTMLDivElement>, page.id)}
+                      onDragOver={(e) => handleDragOver(e as unknown as React.DragEvent<HTMLDivElement>, page.id)}
+                      onDragLeave={handleDragLeave}
+                      onDrop={() => handleDrop(page.id)}
+                      onDragEnd={handleDragEnd}
+                      onTouchStart={(e) => handleTouchStart(e, page.id)}
+                      onTouchMove={handleTouchMove}
+                      onTouchEnd={handleTouchEnd}
                     >
-                      <span className="text-xs font-mono text-gray-400 dark:text-gray-500 shrink-0">
-                        {page.pageNumber}
-                      </span>
-                      <span className="truncate flex-1">
-                        {page.title ?? `${t('notebooks.page')} ${page.pageNumber}`}
-                      </span>
-                      {page.isBookmark && (
-                        <Bookmark className="w-3.5 h-3.5 text-amber-500 fill-amber-500 shrink-0" />
-                      )}
-                    </button>
-                  </motion.div>
+                      {/* Drag handle */}
+                      <div className="flex items-center">
+                        <div className="pl-1.5 py-1 cursor-grab active:cursor-grabbing touch-none">
+                          <GripVertical className="w-4 h-4 text-gray-400 dark:text-gray-500" />
+                        </div>
+                        <div className="flex-1">
+                          {/* Page thumbnail */}
+                          <PageThumbnail page={page} notebookType={notebook.notebookType} />
+                        </div>
+                      </div>
+
+                      {/* Page info below thumbnail */}
+                      <button
+                        onClick={() => { setCurrentPageId(page.id); }}
+                        className={`w-full text-left p-2 rounded-b-lg text-sm transition-all min-h-[44px] flex items-center gap-2 ${
+                          currentPageId === page.id
+                            ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 font-medium'
+                            : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
+                        }`}
+                      >
+                        <span className="text-xs font-mono text-gray-400 dark:text-gray-500 shrink-0">
+                          {page.pageNumber}
+                        </span>
+                        <span className="truncate flex-1">
+                          {page.title ?? `${t('notebooks.page')} ${page.pageNumber}`}
+                        </span>
+                        {page.isBookmark && (
+                          <Bookmark className="w-3.5 h-3.5 text-amber-500 fill-amber-500 shrink-0" />
+                        )}
+                        {/* Duplicate page button */}
+                        <TooltipProvider delayDuration={300}>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <button
+                                onClick={(e) => { e.stopPropagation(); onDuplicatePage(page.id); }}
+                                className="h-6 w-6 flex items-center justify-center rounded text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 shrink-0 transition-colors"
+                              >
+                                <ClipboardCopy className="w-3 h-3" />
+                              </button>
+                            </TooltipTrigger>
+                            <TooltipContent side="right" className="text-xs">{t('notebooks.duplicate_page')}</TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      </button>
+                    </motion.div>
+                  </React.Fragment>
                 );
               })}
             </div>
@@ -1958,6 +2425,47 @@ function NotebookDetailView({
                         </div>
                       </motion.div>
                     ))}
+
+                    {/* Sticky Notes Overlay */}
+                    {currentPageStickyNotes.map((note) => (
+                      <motion.div
+                        key={note.id}
+                        initial={{ opacity: 0, scale: 0.8 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        className="absolute z-30 shadow-lg rounded-md overflow-hidden group"
+                        style={{
+                          left: `${note.x}%`,
+                          top: `${note.y}%`,
+                          width: `${note.width}px`,
+                          minHeight: `${note.height}px`,
+                          backgroundColor: note.color,
+                        }}
+                      >
+                        <div className="flex items-center justify-between px-2 py-1 bg-black/5">
+                          <span className="text-xs font-medium text-gray-600">{t('notebooks.sticky_note')}</span>
+                          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button
+                              onClick={() => setEditingStickyNote(note)}
+                              className="h-5 w-5 flex items-center justify-center rounded hover:bg-black/10 text-gray-600"
+                            >
+                              <Edit3 className="w-3 h-3" />
+                            </button>
+                            <button
+                              onClick={() => deleteStickyNote(note.id)}
+                              className="h-5 w-5 flex items-center justify-center rounded hover:bg-black/10 text-gray-600"
+                            >
+                              <X className="w-3 h-3" />
+                            </button>
+                          </div>
+                        </div>
+                        <Textarea
+                          value={note.text}
+                          onChange={(e) => updateStickyNote(note.id, { text: e.target.value })}
+                          className="border-0 bg-transparent shadow-none resize-none text-sm min-h-[80px] p-2 focus-visible:ring-0"
+                          placeholder={t('notebooks.sticky_note_edit') + '...'}
+                        />
+                      </motion.div>
+                    ))}
                   </div>
                 </div>
               )}
@@ -2018,6 +2526,40 @@ function NotebookDetailView({
           )}
         </div>
       </div>
+
+      {/* Page Template Chooser Dialog */}
+      <Dialog open={templateChooserOpen} onOpenChange={setTemplateChooserOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <LayoutTemplate className="w-5 h-5 text-emerald-500" />
+              {t('notebooks.page_template_choose')}
+            </DialogTitle>
+            <DialogDescription>{t('notebooks.page_template')}</DialogDescription>
+          </DialogHeader>
+          <div className="grid grid-cols-2 gap-3 py-2">
+            {PAGE_TEMPLATES.map((template) => {
+              const TemplateIcon = template.icon;
+              return (
+                <button
+                  key={template.key}
+                  onClick={() => handleAddFromTemplate(template.key)}
+                  className="flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all min-h-[100px] hover:border-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800"
+                >
+                  <TemplateIcon className="w-8 h-8 text-emerald-600 dark:text-emerald-400" />
+                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{t(template.titleKey)}</span>
+                  <span className="text-xs text-gray-500 dark:text-gray-400 text-center">{t(template.descKey)}</span>
+                </button>
+              );
+            })}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setTemplateChooserOpen(false)} className="min-h-[44px]">
+              {t('action.cancel')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Version History Dialog */}
       <VersionHistoryDialog
@@ -3315,12 +3857,14 @@ export default function NotebooksView() {
     });
   }, [selectedNotebook]);
 
-  const handleAddPage = useCallback(async () => {
+  const handleAddPage = useCallback(async (templateKey?: string, background?: string, content?: string) => {
     if (!selectedNotebook) return;
     const pagesCount = selectedNotebook.pages?.length ?? 0;
     const newPage = await apiPost<NotebookPage>(`/api/notebooks/${selectedNotebook.id}/pages`, {
       pageNumber: pagesCount + 1,
-      background: selectedNotebook.notebookType,
+      background: background ?? selectedNotebook.notebookType,
+      title: templateKey && templateKey !== 'blank' ? t(`notebooks.page_template_${templateKey}`) : null,
+      textContent: content ?? null,
     });
     setSelectedNotebook(prev => {
       if (!prev) return prev;
@@ -3330,6 +3874,32 @@ export default function NotebooksView() {
       };
     });
     toast.success(t('notebooks.page_added'));
+  }, [selectedNotebook]);
+
+  const handleDuplicatePage = useCallback(async (pageId: string) => {
+    if (!selectedNotebook) return;
+    const page = selectedNotebook.pages?.find(p => p.id === pageId);
+    if (!page) return;
+    const pagesCount = selectedNotebook.pages?.length ?? 0;
+    try {
+      const newPage = await apiPost<NotebookPage>(`/api/notebooks/${selectedNotebook.id}/pages`, {
+        pageNumber: pagesCount + 1,
+        background: page.background,
+        title: (page.title ?? '') + ' ' + t('notebooks.copy_suffix'),
+        textContent: page.textContent,
+        drawingData: page.drawingData,
+      });
+      setSelectedNotebook(prev => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          pages: [...(prev.pages ?? []), newPage],
+        };
+      });
+      toast.success(t('notebooks.duplicate_page_success'));
+    } catch {
+      toast.error(t('notebooks.duplicate_page_error'));
+    }
   }, [selectedNotebook]);
 
   const handleDeletePage = useCallback(async (pageId: string) => {
@@ -3525,6 +4095,7 @@ export default function NotebooksView() {
           onToggleBookmark={handleToggleBookmark}
           onTogglePublic={handleTogglePublic}
           onReorderPages={handleReorderPages}
+          onDuplicatePage={handleDuplicatePage}
         />
       </div>
     );
@@ -4012,6 +4583,21 @@ export default function NotebooksView() {
           </motion.div>
         )}
       </div>
+
+      {/* Floating Action Button for new notebook */}
+      {!selectedNotebook && !showArchived && (
+        <motion.button
+          initial={{ scale: 0, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          whileHover={{ scale: 1.1 }}
+          whileTap={{ scale: 0.95 }}
+          className="fab"
+          onClick={() => setCreateOpen(true)}
+          title={t('notebooks.create')}
+        >
+          <Plus className="w-6 h-6" />
+        </motion.button>
+      )}
 
       {/* Eco footer bar */}
       <div className="bg-emerald-50 dark:bg-emerald-900/20 border-t border-emerald-200 dark:border-emerald-800 px-4 sm:px-6 py-3">

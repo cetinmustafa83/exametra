@@ -53,13 +53,72 @@ async function getCompetitions(request: Request): Promise<NextResponse> {
     const offset = parseInt(searchParams.get('offset') || '0');
 
     let schoolId: string | undefined;
-    if (session.user?.role === 'SCHOOL_ADMIN') {
+    if (session.user?.role === 'SUPER_ADMIN') {
+      // Super admins can query any school or see all
+      schoolId = schoolIdParam ?? undefined;
+    } else if (session.user?.role === 'SCHOOL_ADMIN') {
       schoolId = session.user.schoolId ?? undefined;
     } else {
-      schoolId = schoolIdParam ?? session.user?.schoolId ?? undefined;
+      // TEACHER, STUDENT, PARENT — always use the session schoolId to prevent
+      // cross-school access which would lead to 403 on sub-resources
+      schoolId = session.user?.schoolId ?? undefined;
     }
 
-    if (!schoolId) return NextResponse.json({ competitions: [], total: 0 });
+    if (!schoolId) {
+      // SUPER_ADMIN without a schoolId filter, or users without a schoolId
+      if (session.user?.role === 'SUPER_ADMIN') {
+        // Super admins can see all competitions
+        const where: Record<string, unknown> = { deletedAt: null };
+        if (statusParam) where.status = statusParam;
+        if (competitionTypeParam) where.competitionType = competitionTypeParam;
+        if (categoryParam) where.category = categoryParam;
+
+        const isPublicParam = searchParams.get('isPublic');
+        if (isPublicParam === 'true') where.isPublic = true;
+
+        const [competitions, total] = await Promise.all([
+          db.competition.findMany({
+            where,
+            orderBy: [{ startDate: 'desc' }, { createdAt: 'desc' }],
+            skip: offset,
+            take: limit,
+            include: {
+              school: { select: { id: true, name: true } },
+              createdBy: { select: { id: true, firstName: true, lastName: true } },
+              subject: { select: { id: true, name: true } },
+              _count: { select: { participants: true, rewards: true } },
+            },
+          }),
+          db.competition.count({ where }),
+        ]);
+
+        return NextResponse.json({ competitions, total });
+      }
+
+      // Other users without a schoolId can still see public competitions
+      const where: Record<string, unknown> = { isPublic: true, deletedAt: null };
+      if (statusParam) where.status = statusParam;
+      if (competitionTypeParam) where.competitionType = competitionTypeParam;
+      if (categoryParam) where.category = categoryParam;
+
+      const [competitions, total] = await Promise.all([
+        db.competition.findMany({
+          where,
+          orderBy: [{ startDate: 'desc' }, { createdAt: 'desc' }],
+          skip: offset,
+          take: limit,
+          include: {
+            school: { select: { id: true, name: true } },
+            createdBy: { select: { id: true, firstName: true, lastName: true } },
+            subject: { select: { id: true, name: true } },
+            _count: { select: { participants: true, rewards: true } },
+          },
+        }),
+        db.competition.count({ where }),
+      ]);
+
+      return NextResponse.json({ competitions, total });
+    }
 
     const where: Record<string, unknown> = { schoolId, deletedAt: null };
     if (statusParam) where.status = statusParam;

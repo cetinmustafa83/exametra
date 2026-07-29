@@ -55,8 +55,9 @@ export async function GET() {
       select: {
         id: true,
         competencyId: true,
-        level: true,
-        comment: true,
+        masteryLevelValue: true,
+        note: true,
+        date: true,
         createdAt: true,
         updatedAt: true,
       },
@@ -83,12 +84,12 @@ export async function GET() {
       where: { generatedByUserId: userId },
       select: {
         id: true,
-        type: true,
+        period: true,
         status: true,
-        createdAt: true,
+        generatedAt: true,
       },
       take: 200,
-      orderBy: { createdAt: 'desc' },
+      orderBy: { generatedAt: 'desc' },
     });
 
     // Fetch audit log entries
@@ -97,12 +98,12 @@ export async function GET() {
       select: {
         id: true,
         action: true,
-        entity: true,
+        entityType: true,
         entityId: true,
-        createdAt: true,
+        timestamp: true,
       },
       take: 200,
-      orderBy: { createdAt: 'desc' },
+      orderBy: { timestamp: 'desc' },
     });
 
     // Fetch data export requests
@@ -121,7 +122,7 @@ export async function GET() {
 
     // Fetch teacher notes
     const teacherNotes = await db.teacherNote.findMany({
-      where: { userId },
+      where: { teacherId: userId },
       select: {
         id: true,
         content: true,
@@ -154,7 +155,7 @@ export async function GET() {
         type: true,
         title: true,
         message: true,
-        read: true,
+        isRead: true,
         createdAt: true,
       },
       take: 200,
@@ -176,7 +177,7 @@ export async function GET() {
 
     // Fetch homework
     const homeworks = await db.homework.findMany({
-      where: { createdById: userId },
+      where: { teacherId: userId },
       select: {
         id: true,
         title: true,
@@ -191,13 +192,17 @@ export async function GET() {
     let studentData = null;
     if (user.role === 'STUDENT') {
       const student = await db.student.findFirst({
-        where: { email: user.email, deletedAt: null },
+        where: {
+          firstName: user.firstName,
+          lastName: user.lastName,
+          schoolId: user.schoolId ?? undefined,
+          deletedAt: null,
+        },
         select: {
           id: true,
           firstName: true,
           lastName: true,
           dateOfBirth: true,
-          gender: true,
           enrollments: {
             select: {
               id: true,
@@ -209,8 +214,8 @@ export async function GET() {
           learningProgressEntries: {
             select: {
               id: true,
-              level: true,
-              comment: true,
+              masteryLevelValue: true,
+              note: true,
               createdAt: true,
             },
             take: 200,
@@ -220,11 +225,9 @@ export async function GET() {
             select: {
               id: true,
               score: true,
-              comment: true,
-              createdAt: true,
+              note: true,
             },
             take: 200,
-            orderBy: { createdAt: 'desc' },
           },
         },
       });
@@ -235,7 +238,7 @@ export async function GET() {
     let parentLinks = null;
     if (user.role === 'PARENT') {
       parentLinks = await db.parentStudentLink.findMany({
-        where: { userId },
+        where: { parentId: userId },
         select: {
           id: true,
           relationship: true,

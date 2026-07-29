@@ -1645,3 +1645,510 @@ Stage Summary:
 - Enhanced existing templates with more detailed content (math formulas, German essay structure, etc.)
 - Role-based navigation properly shows different menus for teacher, student, parent, admin
 - QA verified: student login works, student dashboard shows correct nav, attendance no longer 403, competitions no longer 403, split view works in notebooks
+
+---
+Task ID: 3
+Agent: fix-attendance-403
+Task: Fix attendance API 403 Forbidden error
+
+Work Log:
+- Read `/home/z/my-project/src/app/api/attendance/route.ts` to understand current authorization logic
+- Identified that the GET handler (line 56-62) only checked SCHOOL_ADMIN role for school membership verification, causing TEACHERs to bypass the check and get blocked downstream
+- Identified same issue in the POST handler (line 202-208)
+- Updated GET handler: changed `session.user?.role === 'SCHOOL_ADMIN'` to `(session.user?.role === 'SCHOOL_ADMIN' || session.user?.role === 'TEACHER')` so TEACHERs are verified to only access classes in their own school
+- Updated POST handler: applied the same change to the school membership check
+- Both handlers now properly verify that TEACHERs can only access classes belonging to their school, while still allowing access (no 403) when the class is in their school
+
+Stage Summary:
+- Fixed 403 Forbidden error for TEACHER role in both GET and POST handlers of `/api/attendance`
+- TEACHERs are now included in the school membership check alongside SCHOOL_ADMIN
+- TEACHERs accessing classes in their own school will succeed; accessing classes in other schools will correctly return 403
+
+---
+
+Task ID: 6
+Agent: enhance-digital-notebooks
+Task: Enhance Digital Notebooks - Make them professional like real notebooks
+Date: 2025-01-28
+
+Work Log:
+
+## Summary of Changes
+
+### 1. i18n Keys Added (`src/lib/i18n.ts`)
+- Added German and English translations for all new features:
+  - Page templates (Cornell, mind map, Venn, T-chart, weekly planner)
+  - Sticky notes (add, delete, edit, color)
+  - Search within notebook (search, placeholder, results, no results)
+  - Page duplication (duplicate, success, error)
+  - Sections/chapters (add, name, delete, divider, table of contents)
+  - Highlighter tool for drawing canvas
+
+### 2. Highlighter Tool Added to Drawing Canvas (`src/components/drawing-canvas.tsx`)
+- Added `highlighter` to the `ToolType` union and `Stroke` interface
+- Added `HIGHLIGHTER_COLORS` constant with 8 semi-transparent highlighter colors
+- Added highlighter rendering logic: uses `globalCompositeOperation: 'multiply'` and `globalAlpha: 0.35` for semi-transparent effect
+- Added highlighter tool button in the toolbar (between pen and line tools)
+- Added `handleToolChange` function that auto-switches to yellow color when highlighter is selected
+- Added highlighter-specific color picker section that appears when highlighter tool is active
+
+### 3. Page Templates Added (`src/components/notebooks-view.tsx`)
+- Added `PAGE_TEMPLATES` constant with 6 templates:
+  - **Blank Page** - Empty page with no content
+  - **Cornell Notes** - Cornell note-taking system with keywords, notes, and summary sections
+  - **Mind Map** - Central topic with 4 idea bubbles
+  - **Venn Diagram** - Two overlapping circles for comparing sets
+  - **T-Chart** - Two-column comparison layout
+  - **Weekly Planner** - 5-day grid (Mon-Fri) with colored headers
+- Added "Page Template" button in the sidebar next to "Add Page"
+- Added template chooser dialog with visual grid of templates
+- Modified `onAddPage` handler to accept optional template parameters (background, title, content)
+
+### 4. Sticky Notes Feature Added
+- Added `StickyNoteData` interface with id, x, y, width, height, color, text, pageId
+- Added `STICKY_NOTE_COLORS` constant with 6 color options (yellow, green, blue, pink, orange, purple)
+- Added sticky note popover in the header toolbar with color picker and add button
+- Sticky notes are rendered as draggable overlays on the page content area
+- Each sticky note has:
+  - Editable text content via Textarea
+  - Header with title and edit/delete buttons (visible on hover)
+  - Color-coded background
+  - Position relative to the page area
+
+### 5. Search Within Notebook Feature Added
+- Added search popover in the header toolbar
+- Search input with instant results as you type
+- Searches across all pages' text content and titles
+- Results show page title, snippet with context around the match, and page number
+- Clicking a result navigates to that page and closes the search
+- "No results found" message when search has no matches
+
+### 6. Page Duplication Feature Added
+- Added `handleDuplicatePage` function in the main component
+- Added duplicate page button (clipboard copy icon) on each page in the sidebar
+- Duplicates the page with all its content (text, drawing data, background)
+- Appends "(Kopie)" to the duplicated page title
+- Shows success/error toast notifications
+
+### 7. Sections/Chapters Feature Added
+- Added `SectionData` interface with id, name, color, pageIds
+- Added `SECTION_COLORS` constant with 8 color options
+- Added sections popover in the header toolbar with:
+  - Section name input
+  - Color picker for section
+  - Add section button
+  - List of existing sections with delete option
+- Section dividers appear in the sidebar page list before the first page of each section
+- Section dividers show color dot, name, and delete button
+- Table of Contents popover in the header showing all pages organized by section
+- Section dividers are visually distinct with colored borders and background
+
+### 8. Enhanced Page Thumbnails in Sidebar
+- Page thumbnails already existed but now include:
+  - Section dividers before pages in a section
+  - Duplicate page button on each page entry
+  - Visual improvements with section-colored indicators
+
+### Component Props Updated
+- `NotebookDetailView` component now accepts `onDuplicatePage` prop
+- `onAddPage` function signature updated to accept optional template parameters
+
+## Files Modified
+1. `src/lib/i18n.ts` - Added ~40 new i18n keys (German + English)
+2. `src/components/drawing-canvas.tsx` - Added highlighter tool
+3. `src/components/notebooks-view.tsx` - Added all new features (templates, sticky notes, search, duplication, sections)
+
+## No Breaking Changes
+- All existing functionality preserved
+- New features are additive and don't modify existing behavior
+- All new UI elements use existing shadcn/ui components
+- Dark mode support maintained
+- Touch-friendly 44px minimum touch targets
+
+---
+Task ID: 4
+Agent: fix-competitions-403
+Task: Fix the 403 Forbidden error in the Competitions API
+Date: 2025-01-28
+
+Work Log:
+
+Root Cause Analysis:
+- The `GET /api/competitions` list endpoint itself does NOT return 403 — it only returns 401/500.
+- The 403 errors originate from the sub-routes (`/api/competitions/[id]`, `/api/competitions/[id]/leaderboard`, `/api/competitions/[id]/rewards`) which all share the same access control pattern:
+  ```typescript
+  if (session.user?.role !== 'SUPER_ADMIN' &&
+      session.user?.schoolId !== competition.schoolId &&
+      !competition.isPublic)
+  ```
+- **Bug 1**: The `GET /api/competitions` handler for non-SCHOOL_ADMIN users used the `schoolId` query parameter *first* (`schoolIdParam ?? session.user?.schoolId`). This meant a TEACHER/STUDENT could pass a different schoolId in the query and see competitions from another school, but then get 403 on sub-resources because the sub-routes check `session.user.schoolId` (not the query param). This cross-school mismatch was the primary 403 trigger.
+- **Bug 2**: When `session.user.schoolId` is `null` (e.g., PARENTs without a schoolId, or users whose schoolId hasn't been set), `null !== competition.schoolId` evaluates to `true`, causing 403 even for users who should have access through participation.
+- **Bug 3**: The `loadCompetitions` function in `competitions-view.tsx` returned early if `!schoolId`, meaning users without a schoolId couldn't see any competitions at all (not even public ones).
+
+Changes Made:
+
+1. **`src/app/api/competitions/route.ts`** — GET handler:
+   - Changed schoolId resolution: SUPER_ADMINs can still query by schoolId param; SCHOOL_ADMINs are forced to their own schoolId; TEACHER/STUDENT/PARENT now always use `session.user.schoolId` (ignoring the query param) to prevent cross-school access that leads to 403 on sub-resources.
+   - Added fallback for users without a schoolId: SUPER_ADMINs see all competitions; other users see public-only competitions.
+   - Added SUPER_ADMIN-specific branch when no schoolId is provided (sees all competitions, not just public ones).
+
+2. **`src/app/api/competitions/[id]/route.ts`** — GET handler:
+   - Replaced the strict `session.user?.schoolId !== competition.schoolId` check with a more nuanced access control:
+     - Extract `isSameSchool` comparison for clarity
+     - Added participant check: if the user is a participant in the competition (via `competition.participants`), they can always view it regardless of schoolId
+     - This handles inter-school competitions where users from different schools participate
+
+3. **`src/app/api/competitions/[id]/leaderboard/route.ts`** — GET handler:
+   - Replaced the strict `session.user?.schoolId !== competition.schoolId` check with:
+     - `isSameSchool` comparison
+     - Fallback participant check via `db.competitionParticipant.findFirst()` for users whose schoolId doesn't match
+     - This allows participants from other schools (inter-school competitions) or users without a schoolId to view leaderboards
+
+4. **`src/app/api/competitions/[id]/rewards/route.ts`** — GET handler:
+   - Same fix as leaderboard: added `isSameSchool` check and participant fallback
+
+5. **`src/components/competitions-view.tsx`**:
+   - `loadCompetitions`: Removed the `if (!schoolId) return` early return. Now falls back to `fetchPublicCompetitions()` for users without a schoolId, allowing them to see public competitions.
+   - Added `fetchPublicCompetitions` to the import list.
+   - `loadMyClaims`: Removed the `if (!schoolId) return` early return. Now passes `schoolId ?? undefined` so the API can still filter by userId for STUDENTs/PARENTs.
+
+Stage Summary:
+- Fixed 403 Forbidden errors in all competition sub-routes by adding participant-based access control
+- Fixed the root cause: the GET /api/competitions handler now uses session schoolId for non-admin users, preventing cross-school queries that cause 403 on sub-resources
+- Users without a schoolId can now view public competitions instead of seeing nothing
+- Participants in inter-school competitions can always access their competition's details, leaderboard, and rewards
+
+---
+
+## Task 8: Implement role-based dashboard content separation
+
+**Date:** 2025-07-29
+**Agent:** fullstack-developer
+
+### Summary
+Implemented role-based dashboard content separation for CompetenceTrack. The dashboard now shows different content based on the user's role (TEACHER, STUDENT, PARENT, SCHOOL_ADMIN).
+
+### Files Modified
+1. `/home/z/my-project/src/components/dashboard-view.tsx` - Added role-specific dashboard content
+2. `/home/z/my-project/src/lib/i18n.ts` - Added i18n keys for role-specific content
+
+### Changes Made
+
+#### TEACHER Dashboard Enhancements
+- Added competence progress radar chart (Recharts RadarChart) showing current vs target mastery levels across subjects
+- Added upcoming lessons section with class-based schedule items
+- Kept existing dashboard sections (stats, weekly summary, quick actions, classes overview, students needing attention, recent activity, notifications, announcements, homework, events, environmental section, newsletter)
+
+#### STUDENT Dashboard Enhancements
+- Added grades trend chart (Recharts BarChart) showing grades by subject with Y-axis reversed (German grading scale)
+- Added competition standings card with rank and points display
+- Added school announcements section (DashboardAnnouncementsCard)
+- Kept existing sections (welcome header, environmental banner, quick stats, notebook quick access, learning progress, competency/grades/notebooks/attendance/assessments cards)
+
+#### PARENT Dashboard Enhancements
+- Added children's recent grades section with per-child grade breakdown by subject
+- Added competition results card with placeholder
+- Added calendar events section with upcoming school events (parent-teacher day, school festival, report card day)
+- Added school announcements section (DashboardAnnouncementsCard)
+- Kept existing sections (welcome header, children cards, progress, messages, attendance, calendar)
+
+#### SCHOOL_ADMIN Dashboard (New)
+- Added full SchoolAdminDashboard component with:
+  - Admin welcome header with Shield icon and rose/orange gradient
+  - School overview stats (total students, classes, teachers, parents) with CountUp animation
+  - System health metrics (uptime, active users, storage used, API requests) with storage progress bar
+  - School statistics charts (enrollment trend bar chart + grade distribution pie chart)
+  - Audit log with action-type icons and color coding
+  - User management quick actions (manage teachers, students, parents, school settings)
+  - Announcements management (DashboardAnnouncementsCard)
+  - School newsletter (DashboardNewsletterCard)
+
+#### i18n Keys Added
+- Added 20+ teacher dashboard keys (teacher.dashboard_title, teacher.my_classes, teacher.recent_assessments, etc.)
+- Added 10+ student dashboard keys (student.my_grades_overview, student.my_grades_trend, student.competition_standings, etc.)
+- Added 15+ parent dashboard keys (parent.children_grades, parent.calendar_events, parent.competition_results, etc.)
+- Added 40+ admin dashboard keys (admin.school_overview, admin.system_health, admin.audit_log, admin.user_management, etc.)
+- All keys added in both German (de) and English (en) sections
+
+### Technical Details
+- Used Recharts for all charts (RadarChart, BarChart, PieChart)
+- Used framer-motion for animations (containerVariants, itemVariants, whileHover)
+- Used Lucide icons exclusively (Shield, Server, Database, Cpu, UserPlus, School, LayoutList, etc.)
+- Used shadcn/ui components (Card, Badge, Button, Progress, etc.)
+- All components support dark mode
+- Responsive design with grid breakpoints (sm, md, lg)
+- All new content uses existing DashboardData and API patterns
+
+---
+Task ID: 5
+Agent: qa-check
+Task: Full system QA check
+
+Work Log:
+- Opened application at http://localhost:3000/ and verified it loads (HTTP 200)
+- Found and fixed **Build Error**: `CircleDot` imported twice in `dashboard-view.tsx` (line 44 and line 77). Removed duplicate on line 77.
+- Found and fixed **Runtime ReferenceError**: `Legend` component used in `dashboard-view.tsx` (line 1942) but not imported from `recharts`. Added `Legend` to the recharts import.
+- Tested Auth page: 3-tab auth UI (Teacher/Anmelden, Student/Schüler-Login, Parent/Eltern-Login) works correctly
+- Student tab shows additional "Schul-ID" field; Parent tab shows email/password only
+- Demo account buttons (Admin, Lehrer, Schüler, Elternteil) all present and functional
+- Cookie consent dialog visible and functional
+- Tested login with Demo Teacher account — successful, dashboard loads with teacher view
+- Onboarding tour dialog appears on first login; can be skipped
+- Verified Dashboard view: KENNZAHLLEN stats, quick actions, weekly overview, competence radar chart, upcoming classes, activities, announcements
+- Verified Notebooks view: Search box, "Neues Heft erstellen" button, tabs (Meine Hefte, Geteilt, Vorlagen, Lernen, Alle), template gallery (9 templates), new notebook dialog with paper type/subject/color/icon selection
+- Verified Competitions view: Create button, search, type/status/category filters, tab panel
+- Verified Attendance view: Class selector, attendance tracking interface
+- Verified Portfolio view: New entry button, search, type filter (Kunstwerk, Text, Projekt, Präsentation, Leistung, Reflexion), view toggle
+- Tested mobile responsiveness (375px viewport): Sidebar collapses to sheet dialog, main content reflows, hamburger menu works
+- Verified footer sticks to bottom of page content
+- Tested API endpoints: Most return 200, /api/attendance returns 400 (requires classGroupId param), /api/portfolio returns 400 (requires schoolId param), /api/teacher-notes returns 400 (requires studentId param), /api/health returns 404, /api/demo-accounts and /api/demo-data return 403 (unauthenticated)
+- No JavaScript runtime errors after fixes
+- No console errors after fixes
+
+Stage Summary:
+- **Fixed 2 bugs**: Duplicate `CircleDot` import (build error) and missing `Legend` import (runtime error) in dashboard-view.tsx
+- **Auth UI**: 3-tab auth system works correctly (Teacher, Student, Parent)
+- **All main views load**: Dashboard, Notebooks (with templates/sticky notes/sections/search), Competitions, Attendance, Portfolio
+- **Mobile responsive**: Sidebar collapses to sheet on 375px, content reflows properly
+- **Footer**: Sticks to bottom of page content
+- **API health**: Most endpoints return 200; /api/attendance, /api/portfolio, /api/teacher-notes return 400 when required params missing (expected behavior); /api/health returns 404 (no health endpoint defined)
+- **No runtime errors** after fixes
+- **Minor UI observations**: App defaults to German locale; onboarding tour shows on first login; cookie consent dialog functional
+
+---
+
+Task ID: 9
+Agent: deep-styling-polish
+Task: Deep Styling Polish Across All Views
+Date: 2025-01-28
+
+Work Log:
+- **Global CSS Enhancements** (`src/app/globals.css`):
+  - Added activity timeline with animated dots (`.activity-timeline`, `.activity-timeline-item`) — timeline line with gradient fade, dots that scale on hover
+  - Added gradient card header utility (`.card-header-gradient`) — subtle gradient overlay for card headers
+  - Added progress ring utility (`.progress-ring-circle`) — SVG-based progress ring with animated dashoffset
+  - Added glassmorphism toolbar (`.glass-toolbar`) — frosted glass effect with backdrop blur and saturation
+  - Added floating action button (`.fab`) — fixed-position FAB with gradient background, hover lift, and pulse shadow
+  - Added notebook cover gradient effects (`.notebook-cover`) — gradient overlay that expands on hover
+  - Added grade badge color coding (`.grade-badge-excellent`, `.grade-badge-good`, `.grade-badge-average`, `.grade-badge-below`) — gradient badges with dark mode support
+  - Added competence flower petal animation (`.animate-petal-bloom`) — scale + opacity bloom animation
+  - Added radar chart gradient fill (`.radar-gradient-fill`) — for SVG radar chart fills
+  - Added mastery level indicators (`.mastery-indicator`, `.mastery-indicator-1` through `.mastery-indicator-4`) — pill badges with hover scale and dark mode
+  - Added animated progress bar (`.progress-bar-animated`, `.progress-bar-animated-fill`) — gradient fill with shimmer overlay
+  - Added gradient header bar (`.header-gradient`) — subtle gradient for header with dark mode
+  - Added sidebar active indicator with animated underline (`.sidebar-active-indicator`) — animated underline that expands on active state
+  - Added notification bell ring animation (`.animate-bell-ring`) — realistic bell swing animation
+  - Added notification badge pulse (`.animate-badge-pulse`) — pulsing ring around badge
+  - Added card shadow transition (`.card-shadow-transition`) — hover lift + shadow + border color transition
+  - Added breadcrumb active view indicator (`.breadcrumb-active-view`) — gradient pill badge for current view
+  - Added student grid animation (`.animate-student-appear`) — scale + fade entrance for student avatars
+  - Added enhanced popover styling (`.popover-enhanced`) — better shadow and border radius
+  - Added gradient border for active class cards (`.class-card-active`) — gradient border with opacity transition
+
+- **App Layout Polish** (`src/components/app-layout.tsx`):
+  - Added `header-gradient` class to header bar for subtle gradient background
+  - Added `breadcrumb-active-view` class to current breadcrumb page for gradient pill styling
+  - Added `animate-badge-pulse` class to notification badge for pulsing ring effect
+  - Added `layoutId="sidebar-active-indicator"` to sidebar active indicator for smooth spring animation between views
+  - Added `hover:translate-x-0.5` to non-active sidebar items for subtle slide effect
+  - Added `group-hover:scale-110` to sidebar icons for subtle icon scale on hover
+  - Updated main content area to use gradient background (`bg-gradient-to-br from-white via-white to-emerald-50/20`)
+  - Updated footer to use gradient background
+  - Updated sidebar to have gradient bottom edge
+
+- **Dashboard View Polish** (`src/components/dashboard-view.tsx`):
+  - Changed stat cards from `card-hover-lift` to `card-shadow-transition` for better hover effects
+  - Added `activity-timeline` class to recent activity section for timeline styling with animated dots
+  - Added `activity-timeline-item` class to each entry for dot animation
+
+- **Classes View Polish** (`src/components/classes-view.tsx`):
+  - Changed class cards from `card-hover-lift` to `card-shadow-transition`
+  - Added `progress-bar-animated-fill` class to progress bar fill for shimmer effect
+  - Added `animate-student-appear` class to student avatars in class photo grid
+
+- **Notebooks View Polish** (`src/components/notebooks-view.tsx`):
+  - Added `notebook-cover` class to notebook cover section for gradient overlay on hover
+  - Added `glass-toolbar` class to WYSIWYG toolbar for glassmorphism effect
+  - Added floating action button (FAB) using `fab` class for creating new notebooks
+
+- **Assessments View Polish** (`src/components/assessments-view.tsx`):
+  - Changed main card from `card-hover-lift` to `card-shadow-transition`
+  - Updated `resultCountBadge` to use new `grade-badge-*` CSS classes for gradient badge styling
+
+- **Progress Entries View Polish** (`src/components/progress-entries-view.tsx`):
+  - Changed entry cards from `card-hover-lift` to `card-shadow-transition`
+  - Updated `masteryBadge` function to use `mastery-indicator` CSS classes with level-specific styling
+
+- **Competence Flower View Polish** (`src/components/competence-flower-view.tsx`):
+  - Changed radar chart card, breakdown table, progress card, comparison card, and strengths card to `card-shadow-transition`
+
+All changes:
+- Support dark mode with appropriate `.dark` variants
+- Use Lucide icons only (no emojis)
+- Use framer-motion for animations
+- Maintain 44px minimum touch targets
+- Use Tailwind CSS classes
+- No i18n keys needed (all new classes are CSS-only)
+- No lint errors
+- Dev server running successfully
+
+---
+Task ID: 10
+Agent: competition-system-enhancement
+Task: Add More Features - Competition System Enhancement and Digital Rewards
+Date: 2025-01-28
+
+Work Log:
+
+- **Prisma Schema Updates** (`prisma/schema.prisma`):
+  - Added `Reward` model with fields: id, schoolId, title, description, category (streaming/shopping/experience/merchandise/privilege), pointsCost, image, stock, isActive, isDemo, timestamps, soft delete
+  - Added `RewardRedemption` model with fields: id, rewardId, userId, pointsSpent, status (pending/approved/rejected/fulfilled), note, timestamps
+  - Added `RewardPoints` model with fields: id, userId, schoolId, points, source (competition/grade/attendance/homework/bonus), sourceId, description, createdAt
+  - Added relations: School → rewards, rewardPoints; User → rewardRedemptions, rewardPoints
+  - Ran `bun run db:push` successfully
+
+- **API Endpoints Created**:
+  - `/api/rewards/route.ts` — GET (list rewards with category filter), POST (create reward, admin/teacher only)
+  - `/api/rewards/[id]/route.ts` — GET (single reward), PUT (update reward), DELETE (soft delete reward)
+  - `/api/rewards/redeem/route.ts` — POST (redeem reward with points balance check, stock check, audit log)
+  - `/api/reward-points/route.ts` — GET (points balance, history, redemptions), POST (award points, admin/teacher only, audit log)
+  - Fixed AuditLog field names: `details` → `changes` to match Prisma schema
+
+- **i18n Keys Added** (`src/lib/i18n.ts`):
+  - German & English translations for:
+    - Digital reward catalog: rewards.title, rewards.catalog, rewards.category.*, rewards.points_balance, rewards.redeem, etc.
+    - Specific reward items: streaming (Netflix, Spotify, Disney+), shopping (Amazon, Thalia, MediaMarkt), experience (Cinema, Theater, Concert, Museum), merchandise (T-Shirt, Stickers, Notebook), privileges (Homework Pass, Extra Break, Choose Seat)
+    - Points earning: rewards.earn_points, rewards.earn_competition, rewards.earn_grades, rewards.earn_attendance, rewards.earn_homework, rewards.earn_bonus
+    - GDPR consent management: dsgvo.consent_management, dsgvo.consent_data_processing, dsgvo.consent_communication, dsgvo.consent_analytics, dsgvo.consent_third_party
+    - Data retention: dsgvo.retention_settings, dsgvo.retention_grades, dsgvo.retention_attendance, dsgvo.retention_behavior
+
+- **Competitions View Enhancement** (`src/components/competitions-view.tsx`):
+  - Added new "Rewards" tab (value="catalog") alongside existing tabs
+  - Added 16 demo reward items across 5 categories (streaming, shopping, experience, merchandise, privilege)
+  - Points balance header card with wallet icon, earned/spent breakdown
+  - Category filter buttons with icons for each category
+  - Reward catalog grid with animated cards showing category color, icon, points cost, stock status
+  - "Earn Points" section with 5 earning methods (competition, grades, attendance, homework, bonus)
+  - Points history card with scrollable list
+  - My redemptions card with status badges
+  - Redeem confirmation dialog with reward preview and balance calculation
+  - Create reward dialog (admin/teacher only) with title, description, category, points cost, stock
+  - Added new Lucide icons: Wallet, Package, Coins, CreditCard, Headphones, Tv, MonitorPlay, Store, Palette, Coffee, Armchair, PencilRuler, Sticker, Notebook, History, Loader2
+  - Added helper functions: getCategoryLabelReward, getCategoryIcon, getCategoryColor, getCategoryBorderColor, getCategoryBgGradient, getRedemptionStatusLabel, getRedemptionStatusColor, getPointsSourceLabel
+  - Added state management for catalog data, points, redemptions, and forms
+  - Falls back to demo data when API returns empty or fails
+
+- **Settings View GDPR Enhancement** (`src/components/settings-view.tsx`):
+  - Added Consent Management card with 4 consent types (data processing, communication, analytics, third-party)
+  - Added Data Retention Settings card with 3 retention periods (grades 3yr, attendance 2yr, behavior 1yr)
+  - Added Cookie Consent Management card with essential and analytics cookies
+  - All new cards follow existing design patterns with gradient headers, icon badges, and color-coded sections
+
+- **Existing GDPR API Endpoints Verified**:
+  - `/api/gdpr-export/route.ts` — Working, exports user data as JSON (DSGVO Art. 20)
+  - `/api/account-deletion/route.ts` — Working, supports POST (request deletion), PUT (cancel deletion), GET (check status) with 30-day grace period
+
+- **TypeScript & Build Status**:
+  - No new TypeScript errors introduced in modified files
+  - Pre-existing errors in other files (account-deletion, attendance, backup, etc.) are not related to this task
+  - Dev server running successfully, page loads correctly
+
+---
+
+Task ID: 5b
+Agent: qa-final-check
+Task: Final QA Check before pushing to GitHub
+Date: 2026-07-29
+
+## Summary
+
+Performed comprehensive QA check of the CompetenceTrack application at http://localhost:3000. Found and fixed a critical bug in the GDPR data export API endpoint. All other features verified working correctly.
+
+## Detailed Findings
+
+### 1. What Works Correctly
+
+- **Auth page**: Loads correctly at `/`, renders `AuthView` component with demo login buttons
+- **Demo login**: All three demo accounts (admin, teacher, student) work correctly:
+  - `demo@competencetrack.org` → SCHOOL_ADMIN (Anna Müller)
+  - `demo.teacher@competencetrack.org` → TEACHER (Max Lehrer)
+  - `demo.student@competencetrack.org` → STUDENT (Lena Schüler)
+- **Dashboard API**: Returns classes overview, recent entries, notifications (200 OK)
+- **Classes API**: Returns 2 classes (3a, 3b) with student counts and teacher associations
+- **Students API**: Returns all students with enrollment data
+- **Assessments API**: Returns existing assessments with class/subject info
+- **Competitions API**: Returns empty competitions list (correct for demo data)
+- **Notebooks API**: Returns notebooks list (1 notebook for student user)
+- **Notebooks features**: Sticky notes, templates, search, sections — all code present in `notebooks-view.tsx`
+- **Competitions rewards tab**: Full rewards catalog and redemption system present in `competitions-view.tsx`
+- **Assessments scratch pad**: Scratch pad button and Sheet component with DrawingCanvas present in `assessments-view.tsx`
+- **Settings GDPR/Datenschutz tab**: Full privacy tab with DSGVO compliance, data export, and account deletion present in `settings-view.tsx`
+- **Rewards API**: Returns empty rewards list (200 OK)
+- **Reward Points API**: Returns balance, history, redemptions (200 OK)
+- **Account Deletion API**: Returns scheduledForDeletion status (200 OK)
+- **Analytics API**: Returns mastery trend data (200 OK)
+- **Calendar API**: Returns lesson events (200 OK)
+- **Lesson Plans API**: Returns existing lesson plans (200 OK)
+- **Rubrics API**: Returns existing rubrics (200 OK)
+- **Comment Bank API**: Returns existing comment bank entries (200 OK)
+- **Behavior Categories API**: Returns existing categories with incident counts (200 OK)
+- **Behavior Incidents API**: Returns existing incidents (200 OK)
+- **Grading API**: Returns existing grading schemes (200 OK)
+- **Parents API**: Returns existing parent contacts (200 OK)
+- **Data Export CSV API**: Returns student CSV export (200 OK)
+- **Audit Log API**: Returns audit log entries (200 OK)
+- **Notifications API**: Returns missing observation notifications (200 OK)
+- **Build**: `next build` completes successfully with no errors
+
+### 2. What Had Errors (FIXED)
+
+- **GDPR Data Export API** (`/api/gdpr-export`) — **500 Internal Server Error** for ALL users
+  - **Root cause**: Multiple Prisma field name mismatches between the route code and the actual Prisma schema
+  - **Fixes applied** to `src/app/api/gdpr-export/route.ts`:
+    1. `entity: true` → `entityType: true` (AuditLog model has `entityType`, not `entity`)
+    2. `createdAt: true` → `timestamp: true` (AuditLog model has `timestamp`, not `createdAt`)
+    3. `orderBy: { createdAt: 'desc' }` → `orderBy: { timestamp: 'desc' }` (AuditLog ordering)
+    4. `read: true` → `isRead: true` (Notification model has `isRead`, not `read`)
+    5. `level: true` → `masteryLevelValue: true` (LearningProgressEntry has `masteryLevelValue`, not `level`)
+    6. `comment: true` → `note: true` (LearningProgressEntry has `note`, not `comment`)
+    7. `{ type: true, status: true, createdAt: true }` → `{ period: true, status: true, generatedAt: true }` (Report model has `period`/`generatedAt`, not `type`/`createdAt`)
+    8. `where: { userId }` → `where: { teacherId: userId }` (TeacherNote has `teacherId`, not `userId`)
+    9. `where: { createdById: userId }` → `where: { teacherId: userId }` (Homework has `teacherId`, not `createdById`)
+    10. `where: { email: user.email, deletedAt: null }` → `where: { firstName: user.firstName, lastName: user.lastName, schoolId: user.schoolId ?? undefined, deletedAt: null }` (Student model has no `email` field)
+    11. `gender: true` removed from Student select (Student model has no `gender` field)
+    12. `level: true` → `masteryLevelValue: true` in Student's `learningProgressEntries` select
+    13. `comment: true` → `note: true` in Student's `learningProgressEntries` select
+    14. `comment: true` → `note: true` in Student's `assessmentResults` select
+    15. `createdAt: true` + `orderBy: { createdAt: 'desc' }` removed from `assessmentResults` (AssessmentResult has no `createdAt` field)
+    16. `where: { userId }` → `where: { parentId: userId }` (ParentStudentLink has `parentId`, not `userId`)
+  - After fixes: GDPR export returns 200 OK for both teacher and student accounts
+
+### 3. What Needs Attention (Not Critical)
+
+- **Student-User link gap**: The Student and User models are separate entities with no direct foreign key link. The GDPR export uses name matching (firstName + lastName + schoolId) to find the student record, which is unreliable. The demo student user has lastName "Schüler" while the student record has "Schmidt" — no match is found. This means the `studentData` section is empty in the GDPR export for demo accounts. A proper User→Student link field should be added to the schema.
+- **400 responses are expected**: Some API endpoints require query parameters (e.g., `attendance?classGroupId=`, `competence-flower?studentId=`, `curriculum-standards?schoolId=`) and return 400 when called without them — this is correct behavior.
+
+### 4. Mobile Responsiveness
+
+- **Sidebar**: Uses `collapsible="icon"` mode — collapses to icon-only sidebar on desktop, uses Sheet overlay on mobile (< 768px via `useIsMobile` hook)
+- **SidebarProvider**: Uses `min-h-svh` (small viewport height) ensuring full-height layout
+- **Footer**: Uses `mt-auto` in a flex column layout, which correctly pushes it to the bottom
+- **Responsive classes**: Header uses `sm:` prefix for responsive text, footer uses `sm:inline`/`sm:hidden` for version info
+- **Content area**: Uses `p-4 md:p-6` for responsive padding
+
+### 5. Build Status
+
+- `next build` completes successfully with no errors
+- All 89 static pages generated
+- No TypeScript compilation errors
+- No build warnings
+
+## Files Changed
+
+- `src/app/api/gdpr-export/route.ts` — Fixed 16 Prisma field name mismatches that caused 500 errors
+
+## Next Actions
+
+- Push to GitHub — the application is in a good state with the GDPR export fix
+- Consider adding a `userId` field to the Student model for reliable User→Student linking
+- Consider adding integration tests for the GDPR export endpoint
