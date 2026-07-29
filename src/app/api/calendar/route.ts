@@ -294,6 +294,54 @@ export async function GET(request: Request) {
       console.info('Calendar: LessonPlan not available yet, skipping lessons.');
     }
 
+    /* ── Custom Calendar Events ───────────────────────────────────── */
+    try {
+      const customEvents = await db.calendarEvent.findMany({
+        where: {
+          schoolId,
+          date: dateRange,
+        },
+        select: {
+          id: true,
+          title: true,
+          date: true,
+          startTime: true,
+          endTime: true,
+          eventType: true,
+          allDay: true,
+          notes: true,
+          subject: { select: { id: true, name: true } },
+          classGroup: { select: { id: true, name: true } },
+        },
+        orderBy: { date: 'asc' },
+      });
+
+      for (const ce of customEvents) {
+        // Map custom event types to CalendarEventType
+        const mappedType: EventType = ['assessment', 'lesson'].includes(ce.eventType)
+          ? (ce.eventType as EventType)
+          : 'lesson';
+        events.push({
+          date: toDayKey(ce.date),
+          type: mappedType,
+          id: ce.id,
+          title: ce.title,
+          meta: {
+            customEvent: true,
+            eventType: ce.eventType,
+            startTime: ce.startTime ?? null,
+            endTime: ce.endTime ?? null,
+            allDay: ce.allDay,
+            notes: ce.notes ?? null,
+            subject: ce.subject?.name ?? null,
+            classGroup: ce.classGroup?.name ?? null,
+          },
+        });
+      }
+    } catch (err) {
+      console.error('Calendar: custom events query failed:', err);
+    }
+
     // Stable ordering: by date asc, then by type for deterministic display
     const typeOrder: Record<EventType, number> = {
       lesson: 0,

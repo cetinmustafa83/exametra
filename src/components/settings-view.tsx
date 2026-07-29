@@ -1479,33 +1479,35 @@ export default function SettingsView() {
                 </CardContent>
               </Card>
 
-              {/* GDPR Data Erasure */}
-              <Card className="border-0 shadow-sm rounded-xl border-l-3 border-l-rose-500 overflow-hidden">
-                <CardHeader className="bg-gradient-to-r from-rose-50/50 to-transparent dark:from-rose-900/10 dark:to-transparent">
-                  <CardTitle className="flex items-center gap-2">
-                    <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-rose-100 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400">
-                      <AlertTriangle className="h-4 w-4" />
-                    </div>
-                    {t('settings.data_erasure')}
-                  </CardTitle>
-                  <CardDescription>{t('settings.data_erasure_desc')}</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="p-4 rounded-xl bg-rose-50/50 dark:bg-rose-900/10 border border-rose-200/30 dark:border-rose-900/20">
-                    <p className="text-sm text-rose-700 dark:text-rose-300 font-medium">
-                      <AlertTriangle className="w-3.5 h-3.5 inline mr-1" /> {t('settings.data_erasure_desc')}
+              {/* GDPR Data Erasure — Danger Zone */}
+              <div className="danger-zone">
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-rose-100 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400">
+                    <AlertTriangle className="h-4 w-4" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold text-rose-700 dark:text-rose-300">
+                      {t('settings.data_erasure')}
+                    </h3>
+                    <p className="text-xs text-rose-600/70 dark:text-rose-400/60">
+                      {t('settings.data_erasure_desc')}
                     </p>
                   </div>
-                  <Button
-                    onClick={() => setShowErasureDialog(true)}
-                    variant="outline"
-                    className="border-rose-300 dark:border-rose-700 text-rose-700 dark:text-rose-300 hover:bg-rose-50 dark:hover:bg-rose-900/20 rounded-xl px-6"
-                  >
-                    <Trash2 className="h-4 w-4 mr-2" />
-                    {t('settings.data_erasure_request')}
-                  </Button>
-                </CardContent>
-              </Card>
+                </div>
+                <div className="p-3 rounded-lg bg-rose-50/50 dark:bg-rose-900/10 border border-rose-200/30 dark:border-rose-900/20 mb-3">
+                  <p className="text-xs text-rose-700 dark:text-rose-300 font-medium">
+                    <AlertTriangle className="w-3 h-3 inline mr-1" /> {t('settings.data_erasure_desc')}
+                  </p>
+                </div>
+                <Button
+                  onClick={() => setShowErasureDialog(true)}
+                  variant="outline"
+                  className="border-rose-300 dark:border-rose-700 text-rose-700 dark:text-rose-300 hover:bg-rose-50 dark:hover:bg-rose-900/20 rounded-xl px-6 min-h-[44px]"
+                >
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  {t('settings.data_erasure_request')}
+                </Button>
+              </div>
 
               {/* Erasure Dialog */}
               <AlertDialog open={showErasureDialog} onOpenChange={setShowErasureDialog}>

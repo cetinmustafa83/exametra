@@ -37,6 +37,8 @@ model School {
   commentBankEntries CommentBankEntry[]
   notebooks          Notebook[]
   drawings           Drawing[]
+  notifications      Notification[]
+  calendarEvents     CalendarEvent[]
 }
 
 model User {
@@ -71,6 +73,8 @@ model User {
   commentBankEntries        CommentBankEntry[]
   notebooks                 Notebook[]
   drawings                  Drawing[]
+  notifications             Notification[]
+  calendarEvents            CalendarEvent[]
 }
 
 model SchoolYear {
@@ -115,6 +119,7 @@ model ClassGroup {
   behaviorIncidents   BehaviorIncident[]
   notebooks           Notebook[]
   drawings            Drawing[]
+  calendarEvents      CalendarEvent[]
 }
 
 model ClassGroupTeacher {
@@ -187,6 +192,7 @@ model Subject {
   commentBankEntries  CommentBankEntry[]
   notebooks           Notebook[]
   drawings            Drawing[]
+  calendarEvents      CalendarEvent[]
 }
 
 model CompetencyTemplate {
@@ -799,4 +805,56 @@ model Drawing {
   @@index([schoolId])
   @@index([ownerId])
   @@index([subjectId])
+}
+
+model Notification {
+  id          String   @id @default(cuid())
+  schoolId    String
+  userId      String   // recipient
+  type        String   // ASSESSMENT_DUE, MISSING_OBSERVATION, NOTEBOOK_SHARED, BEHAVIOR_ALERT, GRADE_COMPUTED, etc.
+  title       String
+  message     String
+  isRead      Boolean  @default(false)
+  actionUrl   String?  // optional deep link
+  relatedId   String?  // optional related entity ID
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  deletedAt   DateTime?
+
+  school      School   @relation(fields: [schoolId], references: [id])
+  user        User     @relation(fields: [userId], references: [id])
+
+  @@index([userId, isRead])
+  @@index([schoolId])
+  @@map("notifications")
+}
+
+// ─── Calendar Events ──────────────────────────────────────────────
+
+model CalendarEvent {
+  id          String   @id @default(cuid())
+  schoolId    String
+  teacherId   String
+  title       String
+  date        DateTime
+  startTime   String?  // HH:mm format, null = all day
+  endTime     String?  // HH:mm format, null = all day
+  eventType   String   @default("reminder") // assessment | lesson | reminder
+  subjectId   String?
+  classGroupId String?
+  notes       String?
+  allDay      Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  school     School    @relation(fields: [schoolId], references: [id])
+  teacher    User      @relation(fields: [teacherId], references: [id])
+  subject    Subject?  @relation(fields: [subjectId], references: [id])
+  classGroup ClassGroup? @relation(fields: [classGroupId], references: [id])
+
+  @@index([schoolId])
+  @@index([teacherId])
+  @@index([date])
+  @@index([subjectId])
+  @@index([classGroupId])
 }

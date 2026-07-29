@@ -42,6 +42,16 @@ import {
   Plus,
   Palette,
   Leaf,
+  Check,
+  CheckCircle2,
+  AlertTriangle,
+  Info,
+  BookMarked,
+  StickyNote,
+  Award,
+  UserCheck,
+  BarChart3,
+  Trash2,
 } from 'lucide-react';
 import {
   Sidebar,
@@ -90,7 +100,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useAppStore, type ViewName } from '@/lib/store';
 import { t } from '@/lib/i18n';
-import { fetchSchoolYears, fetchStudents, fetchClasses, fetchNotifications, markServerNotificationsRead, type SchoolYear, type Student, type ClassGroup, type NotificationData, type AssessmentNotification, type MissingObservationNotification } from '@/lib/api';
+import { fetchSchoolYears, fetchStudents, fetchClasses, fetchDBNotifications, markAllNotificationsRead, markSingleNotificationRead, type SchoolYear, type Student, type ClassGroup, type DBNotification, type DBNotificationData } from '@/lib/api';
 import OnboardingTour, { isOnboardingCompleted } from '@/components/onboarding-tour';
 import KeyboardShortcutsDialog from '@/components/keyboard-shortcuts-dialog';
 import {
@@ -104,7 +114,6 @@ import {
   CommandShortcut,
 } from '@/components/ui/command';
 import { toast } from 'sonner';
-import { AlertTriangle, Info, ArrowRight } from 'lucide-react';
 
 import DashboardView from './dashboard-view';
 import ClassesView from './classes-view';
@@ -174,6 +183,22 @@ const navSections: NavSection[] = [
   },
 ];
 
+// Student-specific navigation (simplified)
+const studentNavSections: NavSection[] = [
+  {
+    id: 'student-main',
+    labelKey: 'student.dashboard_title',
+    items: [
+      { key: 'dashboard', icon: LayoutDashboard, labelKey: 'nav.dashboard' },
+      { key: 'notebooks', icon: BookOpen, labelKey: 'nav.student_notebooks' },
+      { key: 'flower', icon: Flower2, labelKey: 'nav.student_competencies' },
+      { key: 'grading', icon: Calculator, labelKey: 'nav.student_grades' },
+      { key: 'attendance', icon: CalendarCheck, labelKey: 'nav.student_attendance' },
+      { key: 'calendar', icon: CalendarIconNav, labelKey: 'nav.calendar' },
+    ],
+  },
+];
+
 function renderView(view: ViewName) {
   switch (view) {
     case 'dashboard': return <DashboardView />;
@@ -225,7 +250,7 @@ export default function AppLayout() {
   const [searchLoading, setSearchLoading] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
-  const [notifData, setNotifData] = useState<NotificationData | null>(null);
+  const [notifData, setNotifData] = useState<DBNotificationData | null>(null);
   const [notifLoading, setNotifLoading] = useState(false);
   const [onboardingOpen, setOnboardingOpen] = useState(false);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
@@ -239,7 +264,10 @@ export default function AppLayout() {
     ? `${currentUser.firstName} ${currentUser.lastName}`
     : '';
 
-  const roleKey = currentUser?.role === 'TEACHER' ? 'role.teacher' : currentUser?.role === 'SCHOOL_ADMIN' ? 'role.school_admin' : 'role.super_admin';
+  const roleKey = currentUser?.role === 'TEACHER' ? 'role.teacher' : currentUser?.role === 'SCHOOL_ADMIN' ? 'role.school_admin' : currentUser?.role === 'STUDENT' ? 'role.student' : 'role.super_admin';
+
+  const isStudent = currentUser?.role === 'STUDENT';
+  const activeNavSections = isStudent ? studentNavSections : navSections;
 
   const isDemoUser = currentUser?.isDemo === true || (currentUser?.email?.endsWith('@competencetrack.org') && currentUser?.email?.startsWith('demo'));
 
@@ -441,7 +469,7 @@ export default function AppLayout() {
     if (!currentUser?.schoolId) return;
     setNotifLoading(true);
     try {
-      const data = await fetchNotifications();
+      const data = await fetchDBNotifications();
       setNotifData(data);
     } catch {
       // ignore
@@ -452,27 +480,105 @@ export default function AppLayout() {
 
   useEffect(() => {
     loadNotifications();
+    // Refresh notifications every 60 seconds
+    const interval = setInterval(loadNotifications, 60000);
+    return () => clearInterval(interval);
   }, [loadNotifications]);
 
   const handleMarkAllRead = useCallback(async () => {
-    if (!notifData) return;
-    const allIds = [
-      ...notifData.upcomingAssessments.map((n) => n.id),
-      ...notifData.missingObservations.map((n) => n.id),
-    ];
-    if (allIds.length === 0) return;
+    if (!notifData || notifData.unreadCount === 0) return;
     try {
-      await markServerNotificationsRead(allIds);
+      await markAllNotificationsRead();
       setNotifData((prev) => prev ? {
         ...prev,
-        upcomingAssessments: prev.upcomingAssessments.map((n) => ({ ...n, isRead: true })),
-        missingObservations: prev.missingObservations.map((n) => ({ ...n, isRead: true })),
+        notifications: prev.notifications.map((n) => ({ ...n, isRead: true })),
         unreadCount: 0,
       } : prev);
     } catch {
       // ignore
     }
   }, [notifData]);
+
+  const handleMarkSingleRead = useCallback(async (id: string) => {
+    try {
+      await markSingleNotificationRead(id);
+      setNotifData((prev) => {
+        if (!prev) return prev;
+        const updated = prev.notifications.map((n) =>
+          n.id === id ? { ...n, isRead: true } : n
+        );
+        return {
+          ...prev,
+          notifications: updated,
+          unreadCount: updated.filter((n) => !n.isRead).length,
+        };
+      });
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  const handleNotificationClick = useCallback((n: DBNotification) => {
+    if (!n.isRead) {
+      handleMarkSingleRead(n.id);
+    }
+    setNotifOpen(false);
+    if (n.actionUrl) {
+      setCurrentView(n.actionUrl as ViewName);
+    }
+  }, [handleMarkSingleRead, setCurrentView]);
+
+  // Get icon and color for notification type
+  const getNotifTypeInfo = (type: string) => {
+    switch (type) {
+      case 'ASSESSMENT_DUE':
+        return { icon: AlertTriangle, bg: 'bg-amber-100/80 dark:bg-amber-900/20', text: 'text-amber-600 dark:text-amber-400', label: t('notifications.type_assessment_due') };
+      case 'MISSING_OBSERVATION':
+        return { icon: Info, bg: 'bg-teal-100/80 dark:bg-teal-900/20', text: 'text-teal-600 dark:text-teal-400', label: t('notifications.type_missing_observation') };
+      case 'NOTEBOOK_SHARED':
+        return { icon: BookMarked, bg: 'bg-emerald-100/80 dark:bg-emerald-900/20', text: 'text-emerald-600 dark:text-emerald-400', label: t('notifications.type_notebook_shared') };
+      case 'BEHAVIOR_ALERT':
+        return { icon: Shield, bg: 'bg-rose-100/80 dark:bg-rose-900/20', text: 'text-rose-600 dark:text-rose-400', label: t('notifications.type_behavior_alert') };
+      case 'GRADE_COMPUTED':
+        return { icon: Award, bg: 'bg-violet-100/80 dark:bg-violet-900/20', text: 'text-violet-600 dark:text-violet-400', label: t('notifications.type_grade_computed') };
+      case 'ATTENDANCE_ALERT':
+        return { icon: UserCheck, bg: 'bg-orange-100/80 dark:bg-orange-900/20', text: 'text-orange-600 dark:text-orange-400', label: t('notifications.type_attendance_alert') };
+      case 'REPORT_READY':
+        return { icon: FileText, bg: 'bg-cyan-100/80 dark:bg-cyan-900/20', text: 'text-cyan-600 dark:text-cyan-400', label: t('notifications.type_report_ready') };
+      default:
+        return { icon: Bell, bg: 'bg-gray-100/80 dark:bg-gray-900/20', text: 'text-gray-600 dark:text-gray-400', label: t('notifications.type_general') };
+    }
+  };
+
+  // Group notifications by date
+  const groupedNotifications = useMemo(() => {
+    if (!notifData?.notifications) return [];
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const yesterday = new Date(today.getTime() - 86400000);
+    const weekAgo = new Date(today.getTime() - 7 * 86400000);
+
+    const groups: { label: string; notifications: DBNotification[] }[] = [];
+    const todayItems: DBNotification[] = [];
+    const yesterdayItems: DBNotification[] = [];
+    const weekItems: DBNotification[] = [];
+    const earlierItems: DBNotification[] = [];
+
+    for (const n of notifData.notifications) {
+      const date = new Date(n.createdAt);
+      if (date >= today) todayItems.push(n);
+      else if (date >= yesterday) yesterdayItems.push(n);
+      else if (date >= weekAgo) weekItems.push(n);
+      else earlierItems.push(n);
+    }
+
+    if (todayItems.length > 0) groups.push({ label: t('notifications.today'), notifications: todayItems });
+    if (yesterdayItems.length > 0) groups.push({ label: t('notifications.yesterday'), notifications: yesterdayItems });
+    if (weekItems.length > 0) groups.push({ label: t('notifications.this_week'), notifications: weekItems });
+    if (earlierItems.length > 0) groups.push({ label: t('notifications.earlier'), notifications: earlierItems });
+
+    return groups;
+  }, [notifData?.notifications]);
 
   useEffect(() => {
     async function loadYears() {
@@ -515,12 +621,13 @@ export default function AppLayout() {
         </SidebarHeader>
 
         <SidebarContent>
-          {navSections.map((section) => (
+          {activeNavSections.map((section) => (
             <SidebarGroup key={section.id}>
               <SidebarGroupLabel className="text-emerald-600/70 dark:text-emerald-400/50 text-xs font-semibold uppercase tracking-wider inline-flex items-center gap-1.5">
                 {section.id === 'analysis' && <TrendingUp className="h-3 w-3" />}
                 {section.id === 'teaching' && <BookOpen className="h-3 w-3" />}
                 {section.id === 'setup' && <Settings className="h-3 w-3" />}
+                {section.id === 'student-main' && <GraduationCap className="h-3 w-3" />}
                 {t(section.labelKey)}
               </SidebarGroupLabel>
               <SidebarGroupContent>
@@ -711,7 +818,8 @@ export default function AppLayout() {
                     <motion.span
                       initial={{ scale: 0 }}
                       animate={{ scale: 1 }}
-                      className="absolute -top-0.5 -right-0.5 w-4 h-4 rounded-full bg-gradient-to-br from-emerald-400 to-teal-500 text-white text-[9px] font-bold flex items-center justify-center shadow-sm shadow-emerald-300/30"
+                      transition={{ type: 'spring', stiffness: 500, damping: 15 }}
+                      className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-0.5 rounded-full bg-gradient-to-br from-emerald-400 to-teal-500 text-white text-[9px] font-bold flex items-center justify-center shadow-sm shadow-emerald-300/30"
                     >
                       {notifData.unreadCount > 9 ? '9+' : notifData.unreadCount}
                     </motion.span>
@@ -720,142 +828,117 @@ export default function AppLayout() {
               </PopoverTrigger>
               <PopoverContent
                 align="end"
-                className="w-[360px] p-0 rounded-xl border-emerald-200/60 dark:border-emerald-900/40 shadow-xl shadow-emerald-900/10"
+                className="w-[380px] p-0 rounded-xl border-emerald-200/60 dark:border-emerald-900/40 shadow-xl shadow-emerald-900/10"
               >
                 {/* Header */}
                 <div className="flex items-center justify-between px-4 py-3 border-b border-emerald-100/50 dark:border-emerald-900/30 bg-gradient-to-r from-emerald-50/50 to-teal-50/30 dark:from-emerald-950/20 dark:to-teal-950/10">
-                  <h3 className="text-sm font-semibold text-emerald-700 dark:text-emerald-300">
+                  <h3 className="text-sm font-semibold text-emerald-700 dark:text-emerald-300 flex items-center gap-1.5">
+                    <Bell className="h-3.5 w-3.5" />
                     {t('notifications.title')}
                   </h3>
-                  {notifData && notifData.unreadCount > 0 && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={handleMarkAllRead}
-                      className="h-7 text-xs text-emerald-600 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-900/20"
-                    >
-                      {t('notifications.mark_all_read')}
-                    </Button>
-                  )}
+                  <div className="flex items-center gap-1">
+                    {notifData && notifData.unreadCount > 0 && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={handleMarkAllRead}
+                        className="h-7 text-xs text-emerald-600 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-900/20"
+                      >
+                        <CheckCircle2 className="h-3 w-3 mr-0.5" />
+                        {t('notifications.mark_all_read')}
+                      </Button>
+                    )}
+                  </div>
                 </div>
                 {/* Content */}
-                <ScrollArea className="max-h-[400px]">
+                <ScrollArea className="max-h-[420px]">
                   {notifLoading && (
                     <div className="px-4 py-8 text-center">
                       <Bell className="h-6 w-6 animate-pulse mx-auto mb-2 text-emerald-400" />
                       <p className="text-xs text-emerald-600/70 dark:text-emerald-400/60">Loading…</p>
                     </div>
                   )}
-                  {!notifLoading && notifData && notifData.upcomingAssessments.length === 0 && notifData.missingObservations.length === 0 && (
+                  {!notifLoading && notifData && notifData.notifications.length === 0 && (
                     <div className="px-4 py-8 text-center">
                       <Bell className="h-8 w-8 mx-auto mb-2 text-gray-300 dark:text-gray-600" />
                       <p className="text-sm text-gray-500 dark:text-gray-400">{t('notifications.empty')}</p>
                     </div>
                   )}
-                  {!notifLoading && notifData && notifData.upcomingAssessments.length > 0 && (
-                    <div className="px-2">
-                      <p className="px-2 py-1.5 text-[10px] uppercase tracking-wider font-semibold text-amber-600/70 dark:text-amber-400/60 flex items-center gap-1">
-                        <AlertTriangle className="h-3 w-3" />
-                        {t('notifications.upcoming_assessments')}
+                  {!notifLoading && groupedNotifications.map((group) => (
+                    <div key={group.label} className="px-2">
+                      <p className="px-2 py-1.5 text-[10px] uppercase tracking-wider font-semibold text-emerald-600/70 dark:text-emerald-400/60">
+                        {group.label}
                       </p>
-                      {notifData.upcomingAssessments.map((n: AssessmentNotification, i: number) => (
-                        <motion.div
-                          key={n.id}
-                          initial={{ opacity: 0, y: 8 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          transition={{ delay: i * 0.05 }}
-                          className={`flex items-start gap-3 px-2 py-2 rounded-lg transition-colors hover:bg-amber-50/50 dark:hover:bg-amber-900/10 ${n.isRead ? 'opacity-60' : ''}`}
-                        >
-                          <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-amber-100/80 dark:bg-amber-900/20 shrink-0">
-                            <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400" />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">{n.title}</p>
-                            <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{n.description}</p>
-                            <Badge variant="outline" className="mt-1 text-[10px] px-1.5 py-0 bg-amber-50/50 dark:bg-amber-900/10 border-amber-200/50 dark:border-amber-900/30 text-amber-700 dark:text-amber-300">
-                              {n.timestamp}
-                            </Badge>
-                          </div>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => { setNotifOpen(false); setCurrentView('assessments'); }}
-                            className="h-7 text-xs shrink-0 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-900/20 flex items-center gap-1"
+                      {group.notifications.map((n: DBNotification, i: number) => {
+                        const typeInfo = getNotifTypeInfo(n.type);
+                        const TypeIcon = typeInfo.icon;
+                        return (
+                          <motion.div
+                            key={n.id}
+                            initial={{ opacity: 0, y: 8 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: i * 0.03 }}
+                            onClick={() => handleNotificationClick(n)}
+                            className={`flex items-start gap-3 px-2 py-2.5 rounded-lg transition-colors cursor-pointer min-h-[44px] hover:bg-emerald-50/50 dark:hover:bg-emerald-900/10 ${!n.isRead ? 'bg-emerald-50/30 dark:bg-emerald-900/5' : 'opacity-70'}`}
                           >
-                            {t('notifications.to_assessment')}
-                            <ArrowRight className="h-3 w-3" />
-                          </Button>
-                        </motion.div>
-                      ))}
+                            <div className={`flex items-center justify-center w-8 h-8 rounded-lg ${typeInfo.bg} shrink-0`}>
+                              <TypeIcon className={`h-4 w-4 ${typeInfo.text}`} />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">{n.title}</p>
+                              <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{n.message}</p>
+                              <Badge variant="outline" className="mt-1 text-[10px] px-1.5 py-0 bg-emerald-50/50 dark:bg-emerald-900/10 border-emerald-200/50 dark:border-emerald-900/30 text-emerald-700 dark:text-emerald-300">
+                                {typeInfo.label}
+                              </Badge>
+                            </div>
+                            <div className="flex flex-col items-end gap-1 shrink-0">
+                              {!n.isRead && (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={(e) => { e.stopPropagation(); handleMarkSingleRead(n.id); }}
+                                  className="h-6 w-6 p-0 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-900/20"
+                                  title={t('notifications.mark_read')}
+                                >
+                                  <Check className="h-3 w-3" />
+                                </Button>
+                              )}
+                            </div>
+                          </motion.div>
+                        );
+                      })}
                     </div>
-                  )}
-                  {!notifLoading && notifData && notifData.missingObservations.length > 0 && (
-                    <div className="px-2 border-t border-emerald-100/30 dark:border-emerald-900/20">
-                      <p className="px-2 py-1.5 text-[10px] uppercase tracking-wider font-semibold text-teal-600/70 dark:text-teal-400/60 flex items-center gap-1">
-                        <Info className="h-3 w-3" />
-                        {t('notifications.missing_observations')}
-                      </p>
-                      {notifData.missingObservations.map((n: MissingObservationNotification, i: number) => (
-                        <motion.div
-                          key={n.id}
-                          initial={{ opacity: 0, y: 8 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          transition={{ delay: i * 0.05 }}
-                          className={`flex items-start gap-3 px-2 py-2 rounded-lg transition-colors hover:bg-teal-50/50 dark:hover:bg-teal-900/10 ${n.isRead ? 'opacity-60' : ''}`}
-                        >
-                          <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-teal-100/80 dark:bg-teal-900/20 shrink-0">
-                            <Info className="h-4 w-4 text-teal-600 dark:text-teal-400" />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">{n.title}</p>
-                            <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{n.description}</p>
-                            <Badge variant="outline" className="mt-1 text-[10px] px-1.5 py-0 bg-teal-50/50 dark:bg-teal-900/10 border-teal-200/50 dark:border-teal-900/30 text-teal-700 dark:text-teal-300">
-                              {n.timestamp}
-                            </Badge>
-                          </div>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => { setNotifOpen(false); setCurrentView('progress'); }}
-                            className="h-7 text-xs shrink-0 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-900/20 flex items-center gap-1"
-                          >
-                            {t('notifications.record_now')}
-                            <ArrowRight className="h-3 w-3" />
-                          </Button>
-                        </motion.div>
-                      ))}
-                    </div>
-                  )}
-                  {/* Quick Actions footer */}
-                  {!notifLoading && notifData && (notifData.upcomingAssessments.length > 0 || notifData.missingObservations.length > 0) && (
-                    <div className="px-3 py-2 border-t border-emerald-100/30 dark:border-emerald-900/20 flex gap-2">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => { setNotifOpen(false); setCurrentView('progress'); }}
-                        className="h-7 text-xs text-emerald-600 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-900/20"
-                      >
-                        <Pencil className="w-3 h-3 mr-0.5" /> {t('notifications.record_now')}
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => { setNotifOpen(false); setCurrentView('assessments'); }}
-                        className="h-7 text-xs text-emerald-600 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-900/20"
-                      >
-                        <ClipboardCheck className="w-3 h-3 mr-0.5" /> {t('notifications.to_assessment')}
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => { setNotifOpen(false); setCurrentView('reports'); }}
-                        className="h-7 text-xs text-emerald-600 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-900/20"
-                      >
-                        <FileText className="w-3 h-3 mr-0.5" /> {t('notifications.to_report')}
-                      </Button>
-                    </div>
-                  )}
+                  ))}
                 </ScrollArea>
+                {/* Footer */}
+                {!notifLoading && notifData && notifData.notifications.length > 0 && (
+                  <div className="px-3 py-2 border-t border-emerald-100/30 dark:border-emerald-900/20 flex gap-2">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => { setNotifOpen(false); setCurrentView('progress'); }}
+                      className="h-7 text-xs text-emerald-600 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-900/20"
+                    >
+                      <Pencil className="w-3 h-3 mr-0.5" /> {t('notifications.record_now')}
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => { setNotifOpen(false); setCurrentView('assessments'); }}
+                      className="h-7 text-xs text-emerald-600 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-900/20"
+                    >
+                      <ClipboardCheck className="w-3 h-3 mr-0.5" /> {t('notifications.to_assessment')}
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => { setNotifOpen(false); setCurrentView('reports'); }}
+                      className="h-7 text-xs text-emerald-600 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-900/20"
+                    >
+                      <FileText className="w-3 h-3 mr-0.5" /> {t('notifications.to_report')}
+                    </Button>
+                  </div>
+                )}
               </PopoverContent>
             </Popover>
             {/* Language toggle (mobile: just flag) */}

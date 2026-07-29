@@ -13,6 +13,7 @@ import {
   Heading1, Heading2, Heading3, CheckCircle2,
   User as UserIcon, GraduationCap, FileDown,
   Copy, FlaskConical, Languages, Calculator, Paintbrush, Megaphone,
+  Strikethrough, Type, Highlighter, GripVertical,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -27,6 +28,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { Switch } from '@/components/ui/switch';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useAppStore } from '@/lib/store';
 import { t } from '@/lib/i18n';
 import { apiGet, apiPost, apiPut, apiDelete } from '@/lib/api';
@@ -279,63 +281,73 @@ function getPageBackgroundCSS(type: string): React.CSSProperties {
   }
 }
 
-// ─── Rich Text Toolbar ───────────────────────────────────────────────
+// ─── WYSIWYG Rich Text Toolbar ───────────────────────────────────────
 
-function RichTextToolbar({ textareaRef }: { textareaRef: React.RefObject<HTMLTextAreaElement | null> }) {
-  // These functions only access ref.current inside event handlers (onClick), never during render
-  const applyFormat = (before: string, after: string) => () => {
-    const textarea = textareaRef.current;
-    if (!textarea) return;
-    const start = textarea.selectionStart;
-    const end = textarea.selectionEnd;
-    const text = textarea.value;
-    const selectedText = text.substring(start, end);
-    const newText = text.substring(0, start) + before + selectedText + after + text.substring(end);
-    const nativeInputValueSetter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value')?.set;
-    if (nativeInputValueSetter) {
-      nativeInputValueSetter.call(textarea, newText);
-    }
-    textarea.dispatchEvent(new Event('input', { bubbles: true }));
-    textarea.setSelectionRange(start + before.length + selectedText.length, start + before.length + selectedText.length);
-    textarea.focus();
-  };
+const TEXT_COLORS = [
+  { key: 'black', color: '#1f2937', labelKey: 'notebooks.toolbar_color_black' },
+  { key: 'red', color: '#dc2626', labelKey: 'notebooks.toolbar_color_red' },
+  { key: 'blue', color: '#2563eb', labelKey: 'notebooks.toolbar_color_blue' },
+  { key: 'green', color: '#16a34a', labelKey: 'notebooks.toolbar_color_green' },
+  { key: 'orange', color: '#ea580c', labelKey: 'notebooks.toolbar_color_orange' },
+];
 
-  const applyLinePrefix = (prefix: string) => () => {
-    const textarea = textareaRef.current;
-    if (!textarea) return;
-    const start = textarea.selectionStart;
-    const text = textarea.value;
-    const lineStart = text.lastIndexOf('\n', start - 1) + 1;
-    const newText = text.substring(0, lineStart) + prefix + text.substring(lineStart);
-    const nativeInputValueSetter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value')?.set;
-    if (nativeInputValueSetter) {
-      nativeInputValueSetter.call(textarea, newText);
-    }
-    textarea.dispatchEvent(new Event('input', { bubbles: true }));
-    textarea.setSelectionRange(start + prefix.length, start + prefix.length);
-    textarea.focus();
-  };
+const HIGHLIGHT_COLORS = [
+  { key: 'yellow', color: '#fef08a', labelKey: 'notebooks.toolbar_highlight_yellow' },
+  { key: 'green', color: '#bbf7d0', labelKey: 'notebooks.toolbar_highlight_green' },
+  { key: 'blue', color: '#bfdbfe', labelKey: 'notebooks.toolbar_highlight_blue' },
+  { key: 'pink', color: '#fbcfe8', labelKey: 'notebooks.toolbar_highlight_pink' },
+  { key: 'none', color: 'transparent', labelKey: 'notebooks.toolbar_highlight_none' },
+];
 
-  const applyBlockPrefix = (prefix: string) => () => {
-    const textarea = textareaRef.current;
-    if (!textarea) return;
-    const start = textarea.selectionStart;
-    const end = textarea.selectionEnd;
-    const text = textarea.value;
-    const lineStart = text.lastIndexOf('\n', start - 1) + 1;
-    const lineEnd = text.indexOf('\n', end);
-    const actualEnd = lineEnd === -1 ? text.length : lineEnd;
-    const selectedLines = text.substring(lineStart, actualEnd);
-    const newLines = selectedLines.split('\n').map(line => prefix + line).join('\n');
-    const newText = text.substring(0, lineStart) + newLines + text.substring(actualEnd);
-    const nativeInputValueSetter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value')?.set;
-    if (nativeInputValueSetter) {
-      nativeInputValueSetter.call(textarea, newText);
+function WysiwygToolbar({ editorRef, onFormatChange }: { editorRef: React.RefObject<HTMLDivElement | null>; onFormatChange: () => void }) {
+  const [activeStates, setActiveStates] = useState<Record<string, boolean>>({});
+
+  const updateActiveStates = useCallback(() => {
+    setActiveStates({
+      bold: document.queryCommandState('bold'),
+      italic: document.queryCommandState('italic'),
+      underline: document.queryCommandState('underline'),
+      strikethrough: document.queryCommandState('strikeThrough'),
+      justifyLeft: document.queryCommandState('justifyLeft'),
+      justifyCenter: document.queryCommandState('justifyCenter'),
+      justifyRight: document.queryCommandState('justifyRight'),
+    });
+  }, []);
+
+  const execCommand = useCallback((command: string, value?: string) => {
+    document.execCommand(command, false, value);
+    editorRef.current?.focus();
+    updateActiveStates();
+    onFormatChange();
+  }, [editorRef, updateActiveStates, onFormatChange]);
+
+  const applyHeading = useCallback((level: number) => {
+    document.execCommand('formatBlock', false, `h${level}`);
+    editorRef.current?.focus();
+    updateActiveStates();
+    onFormatChange();
+  }, [editorRef, updateActiveStates, onFormatChange]);
+
+  const applyTextColor = useCallback((color: string) => {
+    document.execCommand('foreColor', false, color);
+    editorRef.current?.focus();
+    updateActiveStates();
+    onFormatChange();
+  }, [editorRef, updateActiveStates, onFormatChange]);
+
+  const applyHighlight = useCallback((color: string) => {
+    if (color === 'transparent') {
+      document.execCommand('removeFormat', false);
+    } else {
+      document.execCommand('hiliteColor', false, color);
     }
-    textarea.dispatchEvent(new Event('input', { bubbles: true }));
-    textarea.setSelectionRange(start + prefix.length, start + prefix.length);
-    textarea.focus();
-  };
+    editorRef.current?.focus();
+    updateActiveStates();
+    onFormatChange();
+  }, [editorRef, updateActiveStates, onFormatChange]);
+
+  const fmtBtnClass = (active: boolean) =>
+    `min-h-[36px] min-w-[36px] h-9 w-9 p-0 shrink-0 ${active ? 'bg-gray-200 dark:bg-gray-600 text-gray-900 dark:text-gray-100' : ''}`;
 
   return (
     <TooltipProvider delayDuration={300}>
@@ -343,7 +355,7 @@ function RichTextToolbar({ textareaRef }: { textareaRef: React.RefObject<HTMLTex
         {/* Format group */}
         <Tooltip>
           <TooltipTrigger asChild>
-            <Button variant="ghost" size="sm" onClick={applyFormat('**', '**')} className="min-h-[36px] min-w-[36px] h-9 w-9 p-0 shrink-0">
+            <Button variant="ghost" size="sm" onClick={() => execCommand('bold')} className={fmtBtnClass(activeStates.bold)}>
               <Bold className="w-4 h-4" />
             </Button>
           </TooltipTrigger>
@@ -351,7 +363,7 @@ function RichTextToolbar({ textareaRef }: { textareaRef: React.RefObject<HTMLTex
         </Tooltip>
         <Tooltip>
           <TooltipTrigger asChild>
-            <Button variant="ghost" size="sm" onClick={applyFormat('*', '*')} className="min-h-[36px] min-w-[36px] h-9 w-9 p-0 shrink-0">
+            <Button variant="ghost" size="sm" onClick={() => execCommand('italic')} className={fmtBtnClass(activeStates.italic)}>
               <ItalicIcon className="w-4 h-4" />
             </Button>
           </TooltipTrigger>
@@ -359,11 +371,19 @@ function RichTextToolbar({ textareaRef }: { textareaRef: React.RefObject<HTMLTex
         </Tooltip>
         <Tooltip>
           <TooltipTrigger asChild>
-            <Button variant="ghost" size="sm" onClick={applyFormat('_', '_')} className="min-h-[36px] min-w-[36px] h-9 w-9 p-0 shrink-0">
+            <Button variant="ghost" size="sm" onClick={() => execCommand('underline')} className={fmtBtnClass(activeStates.underline)}>
               <UnderlineIcon className="w-4 h-4" />
             </Button>
           </TooltipTrigger>
           <TooltipContent side="bottom" className="text-xs">{t('notebooks.toolbar_underline')}</TooltipContent>
+        </Tooltip>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button variant="ghost" size="sm" onClick={() => execCommand('strikeThrough')} className={fmtBtnClass(activeStates.strikethrough)}>
+              <Strikethrough className="w-4 h-4" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="bottom" className="text-xs">{t('notebooks.toolbar_strikethrough')}</TooltipContent>
         </Tooltip>
 
         <Separator orientation="vertical" className="h-5 mx-1" />
@@ -371,7 +391,7 @@ function RichTextToolbar({ textareaRef }: { textareaRef: React.RefObject<HTMLTex
         {/* Heading group */}
         <Tooltip>
           <TooltipTrigger asChild>
-            <Button variant="ghost" size="sm" onClick={applyLinePrefix('# ')} className="min-h-[36px] min-w-[36px] h-9 w-9 p-0 shrink-0">
+            <Button variant="ghost" size="sm" onClick={() => applyHeading(1)} className="min-h-[36px] min-w-[36px] h-9 w-9 p-0 shrink-0">
               <Heading1 className="w-4 h-4" />
             </Button>
           </TooltipTrigger>
@@ -379,7 +399,7 @@ function RichTextToolbar({ textareaRef }: { textareaRef: React.RefObject<HTMLTex
         </Tooltip>
         <Tooltip>
           <TooltipTrigger asChild>
-            <Button variant="ghost" size="sm" onClick={applyLinePrefix('## ')} className="min-h-[36px] min-w-[36px] h-9 w-9 p-0 shrink-0">
+            <Button variant="ghost" size="sm" onClick={() => applyHeading(2)} className="min-h-[36px] min-w-[36px] h-9 w-9 p-0 shrink-0">
               <Heading2 className="w-4 h-4" />
             </Button>
           </TooltipTrigger>
@@ -387,7 +407,7 @@ function RichTextToolbar({ textareaRef }: { textareaRef: React.RefObject<HTMLTex
         </Tooltip>
         <Tooltip>
           <TooltipTrigger asChild>
-            <Button variant="ghost" size="sm" onClick={applyLinePrefix('### ')} className="min-h-[36px] min-w-[36px] h-9 w-9 p-0 shrink-0">
+            <Button variant="ghost" size="sm" onClick={() => applyHeading(3)} className="min-h-[36px] min-w-[36px] h-9 w-9 p-0 shrink-0">
               <Heading3 className="w-4 h-4" />
             </Button>
           </TooltipTrigger>
@@ -399,7 +419,7 @@ function RichTextToolbar({ textareaRef }: { textareaRef: React.RefObject<HTMLTex
         {/* List group */}
         <Tooltip>
           <TooltipTrigger asChild>
-            <Button variant="ghost" size="sm" onClick={applyBlockPrefix('- ')} className="min-h-[36px] min-w-[36px] h-9 w-9 p-0 shrink-0">
+            <Button variant="ghost" size="sm" onClick={() => execCommand('insertUnorderedList')} className="min-h-[36px] min-w-[36px] h-9 w-9 p-0 shrink-0">
               <List className="w-4 h-4" />
             </Button>
           </TooltipTrigger>
@@ -407,7 +427,7 @@ function RichTextToolbar({ textareaRef }: { textareaRef: React.RefObject<HTMLTex
         </Tooltip>
         <Tooltip>
           <TooltipTrigger asChild>
-            <Button variant="ghost" size="sm" onClick={applyBlockPrefix('1. ')} className="min-h-[36px] min-w-[36px] h-9 w-9 p-0 shrink-0">
+            <Button variant="ghost" size="sm" onClick={() => execCommand('insertOrderedList')} className="min-h-[36px] min-w-[36px] h-9 w-9 p-0 shrink-0">
               <ListOrdered className="w-4 h-4" />
             </Button>
           </TooltipTrigger>
@@ -419,7 +439,7 @@ function RichTextToolbar({ textareaRef }: { textareaRef: React.RefObject<HTMLTex
         {/* Alignment group */}
         <Tooltip>
           <TooltipTrigger asChild>
-            <Button variant="ghost" size="sm" onClick={applyLinePrefix('')} className="min-h-[36px] min-w-[36px] h-9 w-9 p-0 shrink-0">
+            <Button variant="ghost" size="sm" onClick={() => execCommand('justifyLeft')} className={fmtBtnClass(activeStates.justifyLeft)}>
               <AlignLeftIcon className="w-4 h-4" />
             </Button>
           </TooltipTrigger>
@@ -427,7 +447,7 @@ function RichTextToolbar({ textareaRef }: { textareaRef: React.RefObject<HTMLTex
         </Tooltip>
         <Tooltip>
           <TooltipTrigger asChild>
-            <Button variant="ghost" size="sm" onClick={applyLinePrefix('::center::\n')} className="min-h-[36px] min-w-[36px] h-9 w-9 p-0 shrink-0">
+            <Button variant="ghost" size="sm" onClick={() => execCommand('justifyCenter')} className={fmtBtnClass(activeStates.justifyCenter)}>
               <AlignCenterIcon className="w-4 h-4" />
             </Button>
           </TooltipTrigger>
@@ -435,12 +455,74 @@ function RichTextToolbar({ textareaRef }: { textareaRef: React.RefObject<HTMLTex
         </Tooltip>
         <Tooltip>
           <TooltipTrigger asChild>
-            <Button variant="ghost" size="sm" onClick={applyLinePrefix('::right::\n')} className="min-h-[36px] min-w-[36px] h-9 w-9 p-0 shrink-0">
+            <Button variant="ghost" size="sm" onClick={() => execCommand('justifyRight')} className={fmtBtnClass(activeStates.justifyRight)}>
               <AlignRightIcon className="w-4 h-4" />
             </Button>
           </TooltipTrigger>
           <TooltipContent side="bottom" className="text-xs">{t('notebooks.toolbar_align_right')}</TooltipContent>
         </Tooltip>
+
+        <Separator orientation="vertical" className="h-5 mx-1" />
+
+        {/* Text color */}
+        <Popover>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <PopoverTrigger asChild>
+                <Button variant="ghost" size="sm" className="min-h-[36px] min-w-[36px] h-9 w-9 p-0 shrink-0">
+                  <Type className="w-4 h-4" />
+                </Button>
+              </PopoverTrigger>
+            </TooltipTrigger>
+            <TooltipContent side="bottom" className="text-xs">{t('notebooks.toolbar_text_color')}</TooltipContent>
+          </Tooltip>
+          <PopoverContent className="w-auto p-2" align="start">
+            <div className="flex items-center gap-1.5">
+              {TEXT_COLORS.map((tc) => (
+                <button
+                  key={tc.key}
+                  onClick={() => applyTextColor(tc.color)}
+                  className="w-7 h-7 rounded-full border-2 border-gray-200 dark:border-gray-600 hover:scale-110 transition-transform"
+                  style={{ backgroundColor: tc.color }}
+                  title={t(tc.labelKey)}
+                />
+              ))}
+            </div>
+          </PopoverContent>
+        </Popover>
+
+        {/* Highlight color */}
+        <Popover>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <PopoverTrigger asChild>
+                <Button variant="ghost" size="sm" className="min-h-[36px] min-w-[36px] h-9 w-9 p-0 shrink-0">
+                  <Highlighter className="w-4 h-4" />
+                </Button>
+              </PopoverTrigger>
+            </TooltipTrigger>
+            <TooltipContent side="bottom" className="text-xs">{t('notebooks.toolbar_highlight')}</TooltipContent>
+          </Tooltip>
+          <PopoverContent className="w-auto p-2" align="start">
+            <div className="flex items-center gap-1.5">
+              {HIGHLIGHT_COLORS.map((hc) => (
+                <button
+                  key={hc.key}
+                  onClick={() => applyHighlight(hc.color)}
+                  className={`w-7 h-7 rounded-full border-2 hover:scale-110 transition-transform ${
+                    hc.key === 'none'
+                      ? 'border-gray-300 dark:border-gray-500 bg-white dark:bg-gray-800 flex items-center justify-center'
+                      : 'border-gray-200 dark:border-gray-600'
+                  }`}
+                  style={hc.key !== 'none' ? { backgroundColor: hc.color } : {}}
+                  title={t(hc.labelKey)}
+                >
+                  {hc.key === 'none' && <X className="w-3.5 h-3.5 text-gray-400" />}
+                </button>
+              ))}
+            </div>
+          </PopoverContent>
+        </Popover>
       </div>
     </TooltipProvider>
   );
@@ -897,6 +979,7 @@ function NotebookDetailView({
   onDeletePage,
   onToggleBookmark,
   onTogglePublic,
+  onReorderPages,
 }: {
   notebook: Notebook;
   subjectName: string | null;
@@ -906,6 +989,7 @@ function NotebookDetailView({
   onDeletePage: (pageId: string) => void;
   onToggleBookmark: (pageId: string) => void;
   onTogglePublic: () => void;
+  onReorderPages: (pageOrders: Array<{ id: string; pageNumber: number }>) => Promise<void>;
 }) {
   const [currentPageId, setCurrentPageId] = useState<string | null>(null);
   const [pageContent, setPageContent] = useState('');
@@ -914,39 +998,71 @@ function NotebookDetailView({
   const [saving, setSaving] = useState(false);
   const [autoSaveStatus, setAutoSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
 
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  // Drag-and-drop state
+  const [draggedPageId, setDraggedPageId] = useState<string | null>(null);
+  const [dragOverPageId, setDragOverPageId] = useState<string | null>(null);
+
+  const editorRef = useRef<HTMLDivElement>(null);
   const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastSavedContentRef = useRef<string>('');
   const lastSavedTitleRef = useRef<string>('');
+  const isInternalChange = useRef(false);
 
   const pages = notebook.pages ?? [];
   const currentPage = pages.find(p => p.id === currentPageId) ?? pages[0] ?? null;
 
+  // Set content into editor ref without triggering auto-save
+  const setEditorContent = useCallback((html: string) => {
+    isInternalChange.current = true;
+    if (editorRef.current) {
+      editorRef.current.innerHTML = html;
+    }
+    setPageContent(html);
+    // Reset flag after React processes the state update
+    setTimeout(() => { isInternalChange.current = false; }, 50);
+  }, []);
+
   useEffect(() => {
     if (currentPage) {
       setCurrentPageId(currentPage.id);
-      setPageContent(currentPage.textContent ?? '');
+      setEditorContent(currentPage.textContent ?? '');
       setPageTitle(currentPage.title ?? '');
       lastSavedContentRef.current = currentPage.textContent ?? '';
       lastSavedTitleRef.current = currentPage.title ?? '';
     } else if (pages.length > 0) {
       setCurrentPageId(pages[0].id);
-      setPageContent(pages[0].textContent ?? '');
+      setEditorContent(pages[0].textContent ?? '');
       setPageTitle(pages[0].title ?? '');
       lastSavedContentRef.current = pages[0].textContent ?? '';
       lastSavedTitleRef.current = pages[0].title ?? '';
     }
-  }, [notebook.id]);
+  }, [notebook.id, setEditorContent]);
 
   useEffect(() => {
     if (currentPage) {
-      setPageContent(currentPage.textContent ?? '');
+      setEditorContent(currentPage.textContent ?? '');
       setPageTitle(currentPage.title ?? '');
       lastSavedContentRef.current = currentPage.textContent ?? '';
       lastSavedTitleRef.current = currentPage.title ?? '';
       setAutoSaveStatus('idle');
     }
-  }, [currentPageId]);
+  }, [currentPageId, setEditorContent]);
+
+  // Handle content change from contentEditable div
+  const handleEditorInput = useCallback(() => {
+    if (editorRef.current) {
+      const html = editorRef.current.innerHTML;
+      setPageContent(html);
+    }
+  }, []);
+
+  // Handle format change from toolbar (for active state refresh)
+  const handleFormatChange = useCallback(() => {
+    if (editorRef.current) {
+      const html = editorRef.current.innerHTML;
+      setPageContent(html);
+    }
+  }, []);
 
   // Auto-save with 3 second debounce
   const triggerAutoSave = useCallback(() => {
@@ -968,7 +1084,6 @@ function NotebookDetailView({
         lastSavedContentRef.current = pageContent;
         lastSavedTitleRef.current = pageTitle;
         setAutoSaveStatus('saved');
-        // Reset status after 2 seconds
         setTimeout(() => setAutoSaveStatus('idle'), 2000);
       } catch {
         setAutoSaveStatus('idle');
@@ -978,6 +1093,7 @@ function NotebookDetailView({
 
   // Trigger auto-save on content or title change
   useEffect(() => {
+    if (isInternalChange.current) return;
     triggerAutoSave();
     return () => {
       if (autoSaveTimerRef.current) {
@@ -988,17 +1104,22 @@ function NotebookDetailView({
 
   const handleSavePage = async () => {
     if (!currentPage) return;
+    // Sync content from editor
+    if (editorRef.current) {
+      setPageContent(editorRef.current.innerHTML);
+    }
     // Cancel pending auto-save
     if (autoSaveTimerRef.current) {
       clearTimeout(autoSaveTimerRef.current);
     }
     setSaving(true);
     try {
+      const contentToSave = editorRef.current?.innerHTML ?? pageContent;
       await onUpdatePage(currentPage.id, {
-        textContent: pageContent,
+        textContent: contentToSave,
         title: pageTitle.trim() || null,
       });
-      lastSavedContentRef.current = pageContent;
+      lastSavedContentRef.current = contentToSave;
       lastSavedTitleRef.current = pageTitle;
       toast.success(t('notebooks.page_saved'));
       setAutoSaveStatus('idle');
@@ -1008,6 +1129,94 @@ function NotebookDetailView({
       setSaving(false);
     }
   };
+
+  // Drag-and-drop handlers for page reorder
+  const handleDragStart = useCallback((e: React.DragEvent, pageId: string) => {
+    setDraggedPageId(pageId);
+    e.dataTransfer.effectAllowed = 'move';
+    // Set a transparent drag image
+    const ghost = document.createElement('div');
+    ghost.style.opacity = '0';
+    document.body.appendChild(ghost);
+    e.dataTransfer.setDragImage(ghost, 0, 0);
+    setTimeout(() => document.body.removeChild(ghost), 0);
+  }, []);
+
+  const handleDragOver = useCallback((e: React.DragEvent, pageId: string) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    if (draggedPageId && pageId !== draggedPageId) {
+      setDragOverPageId(pageId);
+    }
+  }, [draggedPageId]);
+
+  const handleDragLeave = useCallback(() => {
+    setDragOverPageId(null);
+  }, []);
+
+  const handleDrop = useCallback(async (targetPageId: string) => {
+    if (!draggedPageId || draggedPageId === targetPageId) {
+      setDraggedPageId(null);
+      setDragOverPageId(null);
+      return;
+    }
+
+    const draggedIdx = pages.findIndex(p => p.id === draggedPageId);
+    const targetIdx = pages.findIndex(p => p.id === targetPageId);
+    if (draggedIdx === -1 || targetIdx === -1) {
+      setDraggedPageId(null);
+      setDragOverPageId(null);
+      return;
+    }
+
+    // Reorder pages locally
+    const newPages = [...pages];
+    const [removed] = newPages.splice(draggedIdx, 1);
+    newPages.splice(targetIdx, 0, removed);
+
+    // Build new pageOrders array
+    const pageOrders = newPages.map((p, i) => ({ id: p.id, pageNumber: i + 1 }));
+
+    setDraggedPageId(null);
+    setDragOverPageId(null);
+
+    try {
+      await onReorderPages(pageOrders);
+    } catch {
+      toast.error(t('notebooks.reorder_error'));
+    }
+  }, [draggedPageId, pages, onReorderPages]);
+
+  const handleDragEnd = useCallback(() => {
+    setDraggedPageId(null);
+    setDragOverPageId(null);
+  }, []);
+
+  // Touch-based drag handlers for tablets
+  const touchDragRef = useRef<{ pageId: string; startY: number; clone: HTMLElement | null } | null>(null);
+
+  const handleTouchStart = useCallback((e: React.TouchEvent, pageId: string) => {
+    const touch = e.touches[0];
+    touchDragRef.current = { pageId, startY: touch.clientY, clone: null };
+  }, []);
+
+  const handleTouchMove = useCallback((e: React.TouchEvent) => {
+    if (!touchDragRef.current) return;
+    const touch = e.touches[0];
+    const deltaY = Math.abs(touch.clientY - touchDragRef.current.startY);
+    if (deltaY > 10 && !touchDragRef.current.clone) {
+      setDraggedPageId(touchDragRef.current.pageId);
+    }
+  }, []);
+
+  const handleTouchEnd = useCallback(() => {
+    if (dragOverPageId && touchDragRef.current && dragOverPageId !== touchDragRef.current.pageId) {
+      handleDrop(dragOverPageId);
+    }
+    touchDragRef.current = null;
+    setDraggedPageId(null);
+    setDragOverPageId(null);
+  }, [dragOverPageId, handleDrop]);
 
   const IconComponent = notebook.icon ? ICON_MAP[notebook.icon] ?? BookOpen : BookOpen;
 
@@ -1114,42 +1323,70 @@ function NotebookDetailView({
 
           <ScrollArea className="flex-1 max-h-[calc(100vh-280px)]">
             <div className="p-2 space-y-2">
-              {pages.map((page, idx) => (
-                <motion.div
-                  key={page.id}
-                  initial={{ opacity: 0, x: -10 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: idx * 0.03 }}
-                  className={`rounded-lg transition-all ${
-                    currentPageId === page.id
-                      ? 'ring-2 ring-emerald-500'
-                      : ''
-                  }`}
-                >
-                  {/* Page thumbnail */}
-                  <PageThumbnail page={page} notebookType={notebook.notebookType} />
-
-                  {/* Page info below thumbnail */}
-                  <button
-                    onClick={() => { setCurrentPageId(page.id); setDrawingMode(false); }}
-                    className={`w-full text-left p-2 rounded-b-lg text-sm transition-all min-h-[44px] flex items-center gap-2 ${
+              {pages.map((page, idx) => {
+                const isDragged = draggedPageId === page.id;
+                const isDragOver = dragOverPageId === page.id;
+                return (
+                  <motion.div
+                    key={page.id}
+                    initial={{ opacity: 0, x: -10 }}
+                    animate={{
+                      opacity: isDragged ? 0.5 : 1,
+                      x: 0,
+                      scale: isDragged ? 0.95 : 1,
+                    }}
+                    transition={{ delay: idx * 0.03 }}
+                    layout
+                    className={`rounded-lg transition-all ${
                       currentPageId === page.id
-                        ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 font-medium'
-                        : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
+                        ? 'ring-2 ring-emerald-500'
+                        : ''
+                    } ${isDragOver ? 'ring-2 ring-blue-400 shadow-lg' : ''} ${
+                      isDragged ? 'shadow-md' : ''
                     }`}
+                    draggable
+                    onDragStart={(e) => handleDragStart(e as unknown as React.DragEvent<HTMLDivElement>, page.id)}
+                    onDragOver={(e) => handleDragOver(e as unknown as React.DragEvent<HTMLDivElement>, page.id)}
+                    onDragLeave={handleDragLeave}
+                    onDrop={() => handleDrop(page.id)}
+                    onDragEnd={handleDragEnd}
+                    onTouchStart={(e) => handleTouchStart(e, page.id)}
+                    onTouchMove={handleTouchMove}
+                    onTouchEnd={handleTouchEnd}
                   >
-                    <span className="text-xs font-mono text-gray-400 dark:text-gray-500 shrink-0">
-                      {page.pageNumber}
-                    </span>
-                    <span className="truncate flex-1">
-                      {page.title ?? `${t('notebooks.page')} ${page.pageNumber}`}
-                    </span>
-                    {page.isBookmark && (
-                      <Bookmark className="w-3.5 h-3.5 text-amber-500 fill-amber-500 shrink-0" />
-                    )}
-                  </button>
-                </motion.div>
-              ))}
+                    {/* Drag handle */}
+                    <div className="flex items-center">
+                      <div className="pl-1.5 py-1 cursor-grab active:cursor-grabbing touch-none">
+                        <GripVertical className="w-4 h-4 text-gray-400 dark:text-gray-500" />
+                      </div>
+                      <div className="flex-1">
+                        {/* Page thumbnail */}
+                        <PageThumbnail page={page} notebookType={notebook.notebookType} />
+                      </div>
+                    </div>
+
+                    {/* Page info below thumbnail */}
+                    <button
+                      onClick={() => { setCurrentPageId(page.id); setDrawingMode(false); }}
+                      className={`w-full text-left p-2 rounded-b-lg text-sm transition-all min-h-[44px] flex items-center gap-2 ${
+                        currentPageId === page.id
+                          ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 font-medium'
+                          : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
+                      }`}
+                    >
+                      <span className="text-xs font-mono text-gray-400 dark:text-gray-500 shrink-0">
+                        {page.pageNumber}
+                      </span>
+                      <span className="truncate flex-1">
+                        {page.title ?? `${t('notebooks.page')} ${page.pageNumber}`}
+                      </span>
+                      {page.isBookmark && (
+                        <Bookmark className="w-3.5 h-3.5 text-amber-500 fill-amber-500 shrink-0" />
+                      )}
+                    </button>
+                  </motion.div>
+                );
+              })}
             </div>
           </ScrollArea>
 
@@ -1220,10 +1457,10 @@ function NotebookDetailView({
                   </motion.div>
                 </div>
               ) : (
-                /* Text editing area with rich text toolbar and page background */
+                /* Text editing area with WYSIWYG toolbar and page background */
                 <div className="flex-1 flex flex-col overflow-hidden">
-                  {/* Rich text toolbar */}
-                  <RichTextToolbar textareaRef={textareaRef} />
+                  {/* WYSIWYG toolbar */}
+                  <WysiwygToolbar editorRef={editorRef} onFormatChange={handleFormatChange} />
 
                   {/* Page content area */}
                   <div className="flex-1 overflow-hidden p-4">
@@ -1236,12 +1473,13 @@ function NotebookDetailView({
                           className="min-h-full p-6"
                           style={getPageBackgroundCSS(currentPage.background ?? notebook.notebookType)}
                         >
-                          <textarea
-                            ref={textareaRef}
-                            value={pageContent}
-                            onChange={(e) => setPageContent(e.target.value)}
-                            placeholder={t('notebooks.page_content') + '...'}
-                            className="w-full min-h-[500px] bg-transparent border-0 outline-none resize-none text-base leading-8 text-gray-800 dark:text-gray-200 placeholder:text-gray-300 dark:placeholder:text-gray-600 focus:ring-0"
+                          <div
+                            ref={editorRef}
+                            contentEditable
+                            suppressContentEditableWarning
+                            onInput={handleEditorInput}
+                            data-placeholder={t('notebooks.page_content') + '...'}
+                            className="w-full min-h-[500px] bg-transparent outline-none text-base text-gray-800 dark:text-gray-200 focus:ring-0 prose prose-sm max-w-none [&:empty]:before:content-[attr(data-placeholder)] [&:empty]:before:text-gray-300 [&:empty]:dark:before:text-gray-600 [&_h1]:text-2xl [&_h1]:font-bold [&_h1]:mb-2 [&_h1]:mt-4 [&_h2]:text-xl [&_h2]:font-bold [&_h2]:mb-1.5 [&_h2]:mt-3 [&_h3]:text-lg [&_h3]:font-semibold [&_h3]:mb-1 [&_h3]:mt-2 [&_ul]:list-disc [&_ul]:pl-6 [&_ul]:mb-2 [&_ol]:list-decimal [&_ol]:pl-6 [&_ol]:mb-2 [&_li]:mb-0.5"
                             style={{ lineHeight: notebook.notebookType === 'lined' || notebook.notebookType === 'calligraphy' ? '32px' : '1.5' }}
                           />
                         </div>
@@ -1507,6 +1745,21 @@ export default function NotebooksView() {
     setNotebooks(prev => prev.map(n => n.id === updated.id ? updated : n));
   }, [selectedNotebook]);
 
+  const handleReorderPages = useCallback(async (pageOrders: Array<{ id: string; pageNumber: number }>) => {
+    if (!selectedNotebook) return;
+    const updatedPages = await apiPut<NotebookPage[]>(`/api/notebooks/${selectedNotebook.id}/pages/reorder`, {
+      pageOrders,
+    });
+    setSelectedNotebook(prev => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        pages: updatedPages,
+      };
+    });
+    toast.success(t('notebooks.reorder_success'));
+  }, [selectedNotebook]);
+
   const handleShare = useCallback(async (notebook: Notebook) => {
     setShareConfirmNotebook(notebook);
   }, []);
@@ -1646,6 +1899,7 @@ export default function NotebooksView() {
           onDeletePage={handleDeletePage}
           onToggleBookmark={handleToggleBookmark}
           onTogglePublic={handleTogglePublic}
+          onReorderPages={handleReorderPages}
         />
       </div>
     );

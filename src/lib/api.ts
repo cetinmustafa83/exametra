@@ -142,6 +142,7 @@ export interface ClassGroup {
   teachers: Array<{ id: string; userId: string; role: string; user: { id: string; firstName: string; lastName: string; email: string } }>;
   studentCount?: number;
   teacherList?: Array<{ id: string; firstName: string; lastName: string; teacherRole: string }>;
+  _count?: { enrollments?: number; competencyAssignments?: number; [key: string]: unknown };
 }
 
 export function fetchClasses(schoolId?: string, schoolYearId?: string): Promise<ClassGroup[]> {
@@ -1339,6 +1340,69 @@ export function fetchCalendarEvents(schoolId: string, month: string): Promise<Ca
   return apiGet<CalendarResponse>(`/api/calendar?${sp.toString()}`);
 }
 
+/* ── Calendar Events (Custom) ──────────────────────────────────── */
+
+export type CalendarEventItemType = 'assessment' | 'lesson' | 'reminder';
+
+export interface CalendarEventItem {
+  id: string;
+  schoolId: string;
+  teacherId: string;
+  title: string;
+  date: string;
+  startTime: string | null;
+  endTime: string | null;
+  eventType: CalendarEventItemType;
+  subjectId: string | null;
+  classGroupId: string | null;
+  notes: string | null;
+  allDay: boolean;
+  createdAt: string;
+  updatedAt: string;
+  subject: { id: string; name: string } | null;
+  classGroup: { id: string; name: string } | null;
+}
+
+export function fetchCalendarEventItems(schoolId: string, month: string): Promise<CalendarEventItem[]> {
+  const sp = new URLSearchParams();
+  sp.set('schoolId', schoolId);
+  sp.set('month', month);
+  return apiGet<CalendarEventItem[]>(`/api/calendar-events?${sp.toString()}`);
+}
+
+export function createCalendarEventItem(data: {
+  schoolId: string;
+  title: string;
+  date: string;
+  startTime?: string | null;
+  endTime?: string | null;
+  eventType: CalendarEventItemType;
+  subjectId?: string | null;
+  classGroupId?: string | null;
+  notes?: string | null;
+  allDay?: boolean;
+}): Promise<CalendarEventItem> {
+  return apiPost<CalendarEventItem>('/api/calendar-events', data);
+}
+
+export function updateCalendarEventItem(id: string, data: {
+  title?: string;
+  date?: string;
+  startTime?: string | null;
+  endTime?: string | null;
+  eventType?: CalendarEventItemType;
+  subjectId?: string | null;
+  classGroupId?: string | null;
+  notes?: string | null;
+  allDay?: boolean;
+}): Promise<CalendarEventItem> {
+  return apiPut<CalendarEventItem>(`/api/calendar-events/${id}`, data);
+}
+
+export function deleteCalendarEventItem(id: string): Promise<{ success: boolean }> {
+  return apiDelete<{ success: boolean }>(`/api/calendar-events/${id}`);
+}
+
 /* ── Lesson Plans ────────────────────────────────────────────────── */
 
 export type LessonPlanStatus = 'draft' | 'scheduled' | 'completed' | 'cancelled';
@@ -1974,9 +2038,27 @@ export interface MissingObservationNotification {
   isRead: boolean;
 }
 
+/** @deprecated Use DBNotification instead */
 export interface NotificationData {
   upcomingAssessments: AssessmentNotification[];
   missingObservations: MissingObservationNotification[];
+  unreadCount: number;
+}
+
+/** New DB-backed notification type */
+export interface DBNotification {
+  id: string;
+  type: string;
+  title: string;
+  message: string;
+  isRead: boolean;
+  actionUrl: string | null;
+  relatedId: string | null;
+  createdAt: string;
+}
+
+export interface DBNotificationData {
+  notifications: DBNotification[];
   unreadCount: number;
 }
 
@@ -1984,8 +2066,36 @@ export function fetchNotifications(): Promise<NotificationData> {
   return apiGet<NotificationData>('/api/notifications');
 }
 
+export function fetchDBNotifications(): Promise<DBNotificationData> {
+  return apiGet<DBNotificationData>('/api/notifications');
+}
+
 export function markServerNotificationsRead(ids: string[]): Promise<{ success: boolean }> {
   return apiPut<{ success: boolean }>('/api/notifications', { ids });
+}
+
+export function markAllNotificationsRead(): Promise<{ success: boolean }> {
+  return apiPut<{ success: boolean }>('/api/notifications', { markAll: true });
+}
+
+export function markSingleNotificationRead(id: string): Promise<{ success: boolean }> {
+  return apiPut<{ success: boolean }>('/api/notifications', { ids: [id] });
+}
+
+export function createNotification(data: {
+  schoolId: string;
+  userId: string;
+  type: string;
+  title: string;
+  message: string;
+  actionUrl?: string;
+  relatedId?: string;
+}): Promise<{ notification: DBNotification }> {
+  return apiPost<{ notification: DBNotification }>('/api/notifications', data);
+}
+
+export function deleteNotifications(ids?: string[]): Promise<{ success: boolean }> {
+  return apiDelete<{ success: boolean }>(`/api/notifications${ids ? `?ids=${ids.join(',')}` : ''}`);
 }
 
 /* ── Batch Delete & Reorder ─────────────────────────────────────────── */

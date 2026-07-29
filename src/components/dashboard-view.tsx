@@ -41,6 +41,11 @@ import {
   Palette,
   Notebook,
   CircleDot,
+  Flower2,
+  Calculator,
+  CalendarCheck,
+  Calendar as CalendarIconNav,
+  BookMarked,
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -55,7 +60,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
-import { useAppStore } from '@/lib/store';
+import { useAppStore, type ViewName } from '@/lib/store';
 import { t } from '@/lib/i18n';
 import { fetchDashboard, type DashboardData, getStoredNotifications, type AppNotification, addNotification, markNotificationsRead } from '@/lib/api';
 
@@ -268,6 +273,244 @@ export default function DashboardView() {
         <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-1">{t('polish.empty_title_no_data')}</h3>
         <p className="text-sm text-muted-foreground max-w-md mx-auto">{t('error.generic')}</p>
       </div>
+    );
+  }
+
+  // ─── Student Dashboard ──────────────────────────────────────────────
+  if (currentUser?.role === 'STUDENT') {
+    return (
+      <motion.div
+        variants={containerVariants}
+        initial="hidden"
+        animate="visible"
+        className="space-y-6 pb-8"
+      >
+        {/* Student Welcome Header */}
+        <motion.div variants={itemVariants}>
+          <div className="flex flex-col gap-4">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div className="flex items-center gap-3.5">
+                <div className="flex items-center justify-center w-12 h-12 rounded-2xl bg-gradient-to-br from-emerald-400 to-teal-500 text-white shadow-lg shadow-emerald-300/30 ring-2 ring-emerald-200/30 dark:ring-emerald-800/20">
+                  <GraduationCap className="w-6 h-6" />
+                </div>
+                <div>
+                  <h2 className="text-2xl font-bold bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-500 dark:from-emerald-400 dark:via-teal-400 dark:to-emerald-300 bg-clip-text text-transparent">
+                    {t('student.welcome_back')}, {currentUser.firstName}!
+                  </h2>
+                  <p className="text-emerald-600/60 dark:text-emerald-400/40 mt-0.5 text-sm">{t('student.progress_overview')}</p>
+                </div>
+              </div>
+              <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gradient-to-r from-emerald-50 to-teal-50/50 dark:from-emerald-900/20 dark:to-teal-900/10 border border-emerald-200/40 dark:border-emerald-900/30 text-xs font-medium text-emerald-700 dark:text-emerald-300 shadow-sm">
+                <CalendarDays className="h-3.5 w-3.5" />
+                <span className="font-semibold">
+                  {new Date().toLocaleDateString(locale === 'de' ? 'de-DE' : 'en-GB', {
+                    weekday: 'long',
+                    day: 'numeric',
+                    month: 'long',
+                    year: 'numeric',
+                  })}
+                </span>
+              </div>
+            </div>
+          </div>
+        </motion.div>
+
+        {/* Student Quick Stats */}
+        <motion.div variants={itemVariants}>
+          <div className="relative p-4 rounded-xl bg-mesh border border-emerald-200/40 dark:border-emerald-900/30 overflow-hidden backdrop-blur-sm">
+            <div className="absolute inset-0 bg-gradient-to-r from-emerald-50/30 via-transparent to-teal-50/30 dark:from-emerald-900/10 dark:to-teal-900/5 pointer-events-none" />
+            <div className="relative flex flex-wrap items-center gap-x-5 gap-y-2 text-sm">
+              <span className="inline-flex items-center gap-1.5 font-medium text-gray-700 dark:text-gray-300">
+                <Activity className="h-4 w-4 text-emerald-500" />
+                {t('student.progress_overview')}:
+              </span>
+              <span className="inline-flex items-center gap-1.5">
+                <PenLine className="h-3.5 w-3.5 text-amber-500" />
+                <span className="text-amber-600 dark:text-amber-400 font-semibold">{data.stats.totalProgressEntries}</span>
+                <span className="text-gray-500 dark:text-gray-400">{t('dashboard.total_entries').toLowerCase()}</span>
+              </span>
+              {data.stats.totalAssessments > 0 && (
+                <span className="inline-flex items-center gap-1.5">
+                  <ClipboardCheck className="h-3.5 w-3.5 text-rose-500" />
+                  <span className="text-rose-600 dark:text-rose-400 font-semibold">{data.stats.totalAssessments}</span>
+                  <span className="text-gray-500 dark:text-gray-400">{t('dashboard.total_assessments').toLowerCase()}</span>
+                </span>
+              )}
+            </div>
+          </div>
+        </motion.div>
+
+        {/* Student Cards Grid */}
+        <motion.div variants={itemVariants} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {/* My Competencies Card */}
+          <Card className="border-0 shadow-sm rounded-xl overflow-hidden ring-1 ring-black/[0.03] dark:ring-white/[0.05] hover:ring-emerald-200/40 dark:hover:ring-emerald-700/30 transition-all duration-300 hover:shadow-lg hover:shadow-emerald-200/60 dark:hover:shadow-emerald-800/30 cursor-pointer min-h-[44px]" onClick={() => setCurrentView('flower')}>
+            <CardHeader className="p-4 pb-2">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-gradient-to-br from-emerald-400 to-emerald-500 text-white shadow-sm">
+                    <Flower2 className="h-4 w-4" />
+                  </div>
+                  <CardTitle className="text-sm font-semibold">{t('student.my_competencies')}</CardTitle>
+                </div>
+                <ChevronRight className="h-4 w-4 text-emerald-500" />
+              </div>
+            </CardHeader>
+            <CardContent className="p-4 pt-2">
+              <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">{t('student.my_competencies_desc')}</p>
+              {/* Mini competence flower placeholder */}
+              <div className="flex items-center justify-center w-full h-24 rounded-lg bg-gradient-to-br from-emerald-50 to-teal-50/50 dark:from-emerald-900/20 dark:to-teal-900/10 border border-emerald-200/30 dark:border-emerald-900/20">
+                <Flower2 className="h-10 w-10 text-emerald-400/60 dark:text-emerald-600/40" />
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* My Recent Grades Card */}
+          <Card className="border-0 shadow-sm rounded-xl overflow-hidden ring-1 ring-black/[0.03] dark:ring-white/[0.05] hover:ring-amber-200/40 dark:hover:ring-amber-700/30 transition-all duration-300 hover:shadow-lg hover:shadow-amber-200/60 dark:hover:shadow-amber-800/30 cursor-pointer min-h-[44px]" onClick={() => setCurrentView('grading')}>
+            <CardHeader className="p-4 pb-2">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-gradient-to-br from-amber-400 to-amber-500 text-white shadow-sm">
+                    <Calculator className="h-4 w-4" />
+                  </div>
+                  <CardTitle className="text-sm font-semibold">{t('student.my_grades')}</CardTitle>
+                </div>
+                <ChevronRight className="h-4 w-4 text-amber-500" />
+              </div>
+            </CardHeader>
+            <CardContent className="p-4 pt-2">
+              <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">{t('student.my_grades_desc')}</p>
+              {data.recentAssessments && data.recentAssessments.length > 0 ? (
+                <div className="space-y-2">
+                  {data.recentAssessments.slice(0, 3).map((a) => (
+                    <div key={a.id} className="flex items-center justify-between px-3 py-2 rounded-lg bg-amber-50/50 dark:bg-amber-900/10 border border-amber-100/50 dark:border-amber-900/20">
+                      <span className="text-xs font-medium text-gray-700 dark:text-gray-300 truncate">{a.title}</span>
+                      <Badge variant="outline" className="text-[10px] px-1.5 py-0 bg-amber-50/50 dark:bg-amber-900/10 border-amber-200/50 dark:border-amber-900/30 text-amber-700 dark:text-amber-300 shrink-0">
+                        {t('student.grade_in')} {a.title}
+                      </Badge>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="flex flex-col items-center justify-center h-24 rounded-lg bg-gray-50 dark:bg-gray-900/20 border border-gray-200/30 dark:border-gray-800/20">
+                  <Award className="h-8 w-8 text-gray-300 dark:text-gray-600 mb-1" />
+                  <p className="text-xs text-gray-400 dark:text-gray-500">{t('student.no_grades')}</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* My Notebooks Card */}
+          <Card className="border-0 shadow-sm rounded-xl overflow-hidden ring-1 ring-black/[0.03] dark:ring-white/[0.05] hover:ring-teal-200/40 dark:hover:ring-teal-700/30 transition-all duration-300 hover:shadow-lg hover:shadow-teal-200/60 dark:hover:shadow-teal-800/30 cursor-pointer min-h-[44px]" onClick={() => setCurrentView('notebooks')}>
+            <CardHeader className="p-4 pb-2">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-gradient-to-br from-teal-400 to-teal-500 text-white shadow-sm">
+                    <BookOpen className="h-4 w-4" />
+                  </div>
+                  <CardTitle className="text-sm font-semibold">{t('student.my_notebooks')}</CardTitle>
+                </div>
+                <ChevronRight className="h-4 w-4 text-teal-500" />
+              </div>
+            </CardHeader>
+            <CardContent className="p-4 pt-2">
+              <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">{t('student.my_notebooks_desc')}</p>
+              <div className="flex flex-col items-center justify-center h-24 rounded-lg bg-gradient-to-br from-teal-50 to-emerald-50/50 dark:from-teal-900/20 dark:to-emerald-900/10 border border-teal-200/30 dark:border-teal-900/20">
+                <BookMarked className="h-8 w-8 text-teal-400/60 dark:text-teal-600/40 mb-1" />
+                <p className="text-xs text-gray-500 dark:text-gray-400">{t('student.view_all')}</p>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* My Attendance Card */}
+          <Card className="border-0 shadow-sm rounded-xl overflow-hidden ring-1 ring-black/[0.03] dark:ring-white/[0.05] hover:ring-rose-200/40 dark:hover:ring-rose-700/30 transition-all duration-300 hover:shadow-lg hover:shadow-rose-200/60 dark:hover:shadow-rose-800/30 cursor-pointer min-h-[44px]" onClick={() => setCurrentView('attendance')}>
+            <CardHeader className="p-4 pb-2">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-gradient-to-br from-rose-400 to-rose-500 text-white shadow-sm">
+                    <CalendarCheck className="h-4 w-4" />
+                  </div>
+                  <CardTitle className="text-sm font-semibold">{t('student.my_attendance')}</CardTitle>
+                </div>
+                <ChevronRight className="h-4 w-4 text-rose-500" />
+              </div>
+            </CardHeader>
+            <CardContent className="p-4 pt-2">
+              <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">{t('student.my_attendance_desc')}</p>
+              <div className="flex items-center justify-center h-24 rounded-lg bg-gradient-to-br from-rose-50 to-amber-50/50 dark:from-rose-900/20 dark:to-amber-900/10 border border-rose-200/30 dark:border-rose-900/20">
+                <div className="text-center">
+                  <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">--</p>
+                  <p className="text-[10px] text-gray-500 dark:text-gray-400">{t('student.attendance_rate')}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Upcoming Assessments Card */}
+          <Card className="border-0 shadow-sm rounded-xl overflow-hidden ring-1 ring-black/[0.03] dark:ring-white/[0.05] hover:ring-violet-200/40 dark:hover:ring-violet-700/30 transition-all duration-300 hover:shadow-lg hover:shadow-violet-200/60 dark:hover:shadow-violet-800/30 cursor-pointer min-h-[44px]" onClick={() => setCurrentView('assessments')}>
+            <CardHeader className="p-4 pb-2">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-gradient-to-br from-violet-400 to-violet-500 text-white shadow-sm">
+                    <ClipboardCheck className="h-4 w-4" />
+                  </div>
+                  <CardTitle className="text-sm font-semibold">{t('student.upcoming_assessments')}</CardTitle>
+                </div>
+                <ChevronRight className="h-4 w-4 text-violet-500" />
+              </div>
+            </CardHeader>
+            <CardContent className="p-4 pt-2">
+              <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">{t('student.upcoming_assessments_desc')}</p>
+              {data.recentAssessments && data.recentAssessments.length > 0 ? (
+                <div className="space-y-2">
+                  {data.recentAssessments.slice(0, 3).map((a) => {
+                    const daysUntil = Math.max(0, Math.ceil((new Date(a.date).getTime() - Date.now()) / (1000 * 60 * 60 * 24)));
+                    return (
+                      <div key={a.id} className="flex items-center justify-between px-3 py-2 rounded-lg bg-violet-50/50 dark:bg-violet-900/10 border border-violet-100/50 dark:border-violet-900/20">
+                        <span className="text-xs font-medium text-gray-700 dark:text-gray-300 truncate">{a.title}</span>
+                        <Badge variant="outline" className="text-[10px] px-1.5 py-0 bg-violet-50/50 dark:bg-violet-900/10 border-violet-200/50 dark:border-violet-900/30 text-violet-700 dark:text-violet-300 shrink-0">
+                          {daysUntil} {t('student.days_until')}
+                        </Badge>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="flex flex-col items-center justify-center h-24 rounded-lg bg-gray-50 dark:bg-gray-900/20 border border-gray-200/30 dark:border-gray-800/20">
+                  <ClipboardCheck className="h-8 w-8 text-gray-300 dark:text-gray-600 mb-1" />
+                  <p className="text-xs text-gray-400 dark:text-gray-500">{t('student.no_assessments')}</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Calendar Card */}
+          <Card className="border-0 shadow-sm rounded-xl overflow-hidden ring-1 ring-black/[0.03] dark:ring-white/[0.05] hover:ring-emerald-200/40 dark:hover:ring-emerald-700/30 transition-all duration-300 hover:shadow-lg hover:shadow-emerald-200/60 dark:hover:shadow-emerald-800/30 cursor-pointer min-h-[44px]" onClick={() => setCurrentView('calendar')}>
+            <CardHeader className="p-4 pb-2">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-gradient-to-br from-emerald-400 to-teal-500 text-white shadow-sm">
+                    <CalendarIconNav className="h-4 w-4" />
+                  </div>
+                  <CardTitle className="text-sm font-semibold">{t('nav.calendar')}</CardTitle>
+                </div>
+                <ChevronRight className="h-4 w-4 text-emerald-500" />
+              </div>
+            </CardHeader>
+            <CardContent className="p-4 pt-2">
+              <div className="flex items-center justify-center h-24 rounded-lg bg-gradient-to-br from-emerald-50 to-teal-50/50 dark:from-emerald-900/20 dark:to-teal-900/10 border border-emerald-200/30 dark:border-emerald-900/20">
+                <div className="text-center">
+                  <p className="text-lg font-bold text-emerald-600 dark:text-emerald-400">
+                    {new Date().toLocaleDateString(locale === 'de' ? 'de-DE' : 'en-GB', { day: 'numeric', month: 'short' })}
+                  </p>
+                  <p className="text-[10px] text-gray-500 dark:text-gray-400">
+                    {new Date().toLocaleDateString(locale === 'de' ? 'de-DE' : 'en-GB', { weekday: 'long' })}
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+      </motion.div>
     );
   }
 
@@ -685,7 +928,7 @@ export default function DashboardView() {
                   whileHover={{ scale: 1.01, x: 2 }}
                   whileTap={{ scale: 0.98 }}
                   transition={{ duration: 0.15 }}
-                  onClick={() => setCurrentView(item.view)}
+                  onClick={() => setCurrentView(item.view as ViewName)}
                   className="w-full group flex items-center gap-3 p-3 rounded-xl bg-gradient-to-r from-gray-50/80 to-gray-50/0 dark:from-gray-800/50 dark:to-gray-800/0 border border-gray-100/60 dark:border-gray-800/40 hover:border-emerald-200/60 dark:hover:border-emerald-800/30 transition-all relative overflow-hidden"
                 >
                   <div className={`flex items-center justify-center w-9 h-9 rounded-lg bg-gradient-to-br ${item.color} text-white shadow-sm shrink-0 transition-transform duration-200 group-hover:scale-110`}>

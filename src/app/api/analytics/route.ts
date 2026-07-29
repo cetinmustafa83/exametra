@@ -259,7 +259,7 @@ export async function GET(request: Request) {
     let enrollments: Array<{
       studentId: string;
       classGroupId: string;
-      student: { id: string; firstName: string; lastName: string; deletedAt: string | null } | null;
+      student: { id: string; firstName: string; lastName: string; deletedAt: Date | null } | null;
       classGroup: { id: string; name: string } | null;
     }> = [];
     try {

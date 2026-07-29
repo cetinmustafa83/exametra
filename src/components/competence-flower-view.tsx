@@ -126,6 +126,7 @@ const masteryBarColor = (level: number) => {
 
 export default function CompetenceFlowerView() {
   const currentUser = useAppStore((s) => s.currentUser);
+  const locale = useAppStore((s) => s.locale);
   const chartRef = useRef<HTMLDivElement>(null);
 
   const [classes, setClasses] = useState<ClassGroup[]>([]);
@@ -496,7 +497,7 @@ export default function CompetenceFlowerView() {
                     {t('flower.color_scheme')}
                     {/* Preview swatch with current color */}
                     <div className="flex items-center gap-1.5 ml-1">
-                      <div className="w-5 h-5 rounded-md ring-2 ring-offset-1 shadow-sm" style={{ backgroundColor: primaryColor, ringColor: primaryColor }} />
+                      <div className="w-5 h-5 rounded-md ring-2 ring-offset-1 shadow-sm" style={{ backgroundColor: primaryColor, outlineColor: primaryColor }} />
                     </div>
                     <span className="text-xs text-gray-500 dark:text-gray-400 font-normal ml-auto">
                       {colorPickerOpen ? '▼' : '▶'}

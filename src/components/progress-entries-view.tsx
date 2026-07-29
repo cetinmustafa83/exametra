@@ -121,6 +121,7 @@ const relativeDate = (dateStr: string) => {
 export default function ProgressEntriesView() {
   const currentUser = useAppStore((s) => s.currentUser);
   const currentClassId = useAppStore((s) => s.currentClassId);
+  const locale = useAppStore((s) => s.locale);
 
   const [classes, setClasses] = useState<ClassGroup[]>([]);
   const [selectedClass, setSelectedClass] = useState<ClassGroup | null>(null);
@@ -915,7 +916,7 @@ export default function ProgressEntriesView() {
                                 style={{
                                   backgroundColor: `${catColor}20`,
                                   color: catColor,
-                                  ringColor: `${catColor}30`,
+                                  outlineColor: `${catColor}30`,
                                 }}
                               >
                                 {entry.competency.category.name[0]}
