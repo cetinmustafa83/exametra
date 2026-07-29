@@ -987,3 +987,53 @@ Built the Responsible Teacher (Klassenlehrer) management, Vice Principal managem
 - Used cookie-based auth via `getSession` from `@/lib/auth`
 - Used `apiGet`, `apiPut`, `apiPost`, `apiDelete` from `@/lib/api` for API calls
 
+
+---
+Task ID: Round-24
+Agent: main
+Task: Round 24 - Klassenlehrer Management, Vice Principal, Exam Calendar, Student Portal Exams
+
+Work Log:
+- Built Klassenlehrer Management:
+  - Klassenlehrer badge with gradient on class cards
+  - Assign/change responsible teacher dialog
+  - Privilege badges (illness, communication, counseling, disciplinary access)
+  - Student count progress bar, assessment count card
+- Built Vice Principal Management:
+  - Current admins list with role badges
+  - Assign/remove VP role with confirmation dialog
+  - API: PUT /api/users/role (admin only)
+- Enhanced Calendar Exam Integration:
+  - Print calendar button
+  - Exam countdown badges with urgency colors
+  - Exam mode filter
+- Enhanced Student Portal:
+  - Exams tab with upcoming exams and countdown
+  - AI study tips section
+  - Virtual character/AI assistant section
+- Enhanced Dashboard:
+  - Klassenlehrer section for teachers
+  - Pending illness reports, upcoming exams
+  - Quick action buttons
+- Enhanced Classes API:
+  - GET includes responsibleTeacher and assessmentCount
+  - PUT /api/classes/[id] for updating class including responsibleTeacherId
+- Added 90+ i18n keys
+- Pushed to GitHub
+
+Stage Summary:
+- 2 new API route files
+- 5 components enhanced
+- Klassenlehrer management with privilege system
+- Vice principal management
+- Exam calendar integration
+- Student portal exams tab
+- Dashboard Klassenlehrer section
+- Pushed to GitHub
+
+Unresolved issues / Next phase priorities:
+- Need to verify all features work end-to-end in the browser
+- Need to add more deep styling improvements
+- Need to add more virtual character animations
+- Need to add more practice exercises
+- WebSocket connection timeout errors (Caddy proxy)
