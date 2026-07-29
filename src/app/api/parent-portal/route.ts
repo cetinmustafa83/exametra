@@ -59,6 +59,7 @@ export async function GET(request: Request) {
 
     for (const child of children) {
       const studentId = child.studentId;
+      const classIds = child.classGroups.map((c) => c.id);
 
       // Illness reports
       const illnessReports = await db.illnessReport.findMany({
@@ -74,12 +75,12 @@ export async function GET(request: Request) {
           parentApprovalStatus: true,
           status: true,
           reporterType: true,
+          documentUrl: true,
           createdAt: true,
         },
       });
 
       // Upcoming exams (calendar events with type 'exam')
-      const classIds = child.classGroups.map((c) => c.id);
       const upcomingExams = classIds.length > 0
         ? await db.calendarEvent.findMany({
             where: {
@@ -157,6 +158,24 @@ export async function GET(request: Request) {
         },
       });
 
+      // Homework due
+      const homeworkDue = classIds.length > 0
+        ? await db.homework.findMany({
+            where: {
+              schoolId,
+              classGroupId: { in: classIds },
+              dueDate: { gte: new Date() },
+              isPublished: true,
+              deletedAt: null,
+            },
+            include: {
+              subject: { select: { id: true, name: true } },
+            },
+            orderBy: { dueDate: 'asc' },
+            take: 10,
+          })
+        : [];
+
       childrenData.push({
         ...child,
         illnessReports,
@@ -168,6 +187,12 @@ export async function GET(request: Request) {
         attendanceSummary,
         counselingAppointments,
         disciplinaryCases,
+        homeworkDue: homeworkDue.map((h) => ({
+          id: h.id,
+          title: h.title,
+          dueDate: h.dueDate.toISOString(),
+          subject: h.subject ? { id: h.subject.id, name: h.subject.name } : null,
+        })),
       });
     }
 
@@ -184,9 +209,100 @@ export async function GET(request: Request) {
       orderBy: { createdAt: 'desc' },
     });
 
+    // School announcements for parents
+    const announcements = await db.announcement.findMany({
+      where: {
+        schoolId,
+        deletedAt: null,
+        OR: [
+          { targetAudience: 'all' },
+          { targetAudience: 'parents' },
+        ],
+        OR: [
+          { expiresAt: null },
+          { expiresAt: { gt: new Date() } },
+        ],
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 10,
+      include: {
+        author: { select: { id: true, firstName: true, lastName: true } },
+      },
+    });
+
+    // Communication rooms for this parent's children
+    const childUserIds = children
+      .filter((c) => c.userId)
+      .map((c) => c.userId as string);
+
+    const communicationRooms = childUserIds.length > 0
+      ? await db.communicationRoom.findMany({
+          where: {
+            studentId: { in: childUserIds },
+            status: { in: ['requested', 'active'] },
+          },
+          orderBy: { updatedAt: 'desc' },
+          include: {
+            student: { select: { id: true, firstName: true, lastName: true } },
+            teacher: { select: { id: true, firstName: true, lastName: true } },
+            messages: {
+              orderBy: { createdAt: 'desc' },
+              take: 1,
+              select: { id: true, content: true, createdAt: true, senderId: true },
+            },
+          },
+        })
+      : [];
+
+    // School events
+    const schoolEvents = await db.schoolEvent.findMany({
+      where: {
+        schoolId,
+        deletedAt: null,
+        startDate: { gte: new Date() },
+      },
+      orderBy: { startDate: 'asc' },
+      take: 5,
+      select: {
+        id: true,
+        title: true,
+        startDate: true,
+        eventType: true,
+        location: true,
+      },
+    });
+
     return NextResponse.json({
       children: childrenData,
       pendingApprovals,
+      announcements: announcements.map((a) => ({
+        id: a.id,
+        title: a.title,
+        content: a.content,
+        priority: a.priority,
+        announcementType: a.announcementType,
+        isPinned: a.isPinned,
+        createdAt: a.createdAt.toISOString(),
+        author: a.author ? { firstName: a.author.firstName, lastName: a.author.lastName } : null,
+      })),
+      communicationRooms: communicationRooms.map((r) => ({
+        id: r.id,
+        status: r.status,
+        roomType: r.roomType,
+        student: r.student,
+        teacher: r.teacher,
+        lastMessage: r.messages[0] ? {
+          id: r.messages[0].id,
+          content: r.messages[0].content,
+          createdAt: r.messages[0].createdAt.toISOString(),
+          senderId: r.messages[0].senderId,
+        } : null,
+        updatedAt: r.updatedAt.toISOString(),
+      })),
+      schoolEvents: schoolEvents.map((e) => ({
+        ...e,
+        startDate: e.startDate.toISOString(),
+      })),
     });
   } catch (error) {
     console.error('Parent Portal GET error:', error);

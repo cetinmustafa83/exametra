@@ -1231,3 +1231,238 @@ Unresolved issues / Next phase priorities:
 - Voice communication support in rooms
 - Calendar reminders on tablet
 - More styling improvements across all views
+
+---
+Task ID: 2-d
+Agent: Parent Portal Enhancer
+Task: Enhance parent portal with detailed dashboard, progress tracking, communication
+
+Work Log:
+- Read existing parent-portal-view.tsx (847 lines) and parent-portal API route
+- Enhanced /api/parent-portal/route.ts with announcements, communication rooms, school events, homework due data
+- Created /api/parent-portal/child-progress/route.ts with subject grades, class averages, competency radar data, assessment results
+- Created /api/parent-portal/child-schedule/route.ts with timetable slots, exams, school events, counseling, homework
+- Added 65+ new i18n keys in both German and English for all new tabs and features
+- Completely rewrote parent-portal-view.tsx with 6 tabs:
+  - Dashboard: gradient stat cards with animated counters, upcoming deadlines, recent activity feed, quick actions
+  - Academic Progress: subject grades with trend arrows, Recharts radar chart, bar chart comparison with class average, line chart grade history, assessment results
+  - Attendance & Illness: circular progress indicator, attendance breakdown grid, illness history with certificate badges, medical certificate upload area
+  - Communication: messages from teachers, school announcements with pinned/urgent badges, conversation rooms, school events
+  - Schedule: weekly timetable grid view, exam dates, counseling appointments, homework due list
+  - Reports & Documents: report cards with download, assessment results, portfolio highlights
+- Added new dialogs: Request Parent-Teacher Meeting, Report Illness, Request Conversation
+- Added CircularProgress and AnimatedCounter components for visual polish
+- All lint checks pass
+
+Stage Summary:
+- Enhanced parent portal from basic 7-tab view to comprehensive 6-tab dashboard with charts and rich data
+- Created 2 new API routes (child-progress, child-schedule) for detailed sub-data
+- Enhanced main API route with announcements, communication rooms, school events, homework
+- Added Recharts radar, line, and bar charts for academic progress visualization
+- Added circular progress indicator for attendance rate
+- Added meeting request dialog for parent-teacher meetings
+- All 65+ i18n keys added in both German and English
+
+## Task ID: 2-c
+Agent: School Library Builder
+Task: Build School Library View with book lending system
+
+Work Log:
+- Added LibraryBook, BookCheckout, BookReservation models to Prisma schema with proper indexes and relations
+- Added library relations to School, User, and Student models
+- Created API route `/api/library/books/route.ts` with GET (list/search with filters) and POST (add book)
+- Created API route `/api/library/books/[id]/route.ts` with GET, PUT, DELETE
+- Created API route `/api/library/checkouts/route.ts` with GET (list with role-based filtering) and POST (checkout book with availability check)
+- Created API route `/api/library/checkouts/[id]/route.ts` with PUT (return, renew, mark_overdue, mark_lost) and DELETE
+- Created API route `/api/library/reservations/route.ts` with GET (list with role-based filtering) and POST (reserve with queue position)
+- Created API route `/api/library/reservations/[id]/route.ts` with DELETE (cancel reservation with queue reordering)
+- Created API route `/api/library/stats/route.ts` with GET (comprehensive statistics including popular books, category distribution, checkout trends, overdue list)
+- Built comprehensive frontend component `school-library-view.tsx` with:
+  - Book Catalog: grid/list view toggle, search by title/author/ISBN/category, filter by category/availability/reading level, book cards with cover image placeholders, book detail dialog with full info
+  - Checkout System: select book and student, set due date (default 14 days), condition check, return with condition and fine, renewal option (max 3)
+  - Overdue Tracking: overdue list with red badges, days overdue calculation, fine estimation (0.50 EUR/day), warning styling
+  - Reservations: reserve unavailable books, queue position display, auto-notify when available, cancel reservation
+  - Statistics Dashboard: stat cards (total books, copies, available, checked out, overdue, overdue rate), popular books bar chart, category distribution pie chart, checkout trends line chart (Recharts)
+  - Role-based views: ADMIN/VICE_PRINCIPAL full CRUD, TEACHER checkout/return/renew, STUDENT browse/reserve, PARENT view child's checkouts/reserve
+  - Print support for checkout receipts, gradient category badges, availability status indicators
+  - Animated with framer-motion, dark mode support, mobile responsive
+- Added 100+ i18n keys in both German and English
+- Added 'school-library' to ViewName in store.ts
+- Added navigation entry in app-layout.tsx for teacher, student, and parent nav sections
+- Added SchoolLibraryView import and view rendering in app-layout.tsx
+- All lint checks pass
+- Database schema pushed successfully
+
+Stage Summary:
+- Full school library management system with book catalog, checkouts, overdue tracking, and reservations
+- 3 new Prisma models (LibraryBook, BookCheckout, BookReservation) with proper indexes and relations
+- 7 API routes with role-based access control and comprehensive business logic
+- Frontend with 5 tabs (Catalog, Checkouts, Overdue, Reservations, Statistics) and Recharts charts
+- Complete i18n support (DE + EN) with 100+ keys
+- Print receipt support, animated transitions, dark mode, mobile responsive
+
+---
+Task ID: 2-b
+Agent: Seating Chart Builder
+Task: Build Seating Chart View with visual classroom layout
+
+Work Log:
+- Added SeatingChart model to Prisma schema with fields: schoolId, classGroupId, teacherId, name, layoutType, rows, columns, gap, arrangement (JSON), showDoor, showWindows, doorPosition, windowPosition, isTemplate, isDefault, notes
+- Added SeatingChart relations to School, User, and ClassGroup models
+- Created API route `/api/seating-charts/route.ts` with GET (list with filters: schoolId, classGroupId, teacherId, isTemplate) and POST (create chart with backward compat ClassGroup seatingOrder update)
+- Created API route `/api/seating-charts/[id]/route.ts` with GET (single chart + enrolled students + behavior data), PUT (update chart), DELETE (delete chart)
+- Created API route `/api/seating-charts/[id]/arrange/route.ts` with PUT supporting actions: move, randomize, smart-arrange, assign, clear, assign-all
+- Smart Arrange algorithm: places high-behavior-score students with maximum distance between them based on behavior incident severity data
+- Built comprehensive frontend component `seating-chart-view.tsx` with:
+  - Visual classroom layout grid with teacher's desk at the front
+  - Multiple layout templates (rows, groups, U-shape, circle, custom)
+  - Door/window markers with configurable positions
+  - HTML5 drag-and-drop from student list to seats
+  - Click-to-select seat swapping
+  - Student list sidebar with search/filter, drag from list to seat
+  - Student avatars with initials and gradient backgrounds
+  - Student info popover with name, seat position, behavior note, view profile link
+  - Layout controls (rows x columns, gap)
+  - Settings panel (show door, show windows, positions)
+  - Randomize, Smart Arrange, Assign All, Clear All actions
+  - Create/delete chart dialogs
+  - Color-coded student status (amber ring for behavior notes)
+  - Empty desk indicators (dashed border)
+  - Legend showing assigned/empty/behavior
+  - Print layout support
+  - Dark mode support
+  - Role-based views: TEACHER full CRUD, ADMIN/VICE_PRINCIPAL all, STUDENT/PARENT read-only
+- Added 'seating-chart' to ViewName in store.ts
+- Added navigation entries in app-layout.tsx for teacher and student nav sections
+- Added 50+ i18n keys in both German and English
+- All lint checks pass
+
+Stage Summary:
+- Full seating chart management system with visual classroom layout, drag-and-drop, and smart arrangement
+- 1 new Prisma model (SeatingChart) with proper indexes and relations to School, User, ClassGroup
+- 3 API routes with role-based access control, backward-compatible ClassGroup seatingOrder updates
+- Smart Arrange algorithm that maximizes distance between high-behavior students
+- Frontend with 5 layout templates, drag-and-drop, student popover, search, settings, print support
+- Complete i18n support (DE + EN) with 50+ keys
+- Dark mode, mobile responsive, print layout support
+
+---
+Task ID: 2-a
+Agent: Report Card Builder
+Task: Build Report Card Generator View
+
+Work Log:
+- Extended existing Report model in Prisma schema with new fields: teacherComments, attendanceSummary, overallAssessment, templateId, reviewedByUserId, reviewedAt, publishedAt; updated status enum to include DRAFT, REVIEW, PUBLISHED, ARCHIVED, FINAL
+- Added ReportCardTemplate model to Prisma schema with fields: schoolId, name, description, sections (JSON), gradingScale (JSON), layout, isDefault
+- Added reportCardTemplates relation to School model
+- Ran db:push to sync schema changes
+- Created API route `/api/report-cards/route.ts` with GET (list with filters: class, status, period, role-based access) and POST (create with auto-attendance computation)
+- Created API route `/api/report-cards/[id]/route.ts` with GET (single with computed grades), PUT (update with status transitions, role-based permission checks), DELETE (admin only)
+- Created API route `/api/report-cards/generate/route.ts` with POST (batch generate for entire class, auto-compute sections from competency categories, attendance, and grades)
+- Created API route `/api/report-cards/export/route.ts` with POST (export data for PDF generation with school branding)
+- Created API route `/api/report-cards/templates/route.ts` with GET (list templates) and POST (create template)
+- Built comprehensive frontend component `report-card-view.tsx` with:
+  - Report Card List view with search, filter by class/status/period, bulk actions (publish, archive, delete)
+  - Report Card Editor with student info, subject grades table, competency sections, teacher comments, overall assessment, attendance summary, competency radar chart
+  - Report Card Preview with print-ready layout, school branding, grading scale legend, signature area
+  - Template Management dialog for creating/editing report card templates
+  - Batch Generate dialog for creating report cards for an entire class
+  - Role-based views: ADMIN/VICE_PRINCIPAL (full CRUD, batch, publish, templates), TEACHER (create/edit own, submit for review), STUDENT/PARENT (view published only)
+  - German grading system (1-6) with color-coded grade indicators and labels
+  - Animated stat counters, gradient header cards, framer-motion transitions
+  - PDF export via print window with A4-formatted HTML generation
+  - Dark mode support for editor (not preview)
+- Added 120+ i18n keys in both German and English for report card feature
+- Added 'report-cards' to ViewName in store.ts
+- Added navigation entry in app-layout.tsx for teacher/admin, student, and parent nav sections
+- All lint checks pass
+
+Stage Summary:
+- Extended Prisma schema with report card fields and ReportCardTemplate model
+- Created 5 API routes for report card CRUD, batch generation, export, and template management
+- Built comprehensive report-card-view.tsx with list, editor, preview modes
+- German grading system (1-6) with visual color indicators
+- Competency radar chart using Recharts
+- Print-ready PDF export with school branding
+- Role-based access control for all views
+- 120+ i18n keys added in German and English
+- Navigation integrated for all user roles
+
+---
+Task ID: 3
+Agent: Styling Enhancer Round 23
+Task: Enhance styling across all new Round 23 views
+
+Work Log:
+- Enhanced report-card-view.tsx with gradient header banner featuring animated count badge, shimmer effect on status badges, slide-in animations for list items, gradient borders on report card preview, animated grade indicators with hover scale, and improved hover effects on report card cards
+- Enhanced seating-chart-view.tsx with gradient header with classroom illustration, animated desk placement transitions (hover scale, active scale), student avatar with gradient background circles and status indicator dots, hover glow effect on desks, drag indicator animation on empty cells, and color-coded student status indicators
+- Enhanced school-library-view.tsx with gradient header banner with book illustrations, availability status indicators with pulse animation (ping dot), book card hover effects (scale + shadow via book-card-hover class), overdue warning styling with gradient borders (overdue-gradient-border class), statistics chart gradient fills (bar and line charts), and glass-card styling for statistics cards
+- Enhanced parent-portal-view.tsx with warm gradient header banner, child selector with animated transitions (whileHover/whileTap), competency radar chart with gradient fills, circular progress with SVG gradient stroke, conversation card styling with hover effects and gradient avatars, and improved button styling on gradient header
+- Added global CSS animations and utilities: shimmer keyframe, print styles for report cards, desk-glow keyframe, book-card-hover class, availability-pulse animation, overdue-gradient-border class, tab-content-enter animation, glass-card class with dark mode support
+- Added missing i18n keys: report_card.subtitle (de/en), seating.subtitle (de/en)
+
+Stage Summary:
+- All 4 views now have consistent gradient header banners with emerald/teal theme
+- Shimmer effects on report card status badges for visual feedback
+- Animated grade indicators with hover interactions in report card view
+- Student desk hover glow and status indicator dots in seating chart
+- Book card hover lift effects and availability pulse indicators in library
+- Overdue gradient border styling for library overdue items
+- Gradient fills on charts (bar, line, radar) for visual polish
+- Glassmorphism card styling for library statistics
+- Parent portal header with warm gradient and backdrop-blur buttons
+- Child selector with framer-motion whileHover/whileTap micro-interactions
+- Circular progress with SVG gradient stroke in parent portal
+- All changes pass ESLint validation
+
+---
+Task ID: Round-23
+Agent: main
+Task: Round 23 — Report Card Generator, Seating Chart, School Library, Parent Portal Enhancement, Styling
+
+Work Log:
+- Built Report Card Generator View with professional report card creation
+  - Report card editor with subject grades, competency radar chart, teacher comments
+  - Template management, batch generation, PDF export
+  - Status workflow: draft → review → published → archived
+  - Role-based: Admin full CRUD, teacher submit for review, student/parent view only
+- Built Seating Chart View with visual classroom layout
+  - Visual grid representing classroom desks
+  - Multiple layout templates (rows, groups, U-shape, circle)
+  - Click-to-assign and drag-and-drop student placement
+  - Randomize and smart arrange features
+  - Student info popover on seated students
+- Built School Library View with book lending system
+  - Book catalog with search, filter, grid/list view
+  - Checkout system with due dates, renewals
+  - Overdue tracking with notifications
+  - Reservation queue system
+  - Statistics dashboard with Recharts
+- Enhanced Parent Portal View with comprehensive dashboard
+  - Child overview with multiple children selector
+  - Academic progress tab with competency radar chart
+  - Attendance & illness tab with approval
+  - Communication tab with messages and conversations
+  - Schedule & calendar tab
+  - Reports & documents tab
+- Added styling enhancements across all new views
+- Added i18n breadcrumb keys for new views (DE + EN)
+- All API endpoints verified working
+
+Stage Summary:
+- 4 new views built: report-cards, seating-chart, school-library, enhanced parent-portal
+- 15+ new API route files created
+- 3+ new Prisma models (SeatingChart, LibraryBook, BookCheckout, BookReservation)
+- 200+ i18n keys added
+- All views render correctly in browser
+- Dev server running without errors
+- All lint checks pass
+
+Unresolved issues / Next phase priorities:
+- WebSocket connection timeout errors (Caddy proxy)
+- Need more schlaukopf.de content cloning
+- Voice communication support in rooms
+- More styling improvements across all views
+- More schlaukopf.de exercises and questions
+- School event management enhancements
+- Data import/export with CSV/Excel

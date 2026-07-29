@@ -66,6 +66,8 @@ import {
   Tablet,
   CalendarClock,
   Timer,
+  LayoutGrid as LayoutGridIcon,
+  BookOpen as BookOpenIconNav,
 } from 'lucide-react';
 import {
   Sidebar,
@@ -177,6 +179,9 @@ import TabletGradingView from './tablet-grading-view';
 import ExamCalendarView from './exam-calendar-view';
 import StudentAchievementsView from './student-achievements-view';
 import StudentStudyPlannerView from './student-study-planner-view';
+import ReportCardView from './report-card-view';
+import SchoolLibraryView from './school-library-view';
+import SeatingChartView from './seating-chart-view';
 
 // Dynamic imports for heavy components with loading skeletons
 const AnalyticsView = dynamic(() => import('./analytics-view'), {
@@ -243,6 +248,9 @@ const navSections: NavSection[] = [
       { key: 'ai-tests', icon: Brain, labelKey: 'ai_tests.title' },
       { key: 'tablet-grading', icon: Tablet, labelKey: 'nav.tablet_grading' },
       { key: 'exam-calendar', icon: CalendarClock, labelKey: 'nav.exam_calendar' },
+      { key: 'report-cards', icon: FileText, labelKey: 'nav.report_cards' },
+      { key: 'seating-chart', icon: LayoutGridIcon, labelKey: 'nav.seating_chart' },
+      { key: 'school-library', icon: LibraryIcon, labelKey: 'nav.school_library' },
       { key: 'notification-center', icon: Bell, labelKey: 'nav.notification_center' },
       { key: 'announcements', icon: Megaphone, labelKey: 'nav.announcements' },
     ],
@@ -281,9 +289,12 @@ const studentNavSections: NavSection[] = [
       { key: 'ai-tests', icon: Brain, labelKey: 'ai_tests.title' },
       { key: 'tablet-grading', icon: Tablet, labelKey: 'nav.tablet_grading' },
       { key: 'exam-calendar', icon: CalendarClock, labelKey: 'nav.exam_calendar' },
+      { key: 'report-cards', icon: FileText, labelKey: 'nav.report_cards' },
+      { key: 'seating-chart', icon: LayoutGridIcon, labelKey: 'nav.seating_chart' },
       { key: 'student-achievements', icon: Trophy, labelKey: 'achievements.title' },
       { key: 'student-study-planner', icon: Timer, labelKey: 'study_planner.title' },
       { key: 'resources', icon: FolderOpen, labelKey: 'nav.resources' },
+      { key: 'school-library', icon: LibraryIcon, labelKey: 'nav.school_library' },
       { key: 'notification-center', icon: Bell, labelKey: 'nav.notification_center' },
       { key: 'announcements', icon: Megaphone, labelKey: 'nav.announcements' },
       { key: 'settings', icon: Settings, labelKey: 'nav.settings' },
@@ -308,6 +319,8 @@ const parentNavSections: NavSection[] = [
       { key: 'communication', icon: MessageSquare, labelKey: 'nav.communication' },
       { key: 'student-achievements', icon: Trophy, labelKey: 'achievements.title' },
       { key: 'student-study-planner', icon: Timer, labelKey: 'study_planner.title' },
+      { key: 'report-cards', icon: FileText, labelKey: 'nav.report_cards' },
+      { key: 'school-library', icon: LibraryIcon, labelKey: 'nav.school_library' },
       { key: 'notification-center', icon: Bell, labelKey: 'nav.notification_center' },
       { key: 'announcements', icon: Megaphone, labelKey: 'nav.announcements' },
     ],
@@ -455,6 +468,9 @@ function renderView(view: ViewName) {
     case 'exam-calendar': return <ExamCalendarView />;
     case 'student-achievements': return <StudentAchievementsView />;
     case 'student-study-planner': return <StudentStudyPlannerView />;
+    case 'seating-chart': return <SeatingChartView />;
+    case 'school-library': return <SchoolLibraryView />;
+    case 'report-cards': return <ReportCardView />;
     default: return <DashboardView />;
   }
 }

@@ -57,6 +57,7 @@ model School {
   backups            Backup[]
   behaviorInterventions BehaviorIntervention[]
   reportSchedules    ReportSchedule[]
+  reportCardTemplates ReportCardTemplate[]
   homeworks          Homework[]
   announcements      Announcement[]
   notificationPreferences NotificationPreferences[]
@@ -99,6 +100,10 @@ model School {
   examPlans          ExamPlan[]
   studyPlans         StudyPlan[]
   studySessions      StudySession[]
+  libraryBooks       LibraryBook[]
+  bookCheckouts      BookCheckout[]
+  bookReservations   BookReservation[]
+  seatingCharts      SeatingChart[]
 }
 
 model User {
@@ -179,6 +184,9 @@ model User {
   // Class responsible teacher
   responsibleClasses        ClassGroup[] @relation("ResponsibleTeacher")
   examPlans                 ExamPlan[]
+  seatingCharts             SeatingChart[]
+  bookCheckouts             BookCheckout[]
+  bookReservations          BookReservation[]
 }
 
 model SchoolYear {
@@ -236,6 +244,7 @@ model ClassGroup {
   schoolEvents        SchoolEvent[]
   aiTestGenerations   AITestGeneration[]
   examPlans           ExamPlan[]
+  seatingCharts       SeatingChart[]
 }
 
 model ClassGroupTeacher {
@@ -294,6 +303,8 @@ model Student {
   studyPlans            StudyPlan[]
   studySessions         StudySession[]
   gradingAnnotations    GradingAnnotation[]
+  bookCheckouts         BookCheckout[]
+  bookReservations      BookReservation[]
 
   @@index([userId])
 }
@@ -552,15 +563,41 @@ model Report {
   period          String
   generatedByUserId String
   generatedAt     DateTime @default(now())
-  status          String   @default("DRAFT") // DRAFT, FINAL
+  status          String   @default("DRAFT") // DRAFT, REVIEW, PUBLISHED, ARCHIVED, FINAL
   pdfFilePath     String?
   includesGrades  Boolean  @default(false)
+
+  // Report card extended fields
+  teacherComments   String?   // teacher comments text
+  attendanceSummary String?   // JSON: { present: N, absent: N, excused: N, late: N, total: N }
+  overallAssessment String?   // overall assessment text
+  templateId        String?   // report card template reference
+  reviewedByUserId  String?   // reviewer user ID
+  reviewedAt        DateTime? // review timestamp
+  publishedAt       DateTime? // publish timestamp
 
   student        Student     @relation(fields: [studentId], references: [id])
   classGroup     ClassGroup  @relation(fields: [classGroupId], references: [id])
   schoolYear     SchoolYear  @relation(fields: [schoolYearId], references: [id])
   generatedByUser User       @relation(fields: [generatedByUserId], references: [id])
   sections       ReportSection[]
+  template       ReportCardTemplate? @relation(fields: [templateId], references: [id])
+}
+
+model ReportCardTemplate {
+  id          String   @id @default(cuid())
+  schoolId    String
+  name        String
+  description String?
+  sections    String   @default("[]") // JSON: array of section definitions
+  gradingScale String  @default("{}")
+  layout      String   @default("default") // default, detailed, compact
+  isDefault   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  school   School   @relation(fields: [schoolId], references: [id])
+  reports  Report[]
 }
 
 model ReportSection {
@@ -2641,4 +2678,128 @@ model StudySession {
   @@index([startTime])
   @@index([status])
   @@map("study_sessions")
+}
+
+// ─── School Library ──────────────────────────────────────────────────
+
+model LibraryBook {
+  id              String   @id @default(cuid())
+  schoolId        String
+  title           String
+  author          String
+  isbn            String?
+  publisher       String?
+  publishYear     Int?
+  category        String   // Fiction, Non-Fiction, Science, History, etc.
+  readingLevel    String?  // elementary, middle, high, advanced
+  language        String   @default("de")
+  description     String?
+  coverGradient   String?  // JSON: {from, to} gradient colors for placeholder
+  totalCopies     Int      @default(1)
+  availableCopies Int      @default(1)
+  location        String?  // Shelf/room location
+  tags            String?  // JSON array of tag strings
+  isDemo          Boolean  @default(false)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  school        School            @relation(fields: [schoolId], references: [id])
+  checkouts     BookCheckout[]
+  reservations  BookReservation[]
+
+  @@index([schoolId])
+  @@index([category])
+  @@index([readingLevel])
+  @@index([author])
+  @@map("library_books")
+}
+
+model BookCheckout {
+  id              String   @id @default(cuid())
+  schoolId        String
+  bookId          String
+  studentId       String
+  checkedOutBy    String   // userId of the person who processed the checkout
+  checkoutDate    DateTime @default(now())
+  dueDate         DateTime
+  returnDate      DateTime?
+  condition       String   @default("good") // excellent, good, fair, poor
+  returnCondition String?  // Condition upon return
+  renewalCount    Int      @default(0)
+  status          String   @default("active") // active, returned, overdue, lost
+  fineAmount      Float    @default(0)
+  finePaid        Boolean  @default(false)
+  notes           String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  school        School       @relation(fields: [schoolId], references: [id])
+  book          LibraryBook  @relation(fields: [bookId], references: [id])
+  student       Student      @relation(fields: [studentId], references: [id])
+  checkedOutByUser User      @relation(fields: [checkedOutBy], references: [id])
+
+  @@index([schoolId])
+  @@index([bookId])
+  @@index([studentId])
+  @@index([status])
+  @@index([dueDate])
+  @@map("book_checkouts")
+}
+
+model BookReservation {
+  id          String   @id @default(cuid())
+  schoolId    String
+  bookId      String
+  studentId   String
+  userId      String   // The user who made the reservation (could be parent)
+  queuePosition Int    @default(1)
+  status      String   @default("waiting") // waiting, notified, fulfilled, cancelled
+  notifiedAt  DateTime?
+  fulfilledAt DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  school      School       @relation(fields: [schoolId], references: [id])
+  book        LibraryBook  @relation(fields: [bookId], references: [id])
+  student     Student      @relation(fields: [studentId], references: [id])
+  user        User         @relation(fields: [userId], references: [id])
+
+  @@index([schoolId])
+  @@index([bookId])
+  @@index([studentId])
+  @@index([status])
+  @@map("book_reservations")
+}
+
+// ─── Seating Charts ──────────────────────────────────────────────────
+
+model SeatingChart {
+  id            String   @id @default(cuid())
+  schoolId      String
+  classGroupId  String
+  teacherId     String
+  name          String
+  layoutType    String   @default("rows") // rows, groups, u-shape, circle, custom
+  rows          Int      @default(5)
+  columns       Int      @default(5)
+  gap           Int      @default(2)      // Gap between desks (in grid units)
+  arrangement   String?  // JSON: [{ studentId, row, col }] — student seat assignments
+  showDoor      Boolean  @default(true)
+  showWindows   Boolean  @default(true)
+  doorPosition  String   @default("left") // left, right, back
+  windowPosition String  @default("right") // left, right, both
+  isTemplate    Boolean  @default(false)
+  isDefault     Boolean  @default(false)
+  notes         String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  school       School     @relation(fields: [schoolId], references: [id])
+  classGroup   ClassGroup @relation(fields: [classGroupId], references: [id])
+  teacher      User       @relation(fields: [teacherId], references: [id])
+
+  @@index([schoolId])
+  @@index([classGroupId])
+  @@index([teacherId])
+  @@map("seating_charts")
 }

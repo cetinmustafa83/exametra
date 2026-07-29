@@ -44,7 +44,10 @@ export type ViewName =
   | 'tablet-grading'
   | 'exam-calendar'
   | 'student-achievements'
-  | 'student-study-planner';
+  | 'student-study-planner'
+  | 'seating-chart'
+  | 'school-library'
+  | 'report-cards';
 
 export interface CurrentUser {
   id: string;
