@@ -253,6 +253,47 @@ export async function GET(request: Request) {
       }
 
       filename = `grades_export.csv`;
+    } else if (type === 'attendance') {
+      // Attendance CSV
+      const where: Record<string, unknown> = {};
+      if (classGroupId) where.classGroupId = classGroupId;
+
+      let records = await db.attendanceRecord.findMany({
+        where,
+        orderBy: { date: 'desc' },
+        include: {
+          student: { select: { id: true, firstName: true, lastName: true } },
+          classGroup: { select: { id: true, name: true } },
+        },
+      });
+
+      if (schoolId && !classGroupId) {
+        const classGroups = await db.classGroup.findMany({
+          where: { schoolId },
+          select: { id: true },
+        });
+        const classIds = classGroups.map((c) => c.id);
+        records = records.filter((r) => classIds.includes(r.classGroupId));
+      }
+
+      const header = ['ID', 'Date', 'Student First Name', 'Student Last Name', 'Student ID', 'Class', 'Status', 'Arrival Time', 'Note'];
+      csvContent = header.map(escapeCsvField).join(',') + '\n';
+
+      for (const r of records) {
+        csvContent += toCsvRow([
+          r.id,
+          new Date(r.date).toLocaleDateString(),
+          r.student.firstName,
+          r.student.lastName,
+          r.studentId,
+          r.classGroup.name,
+          r.status,
+          r.arrivalTime ?? '',
+          r.note ?? '',
+        ]) + '\n';
+      }
+
+      filename = `attendance_export.csv`;
     }
 
     // Create audit log for export

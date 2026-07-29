@@ -11,33 +11,90 @@ export async function GET(request: Request) {
 
     const { searchParams } = new URL(request.url);
     const reportId = searchParams.get('reportId');
+    const studentId = searchParams.get('studentId');
+    const template = searchParams.get('template') ?? 'full'; // short, full, custom
 
-    if (!reportId) {
-      return NextResponse.json({ error: 'reportId is required' }, { status: 400 });
+    if (!reportId && !studentId) {
+      return NextResponse.json({ error: 'reportId or studentId is required' }, { status: 400 });
     }
 
-    const report = await db.report.findUnique({
-      where: { id: reportId },
-      include: {
-        student: { select: { id: true, firstName: true, lastName: true } },
-        classGroup: { select: { id: true, name: true, gradeLevel: true } },
-        schoolYear: { select: { id: true, label: true } },
-        generatedByUser: { select: { id: true, firstName: true, lastName: true } },
-        sections: {
-          orderBy: { order: 'asc' },
-          include: {
-            competencyCategory: { select: { id: true, name: true, color: true } },
+    let report;
+    if (reportId) {
+      report = await db.report.findUnique({
+        where: { id: reportId },
+        include: {
+          student: {
+            select: { id: true, firstName: true, lastName: true },
+          },
+          classGroup: { select: { id: true, name: true, gradeLevel: true } },
+          schoolYear: { select: { id: true, label: true } },
+          generatedByUser: { select: { id: true, firstName: true, lastName: true } },
+          sections: {
+            orderBy: { order: 'asc' },
+            include: {
+              competencyCategory: { select: { id: true, name: true, color: true } },
+            },
           },
         },
-      },
-    });
+      });
+    } else if (studentId) {
+      // Generate a report on-the-fly for this student
+      const student = await db.student.findUnique({
+        where: { id: studentId, deletedAt: null },
+        include: {
+          enrollments: {
+            where: { endDate: null },
+            take: 1,
+            include: { classGroup: { select: { id: true, name: true, gradeLevel: true } } },
+          },
+          learningProgressEntries: {
+            take: 20,
+            orderBy: { createdAt: 'desc' },
+            include: {
+              competency: { select: { code: true, title: true } },
+              teacher: { select: { firstName: true, lastName: true } },
+            },
+          },
+          assessmentResults: {
+            take: 20,
+            orderBy: { createdAt: 'desc' },
+            include: {
+              assessment: { select: { title: true, type: true } },
+            },
+          },
+        },
+      });
+
+      if (!student) {
+        return NextResponse.json({ error: 'Student not found' }, { status: 404 });
+      }
+
+      const classGroup = student.enrollments[0]?.classGroup;
+      report = {
+        id: 'on-the-fly',
+        student: { id: student.id, firstName: student.firstName, lastName: student.lastName },
+        classGroup: classGroup ?? { id: '', name: 'N/A', gradeLevel: 0 },
+        schoolYear: { id: '', label: new Date().getFullYear().toString() },
+        generatedByUser: { id: session.userId ?? '', firstName: session.user?.firstName ?? '', lastName: session.user?.lastName ?? '' },
+        period: 'Aktuell',
+        status: 'DRAFT',
+        includesGrades: true,
+        generatedAt: new Date().toISOString(),
+        sections: student.learningProgressEntries.map((entry, idx) => ({
+          order: idx,
+          generatedText: `${entry.competency?.title ?? 'Kompetenz'}: ${entry.level ?? 'N/A'}`,
+          competencyCategory: { id: entry.competency?.id ?? '', name: entry.competency?.code ?? '', color: '#10b981' },
+        })),
+        _studentData: student,
+        _classGroup: classGroup,
+      };
+    }
 
     if (!report) {
       return NextResponse.json({ error: 'Report not found' }, { status: 404 });
     }
 
-    // Generate a print-friendly HTML page
-    const htmlContent = generatePrintHtml(report);
+    const htmlContent = generatePrintHtml(report, template);
 
     return new NextResponse(htmlContent, {
       headers: {
@@ -50,7 +107,7 @@ export async function GET(request: Request) {
   }
 }
 
-function generatePrintHtml(report: Record<string, unknown>): string {
+function generatePrintHtml(report: Record<string, unknown>, template: string): string {
   const student = report.student as { firstName: string; lastName: string };
   const classGroup = report.classGroup as { name: string; gradeLevel: number };
   const schoolYear = report.schoolYear as { label: string };
@@ -60,6 +117,9 @@ function generatePrintHtml(report: Record<string, unknown>): string {
     generatedText: string;
     competencyCategory: { name: string; color: string | null } | null;
   }>).sort((a, b) => a.order - b.order);
+
+  const isShort = template === 'short';
+  const initials = student.firstName[0] + student.lastName[0];
 
   const sectionsHtml = sections.map((s) => {
     const catName = s.competencyCategory?.name ?? '';
@@ -71,6 +131,43 @@ function generatePrintHtml(report: Record<string, unknown>): string {
       </div>
     `;
   }).join('\n');
+
+  // Grades table for full template
+  const studentData = report._studentData as {
+    assessmentResults?: Array<{
+      score: number | null;
+      grade: string | null;
+      assessment: { title: string; type: string };
+    }>;
+  } | undefined;
+
+  const gradesHtml = !isShort && studentData?.assessmentResults?.length
+    ? `
+      <div class="grades-section">
+        <h3 class="section-title" style="color: #10b981">Notenubersicht</h3>
+        <table class="grades-table">
+          <thead>
+            <tr>
+              <th>Uberprufung</th>
+              <th>Typ</th>
+              <th>Punkte</th>
+              <th>Note</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${studentData.assessmentResults!.map((r) => `
+              <tr>
+                <td>${r.assessment.title}</td>
+                <td>${r.assessment.type}</td>
+                <td>${r.score ?? '—'}</td>
+                <td>${r.grade ?? '—'}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </div>
+    `
+    : '';
 
   return `<!DOCTYPE html>
 <html lang="de">
@@ -86,23 +183,53 @@ function generatePrintHtml(report: Record<string, unknown>): string {
       max-width: 800px;
       margin: 40px auto;
       padding: 20px;
+      position: relative;
     }
     .header {
-      text-align: center;
+      display: flex;
+      align-items: center;
+      gap: 20px;
       border-bottom: 3px solid #10b981;
       padding-bottom: 20px;
       margin-bottom: 30px;
     }
-    .header h1 {
-      color: #10b981;
-      font-size: 28px;
-      margin-bottom: 8px;
+    .avatar {
+      width: 64px;
+      height: 64px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #10b981, #14b8a6);
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+      font-weight: 700;
+      flex-shrink: 0;
     }
-    .header h2 {
+    .header-text h1 {
+      color: #10b981;
+      font-size: 24px;
+      margin-bottom: 4px;
+    }
+    .header-text h2 {
       color: #666;
       font-size: 18px;
       margin-bottom: 6px;
     }
+    .template-badge {
+      display: inline-block;
+      padding: 2px 10px;
+      border-radius: 12px;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .badge-short { background: #fef3c7; color: #92400e; }
+    .badge-full { background: #d1fae5; color: #065f46; }
+    .badge-custom { background: #ede9fe; color: #5b21b6; }
+    .badge-draft { background: #fef3c7; color: #92400e; }
+    .badge-final { background: #d1fae5; color: #065f46; }
     .meta {
       display: grid;
       grid-template-columns: 1fr 1fr;
@@ -116,20 +243,48 @@ function generatePrintHtml(report: Record<string, unknown>): string {
       color: #333;
     }
     .section {
+      margin-bottom: 20px;
+      padding: 14px;
+      background: #f9fafb;
+      border-radius: 8px;
+      border-left: 4px solid #10b981;
+    }
+    .section-title {
+      font-size: 15px;
+      font-weight: 600;
+      margin-bottom: 6px;
+    }
+    .section-text {
+      font-size: 14px;
+      color: #444;
+    }
+    .grades-section {
       margin-bottom: 24px;
       padding: 16px;
       background: #f9fafb;
       border-radius: 8px;
       border-left: 4px solid #10b981;
     }
-    .section-title {
-      font-size: 16px;
-      font-weight: 600;
-      margin-bottom: 8px;
+    .grades-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 10px;
+      font-size: 13px;
     }
-    .section-text {
-      font-size: 14px;
-      color: #444;
+    .grades-table th {
+      text-align: left;
+      padding: 6px 10px;
+      border-bottom: 2px solid #e5e7eb;
+      color: #555;
+      font-weight: 600;
+    }
+    .grades-table td {
+      padding: 6px 10px;
+      border-bottom: 1px solid #f3f4f6;
+    }
+    .grade-value {
+      font-weight: 700;
+      color: #10b981;
     }
     .footer {
       text-align: center;
@@ -139,25 +294,29 @@ function generatePrintHtml(report: Record<string, unknown>): string {
       padding-top: 16px;
       margin-top: 40px;
     }
-    .badge {
-      display: inline-block;
-      padding: 2px 8px;
-      border-radius: 4px;
-      font-size: 12px;
-      font-weight: 600;
+    .eco-footer {
+      text-align: center;
+      font-size: 11px;
+      color: #10b981;
+      margin-top: 8px;
+      font-style: italic;
     }
-    .badge-draft {
-      background: #fef3c7;
-      color: #92400e;
-    }
-    .badge-final {
-      background: #d1fae5;
-      color: #065f46;
+    .watermark {
+      position: fixed;
+      bottom: 50%;
+      right: -60px;
+      transform: rotate(-45deg);
+      font-size: 72px;
+      color: rgba(16, 185, 129, 0.04);
+      font-weight: 900;
+      pointer-events: none;
+      z-index: -1;
     }
     @media print {
       body { margin: 0; padding: 20px; }
       .no-print { display: none; }
       .section { break-inside: avoid; }
+      .grades-section { break-inside: avoid; }
     }
     .print-btn {
       position: fixed;
@@ -177,27 +336,37 @@ function generatePrintHtml(report: Record<string, unknown>): string {
   </style>
 </head>
 <body>
+  <div class="watermark">CompetenceTrack</div>
   <button class="print-btn no-print" onclick="window.print()">Drucken / Print</button>
 
   <div class="header">
-    <h1>Kompetenzbericht</h1>
-    <h2>${student.firstName} ${student.lastName}</h2>
-    <span class="badge ${String(report.status) === 'FINAL' ? 'badge-final' : 'badge-draft'}">${String(report.status)}</span>
+    <div class="avatar">${initials}</div>
+    <div class="header-text">
+      <h1>Kompetenzbericht</h1>
+      <h2>${student.firstName} ${student.lastName}</h2>
+      <span class="template-badge ${template === 'short' ? 'badge-short' : template === 'custom' ? 'badge-custom' : 'badge-full'}">${template === 'short' ? 'Kurzbericht' : template === 'custom' ? 'Individuell' : 'Vollstandig'}</span>
+      <span class="template-badge ${String(report.status) === 'FINAL' ? 'badge-final' : 'badge-draft'}" style="margin-left: 6px">${String(report.status)}</span>
+    </div>
   </div>
 
   <div class="meta">
-    <div><dt>Klasse:</dt> <dd>${classGroup.name} (Jahrgang ${classGroup.gradeLevel})</dd></div>
+    <div><dt>Klasse:</dt> <dd>${classGroup.name}${classGroup.gradeLevel ? ` (Jahrgang ${classGroup.gradeLevel})` : ''}</dd></div>
     <div><dt>Schuljahr:</dt> <dd>${schoolYear.label}</dd></div>
     <div><dt>Zeitraum:</dt> <dd>${String(report.period)}</dd></div>
     <div><dt>Erstellt von:</dt> <dd>${generatedByUser.firstName} ${generatedByUser.lastName}</dd></div>
-    <div><dt>Datum:</dt> <dd>${new Date(String(report.generatedAt)).toLocaleDateString()}</dd></div>
+    <div><dt>Datum:</dt> <dd>${new Date(String(report.generatedAt)).toLocaleDateString('de-DE')}</dd></div>
     <div><dt>Noten inklusive:</dt> <dd>${String(report.includesGrades) === 'true' ? 'Ja' : 'Nein'}</dd></div>
   </div>
 
   ${sectionsHtml}
 
+  ${gradesHtml}
+
   <div class="footer">
-    <p>CompetenceTrack — Kompetenzbericht · ${new Date().toLocaleDateString()}</p>
+    <p>CompetenceTrack — Kompetenzbericht · ${new Date().toLocaleDateString('de-DE')}</p>
+  </div>
+  <div class="eco-footer">
+    Digital erstellt — Papier sparen, Umwelt schutzen
   </div>
 </body>
 </html>`;

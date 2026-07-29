@@ -39,6 +39,7 @@ model School {
   drawings           Drawing[]
   notifications      Notification[]
   calendarEvents     CalendarEvent[]
+  parentStudentLinks ParentStudentLink[]
 }
 
 model User {
@@ -75,6 +76,7 @@ model User {
   drawings                  Drawing[]
   notifications             Notification[]
   calendarEvents            CalendarEvent[]
+  parentLinks               ParentStudentLink[]
 }
 
 model SchoolYear {
@@ -156,6 +158,7 @@ model Student {
   parentContacts        ParentContact[]
   parentMessages        ParentMessage[]
   behaviorIncidents     BehaviorIncident[]
+  parentStudentLinks    ParentStudentLink[]
 }
 
 model Enrollment {
@@ -775,9 +778,26 @@ model NotebookPage {
   updatedAt   DateTime @updatedAt
 
   notebook   Notebook @relation(fields: [notebookId], references: [id], onDelete: Cascade)
+  versions   NotebookPageVersion[]
 
   @@index([notebookId])
   @@index([pageNumber])
+}
+
+model NotebookPageVersion {
+  id          String   @id @default(cuid())
+  pageId      String
+  version     Int
+  textContent String?
+  drawingData String?
+  editedBy    String?
+  editSummary String?
+  createdAt   DateTime @default(now())
+
+  page        NotebookPage @relation(fields: [pageId], references: [id], onDelete: Cascade)
+
+  @@index([pageId, version])
+  @@map("notebook_page_versions")
 }
 
 // ─── Drawing Canvas ────────────────────────────────────────────────
@@ -832,29 +852,54 @@ model Notification {
 // ─── Calendar Events ──────────────────────────────────────────────
 
 model CalendarEvent {
-  id          String   @id @default(cuid())
-  schoolId    String
-  teacherId   String
-  title       String
-  date        DateTime
-  startTime   String?  // HH:mm format, null = all day
-  endTime     String?  // HH:mm format, null = all day
-  eventType   String   @default("reminder") // assessment | lesson | reminder
-  subjectId   String?
-  classGroupId String?
-  notes       String?
-  allDay      Boolean  @default(false)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id                 String    @id @default(cuid())
+  schoolId           String
+  teacherId          String
+  title              String
+  date               DateTime
+  startTime          String?   // HH:mm format, null = all day
+  endTime            String?   // HH:mm format, null = all day
+  eventType          String    @default("reminder") // assessment | lesson | reminder
+  subjectId          String?
+  classGroupId       String?
+  notes              String?
+  allDay             Boolean   @default(false)
+  recurrencePattern  String?   // JSON: { type: "daily|weekly|monthly|yearly", interval: 1, endDate?: string, daysOfWeek?: number[] }
+  recurrenceEnd      DateTime? // When recurrence ends
+  parentEventId      String?   // For generated instances of a recurring event
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
 
-  school     School    @relation(fields: [schoolId], references: [id])
-  teacher    User      @relation(fields: [teacherId], references: [id])
-  subject    Subject?  @relation(fields: [subjectId], references: [id])
-  classGroup ClassGroup? @relation(fields: [classGroupId], references: [id])
+  school       School         @relation(fields: [schoolId], references: [id])
+  teacher      User           @relation(fields: [teacherId], references: [id])
+  subject      Subject?       @relation(fields: [subjectId], references: [id])
+  classGroup   ClassGroup?    @relation(fields: [classGroupId], references: [id])
+  parentEvent  CalendarEvent? @relation("EventRecurrence", fields: [parentEventId], references: [id])
+  childEvents  CalendarEvent[] @relation("EventRecurrence")
 
   @@index([schoolId])
   @@index([teacherId])
   @@index([date])
   @@index([subjectId])
   @@index([classGroupId])
+  @@index([parentEventId])
+}
+
+// ─── Parent-Student Link ──────────────────────────────────────────────
+
+model ParentStudentLink {
+  id            String   @id @default(cuid())
+  parentId      String   // User with PARENT role
+  studentId     String   // Student record
+  schoolId      String
+  relationship  String?  // mother, father, guardian, etc.
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  parent        User     @relation(fields: [parentId], references: [id])
+  student       Student  @relation(fields: [studentId], references: [id])
+  school        School   @relation(fields: [schoolId], references: [id])
+
+  @@unique([parentId, studentId])
+  @@map("parent_student_links")
 }

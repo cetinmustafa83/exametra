@@ -19,6 +19,7 @@ import {
   Trash2,
   Bell,
   CheckCircle2,
+  Repeat,
 } from 'lucide-react';
 import {
   format,
@@ -96,6 +97,7 @@ import {
   updateCalendarEventItem,
   deleteCalendarEventItem,
   type CalendarEventItemType,
+  type RecurrencePattern,
   fetchClasses,
   fetchSubjects,
   type ClassGroup,
@@ -248,6 +250,12 @@ interface EventFormData {
   classGroupId: string;
   notes: string;
   allDay: boolean;
+  recurrenceType: 'none' | 'daily' | 'weekly' | 'monthly' | 'yearly';
+  recurrenceInterval: number;
+  recurrenceEndType: 'never' | 'on_date';
+  recurrenceEndDate: string;
+  recurrenceDaysOfWeek: number[];
+  editMode: 'series' | 'instance';
 }
 
 const EMPTY_FORM: EventFormData = {
@@ -260,6 +268,12 @@ const EMPTY_FORM: EventFormData = {
   classGroupId: '',
   notes: '',
   allDay: false,
+  recurrenceType: 'none',
+  recurrenceInterval: 1,
+  recurrenceEndType: 'never',
+  recurrenceEndDate: '',
+  recurrenceDaysOfWeek: [],
+  editMode: 'instance',
 };
 
 /* ── Sub-components ───────────────────────────────────────────────── */
@@ -348,6 +362,13 @@ function EventDetailContent({ event, onEdit, onDelete }: { event: CalendarEvent;
               {t('action.delete')}
             </Button>
           )}
+        </div>
+      )}
+      {/* Recurring indicator */}
+      {isCustomEvent && typeof meta.recurrencePattern === 'string' && meta.recurrencePattern && (
+        <div className="flex items-center gap-1.5 pt-2 border-t border-gray-100 dark:border-gray-800">
+          <Repeat className="h-3.5 w-3.5 text-emerald-500" />
+          <span className="text-xs font-medium text-emerald-600 dark:text-emerald-400">{t('calendar.recurring')}</span>
         </div>
       )}
     </div>
@@ -638,6 +659,9 @@ export default function CalendarView() {
 
   // Delete confirmation
   const [deleteConfirmEvent, setDeleteConfirmEvent] = useState<CalendarEvent | null>(null);
+  // Edit mode dialog for recurring events
+  const [showEditModeDialog, setShowEditModeDialog] = useState(false);
+  const [pendingEditEvent, setPendingEditEvent] = useState<CalendarEvent | null>(null);
 
   // Classes and subjects for form
   const [classes, setClasses] = useState<ClassGroup[]>([]);
@@ -753,6 +777,15 @@ export default function CalendarView() {
 
   const handleEditEvent = useCallback((event: CalendarEvent) => {
     const meta = event.meta as Record<string, unknown>;
+    const isRecurring = typeof meta.recurrencePattern === 'string' && meta.recurrencePattern;
+    const isChild = typeof meta.parentEventId === 'string' && meta.parentEventId;
+
+    if (isRecurring || isChild) {
+      setPendingEditEvent(event);
+      setShowEditModeDialog(true);
+      return;
+    }
+
     setEditingEvent(event);
     setFormData({
       title: event.title,
@@ -764,9 +797,46 @@ export default function CalendarView() {
       classGroupId: '',
       notes: (typeof meta.notes === 'string' && meta.notes) ? meta.notes : '',
       allDay: typeof meta.allDay === 'boolean' ? meta.allDay : false,
+      recurrenceType: 'none',
+      recurrenceInterval: 1,
+      recurrenceEndType: 'never',
+      recurrenceEndDate: '',
+      recurrenceDaysOfWeek: [],
+      editMode: 'instance',
     });
     setShowEventForm(true);
     setSelectedEvent(null);
+  }, []);
+
+  const handleEditEventWithMode = useCallback((event: CalendarEvent, mode: 'series' | 'instance') => {
+    const meta = event.meta as Record<string, unknown>;
+    let parsedRecurrence: RecurrencePattern | null = null;
+    if (typeof meta.recurrencePattern === 'string' && meta.recurrencePattern) {
+      try { parsedRecurrence = JSON.parse(meta.recurrencePattern as string); } catch { /* ignore */ }
+    }
+
+    setEditingEvent(event);
+    setFormData({
+      title: event.title,
+      date: event.date,
+      startTime: (typeof meta.startTime === 'string' && meta.startTime) ? meta.startTime : '08:00',
+      endTime: (typeof meta.endTime === 'string' && meta.endTime) ? meta.endTime : '09:00',
+      eventType: (typeof meta.eventType === 'string' ? meta.eventType : 'reminder') as CalendarEventItemType,
+      subjectId: '',
+      classGroupId: '',
+      notes: (typeof meta.notes === 'string' && meta.notes) ? meta.notes : '',
+      allDay: typeof meta.allDay === 'boolean' ? meta.allDay : false,
+      recurrenceType: parsedRecurrence?.type ?? 'none',
+      recurrenceInterval: parsedRecurrence?.interval ?? 1,
+      recurrenceEndType: parsedRecurrence?.endDate ? 'on_date' : 'never',
+      recurrenceEndDate: parsedRecurrence?.endDate ?? '',
+      recurrenceDaysOfWeek: parsedRecurrence?.daysOfWeek ?? [],
+      editMode: mode,
+    });
+    setShowEventForm(true);
+    setSelectedEvent(null);
+    setShowEditModeDialog(false);
+    setPendingEditEvent(null);
   }, []);
 
   const handleDeleteEvent = useCallback(async () => {
@@ -786,6 +856,23 @@ export default function CalendarView() {
     if (!currentUser?.schoolId || !formData.title.trim()) return;
     setSaving(true);
     try {
+      const recurrencePattern: RecurrencePattern | null = formData.recurrenceType !== 'none'
+        ? {
+            type: formData.recurrenceType,
+            interval: formData.recurrenceInterval,
+            ...(formData.recurrenceEndType === 'on_date' && formData.recurrenceEndDate
+              ? { endDate: formData.recurrenceEndDate }
+              : {}),
+            ...(formData.recurrenceType === 'weekly' && formData.recurrenceDaysOfWeek.length > 0
+              ? { daysOfWeek: formData.recurrenceDaysOfWeek }
+              : {}),
+          }
+        : null;
+
+      const recurrenceEnd = formData.recurrenceEndType === 'on_date' && formData.recurrenceEndDate
+        ? formData.recurrenceEndDate
+        : null;
+
       if (editingEvent) {
         await updateCalendarEventItem(editingEvent.id, {
           title: formData.title,
@@ -797,6 +884,9 @@ export default function CalendarView() {
           classGroupId: formData.classGroupId || null,
           notes: formData.notes || null,
           allDay: formData.allDay,
+          recurrencePattern,
+          recurrenceEnd,
+          editMode: formData.editMode,
         });
         toast.success(t('calendar.event_updated'));
       } else {
@@ -811,6 +901,8 @@ export default function CalendarView() {
           classGroupId: formData.classGroupId || null,
           notes: formData.notes || null,
           allDay: formData.allDay,
+          recurrencePattern,
+          recurrenceEnd,
         });
         toast.success(t('calendar.event_created'));
       }
@@ -1561,6 +1653,132 @@ export default function CalendarView() {
                 className="min-h-[44px] resize-none"
               />
             </div>
+
+            {/* Recurrence options */}
+            {!editingEvent || formData.editMode === 'series' ? (
+              <div className="space-y-3 pt-2 border-t border-gray-100 dark:border-gray-800">
+                <div className="flex items-center gap-2">
+                  <Repeat className="h-4 w-4 text-emerald-500" />
+                  <Label className="text-xs font-semibold text-emerald-700 dark:text-emerald-400">
+                    {t('calendar.recurring')}
+                  </Label>
+                </div>
+
+                {/* Repeat type */}
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-medium text-gray-700 dark:text-gray-300">
+                    {t('calendar.repeat_none')}
+                  </Label>
+                  <Select
+                    value={formData.recurrenceType}
+                    onValueChange={(value) => setFormData((f) => ({
+                      ...f,
+                      recurrenceType: value as 'none' | 'daily' | 'weekly' | 'monthly' | 'yearly',
+                      recurrenceDaysOfWeek: value === 'weekly' ? [1] : [],
+                    }))}
+                  >
+                    <SelectTrigger className="min-h-[44px]">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">{t('calendar.repeat_none')}</SelectItem>
+                      <SelectItem value="daily">{t('calendar.repeat_daily')}</SelectItem>
+                      <SelectItem value="weekly">{t('calendar.repeat_weekly')}</SelectItem>
+                      <SelectItem value="monthly">{t('calendar.repeat_monthly')}</SelectItem>
+                      <SelectItem value="yearly">{t('calendar.repeat_yearly')}</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Interval */}
+                {formData.recurrenceType !== 'none' && (
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-medium text-gray-700 dark:text-gray-300">
+                      {t('calendar.repeat_interval', { interval: formData.recurrenceInterval })}
+                    </Label>
+                    <Input
+                      type="number"
+                      min={1}
+                      max={30}
+                      value={formData.recurrenceInterval}
+                      onChange={(e) => setFormData((f) => ({ ...f, recurrenceInterval: parseInt(e.target.value) || 1 }))}
+                      className="min-h-[44px] w-20"
+                    />
+                  </div>
+                )}
+
+                {/* Days of week selector (for weekly) */}
+                {formData.recurrenceType === 'weekly' && (
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-medium text-gray-700 dark:text-gray-300">
+                      {t('calendar.repeat_weekdays')}
+                    </Label>
+                    <div className="flex gap-1">
+                      {['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'].map((dayLabel, dayIndex) => {
+                        const dayNum = dayIndex === 6 ? 0 : dayIndex + 1;
+                        const isSelected = formData.recurrenceDaysOfWeek.includes(dayNum);
+                        return (
+                          <button
+                            key={dayNum}
+                            type="button"
+                            onClick={() => {
+                              setFormData((f) => ({
+                                ...f,
+                                recurrenceDaysOfWeek: isSelected
+                                  ? f.recurrenceDaysOfWeek.filter((d) => d !== dayNum)
+                                  : [...f.recurrenceDaysOfWeek, dayNum].sort(),
+                              }));
+                            }}
+                            className={`w-10 h-10 rounded-lg text-xs font-semibold flex items-center justify-center transition-colors ${
+                              isSelected
+                                ? 'bg-emerald-500 text-white shadow-sm'
+                                : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-emerald-100 dark:hover:bg-emerald-900/20'
+                            }`}
+                          >
+                            {dayLabel}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* Recurrence end */}
+                {formData.recurrenceType !== 'none' && (
+                  <div className="space-y-2">
+                    <Label className="text-xs font-medium text-gray-700 dark:text-gray-300">
+                      {t('calendar.repeat_end')}
+                    </Label>
+                    <div className="flex gap-3">
+                      <Button
+                        variant={formData.recurrenceEndType === 'never' ? 'default' : 'outline'}
+                        size="sm"
+                        className={formData.recurrenceEndType === 'never' ? 'bg-emerald-500 hover:bg-emerald-600 text-white min-h-[44px]' : 'min-h-[44px]'}
+                        onClick={() => setFormData((f) => ({ ...f, recurrenceEndType: 'never' }))}
+                      >
+                        {t('calendar.repeat_end_never')}
+                      </Button>
+                      <Button
+                        variant={formData.recurrenceEndType === 'on_date' ? 'default' : 'outline'}
+                        size="sm"
+                        className={formData.recurrenceEndType === 'on_date' ? 'bg-emerald-500 hover:bg-emerald-600 text-white min-h-[44px]' : 'min-h-[44px]'}
+                        onClick={() => setFormData((f) => ({ ...f, recurrenceEndType: 'on_date' }))}
+                      >
+                        {t('calendar.repeat_end_on')}
+                      </Button>
+                    </div>
+                    {formData.recurrenceEndType === 'on_date' && (
+                      <Input
+                        type="date"
+                        value={formData.recurrenceEndDate}
+                        onChange={(e) => setFormData((f) => ({ ...f, recurrenceEndDate: e.target.value }))}
+                        className="min-h-[44px]"
+                      />
+                    )}
+                  </div>
+                )}
+              </div>
+            ) : null}
           </div>
 
           <DialogFooter className="mt-4 gap-2">
@@ -1602,6 +1820,42 @@ export default function CalendarView() {
               className="bg-red-500 hover:bg-red-600 text-white min-h-[44px]"
             >
               {t('action.delete')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Edit mode dialog for recurring events */}
+      <AlertDialog
+        open={showEditModeDialog}
+        onOpenChange={(open) => {
+          if (!open) {
+            setShowEditModeDialog(false);
+            setPendingEditEvent(null);
+          }
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t('calendar.edit_series')}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t('calendar.edit_instance')}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="flex flex-col sm:flex-row gap-2">
+            <AlertDialogCancel className="min-h-[44px]">{t('action.cancel')}</AlertDialogCancel>
+            <Button
+              variant="outline"
+              onClick={() => pendingEditEvent && handleEditEventWithMode(pendingEditEvent, 'instance')}
+              className="border-emerald-200/60 dark:border-emerald-900/30 text-emerald-700 dark:text-emerald-300 min-h-[44px]"
+            >
+              {t('calendar.edit_instance')}
+            </Button>
+            <AlertDialogAction
+              onClick={() => pendingEditEvent && handleEditEventWithMode(pendingEditEvent, 'series')}
+              className="bg-emerald-500 hover:bg-emerald-600 text-white min-h-[44px]"
+            >
+              {t('calendar.edit_series')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

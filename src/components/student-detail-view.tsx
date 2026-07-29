@@ -16,7 +16,7 @@ import {
   Calculator, Flower2, BookOpen, GraduationCap, TrendingUp, Award,
   Printer, ChevronRight, Sparkles, MessageSquare, Grid3X3, Trophy, Flag, Zap,
   Rocket, Target, PenLine, Pencil, Home, ClipboardList, Star, BarChart3,
-  LucideIcon, Download, FileSpreadsheet, FileDown,
+  LucideIcon, Download, FileSpreadsheet, FileDown, Heart, Users as UsersIcon,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -32,9 +32,9 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
-import { useAppStore } from '@/lib/store';
+import { useAppStore, type CurrentUser } from '@/lib/store';
 import { t } from '@/lib/i18n';
-import { fetchStudentDetail, getReportPdfUrl, type StudentDetailData } from '@/lib/api';
+import { fetchStudentDetail, getReportPdfUrl, type StudentDetailData, fetchParentLinks, type ParentStudentLinkData } from '@/lib/api';
 import { toast } from 'sonner';
 import TeacherNotesSection from './teacher-notes-section';
 
@@ -338,11 +338,23 @@ export default function StudentDetailView() {
   const currentStudentId = useAppStore((s) => s.currentStudentId);
   const navigateBack = useAppStore((s) => s.navigateBack);
   const setCurrentView = useAppStore((s) => s.setCurrentView);
+  const currentUser = useAppStore((s) => s.currentUser);
+
+  const isStudentSelf = currentUser?.role === 'STUDENT';
+  const isParent = currentUser?.role === 'PARENT';
+  const [parentLinks, setParentLinks] = useState<ParentStudentLinkData[]>([]);
 
   const [data, setData] = useState<StudentDetailData | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedFlowerSubjectId, setSelectedFlowerSubjectId] = useState<string>('');
   const [timeRange, setTimeRange] = useState<JourneyTimeRange>('all');
+
+  // Load parent links for parent users
+  useEffect(() => {
+    if (isParent && currentUser?.id) {
+      fetchParentLinks(currentUser.id).then(setParentLinks).catch(() => {});
+    }
+  }, [isParent, currentUser?.id]);
 
   useEffect(() => {
     if (!currentStudentId) {
@@ -1142,6 +1154,85 @@ export default function StudentDetailView() {
 
         {/* Teacher notes — replaced with the dedicated TeacherNotesSection */}
         <TeacherNotesSection studentId={student.id} />
+
+        {/* My Progress section (for student self-view) */}
+        {isStudentSelf && (
+          <Card className="border-0 shadow-sm rounded-xl border-l-3 border-l-amber-500 overflow-hidden">
+            <CardHeader className="pb-3 pt-6 bg-gradient-to-r from-amber-50/50 to-transparent dark:from-amber-900/10 dark:to-transparent">
+              <CardTitle className="text-lg font-bold flex items-center gap-2">
+                <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400">
+                  <TrendingUp className="h-4 w-4" />
+                </div>
+                {t('student.my_competencies')}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-4 pt-2">
+              <p className="text-xs text-gray-500 dark:text-gray-400 mb-4">{t('student.progress_overview')}</p>
+              {/* Mastery Level Visualization */}
+              <div className="space-y-3">
+                {stats.averageMastery > 0 && (
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-medium text-gray-700 dark:text-gray-300">{t('student_detail.avg_mastery')}</span>
+                      <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400">{stats.averageMastery.toFixed(1)} / 4.0</span>
+                    </div>
+                    <div className="h-3 rounded-full bg-gray-100 dark:bg-gray-800 overflow-hidden">
+                      <div
+                        className="h-full rounded-full bg-gradient-to-r from-emerald-400 to-teal-500 transition-all duration-1000"
+                        style={{ width: `${Math.min(100, (stats.averageMastery / 4) * 100)}%` }}
+                      />
+                    </div>
+                  </div>
+                )}
+                {stats.totalProgressEntries > 0 && (
+                  <div className="flex items-center justify-between px-3 py-2 rounded-lg bg-amber-50/50 dark:bg-amber-900/10 border border-amber-100/50 dark:border-amber-900/20">
+                    <span className="text-xs text-gray-600 dark:text-gray-400">{t('student_detail.total_entries')}</span>
+                    <span className="text-sm font-bold text-amber-600 dark:text-amber-400">{stats.totalProgressEntries}</span>
+                  </div>
+                )}
+                {stats.latestGrade && (
+                  <div className="flex items-center justify-between px-3 py-2 rounded-lg bg-teal-50/50 dark:bg-teal-900/10 border border-teal-100/50 dark:border-teal-900/20">
+                    <span className="text-xs text-gray-600 dark:text-gray-400">{t('student_detail.latest_grade')}</span>
+                    <span className="text-sm font-bold text-teal-600 dark:text-teal-400">{stats.latestGrade.value.toFixed(1)}</span>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Parent Info section (for parent users) */}
+        {isParent && parentLinks.length > 0 && (
+          <Card className="border-0 shadow-sm rounded-xl border-l-3 border-l-violet-500 overflow-hidden">
+            <CardHeader className="pb-3 pt-6 bg-gradient-to-r from-violet-50/50 to-transparent dark:from-violet-900/10 dark:to-transparent">
+              <CardTitle className="text-lg font-bold flex items-center gap-2">
+                <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-violet-100 dark:bg-violet-900/30 text-violet-600 dark:text-violet-400">
+                  <Heart className="h-4 w-4" />
+                </div>
+                {t('parent.my_children')}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-4 pt-2">
+              <div className="space-y-2">
+                {parentLinks.map((link) => (
+                  <div key={link.id} className="flex items-center justify-between px-3 py-2 rounded-lg bg-violet-50/50 dark:bg-violet-900/10 border border-violet-100/50 dark:border-violet-900/20">
+                    <div className="flex items-center gap-2">
+                      <div className="flex items-center justify-center w-6 h-6 rounded-full bg-violet-200 dark:bg-violet-800 text-violet-700 dark:text-violet-300 text-[10px] font-bold">
+                        {link.student.firstName[0]}{link.student.lastName[0]}
+                      </div>
+                      <span className="text-xs font-medium text-gray-700 dark:text-gray-300">{link.student.firstName} {link.student.lastName}</span>
+                    </div>
+                    {link.relationship && (
+                      <Badge variant="outline" className="text-[10px] px-1.5 py-0 bg-violet-50/50 dark:bg-violet-900/10 border-violet-200/50 dark:border-violet-900/30 text-violet-700 dark:text-violet-300 shrink-0">
+                        {t(`parent.${link.relationship}`)}
+                      </Badge>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
       </div>
     </div>
   );

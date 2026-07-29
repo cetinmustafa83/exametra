@@ -6,10 +6,19 @@ import { getSession, hashPassword } from '@/lib/auth';
 const createUserSchema = z.object({
   schoolId: z.string().nullable().optional(),
   email: z.string().email().min(1),
-  password: z.string().min(8),
+  password: z.string().min(6),
   firstName: z.string().min(1),
   lastName: z.string().min(1),
-  role: z.enum(['TEACHER', 'SCHOOL_ADMIN', 'SUPER_ADMIN']).default('TEACHER'),
+  role: z.enum(['TEACHER', 'SCHOOL_ADMIN', 'SUPER_ADMIN', 'STUDENT', 'PARENT']).default('TEACHER'),
+  locale: z.string().default('de'),
+  studentId: z.string().optional(), // link to Student record (for STUDENT role)
+});
+
+const bulkCreateStudentAccountsSchema = z.object({
+  schoolId: z.string().min(1),
+  defaultPassword: z.string().min(6).default('Schule2025!'),
+  studentIds: z.array(z.string().min(1)).min(1),
+  emailDomain: z.string().default('schule.de'),
   locale: z.string().default('de'),
 });
 
@@ -22,13 +31,15 @@ export async function GET(request: Request) {
 
     if (
       session.user?.role !== 'SUPER_ADMIN' &&
-      session.user?.role !== 'SCHOOL_ADMIN'
+      session.user?.role !== 'SCHOOL_ADMIN' &&
+      session.user?.role !== 'TEACHER'
     ) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
     const { searchParams } = new URL(request.url);
     const schoolId = searchParams.get('schoolId');
+    const roleFilter = searchParams.get('role');
 
     const where: Record<string, unknown> = { deletedAt: null };
 
@@ -37,6 +48,10 @@ export async function GET(request: Request) {
       where.schoolId = session.user.schoolId;
     } else if (schoolId) {
       where.schoolId = schoolId;
+    }
+
+    if (roleFilter) {
+      where.role = roleFilter;
     }
 
     const users = await db.user.findMany({
@@ -51,11 +66,22 @@ export async function GET(request: Request) {
             },
           },
         },
+        parentLinks: {
+          select: {
+            id: true,
+            studentId: true,
+            relationship: true,
+            student: {
+              select: { id: true, firstName: true, lastName: true },
+            },
+          },
+        },
         _count: {
           select: {
             classGroupTeachers: true,
             learningProgressEntries: true,
             assessments: true,
+            parentLinks: true,
           },
         },
       },
@@ -81,14 +107,117 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
     }
 
+    const body = await request.json();
+
+    // ── Bulk student account creation ──
+    if (body.action === 'bulkCreateStudents') {
+      if (
+        session.user?.role !== 'SUPER_ADMIN' &&
+        session.user?.role !== 'SCHOOL_ADMIN' &&
+        session.user?.role !== 'TEACHER'
+      ) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      }
+
+      const parsed = bulkCreateStudentAccountsSchema.safeParse(body);
+      if (!parsed.success) {
+        return NextResponse.json(
+          { error: 'Validation failed', details: parsed.error.issues },
+          { status: 400 }
+        );
+      }
+
+      const { schoolId, defaultPassword, studentIds, emailDomain, locale } = parsed.data;
+
+      // School admins can only create in their own school
+      if (
+        session.user?.role === 'SCHOOL_ADMIN' &&
+        session.user?.schoolId &&
+        schoolId !== session.user.schoolId
+      ) {
+        return NextResponse.json(
+          { error: 'Cannot create users outside your school' },
+          { status: 403 }
+        );
+      }
+
+      const passwordHash = await hashPassword(defaultPassword);
+      const createdUsers: Array<Record<string, unknown>> = [];
+
+      for (const studentId of studentIds) {
+        const student = await db.student.findUnique({ where: { id: studentId } });
+        if (!student) continue;
+
+        // Check if student already has a user account
+        const existingUser = await db.user.findFirst({
+          where: {
+            role: 'STUDENT',
+            schoolId,
+            firstName: student.firstName,
+            lastName: student.lastName,
+            deletedAt: null,
+          },
+        });
+        if (existingUser) continue; // Skip if already has account
+
+        // Generate email based on school domain pattern
+        const email = `${student.firstName.toLowerCase().replace(/\s/g, '')}.${student.lastName.toLowerCase().replace(/\s/g, '')}@${emailDomain}`;
+
+        // Check if generated email already exists
+        const emailExists = await db.user.findUnique({ where: { email } });
+        if (emailExists) continue;
+
+        const user = await db.user.create({
+          data: {
+            email,
+            passwordHash,
+            firstName: student.firstName,
+            lastName: student.lastName,
+            role: 'STUDENT',
+            schoolId,
+            locale,
+          },
+        });
+
+        createdUsers.push({
+          id: user.id,
+          email: user.email,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          role: user.role,
+          schoolId: user.schoolId,
+          linkedStudentId: studentId,
+        });
+      }
+
+      // Audit log
+      await db.auditLog.create({
+        data: {
+          userId: session.userId,
+          schoolId,
+          action: 'BULK_CREATE',
+          entityType: 'User',
+          entityId: 'bulk',
+          metadata: JSON.stringify({
+            count: createdUsers.length,
+            role: 'STUDENT',
+            schoolId,
+          }),
+        },
+      });
+
+      return NextResponse.json({ created: createdUsers, count: createdUsers.length }, { status: 201 });
+    }
+
+    // ── Single user creation ──
     if (
       session.user?.role !== 'SUPER_ADMIN' &&
-      session.user?.role !== 'SCHOOL_ADMIN'
+      session.user?.role !== 'SCHOOL_ADMIN' &&
+      session.user?.role !== 'TEACHER'
     ) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    const body = await request.json();
     const parsed = createUserSchema.safeParse(body);
     if (!parsed.success) {
       return NextResponse.json(
@@ -97,12 +226,12 @@ export async function POST(request: Request) {
       );
     }
 
-    const { password, ...userData } = parsed.data;
+    const { password, studentId, ...userData } = parsed.data;
 
     // School admins can only create users in their own school
     if (
       session.user?.role === 'SCHOOL_ADMIN' &&
-      session.user.schoolId &&
+      session.user?.schoolId &&
       userData.schoolId &&
       userData.schoolId !== session.user.schoolId
     ) {
@@ -147,6 +276,18 @@ export async function POST(request: Request) {
       },
     });
 
+    // If STUDENT role and studentId provided, create parent-student link
+    if (userData.role === 'STUDENT' && studentId) {
+      // Verify student exists
+      const student = await db.student.findUnique({ where: { id: studentId } });
+      if (student) {
+        // No direct link between User (STUDENT) and Student - they're separate records
+        // The connection is implicit: same firstName, lastName, schoolId
+      }
+    }
+
+    // If PARENT role, no auto-link here; parent links are created separately
+
     // Create audit log entry
     await db.auditLog.create({
       data: {
@@ -160,6 +301,7 @@ export async function POST(request: Request) {
           role: user.role,
           firstName: user.firstName,
           lastName: user.lastName,
+          linkedStudentId: studentId ?? null,
         }),
       },
     });

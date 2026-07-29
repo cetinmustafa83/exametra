@@ -14,6 +14,7 @@ import {
   User as UserIcon, GraduationCap, FileDown,
   Copy, FlaskConical, Languages, Calculator, Paintbrush, Megaphone,
   Strikethrough, Type, Highlighter, GripVertical,
+  Clock, History, ZoomIn, ZoomOut, Image as ImageIcon,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -33,6 +34,7 @@ import { useAppStore } from '@/lib/store';
 import { t } from '@/lib/i18n';
 import { apiGet, apiPost, apiPut, apiDelete } from '@/lib/api';
 import { toast } from 'sonner';
+import DrawingCanvas from '@/components/drawing-canvas';
 
 // ─── Types ───────────────────────────────────────────────────────────
 
@@ -85,6 +87,17 @@ interface ClassGroup {
   name: string;
   schoolId: string;
   gradeLevel: number;
+}
+
+interface PageVersion {
+  id: string;
+  pageId: string;
+  version: number;
+  textContent: string | null;
+  drawingData: string | null;
+  editedBy: string | null;
+  editSummary: string | null;
+  createdAt: string;
 }
 
 // ─── Constants ───────────────────────────────────────────────────────
@@ -946,7 +959,7 @@ function PageThumbnail({ page, notebookType }: { page: NotebookPage; notebookTyp
 
   return (
     <div
-      className="w-full h-24 rounded-md overflow-hidden border border-gray-200 dark:border-gray-600 relative"
+      className="w-full h-24 rounded-md overflow-hidden border border-gray-200 dark:border-gray-600 relative group-hover:shadow-md transition-shadow duration-200"
       style={{ ...getPageBackgroundCSS(bgType), backgroundColor: '#fff' }}
     >
       <div className="p-1.5 text-xs text-gray-400 dark:text-gray-500 truncate leading-tight">
@@ -962,6 +975,12 @@ function PageThumbnail({ page, notebookType }: { page: NotebookPage; notebookTyp
       {page.isBookmark && (
         <div className="absolute top-0 right-0">
           <Bookmark className="w-3 h-3 text-amber-500 fill-amber-500" />
+        </div>
+      )}
+      {/* Drawing indicator */}
+      {page.drawingData && (
+        <div className="absolute bottom-0 right-0">
+          <ImageIcon className="w-3 h-3 text-emerald-500" />
         </div>
       )}
     </div>
@@ -997,6 +1016,13 @@ function NotebookDetailView({
   const [drawingMode, setDrawingMode] = useState(false);
   const [saving, setSaving] = useState(false);
   const [autoSaveStatus, setAutoSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
+
+  // Version history state
+  const [versionHistoryOpen, setVersionHistoryOpen] = useState(false);
+  const [pageVersions, setPageVersions] = useState<PageVersion[]>([]);
+  const [previewVersion, setPreviewVersion] = useState<PageVersion | null>(null);
+  const [restoringVersion, setRestoringVersion] = useState(false);
+  const [restoreConfirmVersion, setRestoreConfirmVersion] = useState<PageVersion | null>(null);
 
   // Drag-and-drop state
   const [draggedPageId, setDraggedPageId] = useState<string | null>(null);
@@ -1123,12 +1149,85 @@ function NotebookDetailView({
       lastSavedTitleRef.current = pageTitle;
       toast.success(t('notebooks.page_saved'));
       setAutoSaveStatus('idle');
+      // Create version on manual save
+      try {
+        await apiPost(`/api/notebooks/${notebook.id}/pages/${currentPage.id}/versions`, {
+          editSummary: null,
+        });
+      } catch {
+        // version creation is non-critical
+      }
     } catch {
       toast.error(t('notebooks.error_save'));
     } finally {
       setSaving(false);
     }
   };
+
+  // Load version history
+  const loadVersionHistory = useCallback(async () => {
+    if (!currentPage) return;
+    try {
+      const versions = await apiGet<PageVersion[]>(`/api/notebooks/${notebook.id}/pages/${currentPage.id}/versions`);
+      setPageVersions(versions);
+    } catch {
+      setPageVersions([]);
+    }
+  }, [notebook.id, currentPage]);
+
+  // Open version history dialog
+  const handleOpenVersionHistory = useCallback(async () => {
+    setVersionHistoryOpen(true);
+    setPreviewVersion(null);
+    await loadVersionHistory();
+  }, [loadVersionHistory]);
+
+  // Restore a version
+  const handleRestoreVersion = useCallback(async (version: PageVersion) => {
+    setRestoringVersion(true);
+    try {
+      const result = await apiPut<{ page: NotebookPage; restoredVersion: PageVersion }>(`/api/notebooks/${notebook.id}/pages/${currentPage!.id}/versions`, {
+        versionId: version.id,
+      });
+      // Update local state with restored page content
+      await onUpdatePage(currentPage!.id, {
+        textContent: result.page.textContent,
+        drawingData: result.page.drawingData,
+      });
+      setEditorContent(result.page.textContent ?? '');
+      setPageContent(result.page.textContent ?? '');
+      lastSavedContentRef.current = result.page.textContent ?? '';
+      toast.success(t('notebooks.version_restored'));
+      setRestoreConfirmVersion(null);
+      await loadVersionHistory();
+    } catch {
+      toast.error(t('notebooks.error_save'));
+    } finally {
+      setRestoringVersion(false);
+    }
+  }, [notebook.id, currentPage, onUpdatePage, setEditorContent, loadVersionHistory]);
+
+  // Handle drawing save from DrawingCanvas
+  const handleDrawingSave = useCallback(async (drawingData: string, imageData: string) => {
+    if (!currentPage) return;
+    try {
+      await onUpdatePage(currentPage.id, {
+        drawingData,
+        contentType: currentPage.textContent ? 'mixed' : 'drawing',
+      });
+      toast.success(t('notebooks.drawing_saved'));
+      // Create version on drawing save
+      try {
+        await apiPost(`/api/notebooks/${notebook.id}/pages/${currentPage.id}/versions`, {
+          editSummary: 'Drawing saved',
+        });
+      } catch {
+        // non-critical
+      }
+    } catch {
+      toast.error(t('notebooks.error_save'));
+    }
+  }, [currentPage, notebook.id, onUpdatePage]);
 
   // Drag-and-drop handlers for page reorder
   const handleDragStart = useCallback((e: React.DragEvent, pageId: string) => {
@@ -1222,10 +1321,11 @@ function NotebookDetailView({
 
   return (
     <motion.div
-      initial={{ opacity: 0, x: 20 }}
+      initial={{ opacity: 0, x: 30 }}
       animate={{ opacity: 1, x: 0 }}
-      exit={{ opacity: 0, x: -20 }}
-      className="flex flex-col h-full"
+      exit={{ opacity: 0, x: -30 }}
+      transition={{ type: 'spring', stiffness: 200, damping: 25 }}
+      className="flex flex-col h-full animate-slide-in"
     >
       {/* Header */}
       <div className="flex items-center gap-3 p-4 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700">
@@ -1280,19 +1380,20 @@ function NotebookDetailView({
           variant={drawingMode ? 'default' : 'outline'}
           size="sm"
           onClick={() => setDrawingMode(!drawingMode)}
+          className={`min-h-[44px] shrink-0 transition-all ${drawingMode ? 'bg-emerald-600 hover:bg-emerald-700 shadow-md shadow-emerald-500/20' : ''}`}
+        >
+          <PenLine className="w-4 h-4 mr-1" />
+          {drawingMode ? t('notebooks.drawing_mode_exit') : t('notebooks.drawing_mode_toggle')}
+        </Button>
+
+        {/* Version history button */}
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={handleOpenVersionHistory}
           className="min-h-[44px] shrink-0"
         >
-          {drawingMode ? (
-            <>
-              <PenLine className="w-4 h-4 mr-1" />
-              {t('notebooks.drawing_mode_exit')}
-            </>
-          ) : (
-            <>
-              <PenLine className="w-4 h-4 mr-1" />
-              {t('notebooks.drawing_mode_toggle')}
-            </>
-          )}
+          <Clock className="w-4 h-4" />
         </Button>
 
         {/* Public toggle */}
@@ -1418,6 +1519,16 @@ function NotebookDetailView({
                   className="font-semibold text-lg border-0 bg-transparent shadow-none focus-visible:ring-0 h-10"
                 />
 
+                {/* Version history button in page title bar */}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleOpenVersionHistory}
+                  className="min-h-[44px] shrink-0 text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300"
+                >
+                  <History className="w-4 h-4" />
+                </Button>
+
                 <Button
                   variant="ghost"
                   size="sm"
@@ -1438,24 +1549,22 @@ function NotebookDetailView({
               </div>
 
               {drawingMode ? (
-                /* Drawing placeholder */
-                <div className="flex-1 flex items-center justify-center p-4">
-                  <motion.div
-                    initial={{ opacity: 0, scale: 0.95 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    className="w-full h-full max-w-3xl rounded-xl border-2 border-gray-200 dark:border-gray-700 bg-white flex flex-col items-center justify-center gap-4 p-8"
-                    style={{ ...getPageBackgroundCSS(currentPage.background ?? notebook.notebookType), backgroundColor: '#fff' }}
-                  >
-                    <PenLine className="w-12 h-12 text-gray-300 dark:text-gray-600" />
-                    <p className="text-gray-500 dark:text-gray-400 text-lg font-medium">
-                      {t('notebooks.drawing_placeholder')}
-                    </p>
-                    <Button variant="outline" onClick={() => setDrawingMode(false)} className="min-h-[44px]">
-                      <ChevronLeft className="w-4 h-4 mr-1" />
-                      {t('notebooks.drawing_mode_exit')}
-                    </Button>
-                  </motion.div>
-                </div>
+                /* Drawing mode - render DrawingCanvas */
+                <motion.div
+                  initial={{ opacity: 0, x: 30 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -30 }}
+                  transition={{ type: 'spring', stiffness: 200, damping: 25 }}
+                  className="flex-1 flex flex-col overflow-hidden animate-slide-in"
+                >
+                  <DrawingCanvas
+                    backgroundType={currentPage.background === 'music' || currentPage.background === 'calligraphy' ? 'blank' : (currentPage.background as 'blank' | 'lined' | 'grid' | 'dotted') ?? (notebook.notebookType as 'blank' | 'lined' | 'grid' | 'dotted')}
+                    initialDrawingData={currentPage.drawingData ?? undefined}
+                    onSave={handleDrawingSave}
+                    onExit={() => setDrawingMode(false)}
+                    title={currentPage.title ?? `${t('notebooks.page')} ${currentPage.pageNumber}`}
+                  />
+                </motion.div>
               ) : (
                 /* Text editing area with WYSIWYG toolbar and page background */
                 <div className="flex-1 flex flex-col overflow-hidden">
@@ -1491,22 +1600,43 @@ function NotebookDetailView({
 
               {/* Save bar */}
               <div className="flex items-center justify-between px-4 py-2 border-t border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900">
-                <div className="text-sm text-gray-500 dark:text-gray-400">
-                  {t('notebooks.page')} {currentPage.pageNumber} / {pages.length}
-                </div>
-                <Button
-                  onClick={handleSavePage}
-                  disabled={saving}
-                  size="sm"
-                  className="min-h-[44px] bg-emerald-600 hover:bg-emerald-700"
-                >
-                  {saving ? (
-                    <div className="w-4 h-4 animate-spin rounded-full border-2 border-white border-t-transparent mr-2" />
-                  ) : (
-                    <Edit3 className="w-4 h-4 mr-1" />
+                <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
+                  <span>{t('notebooks.page')} {currentPage.pageNumber} / {pages.length}</span>
+                  {/* Drawing indicator when not in drawing mode */}
+                  {currentPage.drawingData && !drawingMode && (
+                    <Badge variant="outline" className="text-xs gap-1 border-emerald-300 text-emerald-600 dark:border-emerald-700 dark:text-emerald-400">
+                      <ImageIcon className="w-3 h-3" />
+                      {t('notebooks.view_drawing')}
+                    </Badge>
                   )}
-                  {t('notebooks.save_page')}
-                </Button>
+                </div>
+                <div className="flex items-center gap-2">
+                  {/* View drawing button if page has drawing data */}
+                  {currentPage.drawingData && !drawingMode && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setDrawingMode(true)}
+                      className="min-h-[44px]"
+                    >
+                      <ImageIcon className="w-4 h-4 mr-1" />
+                      {t('notebooks.edit_drawing')}
+                    </Button>
+                  )}
+                  <Button
+                    onClick={handleSavePage}
+                    disabled={saving}
+                    size="sm"
+                    className="min-h-[44px] bg-emerald-600 hover:bg-emerald-700"
+                  >
+                    {saving ? (
+                      <div className="w-4 h-4 animate-spin rounded-full border-2 border-white border-t-transparent mr-2" />
+                    ) : (
+                      <Edit3 className="w-4 h-4 mr-1" />
+                    )}
+                    {t('notebooks.save_page')}
+                  </Button>
+                </div>
               </div>
             </>
           ) : (
@@ -1524,6 +1654,20 @@ function NotebookDetailView({
           )}
         </div>
       </div>
+
+      {/* Version History Dialog */}
+      <VersionHistoryDialog
+        open={versionHistoryOpen}
+        onClose={() => setVersionHistoryOpen(false)}
+        versions={pageVersions}
+        previewVersion={previewVersion}
+        onPreviewVersion={setPreviewVersion}
+        onRestoreVersion={handleRestoreVersion}
+        restoringVersion={restoringVersion}
+        restoreConfirmVersion={restoreConfirmVersion}
+        onSetRestoreConfirm={setRestoreConfirmVersion}
+        currentPageContent={currentPage?.textContent ?? null}
+      />
     </motion.div>
   );
 }
@@ -2419,5 +2563,209 @@ export default function NotebooksView() {
         onCreate={handleCreate}
       />
     </div>
+  );
+}
+
+// ─── Version History Dialog ──────────────────────────────────────────
+
+function VersionHistoryDialog({
+  open,
+  onClose,
+  versions,
+  previewVersion,
+  onPreviewVersion,
+  onRestoreVersion,
+  restoringVersion,
+  restoreConfirmVersion,
+  onSetRestoreConfirm,
+  currentPageContent,
+}: {
+  open: boolean;
+  onClose: () => void;
+  versions: PageVersion[];
+  previewVersion: PageVersion | null;
+  onPreviewVersion: (version: PageVersion) => void;
+  onRestoreVersion: (version: PageVersion) => void;
+  restoringVersion: boolean;
+  restoreConfirmVersion: PageVersion | null;
+  onSetRestoreConfirm: (version: PageVersion | null) => void;
+  currentPageContent: string | null;
+}) {
+  const formatDate = (dateStr: string) => {
+    const date = new Date(dateStr);
+    return date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  };
+
+  const getPreviewText = (content: string | null) => {
+    if (!content) return '';
+    // Strip HTML tags to get plain text preview
+    const plain = content.replace(/<[^>]*>/g, '').trim();
+    return plain.substring(0, 120) + (plain.length > 120 ? '...' : '');
+  };
+
+  const isLatestVersion = versions.length > 0 && previewVersion?.id === versions[0]?.id;
+
+  return (
+    <>
+    <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
+      <DialogContent className="max-w-2xl max-h-[80vh]">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <History className="w-5 h-5 text-emerald-500" />
+            {t('notebooks.version_history_title')}
+          </DialogTitle>
+          <DialogDescription>
+            {t('notebooks.version_history')}
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="flex flex-col gap-4 overflow-y-auto max-h-[60vh]">
+          {versions.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-8 gap-3">
+              <Clock className="w-10 h-10 text-gray-300 dark:text-gray-600" />
+              <p className="text-gray-500 dark:text-gray-400 text-sm">
+                {t('notebooks.version_no_history')}
+              </p>
+            </div>
+          ) : (
+            <div className="version-timeline">
+              {versions.map((version, idx) => {
+                const isCurrent = idx === 0;
+                const isPreviewed = previewVersion?.id === version.id;
+                return (
+                  <div key={version.id} className="flex items-start gap-3 group">
+                    {/* Timeline dot */}
+                    <div className="flex flex-col items-center shrink-0 pt-1">
+                      <div className={`w-3 h-3 rounded-full border-2 transition-all ${
+                        isCurrent
+                          ? 'bg-emerald-500 border-emerald-500 animate-pulse-dot'
+                          : isPreviewed
+                            ? 'bg-emerald-400 border-emerald-400'
+                            : 'bg-gray-300 dark:bg-gray-600 border-gray-400 dark:border-gray-500'
+                      }`} />
+                      {idx < versions.length - 1 && (
+                        <div className="w-0.5 h-full min-h-[40px] bg-gray-200 dark:bg-gray-700 mt-1" />
+                      )}
+                    </div>
+
+                    {/* Version content */}
+                    <div
+                      className={`flex-1 rounded-lg p-3 transition-all cursor-pointer ${
+                        isPreviewed
+                          ? 'bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-300 dark:border-emerald-700'
+                          : 'bg-gray-50 dark:bg-gray-800/50 border border-transparent hover:border-gray-200 dark:hover:border-gray-600'
+                      }`}
+                      onClick={() => onPreviewVersion(version)}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium text-sm text-gray-700 dark:text-gray-300">
+                            {t('notebooks.version_number')} {version.version}
+                          </span>
+                          {isCurrent && (
+                            <Badge className="text-xs bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 border-0">
+                              {t('notebooks.version_current')}
+                            </Badge>
+                          )}
+                          {version.editSummary && (
+                            <Badge variant="outline" className="text-xs">
+                              {version.editSummary}
+                            </Badge>
+                          )}
+                        </div>
+                        <span className="text-xs text-gray-400 dark:text-gray-500">
+                          {formatDate(version.createdAt)}
+                        </span>
+                      </div>
+
+                      {/* Content preview */}
+                      <div className="mt-1 text-xs text-gray-500 dark:text-gray-400 line-clamp-2">
+                        {getPreviewText(version.textContent)}
+                      </div>
+
+                      {/* Drawing indicator */}
+                      {version.drawingData && (
+                        <div className="mt-1 flex items-center gap-1 text-xs text-emerald-600 dark:text-emerald-400">
+                          <ImageIcon className="w-3 h-3" />
+                          {t('notebooks.drawing_page_label')}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Preview panel */}
+          {previewVersion && (
+            <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 bg-white dark:bg-gray-900">
+              <div className="flex items-center justify-between mb-2">
+                <h4 className="font-medium text-sm flex items-center gap-2">
+                  {t('notebooks.version_preview')} - {t('notebooks.version_number')} {previewVersion.version}
+                  {versions[0]?.id === previewVersion.id && (
+                    <Badge className="text-xs bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 border-0">
+                      {t('notebooks.version_current')}
+                    </Badge>
+                  )}
+                </h4>
+                {!isLatestVersion && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => onSetRestoreConfirm(previewVersion)}
+                    disabled={restoringVersion}
+                    className="min-h-[36px]"
+                  >
+                    <History className="w-3.5 h-3.5 mr-1" />
+                    {t('notebooks.version_restore')}
+                  </Button>
+                )}
+              </div>
+              <ScrollArea className="max-h-[200px]">
+                <div className="text-sm text-gray-600 dark:text-gray-400 whitespace-pre-wrap">
+                  {previewVersion.textContent ? getPreviewText(previewVersion.textContent) : t('notebooks.export_empty_page')}
+                </div>
+              </ScrollArea>
+            </div>
+          )}
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose} className="min-h-[44px]">
+            {t('action.close')}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+
+    {/* Restore confirmation */}
+    <AlertDialog open={!!restoreConfirmVersion} onOpenChange={(v) => { if (!v) onSetRestoreConfirm(null); }}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle className="flex items-center gap-2">
+            <History className="w-5 h-5 text-emerald-500" />
+            {t('notebooks.version_restore_confirm')}
+          </AlertDialogTitle>
+          <AlertDialogDescription>
+            {t('notebooks.version_restore_desc')}
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel className="min-h-[44px]">{t('action.cancel')}</AlertDialogCancel>
+          <AlertDialogAction
+            onClick={() => { if (restoreConfirmVersion) onRestoreVersion(restoreConfirmVersion); }}
+            disabled={restoringVersion}
+            className="min-h-[44px] bg-emerald-600 hover:bg-emerald-700"
+          >
+            {restoringVersion ? (
+              <div className="w-4 h-4 animate-spin rounded-full border-2 border-white border-t-transparent mr-2" />
+            ) : null}
+            {t('notebooks.version_restore')}
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+    </>
   );
 }

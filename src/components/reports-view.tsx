@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   FileText, Plus, Eye, Download, Check, PenLine, BookOpen, Printer,
   School, Clock, Sparkles, FileEdit, FileCheck, FileType,
-  CheckCircle, BarChart3, ClipboardList,
+  CheckCircle, BarChart3, ClipboardList, FileDown, Users,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -69,6 +69,12 @@ export default function ReportsView() {
 
   // Preview dialog
   const [previewOpen, setPreviewOpen] = useState(false);
+
+  // PDF generation
+  const [pdfTemplate, setPdfTemplate] = useState<'short' | 'full' | 'custom'>('full');
+  const [generatingPdf, setGeneratingPdf] = useState(false);
+  const [downloadHistory, setDownloadHistory] = useState<Array<{ id: string; studentName: string; template: string; date: string }>>([]);
+  const [batchGenerating, setBatchGenerating] = useState(false);
 
   // Edit section
   const [editingSection, setEditingSection] = useState<{ id: string; text: string } | null>(null);
@@ -158,6 +164,50 @@ export default function ReportsView() {
     if (!editingSection || !selectedReport) return;
     toast.success(t('toast.saved'));
     setEditingSection(null);
+  };
+
+  const handleGeneratePdf = async (reportId: string) => {
+    setGeneratingPdf(true);
+    try {
+      const url = `/api/reports/pdf?reportId=${reportId}&template=${pdfTemplate}`;
+      window.open(url, '_blank');
+      const student = selectedReport?.student;
+      if (student) {
+        setDownloadHistory((prev) => [{
+          id: Date.now().toString(),
+          studentName: `${student.firstName} ${student.lastName}`,
+          template: pdfTemplate,
+          date: new Date().toLocaleDateString(),
+        }, ...prev]);
+      }
+      toast.success(t('reports.generate_pdf'));
+    } catch {
+      toast.error(t('error.generic'));
+    } finally {
+      setGeneratingPdf(false);
+    }
+  };
+
+  const handleBatchGenerate = async () => {
+    if (!selectedClass) return;
+    setBatchGenerating(true);
+    try {
+      for (const student of students) {
+        const url = `/api/reports/pdf?studentId=${student.id}&template=${pdfTemplate}`;
+        window.open(url, '_blank');
+        setDownloadHistory((prev) => [{
+          id: Date.now().toString() + student.id,
+          studentName: `${student.firstName} ${student.lastName}`,
+          template: pdfTemplate,
+          date: new Date().toLocaleDateString(),
+        }, ...prev]);
+      }
+      toast.success(t('reports.batch_generate'));
+    } catch {
+      toast.error(t('error.generic'));
+    } finally {
+      setBatchGenerating(false);
+    }
   };
 
   const draftReports = reports.filter((r) => r.status === 'DRAFT');
@@ -484,6 +534,10 @@ export default function ReportsView() {
                           <Printer className="h-4 w-4 mr-1" />
                           {t('pdf.print_view')}
                         </Button>
+                        <Button variant="outline" className="rounded-xl border-emerald-300 dark:border-emerald-700" onClick={() => handleGeneratePdf(selectedReport.id)} disabled={generatingPdf}>
+                          <FileDown className="h-4 w-4 mr-1" />
+                          {generatingPdf ? t('empty.loading') : t('reports.generate_pdf')}
+                        </Button>
                       </div>
                     </div>
                   </CardHeader>
@@ -757,6 +811,61 @@ export default function ReportsView() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* PDF Template Selection + Batch Generate */}
+      {selectedClass && students.length > 0 && (
+        <Card className="border-0 shadow-sm rounded-xl border-l-3 border-l-teal-500 overflow-hidden">
+          <CardHeader className="pb-3 pt-6 bg-gradient-to-r from-teal-50/50 to-transparent dark:from-teal-900/10 dark:to-transparent">
+            <CardTitle className="text-base font-bold flex items-center gap-2">
+              <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-teal-100 dark:bg-teal-900/30 text-teal-600 dark:text-teal-400">
+                <FileDown className="h-4 w-4" />
+              </div>
+              {t('reports.generate_pdf')}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex flex-wrap items-center gap-3">
+              <Label className="text-sm font-medium text-gray-700 dark:text-gray-300">{t('reports.template')}</Label>
+              <div className="flex gap-2">
+                {(['short', 'full', 'custom'] as const).map((tmpl) => (
+                  <Button
+                    key={tmpl}
+                    variant={pdfTemplate === tmpl ? 'default' : 'outline'}
+                    size="sm"
+                    className={pdfTemplate === tmpl ? 'bg-emerald-500 hover:bg-emerald-600 text-white min-h-[44px] rounded-xl' : 'min-h-[44px] rounded-xl'}
+                    onClick={() => setPdfTemplate(tmpl)}
+                  >
+                    <span className="badge-type">{t(`reports.template_${tmpl}`)}</span>
+                  </Button>
+                ))}
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                className="bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white shadow-md rounded-xl min-h-[44px]"
+                onClick={handleBatchGenerate}
+                disabled={batchGenerating}
+              >
+                <Users className="h-4 w-4 mr-1.5" />
+                {batchGenerating ? t('empty.loading') : t('reports.batch_generate')}
+              </Button>
+            </div>
+            {downloadHistory.length > 0 && (
+              <div className="space-y-2 mt-2">
+                <p className="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">{t('reports.download_history')}</p>
+                <div className="max-h-32 overflow-y-auto scrollbar-education space-y-1">
+                  {downloadHistory.map((item) => (
+                    <div key={item.id} className="flex items-center justify-between text-xs p-2 rounded-lg bg-gray-50 dark:bg-gray-800/50">
+                      <span className="text-gray-700 dark:text-gray-300">{item.studentName}</span>
+                      <span className="text-gray-500 dark:text-gray-400">{item.template} · {item.date}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {/* Edit section dialog */}
       <Dialog open={!!editingSection} onOpenChange={() => setEditingSection(null)}>

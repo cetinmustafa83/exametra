@@ -1344,6 +1344,13 @@ export function fetchCalendarEvents(schoolId: string, month: string): Promise<Ca
 
 export type CalendarEventItemType = 'assessment' | 'lesson' | 'reminder';
 
+export interface RecurrencePattern {
+  type: 'none' | 'daily' | 'weekly' | 'monthly' | 'yearly';
+  interval: number;
+  endDate?: string;
+  daysOfWeek?: number[];
+}
+
 export interface CalendarEventItem {
   id: string;
   schoolId: string;
@@ -1357,10 +1364,15 @@ export interface CalendarEventItem {
   classGroupId: string | null;
   notes: string | null;
   allDay: boolean;
+  recurrencePattern: string | null;
+  recurrenceEnd: string | null;
+  parentEventId: string | null;
   createdAt: string;
   updatedAt: string;
   subject: { id: string; name: string } | null;
   classGroup: { id: string; name: string } | null;
+  childEvents?: { id: string; date: string }[];
+  childCount?: number;
 }
 
 export function fetchCalendarEventItems(schoolId: string, month: string): Promise<CalendarEventItem[]> {
@@ -1381,6 +1393,8 @@ export function createCalendarEventItem(data: {
   classGroupId?: string | null;
   notes?: string | null;
   allDay?: boolean;
+  recurrencePattern?: RecurrencePattern | null;
+  recurrenceEnd?: string | null;
 }): Promise<CalendarEventItem> {
   return apiPost<CalendarEventItem>('/api/calendar-events', data);
 }
@@ -1395,12 +1409,16 @@ export function updateCalendarEventItem(id: string, data: {
   classGroupId?: string | null;
   notes?: string | null;
   allDay?: boolean;
+  recurrencePattern?: RecurrencePattern | null;
+  recurrenceEnd?: string | null;
+  editMode?: 'series' | 'instance';
 }): Promise<CalendarEventItem> {
   return apiPut<CalendarEventItem>(`/api/calendar-events/${id}`, data);
 }
 
-export function deleteCalendarEventItem(id: string): Promise<{ success: boolean }> {
-  return apiDelete<{ success: boolean }>(`/api/calendar-events/${id}`);
+export function deleteCalendarEventItem(id: string, mode?: 'series' | 'instance'): Promise<{ success: boolean }> {
+  const query = mode ? `?mode=${mode}` : '';
+  return apiDelete<{ success: boolean }>(`/api/calendar-events/${id}${query}`);
 }
 
 /* ── Lesson Plans ────────────────────────────────────────────────── */
@@ -2109,4 +2127,67 @@ export async function deleteBatchProgressEntries(ids: string[]): Promise<void> {
 
 export async function reorderStudents(classGroupId: string, studentIds: string[]): Promise<void> {
   await apiPut<{ success: boolean }>('/api/students/reorder', { classGroupId, studentIds });
+}
+
+/* ── Parent Links ────────────────────────────────────────────────────── */
+
+export interface ParentStudentLinkData {
+  id: string;
+  parentId: string;
+  studentId: string;
+  schoolId: string;
+  relationship: string | null;
+  createdAt: string;
+  updatedAt: string;
+  parent: { id: string; firstName: string; lastName: string; email: string; role: string };
+  student: { id: string; firstName: string; lastName: string; dateOfBirth?: string | null; externalId?: string | null; schoolId: string; enrollments?: Array<{ classGroup: { id: string; name: string; gradeLevel: number } }> };
+  school: { id: string; name: string };
+}
+
+export function fetchParentLinks(parentId?: string): Promise<ParentStudentLinkData[]> {
+  const params = new URLSearchParams();
+  if (parentId) params.set('parentId', parentId);
+  return apiGet<ParentStudentLinkData[]>(`/api/parent-links?${params.toString()}`);
+}
+
+export function createParentLink(data: {
+  parentId: string;
+  studentId: string;
+  schoolId: string;
+  relationship?: string;
+}): Promise<ParentStudentLinkData> {
+  return apiPost<ParentStudentLinkData>('/api/parent-links', data);
+}
+
+export function updateParentLink(id: string, data: { relationship?: string }): Promise<ParentStudentLinkData> {
+  return apiPut<ParentStudentLinkData>(`/api/parent-links/${id}`, data);
+}
+
+export function deleteParentLink(id: string): Promise<{ message: string }> {
+  return apiDelete<{ message: string }>(`/api/parent-links/${id}`);
+}
+
+/* ── Student Account Creation ────────────────────────────────────────── */
+
+export function createStudentUserAccount(data: {
+  schoolId: string;
+  email: string;
+  password: string;
+  firstName: string;
+  lastName: string;
+  role: string;
+  studentId?: string;
+  locale?: string;
+}): Promise<Record<string, unknown>> {
+  return apiPost<Record<string, unknown>>('/api/users', data);
+}
+
+export function bulkCreateStudentAccounts(data: {
+  schoolId: string;
+  defaultPassword: string;
+  studentIds: string[];
+  emailDomain?: string;
+  locale?: string;
+}): Promise<{ created: Array<Record<string, unknown>>; count: number }> {
+  return apiPost<{ created: Array<Record<string, unknown>>; count: number }>('/api/users', { ...data, action: 'bulkCreateStudents' });
 }

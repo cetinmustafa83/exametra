@@ -1,6 +1,111 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { getSession } from '@/lib/auth';
+import { addDays, addWeeks, addMonths, addYears, format, getDay } from 'date-fns';
+
+interface RecurrencePattern {
+  type: 'daily' | 'weekly' | 'monthly' | 'yearly';
+  interval: number;
+  endDate?: string;
+  daysOfWeek?: number[]; // 0=Sun, 1=Mon, ..., 6=Sat
+}
+
+function generateChildEvents(
+  parentEvent: {
+    id: string;
+    schoolId: string;
+    teacherId: string;
+    title: string;
+    date: Date;
+    startTime: string | null;
+    endTime: string | null;
+    eventType: string;
+    subjectId: string | null;
+    classGroupId: string | null;
+    notes: string | null;
+    allDay: boolean;
+  },
+  pattern: RecurrencePattern,
+  recurrenceEnd: Date | null
+) {
+  const children: Array<{
+    schoolId: string;
+    teacherId: string;
+    title: string;
+    date: Date;
+    startTime: string | null;
+    endTime: string | null;
+    eventType: string;
+    subjectId: string | null;
+    classGroupId: string | null;
+    notes: string | null;
+    allDay: boolean;
+    parentEventId: string;
+    recurrencePattern: string;
+  }> = [];
+
+  const maxDate = recurrenceEnd ?? new Date(pattern.endDate ?? '2026-12-31');
+  const patternJson = JSON.stringify(pattern);
+  let currentDate = parentEvent.date;
+
+  // Generate up to 365 occurrences to prevent infinite loops
+  let count = 0;
+  const maxOccurrences = 365;
+
+  while (count < maxOccurrences) {
+    // Advance to next occurrence
+    if (pattern.type === 'daily') {
+      currentDate = addDays(currentDate, pattern.interval);
+    } else if (pattern.type === 'weekly') {
+      if (pattern.daysOfWeek && pattern.daysOfWeek.length > 0) {
+        // Find next day of week within the week
+        let nextDate = addDays(currentDate, 1);
+        let found = false;
+        let weekCounter = 0;
+        while (!found && weekCounter < 7 * pattern.interval) {
+          if (pattern.daysOfWeek.includes(getDay(nextDate))) {
+            currentDate = nextDate;
+            found = true;
+          } else {
+            nextDate = addDays(nextDate, 1);
+            weekCounter++;
+          }
+        }
+        if (!found) {
+          currentDate = addWeeks(currentDate, pattern.interval);
+        }
+      } else {
+        currentDate = addWeeks(currentDate, pattern.interval);
+      }
+    } else if (pattern.type === 'monthly') {
+      currentDate = addMonths(currentDate, pattern.interval);
+    } else if (pattern.type === 'yearly') {
+      currentDate = addYears(currentDate, pattern.interval);
+    }
+
+    if (currentDate > maxDate) break;
+
+    children.push({
+      schoolId: parentEvent.schoolId,
+      teacherId: parentEvent.teacherId,
+      title: parentEvent.title,
+      date: new Date(currentDate),
+      startTime: parentEvent.startTime,
+      endTime: parentEvent.endTime,
+      eventType: parentEvent.eventType,
+      subjectId: parentEvent.subjectId,
+      classGroupId: parentEvent.classGroupId,
+      notes: parentEvent.notes,
+      allDay: parentEvent.allDay,
+      parentEventId: parentEvent.id,
+      recurrencePattern: patternJson,
+    });
+
+    count++;
+  }
+
+  return children;
+}
 
 export async function POST(request: Request) {
   try {
@@ -10,12 +115,24 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
-    const { title, date, startTime, endTime, eventType, subjectId, classGroupId, notes, allDay, schoolId } = body;
+    const {
+      title, date, startTime, endTime, eventType, subjectId, classGroupId,
+      notes, allDay, schoolId, recurrencePattern, recurrenceEnd,
+    } = body;
 
     if (!title || !date || !schoolId) {
       return NextResponse.json({ error: 'title, date, and schoolId are required' }, { status: 400 });
     }
 
+    // Parse recurrence pattern
+    let parsedPattern: RecurrencePattern | null = null;
+    if (recurrencePattern && recurrencePattern.type && recurrencePattern.type !== 'none') {
+      parsedPattern = recurrencePattern as RecurrencePattern;
+    }
+
+    const parsedRecurrenceEnd = recurrenceEnd ? new Date(recurrenceEnd) : null;
+
+    // Create the parent event
     const event = await db.calendarEvent.create({
       data: {
         schoolId,
@@ -29,14 +146,59 @@ export async function POST(request: Request) {
         classGroupId: classGroupId || null,
         notes: notes || null,
         allDay: allDay ?? false,
+        recurrencePattern: parsedPattern ? JSON.stringify(parsedPattern) : null,
+        recurrenceEnd: parsedRecurrenceEnd,
       },
       include: {
         subject: { select: { id: true, name: true } },
         classGroup: { select: { id: true, name: true } },
+        childEvents: {
+          select: { id: true, date: true },
+        },
       },
     });
 
-    return NextResponse.json(event, { status: 201 });
+    // Generate child events for recurring events
+    if (parsedPattern) {
+      const childEvents = generateChildEvents(
+        {
+          id: event.id,
+          schoolId: event.schoolId,
+          teacherId: event.teacherId,
+          title: event.title,
+          date: new Date(date),
+          startTime: event.startTime,
+          endTime: event.endTime,
+          eventType: event.eventType,
+          subjectId: event.subjectId,
+          classGroupId: event.classGroupId,
+          notes: event.notes,
+          allDay: event.allDay,
+        },
+        parsedPattern,
+        parsedRecurrenceEnd
+      );
+
+      if (childEvents.length > 0) {
+        await db.calendarEvent.createMany({ data: childEvents });
+      }
+
+      // Re-fetch with children
+      const updatedEvent = await db.calendarEvent.findUnique({
+        where: { id: event.id },
+        include: {
+          subject: { select: { id: true, name: true } },
+          classGroup: { select: { id: true, name: true } },
+          childEvents: {
+            select: { id: true, date: true },
+          },
+        },
+      });
+
+      return NextResponse.json({ ...updatedEvent, childCount: childEvents.length }, { status: 201 });
+    }
+
+    return NextResponse.json({ ...event, childCount: 0 }, { status: 201 });
   } catch (error) {
     console.error('CalendarEvent POST error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
@@ -81,6 +243,9 @@ export async function GET(request: Request) {
       include: {
         subject: { select: { id: true, name: true } },
         classGroup: { select: { id: true, name: true } },
+        childEvents: {
+          select: { id: true, date: true },
+        },
       },
       orderBy: { date: 'asc' },
     });

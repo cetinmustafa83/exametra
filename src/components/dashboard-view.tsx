@@ -46,6 +46,7 @@ import {
   CalendarCheck,
   Calendar as CalendarIconNav,
   BookMarked,
+  Heart,
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -60,9 +61,9 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
-import { useAppStore, type ViewName } from '@/lib/store';
+import { useAppStore, type ViewName, type CurrentUser } from '@/lib/store';
 import { t } from '@/lib/i18n';
-import { fetchDashboard, type DashboardData, getStoredNotifications, type AppNotification, addNotification, markNotificationsRead } from '@/lib/api';
+import { fetchDashboard, type DashboardData, getStoredNotifications, type AppNotification, addNotification, markNotificationsRead, fetchParentLinks, type ParentStudentLinkData, fetchStudents } from '@/lib/api';
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -130,6 +131,284 @@ const motivationalTips = [
   { text: 'Timely feedback empowers students to take ownership.', icon: Star },
   { text: 'Detailed records make parent conversations productive.', icon: MessageSquare },
 ];
+
+// ─── Parent Dashboard Component ────────────────────────────────────────
+function ParentDashboard({ currentUser, setCurrentView, locale }: {
+  currentUser: CurrentUser;
+  setCurrentView: (view: ViewName) => void;
+  locale: string;
+}) {
+  const [parentLinks, setParentLinks] = useState<ParentStudentLinkData[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function load() {
+      try {
+        const links = await fetchParentLinks(currentUser.id);
+        setParentLinks(links);
+      } catch {
+        // ignore
+      } finally {
+        setLoading(false);
+      }
+    }
+    load();
+  }, [currentUser.id]);
+
+  const children = parentLinks.map((link) => ({
+    linkId: link.id,
+    studentId: link.student.id,
+    firstName: link.student.firstName,
+    lastName: link.student.lastName,
+    relationship: link.relationship,
+    className: link.student.enrollments?.[0]?.classGroup?.name ?? '--',
+    gradeLevel: link.student.enrollments?.[0]?.classGroup?.gradeLevel ?? '--',
+  }));
+
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <Skeleton className="h-10 w-64" />
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <Skeleton key={i} className="h-40 rounded-xl" />
+          ))}
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <Skeleton className="h-64 rounded-xl" />
+          <Skeleton className="h-64 rounded-xl" />
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <motion.div
+      variants={containerVariants}
+      initial="hidden"
+      animate="visible"
+      className="space-y-6 pb-8"
+    >
+      {/* Parent Welcome Header */}
+      <motion.div variants={itemVariants}>
+        <div className="flex flex-col gap-4">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="flex items-center gap-3.5">
+              <div className="flex items-center justify-center w-12 h-12 rounded-2xl bg-gradient-to-br from-violet-400 to-purple-500 text-white shadow-lg shadow-violet-300/30 ring-2 ring-violet-200/30 dark:ring-violet-800/20">
+                <Heart className="w-6 h-6" />
+              </div>
+              <div>
+                <h2 className="text-2xl font-bold bg-gradient-to-r from-violet-600 via-purple-600 to-violet-500 dark:from-violet-400 dark:via-purple-400 dark:to-violet-300 bg-clip-text text-transparent">
+                  {t('parent.welcome_back')}, {currentUser.firstName}!
+                </h2>
+                <p className="text-violet-600/60 dark:text-violet-400/40 mt-0.5 text-sm">{t('parent.dashboard_title')}</p>
+              </div>
+            </div>
+            <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gradient-to-r from-violet-50 to-purple-50/50 dark:from-violet-900/20 dark:to-purple-900/10 border border-violet-200/40 dark:border-violet-900/30 text-xs font-medium text-violet-700 dark:text-violet-300 shadow-sm">
+              <CalendarDays className="h-3.5 w-3.5" />
+              <span className="font-semibold">
+                {new Date().toLocaleDateString(locale === 'de' ? 'de-DE' : 'en-GB', {
+                  weekday: 'long',
+                  day: 'numeric',
+                  month: 'long',
+                  year: 'numeric',
+                })}
+              </span>
+            </div>
+          </div>
+        </div>
+      </motion.div>
+
+      {/* Parent Cards Grid */}
+      <motion.div variants={itemVariants} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        {/* My Children Card */}
+        <Card className="border-0 shadow-sm rounded-xl overflow-hidden ring-1 ring-black/[0.03] dark:ring-white/[0.05] hover:ring-violet-200/40 dark:hover:ring-violet-700/30 transition-all duration-300 hover:shadow-lg hover:shadow-violet-200/60 dark:hover:shadow-violet-800/30 cursor-pointer min-h-[44px]">
+          <CardHeader className="p-4 pb-2">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-gradient-to-br from-violet-400 to-violet-500 text-white shadow-sm">
+                  <Users className="h-4 w-4" />
+                </div>
+                <CardTitle className="text-sm font-semibold">{t('parent.my_children')}</CardTitle>
+              </div>
+              <ChevronRight className="h-4 w-4 text-violet-500" />
+            </div>
+          </CardHeader>
+          <CardContent className="p-4 pt-2">
+            {children.length > 0 ? (
+              <div className="space-y-2">
+                {children.map((child) => (
+                  <div key={child.studentId} className="flex items-center justify-between px-3 py-2 rounded-lg bg-violet-50/50 dark:bg-violet-900/10 border border-violet-100/50 dark:border-violet-900/20">
+                    <div className="flex items-center gap-2">
+                      <div className="flex items-center justify-center w-6 h-6 rounded-full bg-violet-200 dark:bg-violet-800 text-violet-700 dark:text-violet-300 text-[10px] font-bold">
+                        {child.firstName[0]}{child.lastName[0]}
+                      </div>
+                      <span className="text-xs font-medium text-gray-700 dark:text-gray-300">{child.firstName} {child.lastName}</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <Badge variant="outline" className="text-[10px] px-1.5 py-0 bg-violet-50/50 dark:bg-violet-900/10 border-violet-200/50 dark:border-violet-900/30 text-violet-700 dark:text-violet-300 shrink-0">
+                        {child.className}
+                      </Badge>
+                      {child.relationship && (
+                        <span className="text-[10px] text-gray-400 dark:text-gray-500">{t(`parent.${child.relationship}`)}</span>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center h-24 rounded-lg bg-gray-50 dark:bg-gray-900/20 border border-gray-200/30 dark:border-gray-800/20">
+                <Users className="h-8 w-8 text-gray-300 dark:text-gray-600 mb-1" />
+                <p className="text-xs text-gray-400 dark:text-gray-500">{t('parent.no_children')}</p>
+                <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-0.5">{t('parent.no_children_desc')}</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Recent Progress Card */}
+        <Card className="border-0 shadow-sm rounded-xl overflow-hidden ring-1 ring-black/[0.03] dark:ring-white/[0.05] hover:ring-emerald-200/40 dark:hover:ring-emerald-700/30 transition-all duration-300 hover:shadow-lg hover:shadow-emerald-200/60 dark:hover:shadow-emerald-800/30 cursor-pointer min-h-[44px]" onClick={() => setCurrentView('flower')}>
+          <CardHeader className="p-4 pb-2">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-gradient-to-br from-emerald-400 to-emerald-500 text-white shadow-sm">
+                  <TrendingUp className="h-4 w-4" />
+                </div>
+                <CardTitle className="text-sm font-semibold">{t('parent.recent_progress')}</CardTitle>
+              </div>
+              <ChevronRight className="h-4 w-4 text-emerald-500" />
+            </div>
+          </CardHeader>
+          <CardContent className="p-4 pt-2">
+            <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">{t('parent.child_progress_desc')}</p>
+            {children.length > 0 ? (
+              <div className="space-y-2">
+                {children.slice(0, 3).map((child) => (
+                  <div key={child.studentId} className="flex items-center justify-between px-3 py-2 rounded-lg bg-emerald-50/50 dark:bg-emerald-900/10 border border-emerald-100/50 dark:border-emerald-900/20">
+                    <span className="text-xs font-medium text-gray-700 dark:text-gray-300">{child.firstName}</span>
+                    <div className="flex items-center gap-1">
+                      <Sprout className="h-3.5 w-3.5 text-emerald-500" />
+                      <span className="text-xs text-emerald-600 dark:text-emerald-400 font-medium">{t('parent.view_progress')}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center h-24 rounded-lg bg-gray-50 dark:bg-gray-900/20 border border-gray-200/30 dark:border-gray-800/20">
+                <TrendingUp className="h-8 w-8 text-gray-300 dark:text-gray-600 mb-1" />
+                <p className="text-xs text-gray-400 dark:text-gray-500">{t('parent.no_children')}</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Upcoming Assessments Card */}
+        <Card className="border-0 shadow-sm rounded-xl overflow-hidden ring-1 ring-black/[0.03] dark:ring-white/[0.05] hover:ring-amber-200/40 dark:hover:ring-amber-700/30 transition-all duration-300 hover:shadow-lg hover:shadow-amber-200/60 dark:hover:shadow-amber-800/30 cursor-pointer min-h-[44px]" onClick={() => setCurrentView('assessments')}>
+          <CardHeader className="p-4 pb-2">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-gradient-to-br from-amber-400 to-amber-500 text-white shadow-sm">
+                  <ClipboardCheck className="h-4 w-4" />
+                </div>
+                <CardTitle className="text-sm font-semibold">{t('parent.upcoming_assessments')}</CardTitle>
+              </div>
+              <ChevronRight className="h-4 w-4 text-amber-500" />
+            </div>
+          </CardHeader>
+          <CardContent className="p-4 pt-2">
+            <div className="flex flex-col items-center justify-center h-24 rounded-lg bg-amber-50/50 dark:bg-amber-900/10 border border-amber-200/30 dark:border-amber-900/20">
+              <ClipboardCheck className="h-8 w-8 text-amber-400/60 dark:text-amber-600/40 mb-1" />
+              <p className="text-xs text-gray-500 dark:text-gray-400">{t('parent.no_assessments')}</p>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Messages from Teachers Card */}
+        <Card className="border-0 shadow-sm rounded-xl overflow-hidden ring-1 ring-black/[0.03] dark:ring-white/[0.05] hover:ring-teal-200/40 dark:hover:ring-teal-700/30 transition-all duration-300 hover:shadow-lg hover:shadow-teal-200/60 dark:hover:shadow-teal-800/30 cursor-pointer min-h-[44px]" onClick={() => setCurrentView('parents')}>
+          <CardHeader className="p-4 pb-2">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-gradient-to-br from-teal-400 to-teal-500 text-white shadow-sm">
+                  <MessageSquare className="h-4 w-4" />
+                </div>
+                <CardTitle className="text-sm font-semibold">{t('parent.messages_from_teachers')}</CardTitle>
+              </div>
+              <ChevronRight className="h-4 w-4 text-teal-500" />
+            </div>
+          </CardHeader>
+          <CardContent className="p-4 pt-2">
+            <div className="flex flex-col items-center justify-center h-24 rounded-lg bg-teal-50/50 dark:bg-teal-900/10 border border-teal-200/30 dark:border-teal-900/20">
+              <MessageSquare className="h-8 w-8 text-teal-400/60 dark:text-teal-600/40 mb-1" />
+              <p className="text-xs text-gray-500 dark:text-gray-400">{t('parent.no_messages')}</p>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Attendance Summary Card */}
+        <Card className="border-0 shadow-sm rounded-xl overflow-hidden ring-1 ring-black/[0.03] dark:ring-white/[0.05] hover:ring-rose-200/40 dark:hover:ring-rose-700/30 transition-all duration-300 hover:shadow-lg hover:shadow-rose-200/60 dark:hover:shadow-rose-800/30 cursor-pointer min-h-[44px]" onClick={() => setCurrentView('attendance')}>
+          <CardHeader className="p-4 pb-2">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-gradient-to-br from-rose-400 to-rose-500 text-white shadow-sm">
+                  <CalendarCheck className="h-4 w-4" />
+                </div>
+                <CardTitle className="text-sm font-semibold">{t('parent.attendance_summary')}</CardTitle>
+              </div>
+              <ChevronRight className="h-4 w-4 text-rose-500" />
+            </div>
+          </CardHeader>
+          <CardContent className="p-4 pt-2">
+            {children.length > 0 ? (
+              <div className="space-y-2">
+                {children.slice(0, 3).map((child) => (
+                  <div key={child.studentId} className="flex items-center justify-between px-3 py-2 rounded-lg bg-rose-50/50 dark:bg-rose-900/10 border border-rose-100/50 dark:border-rose-900/20">
+                    <span className="text-xs font-medium text-gray-700 dark:text-gray-300">{child.firstName}</span>
+                    <div className="flex items-center gap-1">
+                      <CalendarCheck className="h-3.5 w-3.5 text-emerald-500" />
+                      <span className="text-xs text-emerald-600 dark:text-emerald-400 font-medium">{t('parent.view_attendance')}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center h-24 rounded-lg bg-gray-50 dark:bg-gray-900/20 border border-gray-200/30 dark:border-gray-800/20">
+                <CalendarCheck className="h-8 w-8 text-gray-300 dark:text-gray-600 mb-1" />
+                <p className="text-xs text-gray-400 dark:text-gray-500">{t('parent.no_children')}</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Calendar Card */}
+        <Card className="border-0 shadow-sm rounded-xl overflow-hidden ring-1 ring-black/[0.03] dark:ring-white/[0.05] hover:ring-violet-200/40 dark:hover:ring-violet-700/30 transition-all duration-300 hover:shadow-lg hover:shadow-violet-200/60 dark:hover:shadow-violet-800/30 cursor-pointer min-h-[44px]" onClick={() => setCurrentView('calendar')}>
+          <CardHeader className="p-4 pb-2">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-gradient-to-br from-violet-400 to-purple-500 text-white shadow-sm">
+                  <CalendarIconNav className="h-4 w-4" />
+                </div>
+                <CardTitle className="text-sm font-semibold">{t('nav.calendar')}</CardTitle>
+              </div>
+              <ChevronRight className="h-4 w-4 text-violet-500" />
+            </div>
+          </CardHeader>
+          <CardContent className="p-4 pt-2">
+            <div className="flex items-center justify-center h-24 rounded-lg bg-gradient-to-br from-violet-50 to-purple-50/50 dark:from-violet-900/20 dark:to-purple-900/10 border border-violet-200/30 dark:border-violet-900/20">
+              <div className="text-center">
+                <p className="text-lg font-bold text-violet-600 dark:text-violet-400">
+                  {new Date().toLocaleDateString(locale === 'de' ? 'de-DE' : 'en-GB', { day: 'numeric', month: 'short' })}
+                </p>
+                <p className="text-[10px] text-gray-500 dark:text-gray-400">
+                  {new Date().toLocaleDateString(locale === 'de' ? 'de-DE' : 'en-GB', { weekday: 'long' })}
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </motion.div>
+    </motion.div>
+  );
+}
 
 export default function DashboardView() {
   const currentUser = useAppStore((s) => s.currentUser);
@@ -511,6 +790,17 @@ export default function DashboardView() {
           </Card>
         </motion.div>
       </motion.div>
+    );
+  }
+
+  // ─── Parent Dashboard ──────────────────────────────────────────────
+  if (currentUser?.role === 'PARENT') {
+    return (
+      <ParentDashboard
+        currentUser={currentUser}
+        setCurrentView={setCurrentView}
+        locale={locale}
+      />
     );
   }
 

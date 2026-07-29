@@ -260,6 +260,45 @@
   }
 
   /* Print styles — full print stylesheet lives at end of file */
+
+  /* ─── Slide animations ──────────────────────────────────────────── */
+  @keyframes slide-in {
+    from { transform: translateX(30px); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+  }
+  .animate-slide-in {
+    animation: slide-in 0.3s ease-out;
+  }
+
+  @keyframes slide-out {
+    from { transform: translateX(0); opacity: 1; }
+    to { transform: translateX(-30px); opacity: 0; }
+  }
+  .animate-slide-out {
+    animation: slide-out 0.3s ease-in;
+  }
+
+  /* ─── Pulse dot for version timeline ────────────────────────────── */
+  @keyframes pulse-dot {
+    0%, 100% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(1.3); opacity: 0.7; }
+  }
+  .animate-pulse-dot {
+    animation: pulse-dot 2s ease-in-out infinite;
+  }
+
+  /* ─── Canvas toolbar ────────────────────────────────────────────── */
+  .canvas-toolbar {
+    transition: transform 0.2s ease-out, width 0.2s ease-out, height 0.2s ease-out;
+  }
+
+  /* ─── Version timeline ──────────────────────────────────────────── */
+  .version-timeline {
+    position: relative;
+  }
+  .version-timeline > div {
+    padding-bottom: 0.5rem;
+  }
 }
 
 /* Focus ring for accessibility */
@@ -775,6 +814,88 @@
   .danger-zone:hover {
     border-color: oklch(0.55 0.22 25 / 0.6);
     background: oklch(0.55 0.22 25 / 0.06);
+  }
+
+  /* ─── File Drop Zone ─────────────────────────────────────────────── */
+  .file-drop-zone {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 120px;
+    padding: 24px;
+    border: 2px dashed oklch(0.75 0.05 155);
+    border-radius: 12px;
+    background: oklch(0.97 0.01 155 / 0.3);
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+  .dark .file-drop-zone {
+    border-color: oklch(0.4 0.05 155);
+    background: oklch(0.2 0.02 155 / 0.3);
+  }
+  .file-drop-zone.drag-over {
+    border-color: oklch(0.55 0.17 155);
+    background: oklch(0.55 0.17 155 / 0.1);
+    transform: scale(1.01);
+  }
+  .dark .file-drop-zone.drag-over {
+    border-color: oklch(0.65 0.17 155);
+    background: oklch(0.65 0.17 155 / 0.1);
+  }
+  .file-drop-zone:hover {
+    border-color: oklch(0.55 0.17 155);
+    background: oklch(0.55 0.17 155 / 0.05);
+  }
+
+  /* ─── Import Progress Bar ────────────────────────────────────────── */
+  .import-progress {
+    animation: import-fade-in 0.3s ease-out;
+  }
+  @keyframes import-fade-in {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* ─── Report Preview Page ────────────────────────────────────────── */
+  .report-preview {
+    position: relative;
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 40px 32px;
+    background: white;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    border-radius: 8px;
+  }
+  .dark .report-preview {
+    background: oklch(0.15 0.01 260);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+  }
+
+  /* ─── Environmental Watermark ────────────────────────────────────── */
+  .watermark-eco {
+    position: fixed;
+    bottom: 50%;
+    right: -60px;
+    transform: rotate(-45deg);
+    font-size: 72px;
+    font-weight: 900;
+    color: oklch(0.55 0.17 155 / 0.04);
+    pointer-events: none;
+    z-index: -1;
+    user-select: none;
+  }
+
+  /* ─── Badge Type ─────────────────────────────────────────────────── */
+  .badge-type {
+    display: inline-block;
+    padding: 2px 10px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
   }
 
   /* ─── Status Indicator Dot Pulse ─────────────────────────────────── */

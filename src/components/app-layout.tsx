@@ -199,6 +199,20 @@ const studentNavSections: NavSection[] = [
   },
 ];
 
+// Parent-specific navigation (simplified)
+const parentNavSections: NavSection[] = [
+  {
+    id: 'parent-main',
+    labelKey: 'parent.dashboard_title',
+    items: [
+      { key: 'dashboard', icon: LayoutDashboard, labelKey: 'nav.dashboard' },
+      { key: 'parents', icon: Mail, labelKey: 'parent.my_children' },
+      { key: 'parents', icon: MessageSquareText, labelKey: 'parent.messages' },
+      { key: 'calendar', icon: CalendarIconNav, labelKey: 'nav.calendar' },
+    ],
+  },
+];
+
 function renderView(view: ViewName) {
   switch (view) {
     case 'dashboard': return <DashboardView />;
@@ -264,10 +278,11 @@ export default function AppLayout() {
     ? `${currentUser.firstName} ${currentUser.lastName}`
     : '';
 
-  const roleKey = currentUser?.role === 'TEACHER' ? 'role.teacher' : currentUser?.role === 'SCHOOL_ADMIN' ? 'role.school_admin' : currentUser?.role === 'STUDENT' ? 'role.student' : 'role.super_admin';
+  const roleKey = currentUser?.role === 'TEACHER' ? 'role.teacher' : currentUser?.role === 'SCHOOL_ADMIN' ? 'role.school_admin' : currentUser?.role === 'STUDENT' ? 'role.student' : currentUser?.role === 'PARENT' ? 'role.parent' : 'role.super_admin';
 
   const isStudent = currentUser?.role === 'STUDENT';
-  const activeNavSections = isStudent ? studentNavSections : navSections;
+  const isParent = currentUser?.role === 'PARENT';
+  const activeNavSections = isStudent ? studentNavSections : isParent ? parentNavSections : navSections;
 
   const isDemoUser = currentUser?.isDemo === true || (currentUser?.email?.endsWith('@competencetrack.org') && currentUser?.email?.startsWith('demo'));
 

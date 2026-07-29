@@ -23,6 +23,8 @@ import {
   Eye,
   EyeOff,
   ChevronDown,
+  ZoomIn,
+  ZoomOut,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
@@ -431,6 +433,9 @@ export default function DrawingCanvas({
   // Canvas dimensions
   const [canvasSize, setCanvasSize] = useState({ width: 1200, height: 800 });
 
+  // Zoom state
+  const [zoomLevel, setZoomLevel] = useState(100);
+
   /* ── Load initial data ─────────────────────────────────────────── */
 
   useEffect(() => {
@@ -780,9 +785,9 @@ export default function DrawingCanvas({
                     variant="ghost"
                     size="sm"
                     onClick={() => setActiveTool(tool.id)}
-                    className={`h-10 w-10 transition-all ${
+                    className={`h-10 w-10 transition-all rounded-lg ${
                       activeTool === tool.id
-                        ? 'bg-emerald-600 text-white shadow-md shadow-emerald-500/30'
+                        ? 'bg-emerald-600 text-white shadow-md shadow-emerald-500/30 scale-105'
                         : 'text-gray-300 hover:bg-gray-800 hover:text-white'
                     }`}
                   >
@@ -820,9 +825,9 @@ export default function DrawingCanvas({
                     <button
                       key={color}
                       onClick={() => setStrokeColor(color)}
-                      className={`h-7 w-7 rounded-full border-2 transition-all hover:scale-110 ${
+                      className={`h-8 w-8 rounded-full border-2 transition-all hover:scale-110 ${
                         strokeColor === color
-                          ? 'border-emerald-500 ring-2 ring-emerald-500/30'
+                          ? 'border-emerald-500 ring-2 ring-emerald-500/30 scale-110'
                           : 'border-gray-300'
                       }`}
                       style={{ backgroundColor: color }}
@@ -837,9 +842,9 @@ export default function DrawingCanvas({
                     <button
                       key={color}
                       onClick={() => setStrokeColor(color)}
-                      className={`h-7 w-7 rounded-full border-2 transition-all hover:scale-110 ${
+                      className={`h-8 w-8 rounded-full border-2 transition-all hover:scale-110 ${
                         strokeColor === color
-                          ? 'border-emerald-500 ring-2 ring-emerald-500/30'
+                          ? 'border-emerald-500 ring-2 ring-emerald-500/30 scale-110'
                           : 'border-gray-300'
                       }`}
                       style={{ backgroundColor: color }}
@@ -958,7 +963,7 @@ export default function DrawingCanvas({
                   size="sm"
                   onClick={handleUndo}
                   disabled={strokes.length === 0}
-                  className="h-10 w-10 text-gray-300 hover:bg-gray-800 hover:text-white disabled:opacity-30"
+                  className="h-10 w-10 text-gray-300 hover:bg-gray-800 hover:text-white disabled:opacity-30 transition-transform active:scale-90"
                 >
                   <Undo2 className="h-5 w-5" />
                 </Button>
@@ -972,12 +977,48 @@ export default function DrawingCanvas({
                   size="sm"
                   onClick={handleRedo}
                   disabled={redoStack.length === 0}
-                  className="h-10 w-10 text-gray-300 hover:bg-gray-800 hover:text-white disabled:opacity-30"
+                  className="h-10 w-10 text-gray-300 hover:bg-gray-800 hover:text-white disabled:opacity-30 transition-transform active:scale-90"
                 >
                   <Redo2 className="h-5 w-5" />
                 </Button>
               </TooltipTrigger>
               <TooltipContent>{t('drawing.redo')}</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+
+          {/* Divider */}
+          <div className="mx-1 h-8 w-px bg-gray-700" />
+
+          {/* Zoom controls */}
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setZoomLevel(Math.max(25, zoomLevel - 25))}
+                  disabled={zoomLevel <= 25}
+                  className="h-10 w-10 text-gray-300 hover:bg-gray-800 hover:text-white disabled:opacity-30"
+                >
+                  <ZoomOut className="h-5 w-5" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>{t('drawing.zoom_out')}</TooltipContent>
+            </Tooltip>
+            <span className="text-xs text-gray-400 min-w-[2rem] text-center">{zoomLevel}%</span>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setZoomLevel(Math.min(200, zoomLevel + 25))}
+                  disabled={zoomLevel >= 200}
+                  className="h-10 w-10 text-gray-300 hover:bg-gray-800 hover:text-white disabled:opacity-30"
+                >
+                  <ZoomIn className="h-5 w-5" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>{t('drawing.zoom_in')}</TooltipContent>
             </Tooltip>
           </TooltipProvider>
 
@@ -1047,9 +1088,19 @@ export default function DrawingCanvas({
       {/* ── Canvas Area ────────────────────────────────────────────── */}
       <div
         ref={containerRef}
-        className="flex-1 overflow-hidden bg-gray-100 p-4"
+        className="flex-1 overflow-auto bg-gray-100 p-4"
       >
-        <div className="relative mx-auto h-full max-w-full overflow-hidden rounded-lg shadow-lg">
+        <div
+          className="relative mx-auto overflow-hidden rounded-lg shadow-lg canvas-toolbar"
+          style={{
+            width: `${zoomLevel}%`,
+            maxWidth: '100%',
+            height: `${zoomLevel}%`,
+            maxHeight: '100%',
+            transform: zoomLevel !== 100 ? `scale(${zoomLevel / 100})` : undefined,
+            transformOrigin: 'center center',
+          }}
+        >
           <canvas
             ref={canvasRef}
             width={canvasSize.width}

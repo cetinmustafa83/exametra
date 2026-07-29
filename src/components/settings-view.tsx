@@ -34,6 +34,12 @@ import {
   CheckCircle,
   Leaf,
   DatabaseIcon,
+  Upload,
+  FileDown,
+  FileUp,
+  Loader2,
+  ClipboardCheck,
+  CalendarDays,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -69,8 +75,12 @@ import {
 import { Switch } from '@/components/ui/switch';
 import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Checkbox } from '@/components/ui/checkbox';
 import { useAppStore } from '@/lib/store';
 import { t } from '@/lib/i18n';
+import { apiGet, apiPost, apiPut, apiDelete } from '@/lib/api';
+import { toast } from 'sonner';
+
 import {
   fetchSchools,
   updateSchool,
@@ -87,14 +97,15 @@ import {
   createUser,
   updateUser,
   deleteUser,
+  createStudentUserAccount,
+  bulkCreateStudentAccounts,
+  fetchStudents,
   type School as SchoolType,
   type SchoolYear,
   type Subject,
   type AuditLogEntry,
   type UserAccount,
 } from '@/lib/api';
-import { toast } from 'sonner';
-import { apiGet, apiPut, apiDelete } from '@/lib/api';
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -168,9 +179,27 @@ export default function SettingsView() {
     lastName: '',
     email: '',
     password: '',
-    role: 'TEACHER' as 'TEACHER' | 'SCHOOL_ADMIN' | 'SUPER_ADMIN',
+    role: 'TEACHER' as 'TEACHER' | 'SCHOOL_ADMIN' | 'SUPER_ADMIN' | 'STUDENT' | 'PARENT',
   });
   const [deleteUserId, setDeleteUserId] = useState<string | null>(null);
+
+  // Student account creation state
+  const [showStudentAccountDialog, setShowStudentAccountDialog] = useState(false);
+  const [showBulkStudentDialog, setShowBulkStudentDialog] = useState(false);
+  const [studentAccountForm, setStudentAccountForm] = useState({
+    firstName: '',
+    lastName: '',
+    email: '',
+    password: 'Schule2025!',
+    studentId: '',
+  });
+  const [bulkForm, setBulkForm] = useState({
+    defaultPassword: 'Schule2025!',
+    emailDomain: 'schule.de',
+    selectedStudentIds: [] as string[],
+  });
+  const [availableStudents, setAvailableStudents] = useState<Array<{ id: string; firstName: string; lastName: string }>>([]);
+  const [bulkCreating, setBulkCreating] = useState(false);
 
   // Demo accounts state
   const [demoAccounts, setDemoAccounts] = useState<Array<{
@@ -187,6 +216,22 @@ export default function SettingsView() {
   const [demoLoading, setDemoLoading] = useState(true);
   const [deleteDemoId, setDeleteDemoId] = useState<string | null>(null);
   const [deleteAllDemoOpen, setDeleteAllDemoOpen] = useState(false);
+
+  // Data import state
+  const [importType, setImportType] = useState<'students' | 'assessments' | 'grades'>('students');
+  const [importFile, setImportFile] = useState<File | null>(null);
+  const [importing, setImporting] = useState(false);
+  const [importResult, setImportResult] = useState<{
+    created: number;
+    skipped: number;
+    errorCount: number;
+    errors: string[];
+    detectedColumns: string[];
+  } | null>(null);
+  const [dragOver, setDragOver] = useState(false);
+
+  // Export history
+  const [exportHistory, setExportHistory] = useState<Array<{ type: string; date: string }>>([]);
 
   const isAdmin = currentUser?.role === 'SCHOOL_ADMIN' || currentUser?.role === 'SUPER_ADMIN';
 
@@ -388,13 +433,49 @@ export default function SettingsView() {
     }
   };
 
-  const handleCsvExport = (type: 'students' | 'progress' | 'assessments' | 'grades') => {
+  const handleCsvExport = (type: 'students' | 'progress' | 'assessments' | 'grades' | 'attendance') => {
     downloadCsvExport({
       type,
       schoolId: currentUser?.schoolId ?? undefined,
       schoolYearId: useAppStore.getState().schoolYearId ?? undefined,
     });
+    setExportHistory((prev) => [{ type, date: new Date().toLocaleDateString() }, ...prev].slice(0, 20));
     toast.success(t('settings.data_export_started'));
+  };
+
+  const handleImport = async () => {
+    if (!importFile || !currentUser?.schoolId) return;
+    setImporting(true);
+    setImportResult(null);
+    try {
+      const formData = new FormData();
+      formData.append('file', importFile);
+      formData.append('type', importType);
+      formData.append('schoolId', currentUser.schoolId);
+
+      const res = await fetch('/api/data-import', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: 'Import failed' }));
+        throw new Error(err.error || 'Import failed');
+      }
+
+      const result = await res.json();
+      setImportResult(result);
+      toast.success(t('import.success'));
+      setImportFile(null);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : t('import.errors'));
+    } finally {
+      setImporting(false);
+    }
+  };
+
+  const handleDownloadSample = (type: 'students' | 'assessments' | 'grades') => {
+    window.open(`/api/data-import?type=${type}`, '_blank');
   };
 
   const handleErasureRequest = async () => {
@@ -496,6 +577,72 @@ export default function SettingsView() {
     setShowUserDialog(true);
   };
 
+  const openCreateStudentAccountDialog = async () => {
+    setStudentAccountForm({ firstName: '', lastName: '', email: '', password: 'Schule2025!', studentId: '' });
+    try {
+      const students = await fetchStudents(currentUser?.schoolId ?? undefined);
+      setAvailableStudents(students.map((s) => ({ id: s.id, firstName: s.firstName, lastName: s.lastName })));
+    } catch {
+      // ignore
+    }
+    setShowStudentAccountDialog(true);
+  };
+
+  const openBulkStudentDialog = async () => {
+    setBulkForm({ defaultPassword: 'Schule2025!', emailDomain: 'schule.de', selectedStudentIds: [] });
+    try {
+      const students = await fetchStudents(currentUser?.schoolId ?? undefined);
+      setAvailableStudents(students.map((s) => ({ id: s.id, firstName: s.firstName, lastName: s.lastName })));
+    } catch {
+      // ignore
+    }
+    setShowBulkStudentDialog(true);
+  };
+
+  const handleCreateStudentAccount = async () => {
+    try {
+      await createStudentUserAccount({
+        schoolId: currentUser?.schoolId ?? '',
+        email: studentAccountForm.email,
+        password: studentAccountForm.password,
+        firstName: studentAccountForm.firstName,
+        lastName: studentAccountForm.lastName,
+        role: 'STUDENT',
+        studentId: studentAccountForm.studentId || undefined,
+      });
+      toast.success(t('settings.student_account_created'));
+      setShowStudentAccountDialog(false);
+      loadUsers();
+    } catch (err) {
+      const message = err instanceof Error ? err.message : t('error.generic');
+      toast.error(message);
+    }
+  };
+
+  const handleBulkCreateStudents = async () => {
+    if (bulkForm.selectedStudentIds.length === 0) {
+      toast.error(t('error.generic'));
+      return;
+    }
+    setBulkCreating(true);
+    try {
+      const result = await bulkCreateStudentAccounts({
+        schoolId: currentUser?.schoolId ?? '',
+        defaultPassword: bulkForm.defaultPassword,
+        studentIds: bulkForm.selectedStudentIds,
+        emailDomain: bulkForm.emailDomain,
+      });
+      toast.success(t('settings.bulk_accounts_created') + ` (${result.count})`);
+      setShowBulkStudentDialog(false);
+      loadUsers();
+    } catch (err) {
+      const message = err instanceof Error ? err.message : t('error.generic');
+      toast.error(message);
+    } finally {
+      setBulkCreating(false);
+    }
+  };
+
   const openEditUserDialog = (u: UserAccount) => {
     setEditingUser(u);
     setUserForm({
@@ -503,7 +650,7 @@ export default function SettingsView() {
       lastName: u.lastName,
       email: u.email,
       password: '',
-      role: u.role as 'TEACHER' | 'SCHOOL_ADMIN' | 'SUPER_ADMIN',
+      role: u.role as 'TEACHER' | 'SCHOOL_ADMIN' | 'SUPER_ADMIN' | 'STUDENT' | 'PARENT',
     });
     setShowUserDialog(true);
   };
@@ -1032,17 +1179,35 @@ export default function SettingsView() {
                 <CardDescription>{t('users.subtitle')}</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between flex-wrap gap-2">
                   <Badge className="bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-300 text-xs font-medium">
                     {t('users.count', { count: users.length })}
                   </Badge>
-                  <Button
-                    onClick={openCreateUserDialog}
-                    className="bg-gradient-to-r from-rose-500 to-amber-500 hover:from-rose-600 hover:to-amber-600 text-white shadow-md rounded-xl px-6"
-                  >
-                    <UserPlus className="h-4 w-4 mr-2" />
-                    {t('users.create_user')}
-                  </Button>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      onClick={openCreateStudentAccountDialog}
+                      variant="outline"
+                      className="border-amber-300 dark:border-amber-700 text-amber-700 dark:text-amber-300 hover:bg-amber-50 dark:hover:bg-amber-900/20 rounded-xl px-4 min-h-[44px]"
+                    >
+                      <UserCheck className="h-4 w-4 mr-2" />
+                      {t('settings.create_student_account')}
+                    </Button>
+                    <Button
+                      onClick={openBulkStudentDialog}
+                      variant="outline"
+                      className="border-teal-300 dark:border-teal-700 text-teal-700 dark:text-teal-300 hover:bg-teal-50 dark:hover:bg-teal-900/20 rounded-xl px-4 min-h-[44px]"
+                    >
+                      <Zap className="h-4 w-4 mr-2" />
+                      {t('settings.bulk_create_students')}
+                    </Button>
+                    <Button
+                      onClick={openCreateUserDialog}
+                      className="bg-gradient-to-r from-rose-500 to-amber-500 hover:from-rose-600 hover:to-amber-600 text-white shadow-md rounded-xl px-6 min-h-[44px]"
+                    >
+                      <UserPlus className="h-4 w-4 mr-2" />
+                      {t('users.create_user')}
+                    </Button>
+                  </div>
                 </div>
 
                 {usersLoading ? (
@@ -1181,7 +1346,7 @@ export default function SettingsView() {
                         <Label>{t('users.role')}</Label>
                         <Select
                           value={userForm.role}
-                          onValueChange={(v) => setUserForm({ ...userForm, role: v as 'TEACHER' | 'SCHOOL_ADMIN' | 'SUPER_ADMIN' })}
+                          onValueChange={(v) => setUserForm({ ...userForm, role: v as 'TEACHER' | 'SCHOOL_ADMIN' | 'SUPER_ADMIN' | 'STUDENT' | 'PARENT' })}
                         >
                           <SelectTrigger className="rounded-xl border-rose-200/50 dark:border-rose-900/30">
                             <SelectValue />
@@ -1189,6 +1354,8 @@ export default function SettingsView() {
                           <SelectContent>
                             <SelectItem value="TEACHER">{t('role.teacher')}</SelectItem>
                             <SelectItem value="SCHOOL_ADMIN">{t('role.school_admin')}</SelectItem>
+                            <SelectItem value="STUDENT">{t('role.student')}</SelectItem>
+                            <SelectItem value="PARENT">{t('role.parent')}</SelectItem>
                             {currentUser?.role === 'SUPER_ADMIN' && (
                               <SelectItem value="SUPER_ADMIN">{t('role.super_admin')}</SelectItem>
                             )}
@@ -1247,6 +1414,113 @@ export default function SettingsView() {
                     </AlertDialogFooter>
                   </AlertDialogContent>
                 </AlertDialog>
+
+                {/* Create Student Account Dialog */}
+                <Dialog open={showStudentAccountDialog} onOpenChange={(open) => { if (!open) setShowStudentAccountDialog(false); }}>
+                  <DialogContent className="sm:max-w-md" aria-describedby={undefined}>
+                    <DialogHeader>
+                      <DialogTitle className="flex items-center gap-2">
+                        <UserCheck className="h-4 w-4 text-amber-500" />
+                        {t('settings.create_student_account')}
+                      </DialogTitle>
+                      <DialogDescription>{t('auth.student_login_desc')}</DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4">
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label>{t('label.first_name')}</Label>
+                          <Input value={studentAccountForm.firstName} onChange={(e) => setStudentAccountForm({ ...studentAccountForm, firstName: e.target.value })} className="rounded-xl" />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>{t('label.last_name')}</Label>
+                          <Input value={studentAccountForm.lastName} onChange={(e) => setStudentAccountForm({ ...studentAccountForm, lastName: e.target.value })} className="rounded-xl" />
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="flex items-center gap-1"><Mail className="h-3 w-3" />{t('users.email')}</Label>
+                        <Input type="email" value={studentAccountForm.email} onChange={(e) => setStudentAccountForm({ ...studentAccountForm, email: e.target.value })} className="rounded-xl" placeholder="name@schule.de" />
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="flex items-center gap-1"><Key className="h-3 w-3" />{t('settings.default_password')}</Label>
+                        <Input type="text" value={studentAccountForm.password} onChange={(e) => setStudentAccountForm({ ...studentAccountForm, password: e.target.value })} className="rounded-xl" />
+                      </div>
+                      {availableStudents.length > 0 && (
+                        <div className="space-y-2">
+                          <Label>{t('settings.link_student')}</Label>
+                          <Select value={studentAccountForm.studentId} onValueChange={(v) => setStudentAccountForm({ ...studentAccountForm, studentId: v })}>
+                            <SelectTrigger className="rounded-xl"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="">--</SelectItem>
+                              {availableStudents.map((s) => (
+                                <SelectItem key={s.id} value={s.id}>{s.firstName} {s.lastName}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      )}
+                    </div>
+                    <DialogFooter>
+                      <Button variant="outline" onClick={() => setShowStudentAccountDialog(false)} className="rounded-xl">{t('action.cancel')}</Button>
+                      <Button onClick={handleCreateStudentAccount} disabled={!studentAccountForm.firstName || !studentAccountForm.lastName || !studentAccountForm.email || studentAccountForm.password.length < 6} className="bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-xl">{t('action.create')}</Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+
+                {/* Bulk Create Student Accounts Dialog */}
+                <Dialog open={showBulkStudentDialog} onOpenChange={(open) => { if (!open) setShowBulkStudentDialog(false); }}>
+                  <DialogContent className="sm:max-w-lg" aria-describedby={undefined}>
+                    <DialogHeader>
+                      <DialogTitle className="flex items-center gap-2">
+                        <Zap className="h-4 w-4 text-teal-500" />
+                        {t('settings.bulk_create_students')}
+                      </DialogTitle>
+                      <DialogDescription>{t('auth.bulk_create')}</DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4">
+                      <div className="space-y-2">
+                        <Label className="flex items-center gap-1"><Key className="h-3 w-3" />{t('settings.default_password')}</Label>
+                        <Input type="text" value={bulkForm.defaultPassword} onChange={(e) => setBulkForm({ ...bulkForm, defaultPassword: e.target.value })} className="rounded-xl" />
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="flex items-center gap-1"><Mail className="h-3 w-3" />{t('settings.generate_email')}</Label>
+                        <Input type="text" value={bulkForm.emailDomain} onChange={(e) => setBulkForm({ ...bulkForm, emailDomain: e.target.value })} className="rounded-xl" placeholder="schule.de" />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>{t('settings.link_student')} ({bulkForm.selectedStudentIds.length} {t('label.selected')})</Label>
+                        <div className="max-h-48 overflow-y-auto scrollbar-education rounded-xl border border-gray-200/30 dark:border-gray-800/20">
+                          {availableStudents.map((s) => (
+                            <label key={s.id} className="flex items-center gap-2 px-3 py-2 hover:bg-teal-50/50 dark:hover:bg-teal-900/10 cursor-pointer min-h-[44px]">
+                              <Checkbox
+                                checked={bulkForm.selectedStudentIds.includes(s.id)}
+                                onCheckedChange={(checked) => {
+                                  if (checked) {
+                                    setBulkForm({ ...bulkForm, selectedStudentIds: [...bulkForm.selectedStudentIds, s.id] });
+                                  } else {
+                                    setBulkForm({ ...bulkForm, selectedStudentIds: bulkForm.selectedStudentIds.filter((id) => id !== s.id) });
+                                  }
+                                }}
+                              />
+                              <span className="text-sm font-medium">{s.firstName} {s.lastName}</span>
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                    <DialogFooter>
+                      <Button variant="outline" onClick={() => setShowBulkStudentDialog(false)} className="rounded-xl">{t('action.cancel')}</Button>
+                      <Button onClick={handleBulkCreateStudents} disabled={bulkForm.selectedStudentIds.length === 0 || bulkCreating} className="bg-gradient-to-r from-teal-500 to-emerald-500 text-white rounded-xl">
+                        {bulkCreating ? (
+                          <span className="flex items-center gap-2">
+                            <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                            {t('empty.loading')}
+                          </span>
+                        ) : (
+                          <span>{t('action.create')} ({bulkForm.selectedStudentIds.length})</span>
+                        )}
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
               </CardContent>
             </Card>
           </TabsContent>
@@ -1442,6 +1716,137 @@ export default function SettingsView() {
           {/* ── Data Management Tab ─────────────────────────────── */}
           <TabsContent value="data">
             <div className="space-y-6">
+              {/* Data Import */}
+              <Card className="border-0 shadow-sm rounded-xl border-l-3 border-l-amber-500 overflow-hidden">
+                <CardHeader className="bg-gradient-to-r from-amber-50/50 to-transparent dark:from-amber-900/10 dark:to-transparent">
+                  <CardTitle className="flex items-center gap-2">
+                    <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400">
+                      <Upload className="h-4 w-4" />
+                    </div>
+                    {t('import.title')}
+                  </CardTitle>
+                  <CardDescription>{t('import.csv_upload')}</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {/* Import type selector */}
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium text-gray-700 dark:text-gray-300">{t('calendar.event_type')}</Label>
+                    <div className="flex gap-2">
+                      {(['students', 'assessments', 'grades'] as const).map((impType) => {
+                        const icons = { students: GraduationCap, assessments: ClipboardCheck, grades: BarChart3 };
+                        const Icon = icons[impType];
+                        return (
+                          <Button
+                            key={impType}
+                            variant={importType === impType ? 'default' : 'outline'}
+                            size="sm"
+                            className={importType === impType ? 'bg-emerald-500 hover:bg-emerald-600 text-white min-h-[44px] rounded-xl' : 'min-h-[44px] rounded-xl'}
+                            onClick={() => { setImportType(impType); setImportResult(null); }}
+                          >
+                            <Icon className="h-4 w-4 mr-1.5" />
+                            {impType === 'students' ? t('label.student') : impType === 'assessments' ? t('nav.assessments') : t('nav.grading')}
+                          </Button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Drag and drop zone */}
+                  <div
+                    className={`file-drop-zone ${dragOver ? 'drag-over' : ''}`}
+                    onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+                    onDragLeave={() => setDragOver(false)}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      setDragOver(false);
+                      const file = e.dataTransfer.files[0];
+                      if (file && file.name.endsWith('.csv')) {
+                        setImportFile(file);
+                        setImportResult(null);
+                      } else {
+                        toast.error('Please upload a CSV file');
+                      }
+                    }}
+                  >
+                    <Upload className="h-8 w-8 text-amber-400 dark:text-amber-500 mb-2" />
+                    <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                      {importFile ? importFile.name : t('import.csv_upload')}
+                    </p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                      Drag & drop or click to select
+                    </p>
+                    <input
+                      type="file"
+                      accept=".csv"
+                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          setImportFile(file);
+                          setImportResult(null);
+                        }
+                      }}
+                    />
+                  </div>
+
+                  {/* Import button */}
+                  <div className="flex items-center gap-3">
+                    <Button
+                      onClick={handleImport}
+                      disabled={!importFile || importing}
+                      className="bg-gradient-to-r from-amber-500 to-emerald-500 hover:from-amber-600 hover:to-emerald-600 text-white shadow-md rounded-xl min-h-[44px]"
+                    >
+                      {importing ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <FileUp className="h-4 w-4 mr-1.5" />}
+                      {importing ? t('import.progress') : t('action.upload')}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleDownloadSample(importType)}
+                      className="rounded-xl min-h-[44px]"
+                    >
+                      <Download className="h-4 w-4 mr-1.5" />
+                      {t('import.sample_csv')}
+                    </Button>
+                  </div>
+
+                  {/* Import result */}
+                  {importResult && (
+                    <div className="import-progress p-4 rounded-xl bg-gradient-to-r from-emerald-50/60 to-teal-50/30 dark:from-emerald-900/15 dark:to-teal-900/10 border border-emerald-200/30 dark:border-emerald-900/20">
+                      <p className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-2">{t('import.summary')}</p>
+                      <div className="grid grid-cols-3 gap-3 mb-3">
+                        <div className="text-center">
+                          <p className="text-xl font-bold text-emerald-600 dark:text-emerald-400">{importResult.created}</p>
+                          <p className="text-[10px] text-gray-500 dark:text-gray-400">{t('import.success')}</p>
+                        </div>
+                        <div className="text-center">
+                          <p className="text-xl font-bold text-amber-600 dark:text-amber-400">{importResult.skipped}</p>
+                          <p className="text-[10px] text-gray-500 dark:text-gray-400">Skipped</p>
+                        </div>
+                        <div className="text-center">
+                          <p className="text-xl font-bold text-red-600 dark:text-red-400">{importResult.errorCount}</p>
+                          <p className="text-[10px] text-gray-500 dark:text-gray-400">{t('import.errors')}</p>
+                        </div>
+                      </div>
+                      {importResult.detectedColumns.length > 0 && (
+                        <div className="flex flex-wrap gap-1">
+                          {importResult.detectedColumns.map((col) => (
+                            <Badge key={col} variant="outline" className="text-[10px] bg-gray-50 dark:bg-gray-800/50">{col}</Badge>
+                          ))}
+                        </div>
+                      )}
+                      {importResult.errors.length > 0 && (
+                        <div className="mt-2 max-h-24 overflow-y-auto scrollbar-education">
+                          {importResult.errors.slice(0, 5).map((err, i) => (
+                            <p key={i} className="text-xs text-red-600 dark:text-red-400">{err}</p>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
               {/* CSV Export */}
               <Card className="border-0 shadow-sm rounded-xl border-l-3 border-l-emerald-500 overflow-hidden">
                 <CardHeader className="bg-gradient-to-r from-emerald-50/50 to-transparent dark:from-emerald-900/10 dark:to-transparent">
@@ -1454,12 +1859,13 @@ export default function SettingsView() {
                   <CardDescription>{t('csv.export_title')}</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
                     {[
-                      { type: 'students' as const, iconComponent: GraduationCap, label: t('settings.data_export_students'), color: 'from-emerald-50/60 to-emerald-100/0 dark:from-emerald-900/15 dark:to-emerald-900/0', border: 'border-emerald-200/40 dark:border-emerald-900/30', iconBg: 'bg-gradient-to-br from-emerald-400 to-emerald-500' },
-                      { type: 'progress' as const, iconComponent: TrendingUp, label: t('settings.data_export_progress'), color: 'from-amber-50/60 to-amber-100/0 dark:from-amber-900/15 dark:to-amber-900/0', border: 'border-amber-200/40 dark:border-amber-900/30', iconBg: 'bg-gradient-to-br from-amber-400 to-amber-500' },
-                      { type: 'assessments' as const, iconComponent: CheckCircle, label: t('settings.data_export_assessments'), color: 'from-teal-50/60 to-teal-100/0 dark:from-teal-900/15 dark:to-teal-900/0', border: 'border-teal-200/40 dark:border-teal-900/30', iconBg: 'bg-gradient-to-br from-teal-400 to-teal-500' },
-                      { type: 'grades' as const, iconComponent: BarChart3, label: t('settings.data_export_grades'), color: 'from-violet-50/60 to-violet-100/0 dark:from-violet-900/15 dark:to-violet-900/0', border: 'border-violet-200/40 dark:border-violet-900/30', iconBg: 'bg-gradient-to-br from-violet-400 to-violet-500' },
+                      { type: 'students' as const, iconComponent: GraduationCap, label: t('export.students'), color: 'from-emerald-50/60 to-emerald-100/0 dark:from-emerald-900/15 dark:to-emerald-900/0', border: 'border-emerald-200/40 dark:border-emerald-900/30', iconBg: 'bg-gradient-to-br from-emerald-400 to-emerald-500' },
+                      { type: 'progress' as const, iconComponent: TrendingUp, label: t('export.progress'), color: 'from-amber-50/60 to-amber-100/0 dark:from-amber-900/15 dark:to-amber-900/0', border: 'border-amber-200/40 dark:border-amber-900/30', iconBg: 'bg-gradient-to-br from-amber-400 to-amber-500' },
+                      { type: 'assessments' as const, iconComponent: ClipboardCheck, label: t('export.assessments'), color: 'from-teal-50/60 to-teal-100/0 dark:from-teal-900/15 dark:to-teal-900/0', border: 'border-teal-200/40 dark:border-teal-900/30', iconBg: 'bg-gradient-to-br from-teal-400 to-teal-500' },
+                      { type: 'grades' as const, iconComponent: BarChart3, label: t('export.grades'), color: 'from-violet-50/60 to-violet-100/0 dark:from-violet-900/15 dark:to-violet-900/0', border: 'border-violet-200/40 dark:border-violet-900/30', iconBg: 'bg-gradient-to-br from-violet-400 to-violet-500' },
+                      { type: 'attendance' as const, iconComponent: CalendarDays, label: t('export.attendance'), color: 'from-rose-50/60 to-rose-100/0 dark:from-rose-900/15 dark:to-rose-900/0', border: 'border-rose-200/40 dark:border-rose-900/30', iconBg: 'bg-gradient-to-br from-rose-400 to-rose-500' },
                     ].map((item) => (
                       <motion.div
                         key={item.type}
@@ -1468,7 +1874,7 @@ export default function SettingsView() {
                         className={`p-5 rounded-xl bg-gradient-to-br ${item.color} border ${item.border} hover:shadow-lg transition-all cursor-pointer`}
                         onClick={() => handleCsvExport(item.type)}
                       >
-                        <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-gradient-to-br ${item.iconBg} text-white shadow-sm mb-3">
+                        <div className={`flex items-center justify-center w-10 h-10 rounded-xl ${item.iconBg} text-white shadow-sm mb-3`}>
                           <item.iconComponent className="w-5 h-5" />
                         </div>
                         <p className="font-semibold text-gray-900 dark:text-gray-100 text-sm">{item.label}</p>
@@ -1476,6 +1882,21 @@ export default function SettingsView() {
                       </motion.div>
                     ))}
                   </div>
+
+                  {/* Export history */}
+                  {exportHistory.length > 0 && (
+                    <div className="mt-4 space-y-2">
+                      <p className="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">{t('settings.export_history')}</p>
+                      <div className="max-h-24 overflow-y-auto scrollbar-education space-y-1">
+                        {exportHistory.map((item, idx) => (
+                          <div key={idx} className="flex items-center justify-between text-xs p-2 rounded-lg bg-gray-50 dark:bg-gray-800/50">
+                            <span className="text-gray-700 dark:text-gray-300 capitalize">{item.type}</span>
+                            <span className="text-gray-500 dark:text-gray-400">{item.date}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
 
