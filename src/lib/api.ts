@@ -725,7 +725,7 @@ export function fetchAuditLog(params?: {
 /* ── Data Export (CSV) ────────────────────────────────────────────── */
 
 export function downloadCsvExport(params: {
-  type: 'students' | 'progress' | 'assessments' | 'grades';
+  type: 'students' | 'progress' | 'assessments' | 'grades' | 'attendance';
   classGroupId?: string;
   schoolYearId?: string;
   schoolId?: string;
@@ -1907,6 +1907,262 @@ export function deleteRubric(id: string): Promise<{ success: boolean }> {
 
 export function duplicateRubric(id: string): Promise<Rubric> {
   return apiPost<Rubric>(`/api/rubrics/${id}/duplicate`);
+}
+
+/* ── Rubric Templates & Grading ───────────────────────────────────── */
+
+export interface RubricTemplate {
+  id: string;
+  title: string;
+  description: string;
+  subject: string;
+  type: 'ANALYTIC' | 'HOLISTIC';
+  maxPoints: number;
+  criteria: Array<{
+    name: string;
+    description: string;
+    weight: number;
+    maxPoints: number;
+    levels: Array<{ label: string; description: string; points: number }>;
+  }>;
+}
+
+export function fetchRubricTemplates(subject?: string): Promise<RubricTemplate[]> {
+  const sp = new URLSearchParams();
+  if (subject && subject !== 'all') sp.set('subject', subject);
+  return apiGet<RubricTemplate[]>(`/api/rubrics/templates?${sp.toString()}`);
+}
+
+export interface RubricGradeResult {
+  rubricId: string;
+  studentId: string;
+  finalScore: number;
+  maxPoints: number;
+  overallPercentage: number;
+  grade: number;
+  gradeLabel: string;
+  criterionBreakdown: Array<{
+    criterionId: string;
+    criterionName: string;
+    maxPoints: number;
+    earnedPoints: number;
+    selectedLevel: { id: string; label: string; description: string } | null;
+    percentage: number;
+  }>;
+}
+
+export function gradeWithRubric(rubricId: string, data: {
+  studentId: string;
+  scores: Array<{ criterionId: string; levelId: string; points: number }>;
+  note?: string;
+}): Promise<RubricGradeResult> {
+  return apiPost<RubricGradeResult>(`/api/rubrics/${rubricId}/grade`, data);
+}
+
+export interface RubricAnalytics {
+  rubricId: string;
+  rubricTitle: string;
+  criteriaAnalytics: Array<{
+    criterionId: string;
+    criterionName: string;
+    maxPoints: number;
+    weight: number;
+    classAverage: number;
+    classMedian: number;
+    highestScore: number;
+    lowestScore: number;
+    levelDistribution: Array<{
+      levelId: string;
+      label: string;
+      points: number;
+      description: string;
+      percentage: number;
+    }>;
+  }>;
+  gradeDistribution: Array<{
+    grade: string;
+    range: string;
+    count: number;
+    color: string;
+  }>;
+  overallStats: {
+    averagePercentage: number;
+    totalAssessments: number;
+    totalStudents: number;
+    totalMaxPoints: number;
+    averageScore: number;
+  };
+}
+
+export function fetchRubricAnalytics(rubricId: string): Promise<RubricAnalytics> {
+  return apiGet<RubricAnalytics>(`/api/rubrics/${rubricId}/analytics`);
+}
+
+/* ── Curriculum Standards ─────────────────────────────────────────── */
+
+export interface CurriculumStandard {
+  id: string;
+  schoolId: string;
+  subjectId: string | null;
+  code: string;
+  title: string;
+  description: string | null;
+  gradeLevel: number | null;
+  category: string | null;
+  source: string | null;
+  isDemo: boolean;
+  createdAt: string;
+  updatedAt: string;
+  deletedAt: string | null;
+  subject: { id: string; name: string } | null;
+  competencyLinks: CurriculumStandardLink[];
+}
+
+export interface CurriculumStandardLink {
+  id: string;
+  standardId: string;
+  competencyId: string;
+  coverageLevel: string | null;
+  notes: string | null;
+  createdAt: string;
+  competency: {
+    id: string;
+    code: string;
+    title: string;
+    category: { id: string; name: string; color: string | null } | null;
+  };
+}
+
+export function fetchCurriculumStandards(schoolId: string, subjectId?: string, gradeLevel?: number): Promise<CurriculumStandard[]> {
+  const sp = new URLSearchParams();
+  sp.set('schoolId', schoolId);
+  if (subjectId && subjectId !== 'all') sp.set('subjectId', subjectId);
+  if (gradeLevel) sp.set('gradeLevel', String(gradeLevel));
+  return apiGet<CurriculumStandard[]>(`/api/curriculum-standards?${sp.toString()}`);
+}
+
+export function fetchCurriculumStandard(id: string): Promise<CurriculumStandard> {
+  return apiGet<CurriculumStandard>(`/api/curriculum-standards/${id}`);
+}
+
+export function createCurriculumStandard(data: {
+  schoolId: string;
+  subjectId?: string | null;
+  code: string;
+  title: string;
+  description?: string | null;
+  gradeLevel?: number | null;
+  category?: string | null;
+  source?: string | null;
+  isDemo?: boolean;
+}): Promise<CurriculumStandard> {
+  return apiPost<CurriculumStandard>('/api/curriculum-standards', data);
+}
+
+export function updateCurriculumStandard(id: string, data: {
+  subjectId?: string | null;
+  code?: string;
+  title?: string;
+  description?: string | null;
+  gradeLevel?: number | null;
+  category?: string | null;
+  source?: string | null;
+}): Promise<CurriculumStandard> {
+  return apiPut<CurriculumStandard>(`/api/curriculum-standards/${id}`, data);
+}
+
+export function deleteCurriculumStandard(id: string): Promise<{ success: boolean }> {
+  return apiDelete<{ success: boolean }>(`/api/curriculum-standards/${id}`);
+}
+
+export function linkCurriculumStandard(standardId: string, data: {
+  competencyId: string;
+  coverageLevel?: 'full' | 'partial' | 'related' | null;
+  notes?: string | null;
+}): Promise<CurriculumStandardLink> {
+  return apiPost<CurriculumStandardLink>(`/api/curriculum-standards/${standardId}/links`, data);
+}
+
+export function unlinkCurriculumStandard(standardId: string, competencyId: string): Promise<{ success: boolean }> {
+  return apiPost<{ success: boolean }>(`/api/curriculum-standards/${standardId}/links`, {
+    action: 'unlink',
+    competencyId,
+  });
+}
+
+export function fetchCurriculumStandardLinks(standardId: string): Promise<CurriculumStandardLink[]> {
+  return apiGet<CurriculumStandardLink[]>(`/api/curriculum-standards/${standardId}/links`);
+}
+
+/* ── Attendance Analytics ─────────────────────────────────────────── */
+
+export interface AttendanceAnalyticsData {
+  trendData: Array<{
+    week: string;
+    attendanceRate: number;
+    absentRate: number;
+    present: number;
+    absent: number;
+    excused: number;
+    late: number;
+    total: number;
+  }>;
+  dayOfWeekAnalysis: Array<{
+    day: number;
+    dayName: string;
+    dayNameDe: string;
+    attendanceRate: number;
+    absentCount: number;
+    totalRecords: number;
+  }>;
+  absencePatterns: Array<{
+    studentId: string;
+    firstName: string;
+    lastName: string;
+    present: number;
+    absent: number;
+    excused: number;
+    late: number;
+    total: number;
+    absenceRate: number;
+    attendanceRate: number;
+  }>;
+  riskIndicators: Array<{
+    studentId: string;
+    firstName: string;
+    lastName: string;
+    absenceRate: number;
+    totalAbsences: number;
+    totalSessions: number;
+    riskLevel: 'low' | 'medium' | 'high' | 'critical';
+  }>;
+  classComparison: Array<{
+    classGroupId: string;
+    className: string;
+    gradeLevel: number;
+    present: number;
+    absent: number;
+    excused: number;
+    late: number;
+    total: number;
+    attendanceRate: number;
+    absenceRate: number;
+  }>;
+  statusDistribution: {
+    present: number;
+    absent: number;
+    excused: number;
+    late: number;
+  };
+  totalSessions: number;
+  totalRecords: number;
+}
+
+export function fetchAttendanceAnalytics(schoolId: string, classGroupId?: string): Promise<AttendanceAnalyticsData> {
+  const sp = new URLSearchParams();
+  sp.set('schoolId', schoolId);
+  if (classGroupId) sp.set('classGroupId', classGroupId);
+  return apiGet<AttendanceAnalyticsData>(`/api/attendance/analytics?${sp.toString()}`);
 }
 
 /* ── Comment Bank ────────────────────────────────────────────────── */

@@ -15,6 +15,7 @@ import {
   Copy, FlaskConical, Languages, Calculator, Paintbrush, Megaphone,
   Strikethrough, Type, Highlighter, GripVertical,
   Clock, History, ZoomIn, ZoomOut, Image as ImageIcon,
+  Users as UsersIcon, Radio, MousePointer2,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -35,6 +36,7 @@ import { t } from '@/lib/i18n';
 import { apiGet, apiPost, apiPut, apiDelete } from '@/lib/api';
 import { toast } from 'sonner';
 import DrawingCanvas from '@/components/drawing-canvas';
+import { useNotebookCollaboration, type CursorData, type EditData } from '@/lib/websocket';
 
 // ─── Types ───────────────────────────────────────────────────────────
 
@@ -1028,6 +1030,9 @@ function NotebookDetailView({
   const [draggedPageId, setDraggedPageId] = useState<string | null>(null);
   const [dragOverPageId, setDragOverPageId] = useState<string | null>(null);
 
+  // Collaboration state
+  const [collabActivityOpen, setCollabActivityOpen] = useState(false);
+
   const editorRef = useRef<HTMLDivElement>(null);
   const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastSavedContentRef = useRef<string>('');
@@ -1036,6 +1041,69 @@ function NotebookDetailView({
 
   const pages = notebook.pages ?? [];
   const currentPage = pages.find(p => p.id === currentPageId) ?? pages[0] ?? null;
+
+  // ─── Collaboration Hook ─────────────────────────────────────────────
+  const {
+    onlineUsers,
+    cursors,
+    activities,
+    lastEdit,
+    editingUsers,
+    broadcastCursor,
+    broadcastEdit,
+    broadcastActivity,
+    addEditListener,
+  } = useNotebookCollaboration(notebook.id);
+
+  // Handle incoming edits from other users (last-write-wins with visual indicator)
+  const collabEditTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [collabEditIndicator, setCollabEditIndicator] = useState<string | null>(null);
+
+  useEffect(() => {
+    const unsubscribe = addEditListener((edit: EditData) => {
+      // If editing the same page, apply the incoming edit
+      if (currentPage && edit.pageId === currentPage.id && editorRef.current) {
+        isInternalChange.current = true;
+        editorRef.current.innerHTML = edit.content;
+        setPageContent(edit.content);
+        lastSavedContentRef.current = edit.content;
+        setTimeout(() => { isInternalChange.current = false; }, 100);
+      }
+
+      // Show editing indicator
+      setCollabEditIndicator(t('collab.editing_by', { name: edit.userName }));
+      if (collabEditTimeoutRef.current) clearTimeout(collabEditTimeoutRef.current);
+      collabEditTimeoutRef.current = setTimeout(() => setCollabEditIndicator(null), 3000);
+    });
+    return unsubscribe;
+  }, [addEditListener, currentPage]);
+
+  // Broadcast cursor position on mouse move
+  const cursorThrottleRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const handleEditorMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    if (!currentPage) return;
+    if (cursorThrottleRef.current) return;
+    cursorThrottleRef.current = setTimeout(() => {
+      cursorThrottleRef.current = null;
+    }, 200);
+
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = Math.round(((e.clientX - rect.left) / rect.width) * 100);
+    const y = Math.round(((e.clientY - rect.top) / rect.height) * 100);
+    broadcastCursor(currentPage.id, x, y);
+  }, [currentPage, broadcastCursor]);
+
+  // Broadcast edit on content change (debounced)
+  const broadcastEditTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Broadcast page change activity
+  useEffect(() => {
+    if (currentPage) {
+      broadcastActivity(currentPage.id, currentPage.title ?? `${t('notebooks.page')} ${currentPage.pageNumber}`);
+    }
+  }, [currentPageId, currentPage, broadcastActivity]);
+
+  // ─── End Collaboration ──────────────────────────────────────────────
 
   // Set content into editor ref without triggering auto-save
   const setEditorContent = useCallback((html: string) => {
@@ -1079,16 +1147,30 @@ function NotebookDetailView({
     if (editorRef.current) {
       const html = editorRef.current.innerHTML;
       setPageContent(html);
+      // Broadcast edit to collaborators (debounced)
+      if (broadcastEditTimerRef.current) clearTimeout(broadcastEditTimerRef.current);
+      broadcastEditTimerRef.current = setTimeout(() => {
+        if (currentPage) {
+          broadcastEdit(currentPage.id, html);
+        }
+      }, 500);
     }
-  }, []);
+  }, [currentPage, broadcastEdit]);
 
   // Handle format change from toolbar (for active state refresh)
   const handleFormatChange = useCallback(() => {
     if (editorRef.current) {
       const html = editorRef.current.innerHTML;
       setPageContent(html);
+      // Broadcast edit to collaborators (debounced)
+      if (broadcastEditTimerRef.current) clearTimeout(broadcastEditTimerRef.current);
+      broadcastEditTimerRef.current = setTimeout(() => {
+        if (currentPage) {
+          broadcastEdit(currentPage.id, html);
+        }
+      }, 500);
     }
-  }, []);
+  }, [currentPage, broadcastEdit]);
 
   // Auto-save with 3 second debounce
   const triggerAutoSave = useCallback(() => {
@@ -1375,6 +1457,81 @@ function NotebookDetailView({
           </div>
         )}
 
+        {/* Collaboration: Online Users Indicator */}
+        {onlineUsers.length > 0 && (
+          <TooltipProvider delayDuration={300}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200/50 dark:border-emerald-800/30 shrink-0">
+                  <Radio className="w-3.5 h-3.5 text-emerald-500 animate-pulse" />
+                  <div className="flex -space-x-1.5">
+                    {onlineUsers.slice(0, 4).map((u) => (
+                      <div
+                        key={u.userId}
+                        className="w-6 h-6 rounded-full border-2 border-white dark:border-gray-900 flex items-center justify-center text-[8px] font-bold text-white"
+                        style={{ backgroundColor: u.color }}
+                        title={u.userName}
+                      >
+                        {u.userName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
+                      </div>
+                    ))}
+                  </div>
+                  <span className="text-xs font-medium text-emerald-700 dark:text-emerald-300">
+                    {onlineUsers.length}
+                  </span>
+                </div>
+              </TooltipTrigger>
+              <TooltipContent side="bottom" className="text-xs">
+                {t('collab.online_users', { count: onlineUsers.length })}: {onlineUsers.map(u => u.userName).join(', ')}
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        )}
+
+        {/* Collaboration: Activity Feed Toggle */}
+        {onlineUsers.length > 0 && (
+          <Popover open={collabActivityOpen} onOpenChange={setCollabActivityOpen}>
+            <PopoverTrigger asChild>
+              <Button variant="ghost" size="sm" className="min-h-[44px] shrink-0 relative">
+                <UsersIcon className="w-4 h-4" />
+                {activities.length > 0 && (
+                  <span className="absolute -top-0.5 -right-0.5 w-4 h-4 rounded-full bg-amber-400 text-white text-[8px] font-bold flex items-center justify-center">
+                    {activities.length > 9 ? '9+' : activities.length}
+                  </span>
+                )}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent align="end" className="w-72 p-0 rounded-xl border-emerald-200/60 dark:border-emerald-900/40">
+              <div className="px-3 py-2 border-b border-emerald-100/50 dark:border-emerald-900/30 bg-gradient-to-r from-emerald-50/50 to-teal-50/30 dark:from-emerald-950/20 dark:to-teal-950/10">
+                <h3 className="text-sm font-semibold text-emerald-700 dark:text-emerald-300 flex items-center gap-1.5">
+                  <UsersIcon className="w-3.5 h-3.5" />
+                  {t('collab.activity_title')}
+                </h3>
+              </div>
+              <ScrollArea className="max-h-60">
+                {activities.length === 0 ? (
+                  <div className="px-3 py-4 text-center text-xs text-gray-500 dark:text-gray-400">
+                    {t('collab.no_activity')}
+                  </div>
+                ) : (
+                  <div className="p-2 space-y-1">
+                    {activities.map((a, i) => (
+                      <div key={`${a.userId}-${a.timestamp}-${i}`} className="flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs text-gray-600 dark:text-gray-400">
+                        <div className="w-5 h-5 rounded-full bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center text-[8px] font-bold text-emerald-700 dark:text-emerald-300 shrink-0">
+                          {a.userName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
+                        </div>
+                        <span className="truncate">
+                          <strong>{a.userName}</strong> {t('collab.started_editing')} {a.pageTitle}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </ScrollArea>
+            </PopoverContent>
+          </Popover>
+        )}
+
         {/* Drawing mode toggle */}
         <Button
           variant={drawingMode ? 'default' : 'outline'}
@@ -1519,6 +1676,19 @@ function NotebookDetailView({
                   className="font-semibold text-lg border-0 bg-transparent shadow-none focus-visible:ring-0 h-10"
                 />
 
+                {/* Collaboration: Editing indicator */}
+                {collabEditIndicator && (
+                  <motion.div
+                    initial={{ opacity: 0, x: 10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -10 }}
+                    className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200/50 dark:border-amber-800/30 shrink-0"
+                  >
+                    <MousePointer2 className="w-3.5 h-3.5 text-amber-500" />
+                    <span className="text-xs text-amber-700 dark:text-amber-300 font-medium">{collabEditIndicator}</span>
+                  </motion.div>
+                )}
+
                 {/* Version history button in page title bar */}
                 <Button
                   variant="ghost"
@@ -1572,7 +1742,7 @@ function NotebookDetailView({
                   <WysiwygToolbar editorRef={editorRef} onFormatChange={handleFormatChange} />
 
                   {/* Page content area */}
-                  <div className="flex-1 overflow-hidden p-4">
+                  <div className="flex-1 overflow-hidden p-4 relative">
                     <div
                       className="w-full h-full max-w-3xl mx-auto rounded-xl overflow-hidden"
                       style={{ backgroundColor: '#fff' }}
@@ -1581,6 +1751,7 @@ function NotebookDetailView({
                         <div
                           className="min-h-full p-6"
                           style={getPageBackgroundCSS(currentPage.background ?? notebook.notebookType)}
+                          onMouseMove={handleEditorMouseMove}
                         >
                           <div
                             ref={editorRef}
@@ -1594,6 +1765,32 @@ function NotebookDetailView({
                         </div>
                       </ScrollArea>
                     </div>
+
+                    {/* Collaboration: Cursor overlays */}
+                    {cursors.filter(c => c.pageId === currentPage?.id).map((cursor) => (
+                      <motion.div
+                        key={cursor.userId}
+                        initial={{ opacity: 0, scale: 0.5 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        className="absolute pointer-events-none z-20"
+                        style={{
+                          left: `${cursor.x}%`,
+                          top: `${cursor.y}%`,
+                          transform: 'translate(-4px, -4px)',
+                        }}
+                      >
+                        <MousePointer2
+                          className="w-4 h-4"
+                          style={{ color: cursor.color, fill: cursor.color }}
+                        />
+                        <div
+                          className="px-1.5 py-0.5 rounded text-[10px] font-bold text-white whitespace-nowrap mt-0.5"
+                          style={{ backgroundColor: cursor.color }}
+                        >
+                          {cursor.userName}
+                        </div>
+                      </motion.div>
+                    ))}
                   </div>
                 </div>
               )}

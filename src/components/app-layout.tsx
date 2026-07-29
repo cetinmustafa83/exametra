@@ -114,6 +114,7 @@ import {
   CommandShortcut,
 } from '@/components/ui/command';
 import { toast } from 'sonner';
+import { useWebSocket, usePushNotifications, playNotificationSound, getNotificationSoundPref } from '@/lib/websocket';
 
 import DashboardView from './dashboard-view';
 import ClassesView from './classes-view';
@@ -255,6 +256,10 @@ export default function AppLayout() {
   const setCurrentClass = useAppStore((s) => s.setCurrentClass);
   const [schoolYears, setSchoolYears] = useState<SchoolYear[]>([]);
   const [selectedYearId, setSelectedYearId] = useState<string>(storeSchoolYearId ?? '');
+
+  // WebSocket connection for real-time push notifications
+  const { connected: wsConnected } = useWebSocket();
+  const { notification: pushNotification } = usePushNotifications();
 
   // Quick search (Cmd+K) state
   const [searchOpen, setSearchOpen] = useState(false);
@@ -499,6 +504,23 @@ export default function AppLayout() {
     const interval = setInterval(loadNotifications, 60000);
     return () => clearInterval(interval);
   }, [loadNotifications]);
+
+  // Handle push notifications in real-time (after loadNotifications is defined)
+  useEffect(() => {
+    if (!pushNotification) return;
+    // Play notification sound if enabled
+    if (getNotificationSoundPref()) {
+      playNotificationSound();
+    }
+    // Show toast notification
+    const typeInfo = getNotifTypeInfo(pushNotification.type);
+    toast(typeInfo.label, {
+      description: pushNotification.message,
+      duration: 5000,
+    });
+    // Refresh notification data to update the bell count
+    loadNotifications();
+  }, [pushNotification, loadNotifications]);
 
   const handleMarkAllRead = useCallback(async () => {
     if (!notifData || notifData.unreadCount === 0) return;

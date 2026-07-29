@@ -1123,3 +1123,428 @@
     );
   }
 }
+
+/* ─── Mobile Responsiveness Utilities ─────────────────────────────────── */
+@layer utilities {
+  /* Safe area insets for iOS notch/bottom bar */
+  .safe-top { padding-top: env(safe-area-inset-top, 0px); }
+  .safe-bottom { padding-bottom: env(safe-area-inset-bottom, 0px); }
+  .safe-left { padding-left: env(safe-area-inset-left, 0px); }
+  .safe-right { padding-right: env(safe-area-inset-right, 0px); }
+  .safe-all {
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    padding-left: env(safe-area-inset-left, 0px);
+    padding-right: env(safe-area-inset-right, 0px);
+  }
+
+  /* Prevent pinch-zoom on canvas elements */
+  .canvas-no-zoom {
+    touch-action: none;
+    -ms-touch-action: none;
+  }
+
+  /* Prevent text selection on drawing canvas */
+  .canvas-no-select {
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+  }
+
+  /* Mobile-friendly horizontal scroll container for tables */
+  .mobile-scroll-x {
+    -webkit-overflow-scrolling: touch;
+    overflow-x: auto;
+    scrollbar-width: thin;
+  }
+
+  /* Mobile stack helper */
+  .mobile-stack {
+    @media (max-width: 639px) {
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+  }
+
+  /* Mobile full-width inputs */
+  .mobile-full-width {
+    @media (max-width: 639px) {
+      width: 100%;
+    }
+  }
+}
+
+/* Mobile-specific viewport adjustments */
+@media (max-width: 639px) {
+  /* Ensure dialogs don't overflow on small screens */
+  [role="dialog"] {
+    max-width: calc(100vw - 2rem) !important;
+    max-height: calc(100vh - 2rem) !important;
+    margin: 1rem auto;
+  }
+
+  /* Ensure popovers are properly sized */
+  [data-radix-popper-content-wrapper] {
+    max-width: calc(100vw - 2rem) !important;
+  }
+
+  /* Make card grids stack on mobile */
+  .grid {
+    gap: 0.75rem;
+  }
+
+  /* Fix horizontal overflow */
+  body {
+    overflow-x: hidden;
+  }
+
+  /* Prevent overflow in flex containers */
+  .flex {
+    min-width: 0;
+  }
+
+  /* Make tabs scrollable on mobile */
+  [role="tablist"] {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  [role="tablist"]::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Stack stat cards vertically on mobile */
+  .mobile-card-stack {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Notebook grid: 1 column on mobile */
+  .mobile-notebook-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Table horizontal scroll on mobile */
+  .mobile-table-scroll {
+    display: block;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Full-width inputs on mobile */
+  input, select, textarea {
+    max-width: 100%;
+  }
+}
+
+/* Tablet-specific adjustments (640px-768px) */
+@media (min-width: 640px) and (max-width: 767px) {
+  /* Notebook grid: 2 columns on tablet */
+  .mobile-notebook-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+}
+
+/* ─── Micro-interaction Animations ─────────────────────────────────────── */
+@layer utilities {
+  /* Fade in + slide up */
+  @keyframes fade-in-up {
+    from { opacity: 0; transform: translateY(12px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .animate-fade-in-up {
+    animation: fade-in-up 0.35s ease-out;
+  }
+
+  /* Scale in from 0.95 to 1 */
+  @keyframes scale-in {
+    from { opacity: 0; transform: scale(0.95); }
+    to { opacity: 1; transform: scale(1); }
+  }
+  .animate-scale-in {
+    animation: scale-in 0.2s ease-out;
+  }
+
+  /* Error shake animation */
+  @keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    10%, 30%, 50%, 70%, 90% { transform: translateX(-4px); }
+    20%, 40%, 60%, 80% { transform: translateX(4px); }
+  }
+  .animate-shake {
+    animation: shake 0.5s ease-in-out;
+  }
+
+  /* Success checkmark animation */
+  @keyframes success-check {
+    0% { transform: scale(0); opacity: 0; }
+    50% { transform: scale(1.2); }
+    100% { transform: scale(1); opacity: 1; }
+  }
+  .animate-success-check {
+    animation: success-check 0.4s ease-out;
+  }
+
+  /* Subtle lift on hover (translateY -1px) */
+  .hover-lift {
+    transition: transform 0.15s ease-out, box-shadow 0.15s ease-out;
+  }
+  .hover-lift:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px -2px oklch(0 0 0 / 0.08);
+  }
+  .dark .hover-lift:hover {
+    box-shadow: 0 4px 12px -2px oklch(0 0 0 / 0.3);
+  }
+
+  /* Animated focus ring */
+  .focus-ring {
+    transition: box-shadow 0.2s ease-out, outline 0.2s ease-out;
+  }
+  .focus-ring:focus-visible {
+    outline: 2px solid oklch(0.55 0.17 155);
+    outline-offset: 2px;
+    box-shadow: 0 0 0 4px oklch(0.55 0.17 155 / 0.15);
+  }
+  .dark .focus-ring:focus-visible {
+    outline: 2px solid oklch(0.65 0.17 155);
+    box-shadow: 0 0 0 4px oklch(0.65 0.17 155 / 0.2);
+  }
+}
+
+/* ─── Enhanced Print Styles ────────────────────────────────────────────── */
+@media print {
+  /* Better print layout for reports */
+  @page {
+    margin: 15mm 12mm;
+    size: A4;
+  }
+
+  body {
+    font-size: 11pt;
+    line-height: 1.4;
+    color: #000 !important;
+    background: #fff !important;
+  }
+
+  /* Print-specific font sizes */
+  h1 { font-size: 18pt !important; }
+  h2 { font-size: 14pt !important; }
+  h3 { font-size: 12pt !important; }
+  p, li, td, th { font-size: 10pt !important; }
+
+  /* Hide interactive elements */
+  button, nav, aside, footer, header,
+  [role="button"], [role="tablist"], [role="tab"],
+  .no-print, [data-sidebar], .sidebar-trigger,
+  .breadcrumb, .toast-container, [data-radix-popper-content-wrapper] {
+    display: none !important;
+  }
+
+  /* Ensure cards have visible borders */
+  [class*="card"], [class*="Card"] {
+    border: 1px solid #ddd !important;
+    break-inside: avoid;
+    box-shadow: none !important;
+  }
+
+  /* Page break controls */
+  .page-break-before { page-break-before: always; }
+  .page-break-after { page-break-after: always; }
+  .page-break-avoid { page-break-inside: avoid; }
+
+  /* Remove shadows */
+  [class*="shadow"] { box-shadow: none !important; }
+
+  /* Ensure dark mode prints as white */
+  .dark { background: white !important; color: black !important; }
+  .dark * { color: inherit !important; background: transparent !important; }
+
+  /* Remove animations */
+  * { animation: none !important; transition: none !important; }
+
+  /* Ensure overflow is visible */
+  .overflow-y-auto, .max-h-96, .max-h-80, .max-h-72 {
+    max-height: none !important;
+    overflow: visible !important;
+  }
+
+  /* Print links with URL */
+  a[href]:after {
+    content: " (" attr(href) ")";
+    font-size: 9pt;
+    color: #666;
+  }
+  a[href^="#"]:after { content: ""; }
+
+  /* Table styling for print */
+  table { border-collapse: collapse; }
+  th, td { border: 1px solid #ccc; padding: 4px 8px; }
+  th { background: #f0f0f0 !important; }
+}
+
+/* ─── Dark Mode Polish ─────────────────────────────────────────────────── */
+@layer utilities {
+  /* Better dark mode borders */
+  .dark-border {
+    border-color: oklch(1 0 0 / 8%);
+  }
+  .dark .dark-border {
+    border-color: oklch(1 0 0 / 12%);
+  }
+
+  /* Dark mode card shadows */
+  .dark-shadow {
+    box-shadow: 0 1px 3px oklch(0 0 0 / 0.06);
+  }
+  .dark .dark-shadow {
+    box-shadow: 0 1px 3px oklch(0 0 0 / 0.3), 0 0 0 1px oklch(1 0 0 / 6%);
+  }
+
+  /* Smooth transitions between light/dark */
+  .theme-transition {
+    transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+  }
+
+  /* Dark mode specific borders for cards */
+  .dark .card-dark-border {
+    border-color: oklch(1 0 0 / 8%);
+  }
+
+  /* Dark mode specific shadows for elevated elements */
+  .dark .elevated-dark {
+    box-shadow: 0 4px 16px oklch(0 0 0 / 0.4), 0 0 0 1px oklch(1 0 0 / 6%);
+  }
+
+  /* Better contrast ratios for dark mode text */
+  .dark .text-muted-foreground {
+    color: oklch(0.70 0.02 260);
+  }
+}
+
+/* ─── Accessibility Improvements ───────────────────────────────────────── */
+@layer utilities {
+  /* Skip to content link */
+  .skip-to-content {
+    position: absolute;
+    top: -100%;
+    left: 0;
+    z-index: 9999;
+    padding: 1rem 1.5rem;
+    background: oklch(0.55 0.17 155);
+    color: white;
+    font-weight: 600;
+    border-radius: 0 0 8px 0;
+    transition: top 0.2s ease;
+  }
+  .skip-to-content:focus {
+    top: 0;
+  }
+
+  /* Screen reader only utility */
+  .sr-only-focusable:focus {
+    position: static;
+    width: auto;
+    height: auto;
+    padding: inherit;
+    margin: inherit;
+    overflow: visible;
+    clip: auto;
+    white-space: inherit;
+  }
+
+  /* Focus management for modals */
+  .modal-focus-wrapper {
+    outline: none;
+  }
+  .modal-focus-wrapper:focus-visible {
+    outline: 2px solid oklch(0.55 0.17 155);
+    outline-offset: 2px;
+  }
+
+  /* Live region for screen reader announcements */
+  .sr-live-region {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border-width: 0;
+  }
+
+  /* High contrast mode support */
+  @media (forced-colors: active) {
+    .button-primary {
+      border: 2px solid ButtonText;
+    }
+    .card-outline {
+      border: 1px solid CanvasText;
+    }
+  }
+
+  /* Reduced motion support */
+  @media (prefers-reduced-motion: reduce) {
+    .animate-fade-in-up,
+    .animate-scale-in,
+    .animate-shake,
+    .animate-success-check,
+    .animate-float,
+    .animate-float-reverse,
+    .animate-float-slow,
+    .animate-pulse-soft,
+    .animate-shimmer,
+    .animate-progress-fill,
+    .animate-view-fade-in,
+    .animate-enter-fade,
+    .animate-count-up,
+    .animate-stagger-in,
+    .animate-chart-shimmer,
+    .animate-pulse-dot,
+    .animate-slide-in,
+    .animate-slide-out,
+    .hover-lift:hover {
+      animation: none !important;
+      transition: none !important;
+      transform: none !important;
+    }
+  }
+}
+
+/* ─── Canvas Drawing Performance ───────────────────────────────────────── */
+@layer utilities {
+  /* GPU-accelerated canvas rendering */
+  .canvas-gpu {
+    will-change: transform;
+    transform: translateZ(0);
+    backface-visibility: hidden;
+  }
+
+  /* Canvas layer caching */
+  .canvas-layer-bg {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+  }
+  .canvas-layer-draw {
+    position: absolute;
+    inset: 0;
+  }
+
+  /* Performance monitor */
+  .fps-counter {
+    position: fixed;
+    top: 4px;
+    right: 4px;
+    z-index: 9999;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-family: monospace;
+    background: oklch(0 0 0 / 0.7);
+    color: oklch(0.55 0.17 155);
+    pointer-events: none;
+  }
+}

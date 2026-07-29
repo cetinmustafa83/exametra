@@ -40,6 +40,12 @@ import {
   Loader2,
   ClipboardCheck,
   CalendarDays,
+  HardDrive,
+  Archive,
+  RotateCcw,
+  Volume2,
+  VolumeX,
+  Bell,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -76,10 +82,12 @@ import { Switch } from '@/components/ui/switch';
 import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Progress } from '@/components/ui/progress';
 import { useAppStore } from '@/lib/store';
 import { t } from '@/lib/i18n';
 import { apiGet, apiPost, apiPut, apiDelete } from '@/lib/api';
 import { toast } from 'sonner';
+import { getNotificationSoundPref, setNotificationSoundPref, playNotificationSound } from '@/lib/websocket';
 
 import {
   fetchSchools,
@@ -131,6 +139,41 @@ const actionColors: Record<string, string> = {
   LOGIN: 'bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-300',
   EXPORT: 'bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300',
 };
+
+// ─── Notification Sound Setting Component ─────────────────────────────
+
+function NotificationSoundSetting() {
+  const [enabled, setEnabled] = useState(getNotificationSoundPref());
+
+  const handleToggle = () => {
+    const newValue = !enabled;
+    setEnabled(newValue);
+    setNotificationSoundPref(newValue);
+    if (newValue) {
+      playNotificationSound();
+    }
+    toast.success(newValue ? t('settings.notification_sound_enabled') : t('settings.notification_sound_disabled'));
+  };
+
+  return (
+    <div className="flex items-center justify-between">
+      <div className="flex items-center gap-3">
+        <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400">
+          {enabled ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
+        </div>
+        <div>
+          <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+            {t('settings.notification_sound')}
+          </p>
+          <p className="text-xs text-gray-500 dark:text-gray-400">
+            {t('settings.notification_sound_desc')}
+          </p>
+        </div>
+      </div>
+      <Switch checked={enabled} onCheckedChange={handleToggle} />
+    </div>
+  );
+}
 
 export default function SettingsView() {
   const currentUser = useAppStore((s) => s.currentUser);
@@ -232,6 +275,24 @@ export default function SettingsView() {
 
   // Export history
   const [exportHistory, setExportHistory] = useState<Array<{ type: string; date: string }>>([]);
+
+  // Backup state
+  const [backups, setBackups] = useState<Array<{
+    id: string;
+    schoolId: string;
+    filename: string;
+    size: number;
+    type: string;
+    status: string;
+    notes: string | null;
+    createdAt: string;
+  }>>([]);
+  const [backupLoading, setBackupLoading] = useState(false);
+  const [backupCreating, setBackupCreating] = useState(false);
+  const [deleteBackupId, setDeleteBackupId] = useState<string | null>(null);
+  const [restoreBackupId, setRestoreBackupId] = useState<string | null>(null);
+  const [autoBackupEnabled, setAutoBackupEnabled] = useState(false);
+  const [autoBackupFrequency, setAutoBackupFrequency] = useState<'daily' | 'weekly'>('weekly');
 
   const isAdmin = currentUser?.role === 'SCHOOL_ADMIN' || currentUser?.role === 'SUPER_ADMIN';
 
@@ -338,13 +399,106 @@ export default function SettingsView() {
     }
   }, []);
 
+  // Backup functions
+  const loadBackups = useCallback(async () => {
+    if (!currentUser?.schoolId) return;
+    setBackupLoading(true);
+    try {
+      const response = await fetch(`/api/backup?schoolId=${currentUser.schoolId}`);
+      if (!response.ok) throw new Error('Failed to load backups');
+      const data = await response.json();
+      setBackups(Array.isArray(data) ? data : []);
+    } catch (err) {
+      console.error('Failed to load backups:', err);
+      setBackups([]);
+    } finally {
+      setBackupLoading(false);
+    }
+  }, [currentUser?.schoolId]);
+
   // Reload demo accounts when demo tab is selected
   const handleTabChange = useCallback((tab: string) => {
     setActiveTab(tab);
     if (tab === 'demo' && isAdmin) {
       loadDemoAccounts();
     }
-  }, [isAdmin, loadDemoAccounts]);
+    if (tab === 'backup') {
+      loadBackups();
+    }
+  }, [isAdmin, loadDemoAccounts, loadBackups]);
+
+  const handleCreateBackup = useCallback(async () => {
+    if (!currentUser?.schoolId) return;
+    setBackupCreating(true);
+    try {
+      const response = await fetch('/api/backup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ schoolId: currentUser.schoolId }),
+      });
+      if (!response.ok) throw new Error('Failed to create backup');
+      toast.success(t('backup.created_success'));
+      loadBackups();
+    } catch (err) {
+      console.error('Failed to create backup:', err);
+      toast.error(t('backup.error_create'));
+    } finally {
+      setBackupCreating(false);
+    }
+  }, [currentUser?.schoolId, loadBackups]);
+
+  const handleRestoreBackup = useCallback(async () => {
+    if (!restoreBackupId || !currentUser?.schoolId) return;
+    try {
+      const response = await fetch('/api/backup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ schoolId: currentUser.schoolId, action: 'restore', backupId: restoreBackupId }),
+      });
+      if (!response.ok) throw new Error('Failed to restore backup');
+      toast.success(t('backup.restored_success'));
+      setRestoreBackupId(null);
+    } catch (err) {
+      console.error('Failed to restore backup:', err);
+      toast.error(t('backup.error_restore'));
+    }
+  }, [restoreBackupId, currentUser?.schoolId]);
+
+  const handleDeleteBackup = useCallback(async (id: string) => {
+    try {
+      const response = await fetch(`/api/backup?id=${id}`, { method: 'DELETE' });
+      if (!response.ok) throw new Error('Failed to delete backup');
+      toast.success(t('backup.deleted_success'));
+      setDeleteBackupId(null);
+      loadBackups();
+    } catch (err) {
+      console.error('Failed to delete backup:', err);
+      toast.error(t('backup.error_delete'));
+    }
+  }, [loadBackups]);
+
+  const handleDownloadBackup = useCallback(async (backup: typeof backups[0]) => {
+    if (!currentUser?.schoolId) return;
+    try {
+      const response = await fetch('/api/backup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ schoolId: currentUser.schoolId }),
+      });
+      if (!response.ok) throw new Error('Failed to download backup');
+      const data = await response.json();
+      const blob = new Blob([JSON.stringify(data.data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = backup.filename;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('Failed to download backup:', err);
+      toast.error(t('backup.error_create'));
+    }
+  }, [currentUser?.schoolId]);
 
   useEffect(() => {
     loadSchools();
@@ -804,6 +958,10 @@ export default function SettingsView() {
                 <span className="hidden sm:inline">{t('settings.demo_accounts')}</span>
               </TabsTrigger>
             )}
+            <TabsTrigger value="backup" className="rounded-lg min-h-[44px] data-[state=active]:bg-teal-500 data-[state=active]:text-white">
+              <HardDrive className="h-4 w-4 mr-1.5" />
+              <span className="hidden sm:inline">{t('backup.title')}</span>
+            </TabsTrigger>
           </TabsList>
 
           {/* ── School Info Tab ─────────────────────────────────── */}
@@ -892,6 +1050,11 @@ export default function SettingsView() {
                   </div>
                 )}
               </CardContent>
+
+              {/* Notification Sound Setting */}
+              <div className="px-6 pb-4 border-t border-gray-100 dark:border-gray-800 pt-4">
+                <NotificationSoundSetting />
+              </div>
             </Card>
           </TabsContent>
 
@@ -2169,8 +2332,197 @@ export default function SettingsView() {
               </Card>
             </TabsContent>
           )}
+
+          {/* ── Backup Tab ─────────────────────────────────────────── */}
+          <TabsContent value="backup">
+            <Card className="border-0 shadow-sm rounded-xl border-l-3 border-l-teal-500 overflow-hidden">
+              <CardHeader className="bg-gradient-to-r from-teal-50/50 to-transparent dark:from-teal-900/10 dark:to-transparent">
+                <CardTitle className="flex items-center gap-2">
+                  <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-teal-100 dark:bg-teal-900/30 text-teal-600 dark:text-teal-400">
+                    <HardDrive className="h-4 w-4" />
+                  </div>
+                  {t('backup.title')}
+                </CardTitle>
+                <CardDescription>{t('backup.auto')}</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {/* Create backup + Auto-backup toggle */}
+                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+                  <Button
+                    onClick={handleCreateBackup}
+                    disabled={backupCreating}
+                    className="bg-gradient-to-r from-teal-500 to-emerald-500 hover:from-teal-600 hover:to-emerald-600 text-white shadow-md rounded-xl px-6 min-h-[44px]"
+                  >
+                    {backupCreating ? (
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    ) : (
+                      <Archive className="h-4 w-4 mr-2" />
+                    )}
+                    {backupCreating ? t('backup.creating') : t('backup.create')}
+                  </Button>
+
+                  <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2">
+                      <Switch
+                        checked={autoBackupEnabled}
+                        onCheckedChange={setAutoBackupEnabled}
+                        className="data-[state=checked]:bg-teal-500"
+                      />
+                      <Label className="text-sm text-gray-600 dark:text-gray-400">{t('backup.auto')}</Label>
+                    </div>
+                    {autoBackupEnabled && (
+                      <Select value={autoBackupFrequency} onValueChange={(v) => setAutoBackupFrequency(v as 'daily' | 'weekly')}>
+                        <SelectTrigger className="w-32 rounded-xl">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="daily">{t('backup.daily')}</SelectItem>
+                          <SelectItem value="weekly">{t('backup.weekly')}</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    )}
+                  </div>
+                </div>
+
+                {/* Last backup info */}
+                {backups.length > 0 && backups[0].status === 'completed' && (
+                  <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
+                    <Clock className="h-4 w-4" />
+                    {t('backup.last')}: {new Date(backups[0].createdAt).toLocaleString()}
+                  </div>
+                )}
+
+                {/* Backup list */}
+                {backupLoading ? (
+                  <div className="space-y-3">
+                    {Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-20 rounded-xl" />)}
+                  </div>
+                ) : backups.length === 0 ? (
+                  <div className="text-center py-8">
+                    <HardDrive className="h-8 w-8 text-teal-400 dark:text-teal-500 mx-auto mb-2" />
+                    <p className="text-gray-500 dark:text-gray-400">{t('backup.no_backups')}</p>
+                    <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">{t('backup.no_backups_desc')}</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3 max-h-96 overflow-y-auto scrollbar-education">
+                    {backups.map((backup) => {
+                      const sizeKB = Math.round(backup.size / 1024);
+                      const sizeMB = (backup.size / (1024 * 1024)).toFixed(1);
+                      const sizeDisplay = backup.size > 1024 * 1024 ? `${sizeMB} MB` : `${sizeKB} KB`;
+                      const statusColor = backup.status === 'completed'
+                        ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300'
+                        : backup.status === 'failed'
+                        ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300'
+                        : 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300';
+                      const statusText = backup.status === 'completed'
+                        ? t('backup.completed')
+                        : backup.status === 'failed'
+                        ? t('backup.failed')
+                        : t('backup.pending');
+
+                      return (
+                        <motion.div
+                          key={backup.id}
+                          whileHover={{ scale: 1.01 }}
+                          className="p-4 rounded-xl bg-gradient-to-r from-gray-50 to-gray-50/0 dark:from-gray-800/50 dark:to-gray-800/0 border-l-3 border-l-teal-400/40 hover:border-l-teal-500 transition-colors"
+                        >
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                            <div className="flex items-center gap-3 min-w-0">
+                              <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-teal-100 dark:bg-teal-900/30 text-teal-600 dark:text-teal-400 shrink-0">
+                                <Archive className="h-4 w-4" />
+                              </div>
+                              <div className="min-w-0">
+                                <p className="font-semibold text-gray-900 dark:text-gray-100 text-sm truncate">{backup.filename}</p>
+                                <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                                  <span className="text-xs text-gray-500 dark:text-gray-400">
+                                    {new Date(backup.createdAt).toLocaleString()}
+                                  </span>
+                                  <Badge className={`${statusColor} text-[10px] px-1.5 py-0`}>
+                                    {statusText}
+                                  </Badge>
+                                  <Badge className="bg-gray-100 text-gray-600 dark:bg-gray-900/30 dark:text-gray-400 text-[10px] px-1.5 py-0">
+                                    {backup.type === 'full' ? t('backup.type_full') : t('backup.type_incremental')}
+                                  </Badge>
+                                  <span className="text-xs text-gray-500 dark:text-gray-400">{t('backup.size')}: {sizeDisplay}</span>
+                                </div>
+                                {backup.notes && (
+                                  <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5 truncate">{backup.notes}</p>
+                                )}
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2 shrink-0">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleDownloadBackup(backup)}
+                                className="h-8 w-8 text-gray-400 hover:text-teal-500 hover:bg-teal-50 dark:hover:bg-teal-900/20"
+                                aria-label={t('backup.download')}
+                              >
+                                <Download className="h-3.5 w-3.5" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => setRestoreBackupId(backup.id)}
+                                className="h-8 w-8 text-gray-400 hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-900/20"
+                                aria-label={t('backup.restore')}
+                              >
+                                <RotateCcw className="h-3.5 w-3.5" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => setDeleteBackupId(backup.id)}
+                                className="h-8 w-8 text-gray-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20"
+                                aria-label={t('backup.delete')}
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </Button>
+                            </div>
+                          </div>
+                        </motion.div>
+                      );
+                    })}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
         </Tabs>
       </motion.div>
+
+      {/* ── Backup Restore Confirmation ──────────────────────────── */}
+      <AlertDialog open={!!restoreBackupId} onOpenChange={(open) => { if (!open) setRestoreBackupId(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t('backup.restore_confirm')}</AlertDialogTitle>
+            <AlertDialogDescription>{t('backup.restore_confirm_desc')}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t('action.cancel')}</AlertDialogCancel>
+            <AlertDialogAction onClick={handleRestoreBackup} className="bg-amber-600 hover:bg-amber-700 text-white">
+              <RotateCcw className="h-4 w-4 mr-1.5" />
+              {t('backup.restore')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* ── Backup Delete Confirmation ───────────────────────────── */}
+      <AlertDialog open={!!deleteBackupId} onOpenChange={(open) => { if (!open) setDeleteBackupId(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t('backup.delete_confirm')}</AlertDialogTitle>
+            <AlertDialogDescription>{t('backup.delete_confirm_desc')}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t('action.cancel')}</AlertDialogCancel>
+            <AlertDialogAction onClick={() => deleteBackupId && handleDeleteBackup(deleteBackupId)} className="bg-rose-600 hover:bg-rose-700 text-white">
+              {t('action.delete')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </motion.div>
   );
 }

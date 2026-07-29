@@ -24,7 +24,25 @@ import {
   BarChart3,
   LucideIcon,
   FilePenLine,
+  Download,
+  AlertTriangle,
+  Shield,
 } from 'lucide-react';
+import {
+  LineChart,
+  Line,
+  BarChart,
+  Bar,
+  PieChart,
+  Pie,
+  Cell,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip as RechartsTooltip,
+  Legend,
+  ResponsiveContainer,
+} from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -71,11 +89,13 @@ import {
   deleteAttendanceSession,
   fetchClasses,
   fetchSubjects,
+  fetchAttendanceAnalytics,
   type AttendanceSession,
   type AttendanceRecord,
   type AttendanceStatus,
   type ClassGroup,
   type Subject,
+  type AttendanceAnalyticsData,
 } from '@/lib/api';
 
 /* ── Status helpers ────────────────────────────────────────────────── */
@@ -689,6 +709,341 @@ function SessionDetail({
   );
 }
 
+/* ── Attendance Analytics Tab Component ──────────────────────────── */
+
+function AttendanceAnalyticsTab() {
+  const currentUser = useAppStore((s) => s.currentUser);
+  const schoolId = currentUser?.schoolId;
+  const currentClassId = useAppStore((s) => s.currentClassId);
+
+  const [analyticsData, setAnalyticsData] = useState<AttendanceAnalyticsData | null>(null);
+  const [analyticsLoading, setAnalyticsLoading] = useState(false);
+
+  const loadAnalytics = useCallback(async () => {
+    if (!schoolId) return;
+    setAnalyticsLoading(true);
+    try {
+      const data = await fetchAttendanceAnalytics(schoolId, currentClassId ?? undefined);
+      setAnalyticsData(data);
+    } catch {
+      // silent
+    } finally {
+      setAnalyticsLoading(false);
+    }
+  }, [schoolId, currentClassId]);
+
+  useEffect(() => {
+    loadAnalytics();
+  }, [loadAnalytics]);
+
+  const exportCSV = useCallback(() => {
+    if (!analyticsData) return;
+    const rows: string[] = [];
+    rows.push('Week,Attendance Rate,Absent Rate,Present,Absent,Excused,Late,Total');
+    for (const row of analyticsData.trendData) {
+      rows.push(`${row.week},${row.attendanceRate},${row.absentRate},${row.present},${row.absent},${row.excused},${row.late},${row.total}`);
+    }
+    rows.push('');
+    rows.push('Student,FirstName,LastName,Absence Rate,Total Absences,Total Sessions,Risk Level');
+    for (const row of analyticsData.riskIndicators) {
+      rows.push(`${row.studentId},${row.firstName},${row.lastName},${row.absenceRate},${row.totalAbsences},${row.totalSessions},${row.riskLevel}`);
+    }
+    const csvContent = rows.join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'attendance-analytics.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+  }, [analyticsData]);
+
+  if (analyticsLoading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <Loader2 className="h-8 w-8 animate-spin text-emerald-500" />
+      </div>
+    );
+  }
+
+  if (!analyticsData || analyticsData.totalRecords === 0) {
+    return (
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center py-16">
+        <div className="flex items-center justify-center w-20 h-20 rounded-3xl bg-gradient-to-br from-emerald-100 to-teal-100 dark:from-emerald-900/30 dark:to-teal-900/30 mx-auto mb-5 shadow-md">
+          <BarChart3 className="h-10 w-10 text-emerald-500" />
+        </div>
+        <h3 className="text-lg font-semibold mb-1">{t('attendance.no_analytics_data')}</h3>
+        <p className="text-sm text-muted-foreground">{t('attendance.no_analytics_desc')}</p>
+      </motion.div>
+    );
+  }
+
+  const CHART_COLORS = ['#10b981', '#14b8a6', '#f59e0b', '#ef4444'];
+
+  return (
+    <div className="space-y-4">
+      {/* Export button */}
+      <div className="flex justify-end">
+        <Button variant="outline" size="sm" onClick={exportCSV}>
+          <Download className="h-4 w-4 mr-2" />
+          {t('attendance.export_csv')}
+        </Button>
+      </div>
+
+      {/* Overview Stats */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <Card className="border-2 border-emerald-200 dark:border-emerald-800">
+          <CardContent className="p-4 text-center">
+            <div className="text-2xl font-bold text-emerald-600">{analyticsData.totalSessions}</div>
+            <div className="text-xs text-muted-foreground">{t('attendance.total_sessions')}</div>
+          </CardContent>
+        </Card>
+        <Card className="border-2 border-teal-200 dark:border-teal-800">
+          <CardContent className="p-4 text-center">
+            <div className="text-2xl font-bold text-teal-600">{analyticsData.totalRecords}</div>
+            <div className="text-xs text-muted-foreground">{t('attendance.total_records')}</div>
+          </CardContent>
+        </Card>
+        <Card className="border-2 border-amber-200 dark:border-amber-800">
+          <CardContent className="p-4 text-center">
+            <div className="text-2xl font-bold text-amber-600">{analyticsData.absencePatterns.length}</div>
+            <div className="text-xs text-muted-foreground">{t('attendance.chronic_absence')}</div>
+          </CardContent>
+        </Card>
+        <Card className="border-2 border-rose-200 dark:border-rose-800">
+          <CardContent className="p-4 text-center">
+            <div className="text-2xl font-bold text-rose-600">{analyticsData.riskIndicators.length}</div>
+            <div className="text-xs text-muted-foreground">{t('attendance.risk_indicators')}</div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Attendance Trends Line Chart */}
+      {analyticsData.trendData.length > 0 && (
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm flex items-center gap-2">
+              <TrendingUp className="h-4 w-4 text-emerald-500" />
+              {t('attendance.weekly_trend')}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={280}>
+              <LineChart data={analyticsData.trendData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                <XAxis
+                  dataKey="week"
+                  tickFormatter={(v: string) => {
+                    const d = new Date(v);
+                    return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+                  }}
+                  tick={{ fontSize: 11 }}
+                />
+                <YAxis domain={[0, 100]} tick={{ fontSize: 11 }} />
+                <RechartsTooltip />
+                <Legend />
+                <Line
+                  type="monotone"
+                  dataKey="attendanceRate"
+                  stroke="#10b981"
+                  strokeWidth={2}
+                  dot={{ fill: '#10b981', r: 4 }}
+                  name={t('attendance.attendance_rate_over_time')}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="absentRate"
+                  stroke="#ef4444"
+                  strokeWidth={2}
+                  dot={{ fill: '#ef4444', r: 4 }}
+                  name={t('attendance.absence_rate_over_time')}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Day-of-Week Bar Chart */}
+      {analyticsData.dayOfWeekAnalysis.length > 0 && (
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm flex items-center gap-2">
+              <BarChart3 className="h-4 w-4 text-teal-500" />
+              {t('attendance.absences_by_day')}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={250}>
+              <BarChart data={analyticsData.dayOfWeekAnalysis}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                <XAxis dataKey="dayNameDe" tick={{ fontSize: 11 }} />
+                <YAxis tick={{ fontSize: 11 }} />
+                <RechartsTooltip />
+                <Legend />
+                <Bar dataKey="attendanceRate" fill="#10b981" name={t('attendance.rate')} radius={[4, 4, 0, 0]} />
+                <Bar dataKey="absentCount" fill="#ef4444" name={t('attendance.absent_count_long')} radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Status Distribution Pie Chart */}
+      {analyticsData.statusDistribution.present + analyticsData.statusDistribution.absent + analyticsData.statusDistribution.excused + analyticsData.statusDistribution.late > 0 && (
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm flex items-center gap-2">
+              <Shield className="h-4 w-4 text-amber-500" />
+              {t('attendance.status_distribution')}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center justify-center">
+              <ResponsiveContainer width="100%" height={220}>
+                <PieChart>
+                  <Pie
+                    data={[
+                      { name: t('attendance.present'), value: analyticsData.statusDistribution.present },
+                      { name: t('attendance.absent'), value: analyticsData.statusDistribution.absent },
+                      { name: t('attendance.excused'), value: analyticsData.statusDistribution.excused },
+                      { name: t('attendance.late'), value: analyticsData.statusDistribution.late },
+                    ]}
+                    cx="50%"
+                    cy="50%"
+                    outerRadius={80}
+                    dataKey="value"
+                    label={({ name, value }: { name: string; value: number }) => `${name}: ${value}`}
+                  >
+                    {[
+                      { name: t('attendance.present'), value: analyticsData.statusDistribution.present },
+                      { name: t('attendance.absent'), value: analyticsData.statusDistribution.absent },
+                      { name: t('attendance.excused'), value: analyticsData.statusDistribution.excused },
+                      { name: t('attendance.late'), value: analyticsData.statusDistribution.late },
+                    ].map((_, index) => (
+                      <Cell key={`cell-${index}`} fill={CHART_COLORS[index]} />
+                    ))}
+                  </Pie>
+                  <Legend />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Chronic Absence */}
+      {analyticsData.absencePatterns.length > 0 && (
+        <Card className="border-2 border-amber-200 dark:border-amber-800">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm flex items-center gap-2">
+              <AlertTriangle className="h-4 w-4 text-amber-500" />
+              {t('attendance.chronic_absence')}
+            </CardTitle>
+            <p className="text-xs text-muted-foreground">{t('attendance.chronic_absence_desc')}</p>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2 max-h-64 overflow-y-auto">
+              {analyticsData.absencePatterns.map((s) => (
+                <div key={s.studentId} className="flex items-center justify-between p-3 rounded-lg border bg-amber-50/50 dark:bg-amber-950/20">
+                  <div>
+                    <span className="font-medium text-sm">{s.lastName}, {s.firstName}</span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <Badge className="bg-rose-100 text-rose-800 dark:bg-rose-900/40 dark:text-rose-300">
+                      {s.absenceRate}% {t('attendance.absent_count_long')}
+                    </Badge>
+                    <Badge variant="outline" className="text-xs">
+                      {s.absent}/{s.total}
+                    </Badge>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Risk Indicators */}
+      {analyticsData.riskIndicators.length > 0 && (
+        <Card className="border-2 border-rose-200 dark:border-rose-800">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm flex items-center gap-2">
+              <AlertCircle className="h-4 w-4 text-rose-500" />
+              {t('attendance.risk_indicators')}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2 max-h-64 overflow-y-auto">
+              {analyticsData.riskIndicators.map((s) => {
+                const riskColors: Record<string, string> = {
+                  medium: 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300',
+                  high: 'bg-orange-100 text-orange-800 dark:bg-orange-900/40 dark:text-orange-300',
+                  critical: 'bg-rose-100 text-rose-800 dark:bg-rose-900/40 dark:text-rose-300',
+                };
+                const riskLabels: Record<string, string> = {
+                  medium: t('attendance.risk_medium'),
+                  high: t('attendance.risk_high'),
+                  critical: t('attendance.risk_critical'),
+                };
+                return (
+                  <div key={s.studentId} className="flex items-center justify-between p-3 rounded-lg border bg-rose-50/50 dark:bg-rose-950/20">
+                    <div>
+                      <span className="font-medium text-sm">{s.lastName}, {s.firstName}</span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <Badge className={riskColors[s.riskLevel] ?? ''}>
+                        {riskLabels[s.riskLevel] ?? s.riskLevel}
+                      </Badge>
+                      <Badge variant="outline" className="text-xs">
+                        {s.absenceRate}%
+                      </Badge>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Class Comparison */}
+      {analyticsData.classComparison.length > 1 && (
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm flex items-center gap-2">
+              <Users className="h-4 w-4 text-emerald-500" />
+              {t('attendance.class_comparison')}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              {analyticsData.classComparison.map((c) => (
+                <div key={c.classGroupId} className="flex items-center gap-3">
+                  <span className="text-sm font-medium w-24 truncate">{c.className}</span>
+                  <div className="flex-1">
+                    <div className="bg-gray-100 dark:bg-gray-800 rounded-full h-6 overflow-hidden">
+                      <div
+                        className={`h-full rounded-full transition-all ${
+                          c.attendanceRate >= 90 ? 'bg-emerald-500' :
+                          c.attendanceRate >= 70 ? 'bg-amber-500' :
+                          'bg-rose-500'
+                        }`}
+                        style={{ width: `${Math.max(c.attendanceRate, 2)}%` }}
+                      />
+                    </div>
+                  </div>
+                  <span className="text-sm font-medium">{c.attendanceRate}%</span>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  );
+}
+
 /* ── Main Attendance View ──────────────────────────────────────────── */
 
 export default function AttendanceView() {
@@ -1114,6 +1469,10 @@ export default function AttendanceView() {
             <TabsTrigger value="stats" className="rounded-lg data-[state=active]:bg-emerald-500 data-[state=active]:text-white">
               {t('attendance.stats')}
             </TabsTrigger>
+            <TabsTrigger value="analytics" className="rounded-lg data-[state=active]:bg-emerald-500 data-[state=active]:text-white">
+              <BarChart3 className="h-4 w-4 mr-1" />
+              {t('attendance.analytics')}
+            </TabsTrigger>
             <TabsTrigger value="calendar" className="rounded-lg data-[state=active]:bg-emerald-500 data-[state=active]:text-white">
               {t('attendance.calendar')}
             </TabsTrigger>
@@ -1280,6 +1639,11 @@ export default function AttendanceView() {
           {/* Stats Tab */}
           <TabsContent value="stats" className="space-y-4">
             <StatsCards sessions={sessions} />
+          </TabsContent>
+
+          {/* Analytics Tab */}
+          <TabsContent value="analytics" className="space-y-4">
+            <AttendanceAnalyticsTab />
           </TabsContent>
 
           {/* Calendar Tab */}

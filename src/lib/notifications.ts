@@ -1,5 +1,6 @@
 // CompetenceTrack — Notification Helper
 // Server-side utility for creating notifications in the database
+// Also pushes notifications via WebSocket service
 
 import { db } from '@/lib/db';
 
@@ -14,8 +15,32 @@ export type NotificationType =
   | 'GENERAL';
 
 /**
+ * Push a notification to the WebSocket service so it arrives in real-time.
+ * This is a fire-and-forget call — failures are non-critical.
+ */
+async function pushNotificationToWS(params: {
+  userId: string;
+  type: string;
+  title: string;
+  message: string;
+  actionUrl?: string;
+  relatedId?: string;
+}) {
+  try {
+    await fetch('http://localhost:3003/api/push-notification', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(params),
+    });
+  } catch {
+    // WebSocket push is non-critical — ignore errors
+  }
+}
+
+/**
  * Create a notification for a specific user.
  * This is a server-side function that writes directly to the database.
+ * Also pushes the notification via WebSocket for real-time delivery.
  */
 export async function createNotification(params: {
   schoolId: string;
@@ -28,7 +53,7 @@ export async function createNotification(params: {
 }) {
   const { schoolId, userId, type, title, message, actionUrl, relatedId } = params;
 
-  return db.notification.create({
+  const notification = await db.notification.create({
     data: {
       schoolId,
       userId,
@@ -39,10 +64,16 @@ export async function createNotification(params: {
       relatedId: relatedId ?? null,
     },
   });
+
+  // Push to WebSocket for real-time delivery (non-blocking)
+  pushNotificationToWS({ userId, type, title, message, actionUrl, relatedId }).catch(() => {});
+
+  return notification;
 }
 
 /**
  * Create a notification for multiple users (e.g., all students in a class).
+ * Also pushes each notification via WebSocket.
  */
 export async function createNotificationForUsers(params: {
   schoolId: string;
@@ -55,7 +86,7 @@ export async function createNotificationForUsers(params: {
 }) {
   const { schoolId, userIds, type, title, message, actionUrl, relatedId } = params;
 
-  return db.notification.createMany({
+  const result = await db.notification.createMany({
     data: userIds.map((userId) => ({
       schoolId,
       userId,
@@ -66,6 +97,13 @@ export async function createNotificationForUsers(params: {
       relatedId: relatedId ?? null,
     })),
   });
+
+  // Push to WebSocket for each user (non-blocking)
+  for (const userId of userIds) {
+    pushNotificationToWS({ userId, type, title, message, actionUrl, relatedId }).catch(() => {});
+  }
+
+  return result;
 }
 
 /**

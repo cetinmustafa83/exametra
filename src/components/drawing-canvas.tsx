@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState, useMemo, memo } from 'react';
 import {
   Pencil,
   PenTool,
@@ -25,6 +25,7 @@ import {
   ChevronDown,
   ZoomIn,
   ZoomOut,
+  Activity,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
@@ -47,6 +48,14 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import {
+  Drawer,
+  DrawerContent,
+  DrawerHeader,
+  DrawerTitle,
+  DrawerFooter,
+  DrawerDescription,
+} from '@/components/ui/drawer';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -103,12 +112,48 @@ const PEN_COLORS = [
 ];
 
 const AUTO_SAVE_INTERVAL = 30000;
+const AUTO_SAVE_DEBOUNCE = 5000; // Debounced auto-save: 5s after last stroke
 const LOCAL_STORAGE_KEY = 'ct_drawing_draft';
+const POINT_SIMPLIFICATION_TOLERANCE = 2; // Distance threshold for point simplification
+const DRAWING_RAF_THRESHOLD = 16; // ~60fps target
 
 /* ── Utility ───────────────────────────────────────────────────────── */
 
 function generateId(): string {
   return `stroke_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+}
+
+/* ── Point Simplification (Ramer-Douglas-Peucker) ──────────────────── */
+
+function distToSegment(p: StrokePoint, a: StrokePoint, b: StrokePoint): number {
+  const dx = b.x - a.x;
+  const dy = b.y - a.y;
+  const lenSq = dx * dx + dy * dy;
+  if (lenSq === 0) return Math.hypot(p.x - a.x, p.y - a.y);
+  let t = ((p.x - a.x) * dx + (p.y - a.y) * dy) / lenSq;
+  t = Math.max(0, Math.min(1, t));
+  return Math.hypot(p.x - (a.x + t * dx), p.y - (a.y + t * dy));
+}
+
+function simplifyPoints(points: StrokePoint[], tolerance: number): StrokePoint[] {
+  if (points.length <= 2) return points;
+  let maxDist = 0;
+  let maxIdx = 0;
+  const first = points[0];
+  const last = points[points.length - 1];
+  for (let i = 1; i < points.length - 1; i++) {
+    const d = distToSegment(points[i], first, last);
+    if (d > maxDist) {
+      maxDist = d;
+      maxIdx = i;
+    }
+  }
+  if (maxDist > tolerance) {
+    const left = simplifyPoints(points.slice(0, maxIdx + 1), tolerance);
+    const right = simplifyPoints(points.slice(maxIdx), tolerance);
+    return [...left.slice(0, -1), ...right];
+  }
+  return [first, last];
 }
 
 function getCanvasPoint(
@@ -408,9 +453,29 @@ export default function DrawingCanvas({
 }: DrawingCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  // Background layer canvas for caching (avoids redrawing background every frame)
+  const bgCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  // RAF tracking
+  const rafIdRef = useRef<number>(0);
+  const lastDrawTimeRef = useRef<number>(0);
+  // Debounced auto-save timer
+  const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // FPS counter
+  const fpsFrameCountRef = useRef<number>(0);
+  const fpsLastTimeRef = useRef<number>(performance.now());
+  const [fpsDisplay, setFpsDisplay] = useState<number>(0);
+  const [showFps, setShowFps] = useState(false);
 
   // Drawing state
-  const [strokes, setStrokes] = useState<Stroke[]>([]);
+  const [strokes, setStrokes] = useState<Stroke[]>(() => {
+    if (!initialDrawingData) return [];
+    try {
+      const parsed = JSON.parse(initialDrawingData) as Stroke[];
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  });
   const [redoStack, setRedoStack] = useState<Stroke[]>([]);
   const [currentStroke, setCurrentStroke] = useState<Stroke | null>(null);
   const [isDrawing, setIsDrawing] = useState(false);
@@ -436,22 +501,14 @@ export default function DrawingCanvas({
   // Zoom state
   const [zoomLevel, setZoomLevel] = useState(100);
 
-  /* ── Load initial data ─────────────────────────────────────────── */
-
+  // Detect mobile for drawer vs dialog
+  const [isMobile, setIsMobile] = useState(false);
   useEffect(() => {
-    if (initialDrawingData) {
-      try {
-        const parsed = JSON.parse(initialDrawingData) as Stroke[];
-        if (Array.isArray(parsed)) {
-          setStrokes(parsed);
-        }
-      } catch {
-        // ignore invalid data
-      }
-    }
-  }, [initialDrawingData]);
-
-  /* ── Resize canvas to container ─────────────────────────────────── */
+    const check = () => setIsMobile(window.innerWidth < 640);
+    check();
+    window.addEventListener('resize', check);
+    return () => window.removeEventListener('resize', check);
+  }, []);
 
   useEffect(() => {
     const updateSize = () => {
@@ -468,7 +525,29 @@ export default function DrawingCanvas({
     return () => window.removeEventListener('resize', updateSize);
   }, []);
 
-  /* ── Redraw canvas ──────────────────────────────────────────────── */
+  /* ── Build background layer cache ──────────────────────────────── */
+
+  const buildBgCache = useCallback(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    if (!bgCanvasRef.current) {
+      bgCanvasRef.current = document.createElement('canvas');
+    }
+    bgCanvasRef.current.width = canvas.width;
+    bgCanvasRef.current.height = canvas.height;
+    const ctx = bgCanvasRef.current.getContext('2d');
+    if (!ctx) return;
+    drawBackground(ctx, canvas.width, canvas.height, bgType);
+    if (guideMode !== 'off') {
+      drawGuideOverlay(ctx, canvas.width, canvas.height, guideMode);
+    }
+  }, [bgType, guideMode]);
+
+  useEffect(() => {
+    buildBgCache();
+  }, [buildBgCache]);
+
+  /* ── Redraw canvas with RAF + layer caching ──────────────────── */
 
   const redrawCanvas = useCallback(() => {
     const canvas = canvasRef.current;
@@ -476,12 +555,14 @@ export default function DrawingCanvas({
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    // Clear and draw background
-    drawBackground(ctx, canvas.width, canvas.height, bgType);
-
-    // Draw guide overlay
-    if (guideMode !== 'off') {
-      drawGuideOverlay(ctx, canvas.width, canvas.height, guideMode);
+    // Use cached background layer
+    if (bgCanvasRef.current) {
+      ctx.drawImage(bgCanvasRef.current, 0, 0);
+    } else {
+      drawBackground(ctx, canvas.width, canvas.height, bgType);
+      if (guideMode !== 'off') {
+        drawGuideOverlay(ctx, canvas.width, canvas.height, guideMode);
+      }
     }
 
     // Draw all committed strokes
@@ -495,12 +576,84 @@ export default function DrawingCanvas({
     }
   }, [strokes, currentStroke, bgType, guideMode]);
 
-  useEffect(() => {
-    redrawCanvas();
+  // RAF-based drawing for smooth animation
+  const scheduleRedraw = useCallback(() => {
+    if (rafIdRef.current) {
+      cancelAnimationFrame(rafIdRef.current);
+    }
+    rafIdRef.current = requestAnimationFrame(() => {
+      redrawCanvas();
+      rafIdRef.current = 0;
+    });
   }, [redrawCanvas]);
 
-  /* ── Auto-save ──────────────────────────────────────────────────── */
+  useEffect(() => {
+    scheduleRedraw();
+    return () => {
+      if (rafIdRef.current) {
+        cancelAnimationFrame(rafIdRef.current);
+      }
+    };
+  }, [scheduleRedraw]);
 
+  /* ── FPS Counter ──────────────────────────────────────────────── */
+
+  useEffect(() => {
+    if (!showFps) return;
+    const interval = setInterval(() => {
+      const now = performance.now();
+      const elapsed = now - fpsLastTimeRef.current;
+      if (elapsed > 0) {
+        setFpsDisplay(Math.round((fpsFrameCountRef.current / elapsed) * 1000));
+      }
+      fpsFrameCountRef.current = 0;
+      fpsLastTimeRef.current = now;
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [showFps]);
+
+  // Count frames for FPS
+  useEffect(() => {
+    if (!showFps) return;
+    const countFrame = () => {
+      fpsFrameCountRef.current++;
+      requestAnimationFrame(countFrame);
+    };
+    const id = requestAnimationFrame(countFrame);
+    return () => cancelAnimationFrame(id);
+  }, [showFps]);
+
+  /* ── Auto-save (debounced) ──────────────────────────────────────── */
+
+  const debouncedAutoSave = useCallback(() => {
+    if (autoSaveTimerRef.current) {
+      clearTimeout(autoSaveTimerRef.current);
+    }
+    autoSaveTimerRef.current = setTimeout(() => {
+      if (strokes.length > 0) {
+        try {
+          localStorage.setItem(
+            LOCAL_STORAGE_KEY,
+            JSON.stringify({ strokes, bgType, title: drawingTitle, updatedAt: new Date().toISOString() })
+          );
+          setLastAutoSave(new Date());
+        } catch {
+          // ignore storage errors
+        }
+      }
+    }, AUTO_SAVE_DEBOUNCE);
+  }, [strokes, bgType, drawingTitle]);
+
+  useEffect(() => {
+    debouncedAutoSave();
+    return () => {
+      if (autoSaveTimerRef.current) {
+        clearTimeout(autoSaveTimerRef.current);
+      }
+    };
+  }, [debouncedAutoSave]);
+
+  // Also keep periodic auto-save as backup
   useEffect(() => {
     const interval = setInterval(() => {
       if (strokes.length > 0) {
@@ -581,7 +734,12 @@ export default function DrawingCanvas({
       if (currentStroke.tool === 'line' || currentStroke.tool === 'rectangle' || currentStroke.tool === 'circle') {
         finalStroke = { ...currentStroke, endPoint: { x: point.x, y: point.y } };
       } else {
-        finalStroke = { ...currentStroke, points: [...currentStroke.points, point] };
+        // Simplify points for freehand strokes (performance optimization)
+        const allPoints = [...currentStroke.points, point];
+        const simplified = allPoints.length > 10
+          ? simplifyPoints(allPoints, POINT_SIMPLIFICATION_TOLERANCE)
+          : allPoints;
+        finalStroke = { ...currentStroke, points: simplified };
       }
 
       setStrokes((prev) => [...prev, finalStroke]);
@@ -752,8 +910,8 @@ export default function DrawingCanvas({
   return (
     <div className="flex h-full flex-col bg-gray-50 dark:bg-gray-950">
       {/* ── Toolbar ────────────────────────────────────────────────── */}
-      <div className="sticky top-0 z-20 border-b border-gray-200 bg-gray-900 px-3 py-2 text-white shadow-lg">
-        <div className="flex flex-wrap items-center gap-2">
+      <div className="sticky top-0 z-20 border-b border-gray-200 bg-gray-900 px-2 sm:px-3 py-2 text-white shadow-lg safe-top">
+        <div className="flex flex-wrap items-center gap-1 sm:gap-2">
           {/* Exit button */}
           {onExit && (
             <TooltipProvider>
@@ -763,7 +921,8 @@ export default function DrawingCanvas({
                     variant="ghost"
                     size="sm"
                     onClick={onExit}
-                    className="h-10 w-10 text-gray-300 hover:bg-gray-800 hover:text-white"
+                    className="h-10 w-10 min-touch text-gray-300 hover:bg-gray-800 hover:text-white"
+                    aria-label={t('drawing.exit')}
                   >
                     <X className="h-5 w-5" />
                   </Button>
@@ -774,7 +933,7 @@ export default function DrawingCanvas({
           )}
 
           {/* Divider */}
-          <div className="mx-1 h-8 w-px bg-gray-700" />
+          <div className="mx-0.5 sm:mx-1 h-8 w-px bg-gray-700 hidden sm:block" />
 
           {/* Drawing tools */}
           <TooltipProvider>
@@ -785,11 +944,13 @@ export default function DrawingCanvas({
                     variant="ghost"
                     size="sm"
                     onClick={() => setActiveTool(tool.id)}
-                    className={`h-10 w-10 transition-all rounded-lg ${
+                    className={`h-10 w-10 min-touch transition-all rounded-lg ${
                       activeTool === tool.id
                         ? 'bg-emerald-600 text-white shadow-md shadow-emerald-500/30 scale-105'
                         : 'text-gray-300 hover:bg-gray-800 hover:text-white'
                     }`}
+                    aria-label={tool.label}
+                    aria-pressed={activeTool === tool.id}
                   >
                     {tool.icon}
                   </Button>
@@ -800,7 +961,7 @@ export default function DrawingCanvas({
           </TooltipProvider>
 
           {/* Divider */}
-          <div className="mx-1 h-8 w-px bg-gray-700" />
+          <div className="mx-0.5 sm:mx-1 h-8 w-px bg-gray-700 hidden sm:block" />
 
           {/* Color picker */}
           <Popover>
@@ -808,16 +969,17 @@ export default function DrawingCanvas({
               <Button
                 variant="ghost"
                 size="sm"
-                className="h-10 gap-1.5 px-2 text-gray-300 hover:bg-gray-800 hover:text-white"
+                className="h-10 min-touch gap-1.5 px-2 text-gray-300 hover:bg-gray-800 hover:text-white"
+                aria-label={t('drawing.color')}
               >
                 <div
                   className="h-6 w-6 rounded-full border-2 border-gray-500"
                   style={{ backgroundColor: strokeColor }}
                 />
-                <Pipette className="h-4 w-4" />
+                <Pipette className="h-4 w-4 hidden sm:block" />
               </Button>
             </PopoverTrigger>
-            <PopoverContent className="w-auto p-3" side="bottom">
+            <PopoverContent className="w-auto p-3 max-w-[calc(100vw-2rem)]" side="bottom">
               <div className="space-y-2">
                 <p className="text-xs font-medium text-gray-500">{t('drawing.color')}</p>
                 <div className="grid grid-cols-8 gap-1.5">
@@ -825,12 +987,13 @@ export default function DrawingCanvas({
                     <button
                       key={color}
                       onClick={() => setStrokeColor(color)}
-                      className={`h-8 w-8 rounded-full border-2 transition-all hover:scale-110 ${
+                      className={`h-8 w-8 min-touch rounded-full border-2 transition-all hover:scale-110 ${
                         strokeColor === color
                           ? 'border-emerald-500 ring-2 ring-emerald-500/30 scale-110'
                           : 'border-gray-300'
                       }`}
                       style={{ backgroundColor: color }}
+                      aria-label={`Color ${color}`}
                     />
                   ))}
                 </div>
@@ -842,12 +1005,13 @@ export default function DrawingCanvas({
                     <button
                       key={color}
                       onClick={() => setStrokeColor(color)}
-                      className={`h-8 w-8 rounded-full border-2 transition-all hover:scale-110 ${
+                      className={`h-8 w-8 min-touch rounded-full border-2 transition-all hover:scale-110 ${
                         strokeColor === color
                           ? 'border-emerald-500 ring-2 ring-emerald-500/30 scale-110'
                           : 'border-gray-300'
                       }`}
                       style={{ backgroundColor: color }}
+                      aria-label={`Pen color ${color}`}
                     />
                   ))}
                 </div>
@@ -857,7 +1021,8 @@ export default function DrawingCanvas({
                     type="color"
                     value={strokeColor}
                     onChange={(e) => setStrokeColor(e.target.value)}
-                    className="h-8 w-8 cursor-pointer rounded border"
+                    className="h-8 w-8 min-touch cursor-pointer rounded border"
+                    aria-label="Custom color picker"
                   />
                 </div>
               </div>
@@ -865,24 +1030,25 @@ export default function DrawingCanvas({
           </Popover>
 
           {/* Divider */}
-          <div className="mx-1 h-8 w-px bg-gray-700" />
+          <div className="mx-0.5 sm:mx-1 h-8 w-px bg-gray-700 hidden sm:block" />
 
           {/* Stroke width */}
-          <div className="flex items-center gap-2">
-            <Palette className="h-4 w-4 text-gray-400" />
+          <div className="flex items-center gap-1 sm:gap-2">
+            <Palette className="h-4 w-4 text-gray-400 hidden sm:block" />
             <Slider
               value={[strokeWidth]}
               min={1}
               max={20}
               step={1}
               onValueChange={(v) => setStrokeWidth(v[0])}
-              className="w-24"
+              className="w-16 sm:w-24"
+              aria-label={t('drawing.stroke_width')}
             />
             <span className="min-w-[2rem] text-center text-xs text-gray-400">{strokeWidth}px</span>
           </div>
 
           {/* Divider */}
-          <div className="mx-1 h-8 w-px bg-gray-700" />
+          <div className="mx-0.5 sm:mx-1 h-8 w-px bg-gray-700 hidden sm:block" />
 
           {/* Background type */}
           <Popover>
@@ -890,23 +1056,25 @@ export default function DrawingCanvas({
               <Button
                 variant="ghost"
                 size="sm"
-                className="h-10 gap-1 text-gray-300 hover:bg-gray-800 hover:text-white"
+                className="h-10 min-touch gap-1 text-gray-300 hover:bg-gray-800 hover:text-white"
+                aria-label={t('drawing.bg_type')}
               >
                 {bgOptions.find((b) => b.id === bgType)?.icon}
                 <ChevronDown className="h-3 w-3" />
               </Button>
             </PopoverTrigger>
-            <PopoverContent className="w-auto p-2" side="bottom">
+            <PopoverContent className="w-auto p-2 max-w-[calc(100vw-2rem)]" side="bottom">
               <div className="space-y-1">
                 {bgOptions.map((bg) => (
                   <button
                     key={bg.id}
                     onClick={() => setBgType(bg.id)}
-                    className={`flex w-full items-center gap-2 rounded-md px-3 py-1.5 text-sm transition-colors ${
+                    className={`flex w-full items-center gap-2 rounded-md px-3 py-2 min-h-[44px] text-sm transition-colors ${
                       bgType === bg.id
                         ? 'bg-emerald-100 text-emerald-700'
                         : 'hover:bg-gray-100'
                     }`}
+                    aria-pressed={bgType === bg.id}
                   >
                     {bg.icon}
                     {bg.label}
@@ -922,7 +1090,8 @@ export default function DrawingCanvas({
               <Button
                 variant="ghost"
                 size="sm"
-                className="h-10 gap-1 text-gray-300 hover:bg-gray-800 hover:text-white"
+                className="h-10 min-touch gap-1 text-gray-300 hover:bg-gray-800 hover:text-white"
+                aria-label={t('drawing.guide_mode')}
               >
                 {guideMode === 'off' ? (
                   <EyeOff className="h-4 w-4" />
@@ -932,17 +1101,18 @@ export default function DrawingCanvas({
                 <ChevronDown className="h-3 w-3" />
               </Button>
             </PopoverTrigger>
-            <PopoverContent className="w-auto p-2" side="bottom">
+            <PopoverContent className="w-auto p-2 max-w-[calc(100vw-2rem)]" side="bottom">
               <div className="space-y-1">
                 {guideOptions.map((g) => (
                   <button
                     key={g.id}
                     onClick={() => setGuideMode(g.id)}
-                    className={`flex w-full items-center gap-2 rounded-md px-3 py-1.5 text-sm transition-colors ${
+                    className={`flex w-full items-center gap-2 rounded-md px-3 py-2 min-h-[44px] text-sm transition-colors ${
                       guideMode === g.id
                         ? 'bg-emerald-100 text-emerald-700'
                         : 'hover:bg-gray-100'
                     }`}
+                    aria-pressed={guideMode === g.id}
                   >
                     {g.label}
                   </button>
@@ -952,7 +1122,7 @@ export default function DrawingCanvas({
           </Popover>
 
           {/* Divider */}
-          <div className="mx-1 h-8 w-px bg-gray-700" />
+          <div className="mx-0.5 sm:mx-1 h-8 w-px bg-gray-700 hidden sm:block" />
 
           {/* Undo / Redo */}
           <TooltipProvider>
@@ -963,7 +1133,8 @@ export default function DrawingCanvas({
                   size="sm"
                   onClick={handleUndo}
                   disabled={strokes.length === 0}
-                  className="h-10 w-10 text-gray-300 hover:bg-gray-800 hover:text-white disabled:opacity-30 transition-transform active:scale-90"
+                  className="h-10 w-10 min-touch text-gray-300 hover:bg-gray-800 hover:text-white disabled:opacity-30 transition-transform active:scale-90"
+                  aria-label={t('drawing.undo')}
                 >
                   <Undo2 className="h-5 w-5" />
                 </Button>
@@ -977,7 +1148,8 @@ export default function DrawingCanvas({
                   size="sm"
                   onClick={handleRedo}
                   disabled={redoStack.length === 0}
-                  className="h-10 w-10 text-gray-300 hover:bg-gray-800 hover:text-white disabled:opacity-30 transition-transform active:scale-90"
+                  className="h-10 w-10 min-touch text-gray-300 hover:bg-gray-800 hover:text-white disabled:opacity-30 transition-transform active:scale-90"
+                  aria-label={t('drawing.redo')}
                 >
                   <Redo2 className="h-5 w-5" />
                 </Button>
@@ -987,7 +1159,7 @@ export default function DrawingCanvas({
           </TooltipProvider>
 
           {/* Divider */}
-          <div className="mx-1 h-8 w-px bg-gray-700" />
+          <div className="mx-0.5 sm:mx-1 h-8 w-px bg-gray-700 hidden sm:block" />
 
           {/* Zoom controls */}
           <TooltipProvider>
@@ -998,7 +1170,8 @@ export default function DrawingCanvas({
                   size="sm"
                   onClick={() => setZoomLevel(Math.max(25, zoomLevel - 25))}
                   disabled={zoomLevel <= 25}
-                  className="h-10 w-10 text-gray-300 hover:bg-gray-800 hover:text-white disabled:opacity-30"
+                  className="h-10 w-10 min-touch text-gray-300 hover:bg-gray-800 hover:text-white disabled:opacity-30"
+                  aria-label={t('drawing.zoom_out')}
                 >
                   <ZoomOut className="h-5 w-5" />
                 </Button>
@@ -1013,12 +1186,31 @@ export default function DrawingCanvas({
                   size="sm"
                   onClick={() => setZoomLevel(Math.min(200, zoomLevel + 25))}
                   disabled={zoomLevel >= 200}
-                  className="h-10 w-10 text-gray-300 hover:bg-gray-800 hover:text-white disabled:opacity-30"
+                  className="h-10 w-10 min-touch text-gray-300 hover:bg-gray-800 hover:text-white disabled:opacity-30"
+                  aria-label={t('drawing.zoom_in')}
                 >
                   <ZoomIn className="h-5 w-5" />
                 </Button>
               </TooltipTrigger>
               <TooltipContent>{t('drawing.zoom_in')}</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+
+          {/* FPS Toggle */}
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowFps(!showFps)}
+                  className={`h-10 w-10 min-touch text-gray-300 hover:bg-gray-800 hover:text-white ${showFps ? 'text-emerald-400' : ''}`}
+                  aria-label={t('performance.title')}
+                >
+                  <Activity className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>{t('performance.fps')}</TooltipContent>
             </Tooltip>
           </TooltipProvider>
 
@@ -1039,7 +1231,8 @@ export default function DrawingCanvas({
                   variant="ghost"
                   size="sm"
                   onClick={() => setShowClearDialog(true)}
-                  className="h-10 w-10 text-gray-300 hover:bg-red-900/50 hover:text-red-300"
+                  className="h-10 w-10 min-touch text-gray-300 hover:bg-red-900/50 hover:text-red-300"
+                  aria-label={t('drawing.clear')}
                 >
                   <Trash2 className="h-5 w-5" />
                 </Button>
@@ -1052,7 +1245,8 @@ export default function DrawingCanvas({
                   variant="ghost"
                   size="sm"
                   onClick={handleExportPNG}
-                  className="h-10 w-10 text-gray-300 hover:bg-gray-800 hover:text-white"
+                  className="h-10 w-10 min-touch text-gray-300 hover:bg-gray-800 hover:text-white"
+                  aria-label={t('drawing.export_png')}
                 >
                   <Download className="h-5 w-5" />
                 </Button>
@@ -1065,7 +1259,8 @@ export default function DrawingCanvas({
                   variant="ghost"
                   size="sm"
                   onClick={() => setShowSaveDialog(true)}
-                  className="h-10 gap-1 bg-emerald-600 text-white hover:bg-emerald-700"
+                  className="h-10 min-touch gap-1 bg-emerald-600 text-white hover:bg-emerald-700"
+                  aria-label={t('drawing.save')}
                 >
                   <Save className="h-5 w-5" />
                   <span className="hidden sm:inline">{t('drawing.save')}</span>
@@ -1085,13 +1280,20 @@ export default function DrawingCanvas({
         )}
       </div>
 
+      {/* FPS Counter */}
+      {showFps && (
+        <div className="fps-counter">
+          {fpsDisplay} FPS
+        </div>
+      )}
+
       {/* ── Canvas Area ────────────────────────────────────────────── */}
       <div
         ref={containerRef}
-        className="flex-1 overflow-auto bg-gray-100 p-4"
+        className="flex-1 overflow-auto bg-gray-100 p-2 sm:p-4"
       >
         <div
-          className="relative mx-auto overflow-hidden rounded-lg shadow-lg canvas-toolbar"
+          className="relative mx-auto overflow-hidden rounded-lg shadow-lg canvas-toolbar canvas-gpu"
           style={{
             width: `${zoomLevel}%`,
             maxWidth: '100%',
@@ -1105,7 +1307,7 @@ export default function DrawingCanvas({
             ref={canvasRef}
             width={canvasSize.width}
             height={canvasSize.height}
-            className="h-full w-full cursor-crosshair touch-none"
+            className="h-full w-full cursor-crosshair touch-none canvas-no-zoom canvas-no-select"
             style={{
               imageRendering: 'auto',
             }}
@@ -1113,6 +1315,8 @@ export default function DrawingCanvas({
             onPointerMove={handlePointerMove}
             onPointerUp={handlePointerUp}
             onPointerLeave={handlePointerUp}
+            role="img"
+            aria-label={t('drawing.canvas_label') || 'Drawing canvas'}
           />
           {/* Tool indicator */}
           <div className="pointer-events-none absolute bottom-3 left-3 flex items-center gap-2">
@@ -1134,67 +1338,127 @@ export default function DrawingCanvas({
         </div>
       </div>
 
-      {/* ── Clear Dialog ───────────────────────────────────────────── */}
-      <Dialog open={showClearDialog} onOpenChange={setShowClearDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{t('drawing.clear_confirm')}</DialogTitle>
-            <DialogDescription>
-              {t('drawing.delete_desc')}
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowClearDialog(false)}>
-              {t('action.cancel')}
-            </Button>
-            <Button variant="destructive" onClick={handleClear}>
-              {t('drawing.clear')}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* ── Clear Dialog / Drawer ───────────────────────────────────── */}
+      {isMobile ? (
+        <Drawer open={showClearDialog} onOpenChange={setShowClearDialog}>
+          <DrawerContent>
+            <DrawerHeader>
+              <DrawerTitle>{t('drawing.clear_confirm')}</DrawerTitle>
+              <DrawerDescription>{t('drawing.delete_desc')}</DrawerDescription>
+            </DrawerHeader>
+            <DrawerFooter>
+              <Button variant="outline" onClick={() => setShowClearDialog(false)}>
+                {t('action.cancel')}
+              </Button>
+              <Button variant="destructive" onClick={handleClear}>
+                {t('drawing.clear')}
+              </Button>
+            </DrawerFooter>
+          </DrawerContent>
+        </Drawer>
+      ) : (
+        <Dialog open={showClearDialog} onOpenChange={setShowClearDialog}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>{t('drawing.clear_confirm')}</DialogTitle>
+              <DialogDescription>
+                {t('drawing.delete_desc')}
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setShowClearDialog(false)}>
+                {t('action.cancel')}
+              </Button>
+              <Button variant="destructive" onClick={handleClear}>
+                {t('drawing.clear')}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
 
-      {/* ── Save Dialog ────────────────────────────────────────────── */}
-      <Dialog open={showSaveDialog} onOpenChange={setShowSaveDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{t('drawing.save')}</DialogTitle>
-            <DialogDescription>
-              {t('drawing.eco_tip')}
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <Label htmlFor="drawing-title">{t('drawing.title_label')}</Label>
-              <Input
-                id="drawing-title"
-                value={drawingTitle}
-                onChange={(e) => setDrawingTitle(e.target.value)}
-                placeholder={t('drawing.untitled')}
-                className="mt-1"
-              />
+      {/* ── Save Dialog / Drawer ────────────────────────────────────── */}
+      {isMobile ? (
+        <Drawer open={showSaveDialog} onOpenChange={setShowSaveDialog}>
+          <DrawerContent>
+            <DrawerHeader>
+              <DrawerTitle>{t('drawing.save')}</DrawerTitle>
+              <DrawerDescription>{t('drawing.eco_tip')}</DrawerDescription>
+            </DrawerHeader>
+            <div className="px-4 space-y-4">
+              <div>
+                <Label htmlFor="drawing-title-mobile">{t('drawing.title_label')}</Label>
+                <Input
+                  id="drawing-title-mobile"
+                  value={drawingTitle}
+                  onChange={(e) => setDrawingTitle(e.target.value)}
+                  placeholder={t('drawing.untitled')}
+                  className="mt-1"
+                />
+              </div>
+              <div>
+                <Label htmlFor="drawing-desc-mobile">{t('drawing.description_label')}</Label>
+                <Textarea
+                  id="drawing-desc-mobile"
+                  value={drawingDescription}
+                  onChange={(e) => setDrawingDescription(e.target.value)}
+                  className="mt-1"
+                  rows={3}
+                />
+              </div>
             </div>
-            <div>
-              <Label htmlFor="drawing-desc">{t('drawing.description_label')}</Label>
-              <Textarea
-                id="drawing-desc"
-                value={drawingDescription}
-                onChange={(e) => setDrawingDescription(e.target.value)}
-                className="mt-1"
-                rows={3}
-              />
+            <DrawerFooter>
+              <Button variant="outline" onClick={() => setShowSaveDialog(false)}>
+                {t('action.cancel')}
+              </Button>
+              <Button onClick={handleSave} disabled={isSaving} className="bg-emerald-600 hover:bg-emerald-700">
+                {isSaving ? t('drawing.saving') : t('drawing.save')}
+              </Button>
+            </DrawerFooter>
+          </DrawerContent>
+        </Drawer>
+      ) : (
+        <Dialog open={showSaveDialog} onOpenChange={setShowSaveDialog}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>{t('drawing.save')}</DialogTitle>
+              <DialogDescription>
+                {t('drawing.eco_tip')}
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="drawing-title">{t('drawing.title_label')}</Label>
+                <Input
+                  id="drawing-title"
+                  value={drawingTitle}
+                  onChange={(e) => setDrawingTitle(e.target.value)}
+                  placeholder={t('drawing.untitled')}
+                  className="mt-1"
+                />
+              </div>
+              <div>
+                <Label htmlFor="drawing-desc">{t('drawing.description_label')}</Label>
+                <Textarea
+                  id="drawing-desc"
+                  value={drawingDescription}
+                  onChange={(e) => setDrawingDescription(e.target.value)}
+                  className="mt-1"
+                  rows={3}
+                />
+              </div>
             </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowSaveDialog(false)}>
-              {t('action.cancel')}
-            </Button>
-            <Button onClick={handleSave} disabled={isSaving} className="bg-emerald-600 hover:bg-emerald-700">
-              {isSaving ? t('drawing.saving') : t('drawing.save')}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setShowSaveDialog(false)}>
+                {t('action.cancel')}
+              </Button>
+              <Button onClick={handleSave} disabled={isSaving} className="bg-emerald-600 hover:bg-emerald-700">
+                {isSaving ? t('drawing.saving') : t('drawing.save')}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 }

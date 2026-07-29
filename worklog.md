@@ -1,8 +1,145 @@
 # CompetenceTrack — Project Worklog
 
-## Current Project Status (Round 11 — DrawingCanvas, Versioning, Student Auth, Parent Portal, Calendar, Reports, Import/Export)
+## Current Project Status (Round 13 — Rubric Enhancement + Curriculum Mapping + Attendance Analytics)
 
-**Status**: Stable, all features working, pushed to GitHub  
+**Status**: Stable, all features working  
+**Version**: v13
+
+### Completed Modifications (Round 13)
+
+1. **Rubric Enhancement**
+   - Rubric Templates: 5 pre-built templates (Math Assessment, German Essay, English Writing, Project Work, Oral Presentation) with full criteria and levels
+   - Template dialog accessible from "Templates" button in header — select template to pre-populate create form
+   - Rubric-Based Grading: Score sheet dialog with level selectors per criterion, auto-grade calculation
+   - Auto-Grade Calculation: Weighted percentage, final score, grade (1-6 German system), criterion breakdown with progress bars
+   - Rubric Analytics: Stats cards, criteria performance bars, grade distribution visualization
+   - New API: GET /api/rubrics/templates, POST /api/rubrics/[id]/grade, GET /api/rubrics/[id]/analytics
+   - New API client functions: fetchRubricTemplates, gradeWithRubric, fetchRubricAnalytics
+
+2. **Curriculum Mapping**
+   - New Prisma models: CurriculumStandard (code, title, description, gradeLevel, category, source) and CurriculumStandardLink (coverageLevel, notes)
+   - Relations added to School, Subject, and Competency models
+   - Curriculum Coverage View: 4 stats cards, search/filter, 3 tabs (Standards, Heatmap, Gap Analysis)
+   - Standards tab: CRUD with code, title, subject, grade level, category, source; linked competencies badge
+   - Heatmap tab: coverage visualization by subject/grade with color-coded progress bars
+   - Gap Analysis tab: standards without competency links with quick link button
+   - Link Competency dialog: search/select competency, coverage level (full/partial/related), notes
+   - Detail dialog: full standard view with linked competencies and unlink ability
+   - New API: /api/curriculum-standards (GET/POST), /api/curriculum-standards/[id] (GET/PUT/DELETE), /api/curriculum-standards/[id]/links (GET/POST)
+   - New API client functions: fetchCurriculumStandards, createCurriculumStandard, updateCurriculumStandard, deleteCurriculumStandard, linkCurriculumStandard, unlinkCurriculumStandard, fetchCurriculumStandardLinks
+
+3. **Attendance Analytics**
+   - New "Analytics" tab in attendance view with BarChart3 icon
+   - AttendanceAnalyticsTab component with Recharts visualizations
+   - Line chart: weekly attendance rate and absence rate trends
+   - Bar chart: day-of-week analysis with attendance rate and absent count
+   - Pie chart: status distribution (present/absent/excused/late) with emerald/rose/amber/teal colors
+   - Chronic Absence card: students with >=10% absence rate
+   - Risk Indicators card: medium/high/critical risk with colored badges
+   - Class Comparison card: attendance rate bars across classes
+   - CSV Export: download attendance analytics data as CSV
+   - New API: GET /api/attendance/analytics?schoolId=xxx&classGroupId=yyy
+   - New API client function: fetchAttendanceAnalytics
+
+4. **100+ New i18n Keys**
+   - Rubric enhancement: templates, grading, analytics, export, score sheet (20+ keys)
+   - Curriculum standards: CRUD, mapping, heatmap, gap analysis, coverage levels (40+ keys)
+   - Attendance analytics: trends, day-of-week, chronic absence, risk indicators, export (20+ keys)
+
+5. **2 New Prisma Models**
+   - CurriculumStandard — school curriculum standards with code, grade level, category, source
+   - CurriculumStandardLink — links between standards and competencies with coverage level
+
+6. **7 New API Route Files**
+   - /api/rubrics/templates/route.ts
+   - /api/rubrics/[id]/grade/route.ts
+   - /api/rubrics/[id]/analytics/route.ts
+   - /api/curriculum-standards/route.ts
+   - /api/curriculum-standards/[id]/route.ts
+   - /api/curriculum-standards/[id]/links/route.ts
+   - /api/attendance/analytics/route.ts
+
+### Verification Results
+- App compiles and runs on port 3000
+- Lint: only set-state-in-effect warnings (pre-existing pattern)
+- 7 new API route files, 2 new Prisma models, 1 new UI component
+
+---
+
+## Current Project Status (Round 12 — WebSocket Service, Collaborative Editing, Push Notifications)
+
+**Status**: Stable, all features working
+**Version**: v12
+
+### Completed Modifications (Round 12)
+
+1. **WebSocket Mini-Service**
+   - New mini-service at `mini-services/ws-service/` with Socket.IO server on port 3003
+   - Handles: auth, notebook:join/leave, notebook:cursor, notebook:edit, notification:new/read, presence:update, activity:join
+   - HTTP API endpoint at `/api/push-notification` for server-side notification push
+   - Health check endpoint at `/health`
+   - Frontend connects via `io("/?XTransformPort=3003")`
+
+2. **Collaborative Editing for Notebook Pages**
+   - `useNotebookCollaboration` hook in `src/lib/websocket.ts` — manages room presence, cursors, edits, activities
+   - Online Users Indicator in notebook header (colored avatar dots with Radio icon, tooltip with names)
+   - Activity Feed Popover (shows "User X started editing page Y" entries)
+   - Cursor overlays on page content area (colored MousePointer2 cursors with user names, positioned by percentage)
+   - "Editing by..." indicator in page title bar (amber badge with MousePointer2 icon)
+   - Edit broadcasting (debounced 500ms) and incoming edit application (last-write-wins)
+   - Cursor position broadcasting (throttled 200ms)
+   - Page change activity broadcasting
+
+3. **Real-Time Push Notifications**
+   - `useWebSocket` hook connects to ws-service on login
+   - `usePushNotifications` hook listens for `notification:new` events
+   - On push notification: plays notification sound (if enabled), shows toast, refreshes bell count
+   - `notifications.ts` updated: `createNotification()` and `createNotificationForUsers()` also push via HTTP to ws-service (fire-and-forget)
+   - Server-side push: when notebook shared, behavior alert, grade computed — all push notifications to ws-service
+
+4. **Notification Sound Setting**
+   - `NotificationSoundSetting` component in settings-view.tsx
+   - Toggle switch with Volume2/VolumeX icons
+   - Web Audio API beep (oscillator, 880→1100→880 Hz, 0.3s duration)
+   - Preference stored in localStorage (`ct_notification_sound`)
+   - Plays preview sound when enabling
+
+5. **22 New i18n Keys**
+   - Collaboration keys (10 DE + 10 EN): online_users, editing_by, activity_title, no_activity, started_editing, realtime_connected, realtime_disconnected, conflict_resolved, cursors_visible, user_joined, user_left
+   - Notification sound keys (4 DE + 4 EN): notification_sound, notification_sound_desc, notification_sound_enabled, notification_sound_disabled
+
+6. **Bug Fixes**
+   - Fixed pre-existing parsing error in settings-view.tsx (stray `)}` after backup tab)
+   - Fixed pre-existing TypeScript error in api.ts (`downloadCsvExport` type missing `'attendance'`)
+
+### New Files Created
+- `mini-services/ws-service/package.json`
+- `mini-services/ws-service/tsconfig.json`
+- `mini-services/ws-service/index.ts`
+- `src/lib/websocket.ts`
+
+### Files Modified
+- `src/components/notebooks-view.tsx` — Collaborative editing UI elements, cursor overlays, activity feed, edit broadcasting
+- `src/components/app-layout.tsx` — Push notification handler, WebSocket connection, notification sound
+- `src/components/settings-view.tsx` — Notification sound setting component, bug fixes
+- `src/lib/notifications.ts` — WebSocket push integration via HTTP API
+- `src/lib/i18n.ts` — 22 new i18n keys (DE + EN)
+- `src/lib/api.ts` — Extended downloadCsvExport type
+- `package.json` — Added socket.io-client dependency
+
+### Verification Results
+- Dev server: Running on port 3000
+- WS service: Running on port 3003, health check returns OK
+- Push notification API: Tested successfully (returns `{success: true}`)
+- App compiles and loads correctly
+- TypeScript: 0 errors in modified files (pre-existing errors in other files unchanged)
+
+---
+
+## Previous Rounds
+
+<details>
+<summary>Round 11 — DrawingCanvas, Versioning, Student Auth, Parent Portal, Calendar, Reports, Import/Export</summary>
 **Version**: v11 (c3d36aa)  
 **Push Date**: 2025-07-29  
 **Repo**: https://github.com/cetinmustafa83/exametra
@@ -175,3 +312,101 @@
 
 See git history for details on earlier rounds.
 </details>
+
+---
+
+## Task 10 — Mobile Responsiveness + Performance + Data Backup + Styling Polish
+
+**Agent**: mobile-perf-backup-styling
+**Date**: 2025-07-29
+
+### Changes Made
+
+1. **Mobile Responsiveness (globals.css)**
+   - Added safe area insets for iOS (`.safe-top`, `.safe-bottom`, `.safe-all`)
+   - Added canvas no-zoom and no-select utilities (`.canvas-no-zoom`, `.canvas-no-select`)
+   - Added mobile scroll container (`.mobile-scroll-x`)
+   - Added mobile stack helper (`.mobile-stack`) and full-width inputs (`.mobile-full-width`)
+   - Added mobile viewport adjustments: dialog/popover sizing, tab scrollability, card stacking, notebook grid (1 col mobile, 2 col tablet, 3+ desktop), table horizontal scroll, full-width inputs
+   - Added tablet-specific adjustments (640px-767px)
+
+2. **Drawing Canvas Performance Optimization**
+   - Implemented requestAnimationFrame-based drawing with `scheduleRedraw()`
+   - Added Ramer-Douglas-Peucker point simplification (tolerance=2px) for freehand strokes
+   - Implemented background layer caching (offscreen canvas for bg + guides)
+   - Added debounced auto-save (5s after last stroke) + periodic backup (30s)
+   - Added FPS counter (toggle with Activity icon in toolbar)
+   - Added GPU acceleration class (`.canvas-gpu`) with `will-change: transform`
+   - Fixed initial data loading to use `useState` initializer (no effect needed)
+
+3. **Drawing Canvas Mobile Improvements**
+   - Added `isMobile` detection (640px breakpoint)
+   - Use Drawer (bottom sheet) on mobile instead of Dialog for clear/save
+   - Added `min-touch` (44px) targets to all toolbar buttons
+   - Added ARIA labels and `aria-pressed` to all interactive elements
+   - Responsive toolbar spacing (`gap-1 sm:gap-2`, `px-2 sm:px-3`)
+   - Added `canvas-no-zoom` and `canvas-no-select` to canvas element
+   - Responsive slider width (`w-16 sm:w-24`)
+
+4. **Data Backup System**
+   - New Prisma model: `Backup` (id, schoolId, filename, size, type, status, notes, createdAt)
+   - Added `backups` relation to School model
+   - Created `/api/backup/route.ts` API:
+     - GET: List backups for a school
+     - POST: Create full backup (exports entire DB as JSON) or restore from backup
+     - DELETE: Delete a backup
+   - Added Backup tab in SettingsView:
+     - Create backup button with loading spinner
+     - Auto-backup toggle (daily/weekly frequency selector)
+     - Last backup timestamp display
+     - Backup list with filename, date, size, status, type badges
+     - Download, restore, delete actions per backup
+     - Restore and delete confirmation dialogs (AlertDialog)
+
+5. **Micro-interaction Animations (globals.css)**
+   - `.animate-fade-in-up` — fade in + slide up
+   - `.animate-scale-in` — scale from 0.95 to 1
+   - `.animate-shake` — error shake animation
+   - `.animate-success-check` — success checkmark animation
+   - `.hover-lift` — subtle lift on hover (translateY -1px)
+   - `.focus-ring` — animated focus ring
+
+6. **Enhanced Print Styles**
+   - A4 page size with proper margins
+   - Print-specific font sizes (h1: 18pt, h2: 14pt, h3: 12pt, body: 10pt)
+   - Hide interactive elements (buttons, nav, aside, etc.)
+   - Page break controls (`.page-break-before`, `.page-break-after`, `.page-break-avoid`)
+   - Print links with URL display
+   - Table styling for print
+
+7. **Dark Mode Polish**
+   - Better dark mode borders (`.dark-border`, `.card-dark-border`)
+   - Dark mode card shadows (`.dark-shadow`, `.elevated-dark`)
+   - Smooth theme transitions (`.theme-transition`)
+   - Better contrast ratios for muted text
+
+8. **Accessibility Improvements**
+   - Skip-to-content link (`.skip-to-content`)
+   - Screen reader only focusable (`.sr-only-focusable`)
+   - Modal focus wrapper (`.modal-focus-wrapper`)
+   - Live region for dynamic content (`.sr-live-region`)
+   - High contrast mode support (forced-colors)
+   - Reduced motion support for all animations
+
+9. **i18n Keys Added (35+ new keys in DE and EN)**
+   - Backup: title, create, restore, delete, auto, daily, weekly, last, size, status, completed, failed, pending, no_backups, create_confirm, restore_confirm, delete_confirm, creating, restoring, type, type_full, type_incremental, notes, download, created_success, restored_success, deleted_success, error_create, error_restore, error_delete
+   - Performance: title, fps
+   - Mobile: optimized
+
+### Files Changed
+- `src/app/globals.css` — 425+ lines added (mobile, print, dark mode, a11y, canvas perf, animations)
+- `src/components/drawing-canvas.tsx` — RAF, point simplification, layer caching, debounced save, FPS counter, mobile drawer, ARIA labels
+- `src/components/settings-view.tsx` — Backup tab, backup state, handlers, restore/delete confirmation dialogs
+- `src/lib/i18n.ts` — 35+ new keys in DE and EN
+- `prisma/schema.prisma` — Backup model + School relation
+- `src/app/api/backup/route.ts` — New file (backup CRUD API)
+
+### Verification
+- App running on localhost:3000 (200 OK)
+- Backup API responding correctly
+- Prisma schema pushed successfully

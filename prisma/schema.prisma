@@ -40,6 +40,8 @@ model School {
   notifications      Notification[]
   calendarEvents     CalendarEvent[]
   parentStudentLinks ParentStudentLink[]
+  curriculumStandards CurriculumStandard[]
+  backups            Backup[]
 }
 
 model User {
@@ -196,6 +198,7 @@ model Subject {
   notebooks           Notebook[]
   drawings            Drawing[]
   calendarEvents      CalendarEvent[]
+  curriculumStandards CurriculumStandard[]
 }
 
 model CompetencyTemplate {
@@ -243,6 +246,7 @@ model Competency {
   masteryLevelDefinitions MasteryLevelDefinition[]
   learningProgressEntries LearningProgressEntry[]
   assessmentCompetencyLinks AssessmentCompetencyLink[]
+  curriculumStandardLinks CurriculumStandardLink[]
 }
 
 model MasteryLevelDefinition {
@@ -902,4 +906,61 @@ model ParentStudentLink {
 
   @@unique([parentId, studentId])
   @@map("parent_student_links")
+}
+
+// ─── Curriculum Standards ──────────────────────────────────────────
+
+model CurriculumStandard {
+  id          String   @id @default(cuid())
+  schoolId    String
+  subjectId   String?
+  code        String   // e.g., "M.1.1", "D.2.3"
+  title       String
+  description String?
+  gradeLevel  Int?
+  category    String?  // e.g., "Number", "Algebra", "Geometry"
+  source      String?  // e.g., "KMK", "Lehrplan NRW"
+  isDemo      Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  deletedAt   DateTime?
+
+  school      School   @relation(fields: [schoolId], references: [id])
+  subject     Subject? @relation(fields: [subjectId], references: [id])
+  competencyLinks CurriculumStandardLink[]
+
+  @@index([schoolId, subjectId])
+  @@map("curriculum_standards")
+}
+
+model CurriculumStandardLink {
+  id              String   @id @default(cuid())
+  standardId      String
+  competencyId    String
+  coverageLevel   String?  // "full", "partial", "related"
+  notes           String?
+  createdAt       DateTime @default(now())
+
+  standard        CurriculumStandard @relation(fields: [standardId], references: [id], onDelete: Cascade)
+  competency      Competency @relation(fields: [competencyId], references: [id], onDelete: Cascade)
+
+  @@unique([standardId, competencyId])
+  @@map("curriculum_standard_links")
+}
+
+// ─── Data Backup ─────────────────────────────────────────────────────
+
+model Backup {
+  id          String   @id @default(cuid())
+  schoolId    String
+  filename    String
+  size        Int      // bytes
+  type        String   // "full", "incremental"
+  status      String   // "pending", "completed", "failed"
+  notes       String?
+  createdAt   DateTime @default(now())
+
+  school      School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  @@map("backups")
 }

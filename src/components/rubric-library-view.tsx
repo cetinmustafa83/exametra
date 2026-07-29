@@ -19,6 +19,12 @@ import {
   ChevronUp,
   X,
   GripVertical,
+  BarChart3,
+  GraduationCap,
+  FileDown,
+  LayoutTemplate,
+  CheckCircle2,
+  Calculator,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -28,6 +34,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Switch } from '@/components/ui/switch';
+import { Progress } from '@/components/ui/progress';
 import {
   Select,
   SelectContent,
@@ -63,12 +70,18 @@ import {
   deleteRubric,
   duplicateRubric,
   fetchSubjects,
+  fetchRubricTemplates,
+  fetchRubricAnalytics,
+  gradeWithRubric,
   type Rubric,
   type RubricCriterion,
   type RubricLevel,
   type RubricCriterionInput,
   type RubricLevelInput,
   type Subject,
+  type RubricTemplate,
+  type RubricAnalytics,
+  type RubricGradeResult,
 } from '@/lib/api';
 import { toast } from 'sonner';
 
@@ -169,6 +182,23 @@ export default function RubricLibraryView() {
   const [saving, setSaving] = useState(false);
   const [formTab, setFormTab] = useState('edit');
 
+  // Template dialog
+  const [templateOpen, setTemplateOpen] = useState(false);
+  const [templates, setTemplates] = useState<RubricTemplate[]>([]);
+  const [templatesLoading, setTemplatesLoading] = useState(false);
+
+  // Analytics dialog
+  const [analyticsOpen, setAnalyticsOpen] = useState(false);
+  const [analyticsData, setAnalyticsData] = useState<RubricAnalytics | null>(null);
+  const [analyticsLoading, setAnalyticsLoading] = useState(false);
+
+  // Grading dialog
+  const [gradeOpen, setGradeOpen] = useState(false);
+  const [gradingRubric, setGradingRubric] = useState<Rubric | null>(null);
+  const [gradeScores, setGradeScores] = useState<Record<string, { levelId: string; points: number }>>({});
+  const [gradeResult, setGradeResult] = useState<RubricGradeResult | null>(null);
+  const [gradingCalc, setGradingCalc] = useState(false);
+
   // Form state
   const [formTitle, setFormTitle] = useState('');
   const [formDescription, setFormDescription] = useState('');
@@ -252,6 +282,49 @@ export default function RubricLibraryView() {
     setFormIsPublic(draft.isPublic);
     setFormCriteria(draft.criteria);
     setFormTab('edit');
+    setFormOpen(true);
+  };
+
+  const openTemplateDialog = async () => {
+    setTemplateOpen(true);
+    setTemplatesLoading(true);
+    try {
+      const data = await fetchRubricTemplates();
+      setTemplates(data);
+    } catch {
+      toast.error(t('rubrics.error'));
+    } finally {
+      setTemplatesLoading(false);
+    }
+  };
+
+  const applyTemplate = (template: RubricTemplate) => {
+    setEditingRubric(null);
+    setFormTitle(template.title);
+    setFormDescription(template.description);
+    setFormType(template.type);
+    setFormMaxPoints(template.maxPoints);
+    setFormIsPublic(false);
+    // Find matching subject
+    const matchingSubject = subjects.find((s) => s.name === template.subject);
+    setFormSubjectId(matchingSubject?.id ?? '');
+    setFormCriteria(
+      template.criteria.map((c, ci) => ({
+        name: c.name,
+        description: c.description,
+        weight: c.weight,
+        maxPoints: c.maxPoints,
+        order: ci,
+        levels: c.levels.map((l, li) => ({
+          label: l.label,
+          description: l.description,
+          points: l.points,
+          order: li,
+        })),
+      }))
+    );
+    setFormTab('edit');
+    setTemplateOpen(false);
     setFormOpen(true);
   };
 
@@ -401,6 +474,63 @@ export default function RubricLibraryView() {
     window.print();
   };
 
+  /* ── Analytics ──────────────────────────────────────────────────── */
+
+  const openAnalytics = async (r: Rubric) => {
+    setAnalyticsOpen(true);
+    setAnalyticsLoading(true);
+    setAnalyticsData(null);
+    try {
+      const data = await fetchRubricAnalytics(r.id);
+      setAnalyticsData(data);
+    } catch {
+      toast.error(t('rubrics.error'));
+    } finally {
+      setAnalyticsLoading(false);
+    }
+  };
+
+  /* ── Grading ────────────────────────────────────────────────────── */
+
+  const openGrading = (r: Rubric) => {
+    setGradingRubric(r);
+    setGradeScores({});
+    setGradeResult(null);
+    setGradeOpen(true);
+  };
+
+  const selectLevel = (criterionId: string, levelId: string, points: number) => {
+    setGradeScores((prev) => ({ ...prev, [criterionId]: { levelId, points } }));
+    setGradeResult(null); // Reset result when scores change
+  };
+
+  const autoCalculateGrade = () => {
+    if (!gradingRubric) return;
+    const scores = Object.entries(gradeScores).map(([criterionId, data]) => ({
+      criterionId,
+      levelId: data.levelId,
+      points: data.points,
+    }));
+    if (scores.length < gradingRubric.criteria.length) {
+      toast.error(t('rubrics.select_level'));
+      return;
+    }
+    setGradingCalc(true);
+    gradeWithRubric(gradingRubric.id, {
+      studentId: 'preview',
+      scores,
+    })
+      .then((result) => {
+        setGradeResult(result);
+      })
+      .catch(() => {
+        toast.error(t('rubrics.error'));
+      })
+      .finally(() => {
+        setGradingCalc(false);
+      });
+  };
+
   /* ── Render ───────────────────────────────────────────────────── */
 
   if (loading) {
@@ -430,13 +560,23 @@ export default function RubricLibraryView() {
             <p className="text-sm text-muted-foreground">{t('rubrics.subtitle')}</p>
           </div>
         </div>
-        <Button
-          onClick={openCreateForm}
-          className="bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white shadow-md"
-        >
-          <Plus className="h-4 w-4 mr-2" />
-          {t('rubrics.create')}
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            onClick={openTemplateDialog}
+            className="border-emerald-300 dark:border-emerald-700"
+          >
+            <LayoutTemplate className="h-4 w-4 mr-2" />
+            {t('rubrics.templates')}
+          </Button>
+          <Button
+            onClick={openCreateForm}
+            className="bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white shadow-md"
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            {t('rubrics.create')}
+          </Button>
+        </div>
       </motion.div>
 
       {/* Filters */}
@@ -491,13 +631,22 @@ export default function RubricLibraryView() {
           </div>
           <h3 className="text-lg font-semibold mb-2">{t('rubrics.empty_title')}</h3>
           <p className="text-muted-foreground max-w-md mb-6">{t('rubrics.empty_desc')}</p>
-          <Button
-            onClick={openCreateForm}
-            className="bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white"
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            {t('rubrics.empty_create')}
-          </Button>
+          <div className="flex gap-3">
+            <Button
+              variant="outline"
+              onClick={openTemplateDialog}
+            >
+              <LayoutTemplate className="h-4 w-4 mr-2" />
+              {t('rubrics.templates')}
+            </Button>
+            <Button
+              onClick={openCreateForm}
+              className="bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              {t('rubrics.empty_create')}
+            </Button>
+          </div>
         </motion.div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -583,6 +732,30 @@ export default function RubricLibraryView() {
                           size="sm"
                           onClick={(e) => {
                             e.stopPropagation();
+                            openGrading(rubric);
+                          }}
+                          className="h-8 w-8 p-0"
+                          title={t('rubrics.grade')}
+                        >
+                          <GraduationCap className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openAnalytics(rubric);
+                          }}
+                          className="h-8 w-8 p-0"
+                          title={t('rubrics.analytics')}
+                        >
+                          <BarChart3 className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation();
                             openEditForm(rubric);
                           }}
                           className="h-8 w-8 p-0"
@@ -621,6 +794,84 @@ export default function RubricLibraryView() {
           </AnimatePresence>
         </div>
       )}
+
+      {/* ── Template Dialog ─────────────────────────────────────────── */}
+      <Dialog open={templateOpen} onOpenChange={setTemplateOpen}>
+        <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <LayoutTemplate className="h-5 w-5 text-emerald-500" />
+              {t('rubrics.templates_title')}
+            </DialogTitle>
+            <DialogDescription>{t('rubrics.templates_desc')}</DialogDescription>
+          </DialogHeader>
+
+          {templatesLoading ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="h-8 w-8 animate-spin text-emerald-500" />
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {templates.map((template) => (
+                <Card
+                  key={template.id}
+                  className="hover:shadow-md transition-shadow cursor-pointer border-l-4 border-l-teal-500"
+                  onClick={() => applyTemplate(template)}
+                >
+                  <CardHeader className="pb-2">
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <CardTitle className="text-sm font-semibold">{template.title}</CardTitle>
+                        <p className="text-xs text-muted-foreground mt-1">{template.description}</p>
+                      </div>
+                      <Badge variant="outline" className="text-xs shrink-0">
+                        {template.subject}
+                      </Badge>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="pt-0">
+                    <div className="flex flex-wrap gap-2 mb-2">
+                      <Badge variant="outline" className="text-xs">
+                        {template.criteria.length} {t('rubrics.criteria')}
+                      </Badge>
+                      <Badge variant="outline" className="text-xs">
+                        {template.maxPoints} {t('rubrics.points')}
+                      </Badge>
+                    </div>
+                    <div className="flex flex-wrap gap-1">
+                      {template.criteria.map((c) => (
+                        <span
+                          key={c.name}
+                          className="text-xs bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-300 px-2 py-0.5 rounded"
+                        >
+                          {c.name}
+                        </span>
+                      ))}
+                    </div>
+                    <Button
+                      size="sm"
+                      className="mt-3 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        applyTemplate(template);
+                      }}
+                    >
+                      {t('rubrics.use_template')}
+                    </Button>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={openCreateForm}>
+              <Plus className="h-4 w-4 mr-2" />
+              {t('rubrics.no_template')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* ── Create/Edit Dialog ─────────────────────────────────────── */}
       <Dialog open={formOpen} onOpenChange={(open) => {
@@ -900,10 +1151,20 @@ export default function RubricLibraryView() {
                       {detailRubric.description}
                     </DialogDescription>
                   </div>
-                  <Button variant="outline" size="sm" onClick={handlePrint}>
-                    <Printer className="h-4 w-4 mr-1" />
-                    {t('rubrics.print')}
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button variant="outline" size="sm" onClick={() => openGrading(detailRubric)}>
+                      <GraduationCap className="h-4 w-4 mr-1" />
+                      {t('rubrics.grade')}
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={() => openAnalytics(detailRubric)}>
+                      <BarChart3 className="h-4 w-4 mr-1" />
+                      {t('rubrics.analytics')}
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={handlePrint}>
+                      <Printer className="h-4 w-4 mr-1" />
+                      {t('rubrics.print')}
+                    </Button>
+                  </div>
                 </div>
               </DialogHeader>
 
@@ -956,6 +1217,255 @@ export default function RubricLibraryView() {
                 }))}
               />
             </>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Grading Dialog ─────────────────────────────────────────── */}
+      <Dialog open={gradeOpen} onOpenChange={setGradeOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <GraduationCap className="h-5 w-5 text-emerald-500" />
+              {t('rubrics.grade_title')}
+            </DialogTitle>
+            <DialogDescription>
+              {gradingRubric?.title}
+            </DialogDescription>
+          </DialogHeader>
+
+          {gradingRubric && (
+            <div className="space-y-4">
+              {/* Score Sheet */}
+              <div className="space-y-3">
+                {gradingRubric.criteria.map((criterion) => (
+                  <Card key={criterion.id} className="border-l-4 border-l-teal-500">
+                    <CardHeader className="pb-2">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <CardTitle className="text-sm font-semibold">{criterion.name}</CardTitle>
+                          {criterion.description && (
+                            <p className="text-xs text-muted-foreground mt-0.5">{criterion.description}</p>
+                          )}
+                        </div>
+                        <Badge variant="outline" className="text-xs">
+                          {criterion.maxPoints} {t('rubrics.points')}
+                        </Badge>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="pt-0">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        {criterion.levels.map((level) => {
+                          const isSelected = gradeScores[criterion.id]?.levelId === level.id;
+                          return (
+                            <motion.button
+                              key={level.id}
+                              whileHover={{ scale: 1.02 }}
+                              whileTap={{ scale: 0.98 }}
+                              onClick={() => selectLevel(criterion.id, level.id, level.points)}
+                              className={`text-left p-3 rounded-lg border-2 transition-all ${
+                                isSelected
+                                  ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-900/20 shadow-md'
+                                  : 'border-gray-200 dark:border-gray-700 hover:border-emerald-300'
+                              }`}
+                            >
+                              <div className="flex items-center justify-between mb-1">
+                                <span className="font-medium text-sm">{level.label}</span>
+                                <Badge
+                                  variant="outline"
+                                  className={`text-xs ${isSelected ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300' : ''}`}
+                                >
+                                  {level.points} {t('rubrics.points')}
+                                </Badge>
+                              </div>
+                              <p className="text-xs text-muted-foreground">{level.description}</p>
+                              {isSelected && (
+                                <CheckCircle2 className="h-4 w-4 text-emerald-500 mt-1" />
+                              )}
+                            </motion.button>
+                          );
+                        })}
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+
+              {/* Auto-Grade Button */}
+              <div className="flex items-center gap-3">
+                <Button
+                  onClick={autoCalculateGrade}
+                  disabled={gradingCalc || Object.keys(gradeScores).length < (gradingRubric.criteria.length)}
+                  className="bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white"
+                >
+                  {gradingCalc ? (
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  ) : (
+                    <Calculator className="h-4 w-4 mr-2" />
+                  )}
+                  {t('rubrics.auto_grade')}
+                </Button>
+                <span className="text-xs text-muted-foreground">
+                  {Object.keys(gradeScores).length}/{gradingRubric.criteria.length} {t('rubrics.criteria')}
+                </span>
+              </div>
+
+              {/* Grade Result */}
+              {gradeResult && (
+                <Card className="border-2 border-emerald-300 dark:border-emerald-700 bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-emerald-950/20 dark:to-teal-950/20">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm flex items-center gap-2">
+                      <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                      {t('rubrics.auto_grade')}
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-3 gap-4 mb-4">
+                      <div className="text-center">
+                        <div className="text-2xl font-bold text-emerald-600">{gradeResult.overallPercentage}%</div>
+                        <div className="text-xs text-muted-foreground">{t('rubrics.percentage')}</div>
+                      </div>
+                      <div className="text-center">
+                        <div className="text-2xl font-bold text-teal-600">{gradeResult.finalScore}/{gradeResult.maxPoints}</div>
+                        <div className="text-xs text-muted-foreground">{t('rubrics.final_score')}</div>
+                      </div>
+                      <div className="text-center">
+                        <div className="text-2xl font-bold text-amber-600">{gradeResult.grade} — {gradeResult.gradeLabel}</div>
+                        <div className="text-xs text-muted-foreground">{t('rubrics.grade_result')}</div>
+                      </div>
+                    </div>
+                    <Separator className="my-3" />
+                    <div className="space-y-2">
+                      <h4 className="text-xs font-semibold">{t('rubrics.criterion_breakdown')}</h4>
+                      {gradeResult.criterionBreakdown.map((cb) => (
+                        <div key={cb.criterionId} className="flex items-center gap-3">
+                          <span className="text-xs font-medium w-36 truncate">{cb.criterionName}</span>
+                          <Progress value={cb.percentage} className="flex-1 h-2" />
+                          <span className="text-xs text-muted-foreground w-16 text-right">
+                            {cb.earnedPoints}/{cb.maxPoints}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Analytics Dialog ────────────────────────────────────────── */}
+      <Dialog open={analyticsOpen} onOpenChange={setAnalyticsOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <BarChart3 className="h-5 w-5 text-emerald-500" />
+              {t('rubrics.analytics_title')}
+            </DialogTitle>
+            <DialogDescription>
+              {analyticsData?.rubricTitle}
+            </DialogDescription>
+          </DialogHeader>
+
+          {analyticsLoading ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="h-8 w-8 animate-spin text-emerald-500" />
+            </div>
+          ) : analyticsData ? (
+            <div className="space-y-6">
+              {/* Overall Stats */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <Card className="border-2 border-emerald-200 dark:border-emerald-800">
+                  <CardContent className="p-4 text-center">
+                    <div className="text-2xl font-bold text-emerald-600">{analyticsData.overallStats.averagePercentage}%</div>
+                    <div className="text-xs text-muted-foreground">{t('rubrics.average_score')}</div>
+                  </CardContent>
+                </Card>
+                <Card className="border-2 border-teal-200 dark:border-teal-800">
+                  <CardContent className="p-4 text-center">
+                    <div className="text-2xl font-bold text-teal-600">{analyticsData.overallStats.totalAssessments}</div>
+                    <div className="text-xs text-muted-foreground">{t('rubrics.class_performance')}</div>
+                  </CardContent>
+                </Card>
+                <Card className="border-2 border-amber-200 dark:border-amber-800">
+                  <CardContent className="p-4 text-center">
+                    <div className="text-2xl font-bold text-amber-600">{analyticsData.overallStats.totalStudents}</div>
+                    <div className="text-xs text-muted-foreground">{t('rubrics.percentage')}</div>
+                  </CardContent>
+                </Card>
+                <Card className="border-2 border-rose-200 dark:border-rose-800">
+                  <CardContent className="p-4 text-center">
+                    <div className="text-2xl font-bold text-rose-600">{analyticsData.overallStats.averageScore}/{analyticsData.overallStats.totalMaxPoints}</div>
+                    <div className="text-xs text-muted-foreground">{t('rubrics.final_score')}</div>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Class Performance by Criterion */}
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm">{t('rubrics.class_performance')}</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    {analyticsData.criteriaAnalytics.map((ca) => (
+                      <div key={ca.criterionId} className="space-y-1">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-medium">{ca.criterionName}</span>
+                          <span className="text-xs text-muted-foreground">
+                            {t('rubrics.average_score')}: {ca.classAverage}/{ca.maxPoints}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Progress
+                            value={ca.maxPoints > 0 ? (ca.classAverage / ca.maxPoints) * 100 : 0}
+                            className="flex-1 h-2"
+                          />
+                          <span className="text-xs font-medium">
+                            {ca.maxPoints > 0 ? Math.round((ca.classAverage / ca.maxPoints) * 100) : 0}%
+                          </span>
+                        </div>
+                        <div className="flex gap-4 text-xs text-muted-foreground">
+                          <span>{t('rubrics.highest_score')}: {ca.highestScore}</span>
+                          <span>{t('rubrics.lowest_score')}: {ca.lowestScore}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Grade Distribution */}
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm">{t('rubrics.grade_distribution')}</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2">
+                    {analyticsData.gradeDistribution.map((gd) => (
+                      <div key={gd.grade} className="flex items-center gap-3">
+                        <span className="text-sm font-medium w-28">{gd.grade}</span>
+                        <div className="flex-1 bg-gray-100 dark:bg-gray-800 rounded-full h-4 overflow-hidden">
+                          <div
+                            className="h-full rounded-full transition-all duration-500"
+                            style={{
+                              width: `${analyticsData.overallStats.averagePercentage}%`,
+                              backgroundColor: gd.color,
+                            }}
+                          />
+                        </div>
+                        <span className="text-xs text-muted-foreground w-16">{gd.range}</span>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          ) : (
+            <div className="text-center py-8 text-muted-foreground">
+              {t('rubrics.error')}
+            </div>
           )}
         </DialogContent>
       </Dialog>
