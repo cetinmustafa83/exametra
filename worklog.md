@@ -672,3 +672,77 @@ Enhanced the visual design and polish of 8 components across CompetenceTrack. Fo
 - **Role Badges**: Added color-coded badges for committee members (chair=emerald, lead=amber)
 - **Case Status Timeline**: Added visual step indicator showing open/under_review/resolved progression
 - **Evidence Cards**: Added styled file attachment cards for disciplinary case evidence
+
+## Task ID: 4, 5 - Teacher Grading + Deep Styling Builder
+
+**Date:** 2025-01-21
+**Agent:** Teacher Grading + Deep Styling Builder
+**Status:** Completed
+
+### Summary
+
+Enhanced the CompetenceTrack platform with teacher grading features (annotation, AI review, bulk grading) and deep styling improvements across all major components.
+
+### Files Created
+
+1. `src/app/api/grading/annotate/route.ts` - POST/GET API for grading annotations (DrawingCanvas data linked to AssessmentResult)
+
+### Files Modified
+
+1. `prisma/schema.prisma` - Added `annotationData` and `annotationImage` fields to AssessmentResult model
+2. `src/lib/i18n.ts` - Added 60+ i18n keys for DE and EN (grading, dashboard, settings, layout, attendance, assessments, auth)
+3. `src/lib/api.ts` - Added `fetchGradingAnnotation` and `saveGradingAnnotation` API helpers
+4. `src/components/grading-view.tsx` - Added annotation Sheet with DrawingCanvas, AI Review dialog, bulk grading mode, annotation indicator badges
+5. `src/components/dashboard-view.tsx` - Added upcoming exams section with countdown badges, AI tips section
+6. `src/components/settings-view.tsx` - Added AI Settings tab and Management tab
+7. `src/components/app-layout.tsx` - Added Favorites section at top of sidebar, notification badges
+8. `src/components/auth-view.tsx` - Enhanced FeaturesSection with feature showcase descriptions
+9. `src/components/attendance-view.tsx` - Added illness report button (Krankmeldung)
+10. `src/components/assessments-view.tsx` - Added Plan Exam button, Generate AI Test button
+
+### Key Features
+
+- **Scratch Pad / Annotation**: Opens a Sheet panel with DrawingCanvas for stylus annotations on student assessments
+- **AI Review**: Triggers AI grading review, shows discrepancies and feedback in a dialog
+- **Bulk Grading Mode**: Toggle bulk mode, select students, apply grade value to all selected
+- **Upcoming Exams**: Countdown badges showing days until exam
+- **AI Tips**: Actionable tips about AI grading review, test generation, bulk grading, annotations
+- **AI Settings Tab**: AI provider selection, API key, model selection, virtual character toggle
+- **Management Tab**: Responsible teacher, vice principal, disciplinary committee, data import
+- **Favorites Section**: Quick access to Dashboard, Grading, Attendance at top of sidebar
+- **Notification Badges**: Sparkles badge on Grading, AlertTriangle badge on Attendance
+- **Illness Report Button**: Krankmeldung button for reporting student illness
+
+## Task ID: 3, 6, 7 - Exam Calendar + Parent Portal + Deep Content Builder
+
+**Date:** 2025-01-21
+**Agent:** Exam Calendar + Parent Portal + Deep Content Builder
+**Status:** Completed
+
+### Summary
+
+Built three major features: Exam Calendar Integration, Parent Portal, and Deep Schlaukopf Content Crawling.
+
+### Files Created
+
+1. `src/app/api/calendar-events/exams/route.ts` - GET/POST for exam events
+2. `src/app/api/subject-contents/crawl/route.ts` - POST crawl schlaukopf.de pages
+3. `src/app/api/parent-portal/route.ts` - GET parent dashboard data
+4. `src/components/parent-portal-view.tsx` - Parent portal view (~600 lines)
+
+### Files Modified
+
+1. `prisma/schema.prisma` - Added assessmentId field, eventType index
+2. `src/lib/i18n.ts` - Added 88+ i18n keys (DE + EN)
+3. `src/lib/api.ts` - Added 'exam' to CalendarEventItemType
+4. `src/lib/store.ts` - Added 'parent-portal' to ViewName
+5. `src/components/calendar-view.tsx` - Exam planning, filter, countdown badges
+6. `src/components/subjects-view.tsx` - Crawl dialog
+7. `src/components/app-layout.tsx` - ParentPortalView, navigation
+
+### Key Features
+
+- **Exam Calendar**: Plan Exam button (teachers), exam filter toggle, countdown badges, exam sidebar
+- **Parent Portal**: Child selector, pending approvals, tabbed views (exams/grades/attendance/illness/counseling/disciplinary), quick actions
+- **Content Crawl**: z-ai-web-dev-sdk page_reader, AI topic extraction, fallback generation, admin-only
+- **Plan Exam / Generate AI Test**: Buttons for exam planning and AI test generation

@@ -560,6 +560,27 @@ export function createGradingScheme(data: {
   return apiPost<GradingScheme>('/api/grading', data);
 }
 
+/* ── Grading Annotations ─────────────────────────────────────────── */
+
+export interface GradingAnnotation {
+  id: string;
+  annotationData: string;
+  annotationImage: string | null;
+}
+
+export function fetchGradingAnnotation(assessmentId: string, studentId: string): Promise<{ annotation: GradingAnnotation | null }> {
+  return apiGet(`/api/grading/annotate?assessmentId=${assessmentId}&studentId=${studentId}`);
+}
+
+export function saveGradingAnnotation(data: {
+  assessmentId: string;
+  studentId: string;
+  annotationData: string;
+  annotationImage?: string;
+}): Promise<{ annotation: GradingAnnotation }> {
+  return apiPost('/api/grading/annotate', data);
+}
+
 /* ── Reports ──────────────────────────────────────────────────────── */
 
 export interface ReportSection {
@@ -1648,7 +1669,7 @@ export function fetchCalendarEvents(schoolId: string, month: string): Promise<Ca
 
 /* ── Calendar Events (Custom) ──────────────────────────────────── */
 
-export type CalendarEventItemType = 'assessment' | 'lesson' | 'reminder';
+export type CalendarEventItemType = 'assessment' | 'lesson' | 'reminder' | 'exam';
 
 export interface RecurrencePattern {
   type: 'none' | 'daily' | 'weekly' | 'monthly' | 'yearly';

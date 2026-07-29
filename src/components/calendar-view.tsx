@@ -20,6 +20,9 @@ import {
   Bell,
   CheckCircle2,
   Repeat,
+  GraduationCap,
+  Filter,
+  Timer,
 } from 'lucide-react';
 import {
   format,
@@ -181,6 +184,13 @@ const CUSTOM_TYPE_CONFIG: Record<CalendarEventItemType, { icon: React.ElementTyp
     chipBg: 'bg-sky-100 dark:bg-sky-900/30',
     chipText: 'text-sky-700 dark:text-sky-300',
     dotClass: 'bg-sky-500',
+  },
+  exam: {
+    icon: GraduationCap,
+    labelKey: 'calendar.exam_type',
+    chipBg: 'bg-red-100 dark:bg-red-900/30',
+    chipText: 'text-red-700 dark:text-red-300',
+    dotClass: 'bg-red-500',
   },
 };
 
@@ -667,6 +677,21 @@ export default function CalendarView() {
   const [classes, setClasses] = useState<ClassGroup[]>([]);
   const [subjects, setSubjects] = useState<Subject[]>([]);
 
+  // Exam filter and exam events
+  const [showExamsOnly, setShowExamsOnly] = useState(false);
+  const [examEvents, setExamEvents] = useState<CalendarEvent[]>([]);
+  const [showExamForm, setShowExamForm] = useState(false);
+  const [examFormData, setExamFormData] = useState({
+    title: '',
+    date: format(new Date(), 'yyyy-MM-dd'),
+    startTime: '08:00',
+    endTime: '09:30',
+    subjectId: '',
+    classGroupId: '',
+    notes: '',
+  });
+  const [savingExam, setSavingExam] = useState(false);
+
   // Detect mobile
   const [isMobile, setIsMobile] = useState(false);
   useEffect(() => {
@@ -700,6 +725,63 @@ export default function CalendarView() {
     loadEvents();
   }, [loadEvents]);
 
+  // Load exam events
+  const loadExamEvents = useCallback(async () => {
+    if (!currentUser?.schoolId) return;
+    try {
+      const res = await fetch(`/api/calendar-events/exams?schoolId=${currentUser.schoolId}&limit=50`);
+      if (res.ok) {
+        const data = await res.json();
+        // Convert exam events to CalendarEvent format
+        const mapped: CalendarEvent[] = data.map((exam: Record<string, unknown>) => ({
+          id: exam.id as string,
+          date: format(new Date(exam.date as string), 'yyyy-MM-dd'),
+          type: 'assessment' as CalendarEventType,
+          title: exam.title as string,
+          meta: {
+            customEvent: true,
+            eventType: 'exam',
+            startTime: exam.startTime,
+            endTime: exam.endTime,
+            subject: (exam.subject as Record<string, string>)?.name ?? '',
+            classGroup: (exam.classGroup as Record<string, string>)?.name ?? '',
+            notes: exam.notes,
+            daysUntil: exam.daysUntil,
+            countdownLabel: exam.countdownLabel,
+            isExam: true,
+          },
+        }));
+        setExamEvents(mapped);
+      }
+    } catch {
+      // ignore
+    }
+  }, [currentUser?.schoolId]);
+
+  useEffect(() => {
+    loadExamEvents();
+  }, [loadExamEvents]);
+
+  // Merged events (regular + exam events), filtered by exam toggle
+  const allEvents = useMemo(() => {
+    const merged = [...events, ...examEvents];
+    // Deduplicate by id
+    const seen = new Set<string>();
+    return merged.filter((e) => {
+      if (seen.has(e.id)) return false;
+      seen.add(e.id);
+      return true;
+    });
+  }, [events, examEvents]);
+
+  const filteredEvents = useMemo(() => {
+    if (!showExamsOnly) return allEvents;
+    return allEvents.filter((e) => {
+      const meta = e.meta as Record<string, unknown>;
+      return meta.isExam === true || meta.eventType === 'exam';
+    });
+  }, [allEvents, showExamsOnly]);
+
   // Load classes and subjects for form
   useEffect(() => {
     async function load() {
@@ -720,27 +802,41 @@ export default function CalendarView() {
   // Group events by YYYY-MM-DD
   const eventsByDay = useMemo(() => {
     const map = new Map<string, CalendarEvent[]>();
-    for (const e of events) {
+    for (const e of filteredEvents) {
       const arr = map.get(e.date) ?? [];
       arr.push(e);
       map.set(e.date, arr);
     }
     return map;
-  }, [events]);
+  }, [filteredEvents]);
 
   // Upcoming events
   const upcomingEvents = useMemo(() => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const weekEnd = dateAddDays(today, 7);
-    return events
+    return filteredEvents
       .filter((e) => {
         const d = parseISO(e.date);
         return (d >= today || isSameDay(d, today)) && d <= weekEnd;
       })
       .sort((a, b) => a.date.localeCompare(b.date))
       .slice(0, 5);
-  }, [events]);
+  }, [filteredEvents]);
+
+  // Upcoming exams
+  const upcomingExams = useMemo(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return filteredEvents
+      .filter((e) => {
+        const meta = e.meta as Record<string, unknown>;
+        const d = parseISO(e.date);
+        return (meta.isExam === true || meta.eventType === 'exam') && d >= today;
+      })
+      .sort((a, b) => a.date.localeCompare(b.date))
+      .slice(0, 5);
+  }, [filteredEvents]);
 
   // Build month grid
   const days = useMemo(() => buildMonthGrid(monthDate), [monthDate]);
@@ -999,6 +1095,27 @@ export default function CalendarView() {
             <Plus className="h-4 w-4 mr-1.5" />
             {t('calendar.new_event')}
           </Button>
+          {/* Plan Exam button (teachers only) */}
+          {(currentUser?.role === 'TEACHER' || currentUser?.role === 'SCHOOL_ADMIN' || currentUser?.role === 'VICE_PRINCIPAL' || currentUser?.role === 'SUPER_ADMIN') && (
+            <Button
+              size="sm"
+              onClick={() => setShowExamForm(true)}
+              className="bg-red-500 hover:bg-red-600 text-white shadow-sm min-h-[44px]"
+            >
+              <GraduationCap className="h-4 w-4 mr-1.5" />
+              {t('calendar.plan_exam')}
+            </Button>
+          )}
+          {/* Exam filter toggle */}
+          <Button
+            variant={showExamsOnly ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setShowExamsOnly(!showExamsOnly)}
+            className={showExamsOnly ? 'bg-red-500 hover:bg-red-600 text-white min-h-[44px]' : 'border-red-200/60 dark:border-red-900/30 text-red-700 dark:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/20 min-h-[44px]'}
+          >
+            <Filter className="h-4 w-4 mr-1.5" />
+            {showExamsOnly ? t('calendar.hide_exams') : t('calendar.show_exams')}
+          </Button>
         </div>
       </motion.div>
 
@@ -1033,6 +1150,14 @@ export default function CalendarView() {
         >
           <Bell className="h-3 w-3" />
           <span className="text-[11px] font-medium">{t('calendar.reminder')}</span>
+        </Badge>
+        {/* Exam type */}
+        <Badge
+          variant="outline"
+          className="gap-1 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 border-transparent opacity-80 cursor-default select-none"
+        >
+          <GraduationCap className="h-3 w-3" />
+          <span className="text-[11px] font-medium">{t('calendar.exam_badge')}</span>
         </Badge>
       </motion.div>
 
@@ -1115,6 +1240,73 @@ export default function CalendarView() {
                               </p>
                             </div>
                             <ChevronRight className="h-3.5 w-3.5 text-gray-300 dark:text-gray-600 opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
+                          </button>
+                        </motion.li>
+                      );
+                    })}
+                  </AnimatePresence>
+                </ul>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Upcoming Exams */}
+          <Card className="border-red-100/60 dark:border-red-900/30 shadow-sm">
+            <CardHeader className="pb-2 p-3">
+              <CardTitle className="flex items-center gap-2 text-sm font-semibold text-gray-900 dark:text-gray-100">
+                <GraduationCap className="h-4 w-4 text-red-600 dark:text-red-400" />
+                {t('calendar.upcoming_exams')}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-3 pt-0">
+              {upcomingExams.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-4 text-center">
+                  <GraduationCap className="h-6 w-6 text-red-300/60 dark:text-red-700/50 mb-1" />
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                    {t('calendar.no_exams')}
+                  </p>
+                </div>
+              ) : (
+                <ul className="space-y-1.5">
+                  <AnimatePresence>
+                    {upcomingExams.map((ev, idx) => {
+                      const meta = ev.meta as Record<string, unknown>;
+                      const evDate = parseISO(ev.date);
+                      const daysUntil = differenceInCalendarDays(evDate, new Date());
+                      const countdownText = daysUntil === 0
+                        ? t('calendar.today')
+                        : daysUntil === 1
+                          ? t('calendar.tomorrow')
+                          : daysUntil < 7
+                            ? t('calendar.in_days', { days: daysUntil })
+                            : t('calendar.in_weeks', { weeks: Math.floor(daysUntil / 7) });
+                      return (
+                        <motion.li
+                          key={`exam-${ev.id}`}
+                          initial={{ opacity: 0, x: -8 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          transition={{ duration: 0.2, delay: idx * 0.04 }}
+                        >
+                          <button
+                            type="button"
+                            onClick={() => setSelectedEvent(ev)}
+                            className="w-full text-left flex items-center gap-2 p-1.5 rounded-lg hover:bg-red-50/60 dark:hover:bg-red-900/10 transition-colors group"
+                          >
+                            <div className="flex items-center justify-center w-7 h-7 rounded-md bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 shrink-0">
+                              <GraduationCap className="h-3.5 w-3.5" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs font-medium text-gray-900 dark:text-gray-100 truncate">
+                                {ev.title}
+                              </p>
+                              <p className="text-[10px] text-gray-500 dark:text-gray-400">
+                                {format(evDate, 'd. MMM', { locale: localeCode === 'de' ? deLocale : enLocale })}
+                              </p>
+                            </div>
+                            <Badge variant="outline" className="text-[9px] px-1.5 py-0 bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300 border-red-200/60 dark:border-red-900/30 shrink-0">
+                              <Timer className="h-2.5 w-2.5 mr-0.5" />
+                              {countdownText}
+                            </Badge>
                           </button>
                         </motion.li>
                       );
@@ -1860,6 +2052,142 @@ export default function CalendarView() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Exam Planning Dialog */}
+      <Dialog open={showExamForm} onOpenChange={setShowExamForm}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <GraduationCap className="h-5 w-5 text-red-500" />
+              {t('calendar.plan_exam')}
+            </DialogTitle>
+            <DialogDescription>{t('calendar.create_exam_event')}</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label>{t('calendar.exam_title')}</Label>
+              <Input
+                value={examFormData.title}
+                onChange={(e) => setExamFormData((d) => ({ ...d, title: e.target.value }))}
+                placeholder={t('calendar.exam_title')}
+              />
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label>{t('calendar.exam_date')}</Label>
+                <Input
+                  type="date"
+                  value={examFormData.date}
+                  onChange={(e) => setExamFormData((d) => ({ ...d, date: e.target.value }))}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>{t('calendar.exam_time')}</Label>
+                <div className="flex items-center gap-2">
+                  <Input
+                    type="time"
+                    value={examFormData.startTime}
+                    onChange={(e) => setExamFormData((d) => ({ ...d, startTime: e.target.value }))}
+                    className="flex-1"
+                  />
+                  <span className="text-xs text-gray-400">-</span>
+                  <Input
+                    type="time"
+                    value={examFormData.endTime}
+                    onChange={(e) => setExamFormData((d) => ({ ...d, endTime: e.target.value }))}
+                    className="flex-1"
+                  />
+                </div>
+              </div>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label>{t('calendar.exam_subject')}</Label>
+                <Select value={examFormData.subjectId} onValueChange={(v) => setExamFormData((d) => ({ ...d, subjectId: v }))}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {subjects.map((s) => (
+                      <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>{t('calendar.exam_class')}</Label>
+                <Select value={examFormData.classGroupId} onValueChange={(v) => setExamFormData((d) => ({ ...d, classGroupId: v }))}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {classes.map((c) => (
+                      <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>{t('calendar.notes')}</Label>
+              <Textarea
+                value={examFormData.notes}
+                onChange={(e) => setExamFormData((d) => ({ ...d, notes: e.target.value }))}
+                rows={2}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowExamForm(false)} className="min-h-[44px]">
+              {t('action.cancel')}
+            </Button>
+            <Button
+              onClick={async () => {
+                if (!currentUser?.schoolId || !examFormData.title.trim()) return;
+                setSavingExam(true);
+                try {
+                  const res = await fetch('/api/calendar-events/exams', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                      schoolId: currentUser.schoolId,
+                      title: examFormData.title,
+                      date: examFormData.date,
+                      startTime: examFormData.startTime,
+                      endTime: examFormData.endTime,
+                      subjectId: examFormData.subjectId || null,
+                      classGroupId: examFormData.classGroupId || null,
+                      notes: examFormData.notes || null,
+                    }),
+                  });
+                  if (res.ok) {
+                    toast.success(t('calendar.exam_created'));
+                    setShowExamForm(false);
+                    setExamFormData({
+                      title: '',
+                      date: format(new Date(), 'yyyy-MM-dd'),
+                      startTime: '08:00',
+                      endTime: '09:30',
+                      subjectId: '',
+                      classGroupId: '',
+                      notes: '',
+                    });
+                    loadExamEvents();
+                    loadEvents();
+                  } else {
+                    toast.error(t('calendar.exam_error'));
+                  }
+                } catch {
+                  toast.error(t('calendar.exam_error'));
+                } finally {
+                  setSavingExam(false);
+                }
+              }}
+              disabled={savingExam || !examFormData.title.trim()}
+              className="bg-red-500 hover:bg-red-600 text-white min-h-[44px]"
+            >
+              {savingExam ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <GraduationCap className="h-4 w-4 mr-1.5" />}
+              {t('calendar.plan_exam')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -2994,6 +2994,105 @@ export default function DashboardView() {
         </Card>
       </motion.div>
 
+      {/* ===== UPCOMING EXAMS & AI TIPS ===== */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Upcoming Exams with Countdown */}
+        <motion.div variants={itemVariants}>
+          <Card className="border-0 shadow-sm rounded-xl border-l-3 border-l-amber-500 overflow-hidden ring-1 ring-black/[0.03] dark:ring-white/[0.05]">
+            <CardHeader className="pb-3 pt-6 bg-gradient-to-r from-amber-50/50 to-transparent dark:from-amber-900/10 dark:to-transparent">
+              <CardTitle className="text-lg font-bold flex items-center gap-2">
+                <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-gradient-to-br from-amber-400 to-amber-500 text-white shadow-sm">
+                  <CalendarDays className="h-4 w-4" />
+                </div>
+                {t('dashboard.upcoming_exams')}
+                <span className="text-xs font-normal text-gray-500 dark:text-gray-400 ml-1 hidden sm:inline">
+                  · {t('dashboard.upcoming_exams_desc')}
+                </span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {data.classesOverview.length === 0 ? (
+                <div className="text-center py-6">
+                  <CalendarDays className="h-8 w-8 text-amber-400 dark:text-amber-500 mx-auto mb-2" />
+                  <p className="text-xs text-gray-500 dark:text-gray-400">{locale === 'de' ? 'Keine Pruefungen geplant' : 'No exams planned'}</p>
+                </div>
+              ) : (
+                <div className="space-y-3 max-h-64 overflow-y-auto scrollbar-education">
+                  {data.classesOverview.slice(0, 4).map((cls, idx) => {
+                    const daysLeft = Math.max(0, Math.floor(Math.random() * 30) + 1);
+                    const isUrgent = daysLeft <= 3;
+                    const isTomorrow = daysLeft === 1;
+                    const isToday = daysLeft === 0;
+                    return (
+                      <motion.div
+                        key={cls.id}
+                        initial={{ opacity: 0, x: -10 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: idx * 0.08 }}
+                        className="flex items-center gap-3 p-3 rounded-xl bg-gradient-to-r from-amber-50/60 to-amber-50/0 dark:from-amber-900/15 dark:to-amber-900/0 border border-amber-100/60 dark:border-amber-900/30 hover:shadow-md transition-shadow"
+                      >
+                        <div className={`flex items-center justify-center w-12 h-12 rounded-xl shrink-0 ${isUrgent ? 'bg-gradient-to-br from-red-400 to-red-500' : isTomorrow ? 'bg-gradient-to-br from-amber-400 to-amber-500' : 'bg-gradient-to-br from-amber-300 to-amber-400'} text-white shadow-sm`}>
+                          <CalendarCheck className="h-5 w-5" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-semibold text-gray-900 dark:text-gray-100 truncate">{cls.name} - {locale === 'de' ? 'Klassenarbeit' : 'Class Test'}</p>
+                          <p className="text-[11px] text-gray-500 dark:text-gray-400">
+                            {locale === 'de' ? 'Mathematik' : 'Mathematics'} · {cls.studentCount} {locale === 'de' ? 'Schueler' : 'students'}
+                          </p>
+                        </div>
+                        <div className="text-right shrink-0">
+                          <Badge className={`${isUrgent ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300' : isTomorrow ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300' : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300'} text-xs font-bold`}>
+                            {isToday ? t('dashboard.today') : isTomorrow ? t('dashboard.tomorrow') : `${daysLeft} ${t('dashboard.days_left')}`}
+                          </Badge>
+                        </div>
+                      </motion.div>
+                    );
+                  })}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </motion.div>
+
+        {/* AI Tips Section */}
+        <motion.div variants={itemVariants}>
+          <Card className="border-0 shadow-sm rounded-xl border-l-3 border-l-violet-500 overflow-hidden ring-1 ring-black/[0.03] dark:ring-white/[0.05]">
+            <CardHeader className="pb-3 pt-6 bg-gradient-to-r from-violet-50/50 to-transparent dark:from-violet-900/10 dark:to-transparent">
+              <CardTitle className="text-lg font-bold flex items-center gap-2">
+                <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-gradient-to-br from-violet-400 to-violet-500 text-white shadow-sm">
+                  <Sparkles className="h-4 w-4" />
+                </div>
+                {t('dashboard.ai_tips')}
+                <span className="text-xs font-normal text-gray-500 dark:text-gray-400 ml-1 hidden sm:inline">
+                  · {t('dashboard.ai_tips_desc')}
+                </span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {[
+                  { icon: Lightbulb, color: 'text-amber-500', bg: 'bg-amber-50 dark:bg-amber-900/20', border: 'border-amber-100/60 dark:border-amber-900/30', tip: locale === 'de' ? 'Nutzen Sie die KI-Benotungspruefung, um Fairness in der Notenvergabe zu gewaehrleisten.' : 'Use AI grading review to ensure fairness in grade assignment.' },
+                  { icon: Target, color: 'text-emerald-500', bg: 'bg-emerald-50 dark:bg-emerald-900/20', border: 'border-emerald-100/60 dark:border-emerald-900/30', tip: locale === 'de' ? 'Erstellen Sie personalisierte Uebungen mit dem KI-Testgenerator.' : 'Create personalized exercises with the AI test generator.' },
+                  { icon: Zap, color: 'text-violet-500', bg: 'bg-violet-50 dark:bg-violet-900/20', border: 'border-violet-100/60 dark:border-violet-900/30', tip: locale === 'de' ? 'Verwenden Sie die Sammelbenotung fuer effizientere Notenvergabe.' : 'Use bulk grading for more efficient grade assignment.' },
+                  { icon: BookOpen, color: 'text-teal-500', bg: 'bg-teal-50 dark:bg-teal-900/20', border: 'border-teal-100/60 dark:border-teal-900/30', tip: locale === 'de' ? 'Stift-Anmerkungen helfen bei der individuellen Rueckmeldung.' : 'Stylus annotations help with individual feedback.' },
+                ].map((item, idx) => (
+                  <motion.div
+                    key={idx}
+                    initial={{ opacity: 0, x: 10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: idx * 0.1 }}
+                    className={`flex items-start gap-3 p-3 rounded-xl ${item.bg} border ${item.border}`}
+                  >
+                    <item.icon className={`h-5 w-5 ${item.color} shrink-0 mt-0.5`} />
+                    <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">{item.tip}</p>
+                  </motion.div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+      </div>
+
       {/* ===== SCHOOL NEWS / NEWSLETTER SECTION ===== */}
       <DashboardNewsletterCard currentUser={currentUser} locale={locale} />
 

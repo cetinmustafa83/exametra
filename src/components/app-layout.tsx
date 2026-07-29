@@ -62,6 +62,7 @@ import {
   Building2,
   MessageSquare,
   Brain,
+  Sparkles,
 } from 'lucide-react';
 import {
   Sidebar,
@@ -166,6 +167,7 @@ import DisciplinaryView from './disciplinary-view';
 import AITestsView from './ai-tests-view';
 import AIChatWidget from './ai-chat-widget';
 import VirtualCharacter from './virtual-character';
+import ParentPortalView from './parent-portal-view';
 
 // Dynamic imports for heavy components with loading skeletons
 const AnalyticsView = dynamic(() => import('./analytics-view'), {
@@ -277,8 +279,8 @@ const parentNavSections: NavSection[] = [
     labelKey: 'parent.dashboard_title',
     items: [
       { key: 'dashboard', icon: LayoutDashboard, labelKey: 'nav.dashboard' },
-      { key: 'parents', icon: Mail, labelKey: 'parent.my_children' },
-      { key: 'parents', icon: MessageSquareText, labelKey: 'parent.messages' },
+      { key: 'parent-portal', icon: Heart, labelKey: 'parent_portal.title' },
+      { key: 'parents', icon: Mail, labelKey: 'parent.messages' },
       { key: 'grading', icon: Calculator, labelKey: 'nav.student_grades' },
       { key: 'attendance', icon: CalendarCheck, labelKey: 'nav.student_attendance' },
       { key: 'calendar', icon: CalendarIconNav, labelKey: 'nav.calendar' },
@@ -423,6 +425,7 @@ function renderView(view: ViewName) {
     case 'counseling': return <CounselingView />;
     case 'disciplinary': return <DisciplinaryView />;
     case 'ai-tests': return <AITestsView />;
+    case 'parent-portal': return <ParentPortalView />;
     default: return <DashboardView />;
   }
 }
@@ -890,6 +893,40 @@ export default function AppLayout() {
         </SidebarHeader>
 
         <SidebarContent>
+          {/* Favorites Section */}
+          <SidebarGroup>
+            <SidebarGroupLabel className="text-emerald-600/70 dark:text-emerald-400/50 text-xs font-semibold uppercase tracking-wider inline-flex items-center gap-1.5">
+              <Heart className="h-3 w-3" />
+              {t('layout.favorites')}
+            </SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {[
+                  { key: 'dashboard' as ViewName, icon: LayoutDashboard, labelKey: 'nav.dashboard' },
+                  { key: 'grading' as ViewName, icon: Calculator, labelKey: 'nav.grading' },
+                  { key: 'attendance' as ViewName, icon: CalendarCheck, labelKey: 'nav.attendance' },
+                ].map((fav) => (
+                  <SidebarMenuItem key={fav.key}>
+                    <SidebarMenuButton
+                      isActive={currentView === fav.key}
+                      onClick={() => setCurrentView(fav.key)}
+                      tooltip={t(fav.labelKey)}
+                      className={`group relative transition-all duration-200 min-h-[36px] ${
+                        currentView === fav.key
+                          ? 'bg-gradient-to-r from-emerald-100/90 via-emerald-50/70 to-teal-50/50 dark:from-emerald-900/40 dark:via-emerald-900/25 dark:to-teal-900/15 text-emerald-700 dark:text-emerald-300 font-semibold border-l-3 border-emerald-500 rounded-l-none shadow-sm'
+                          : 'text-gray-600 dark:text-gray-400 hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-emerald-50/50 dark:hover:bg-emerald-900/10'
+                      }`}
+                    >
+                      <fav.icon className="h-4 w-4" />
+                      <span className="text-xs">{t(fav.labelKey)}</span>
+                      <Heart className="h-2.5 w-2.5 text-rose-400 ml-auto" />
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+
           {activeNavSections.map((section) => (
             <SidebarGroup key={section.id}>
               <SidebarGroupLabel className="text-emerald-600/70 dark:text-emerald-400/50 text-xs font-semibold uppercase tracking-wider inline-flex items-center gap-1.5">
@@ -926,6 +963,16 @@ export default function AppLayout() {
                             : 'text-gray-400 dark:text-gray-500 group-hover:text-emerald-500 dark:group-hover:text-emerald-400 group-hover:scale-110'
                         }`} />
                         <span className="text-sm">{t(item.labelKey)}</span>
+                        {item.key === 'grading' && (
+                          <Badge className="ml-auto bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300 text-[9px] px-1.5 py-0 h-4 rounded-md">
+                            <Sparkles className="h-2.5 w-2.5 mr-0.5" />
+                          </Badge>
+                        )}
+                        {item.key === 'attendance' && (
+                          <Badge className="ml-auto bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300 text-[9px] px-1.5 py-0 h-4 rounded-md">
+                            <AlertTriangle className="h-2.5 w-2.5 mr-0.5" />
+                          </Badge>
+                        )}
                       </SidebarMenuButton>
                     </SidebarMenuItem>
                   ))}

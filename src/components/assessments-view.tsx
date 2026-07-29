@@ -8,7 +8,7 @@ import {
 import {
   ClipboardCheck, Plus, PenLine, BookOpen, FileText, Mic, FolderOpen, Home,
   Download, Trophy, Heart, BarChart3, TrendingUp, Sparkles,
-  PenTool, GripVertical, ChevronLeft, ChevronRight,
+  PenTool, GripVertical, ChevronLeft, ChevronRight, CalendarDays,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -540,10 +540,24 @@ export default function AssessmentsView() {
               </div>
             )}
             {selectedClass && selectedSubjectId && (
-              <Button className="bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white shadow-md shadow-emerald-300/20 rounded-xl" onClick={() => setCreateOpen(true)}>
-                <Plus className="h-4 w-4 mr-1" />
-                {t('assessments.create')}
-              </Button>
+              <div className="flex flex-col sm:flex-row gap-2">
+                <Button className="bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white shadow-md shadow-emerald-300/20 rounded-xl" onClick={() => setCreateOpen(true)}>
+                  <Plus className="h-4 w-4 mr-1" />
+                  {t('assessments.create')}
+                </Button>
+                <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
+                  <Button variant="outline" className="rounded-xl border-amber-300 dark:border-amber-700 text-amber-600 dark:text-amber-400" onClick={() => toast.info(t('assessments.plan_exam'))}>
+                    <CalendarDays className="h-4 w-4 mr-1" />
+                    {t('assessments.plan_exam')}
+                  </Button>
+                </motion.div>
+                <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
+                  <Button variant="outline" className="rounded-xl border-violet-300 dark:border-violet-700 text-violet-600 dark:text-violet-400" onClick={() => toast.info(t('assessments.generate_test'))}>
+                    <Sparkles className="h-4 w-4 mr-1" />
+                    {t('assessments.generate_test')}
+                  </Button>
+                </motion.div>
+              </div>
             )}
           </div>
         </CardContent>

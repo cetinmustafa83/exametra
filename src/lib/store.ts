@@ -37,7 +37,8 @@ export type ViewName =
   | 'communication'
   | 'counseling'
   | 'disciplinary'
-  | 'ai-tests';
+  | 'ai-tests'
+  | 'parent-portal';
 
 export interface CurrentUser {
   id: string;

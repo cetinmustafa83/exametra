@@ -30,6 +30,7 @@ import {
   QrCode,
   FileDown,
   RefreshCw,
+  Heart,
 } from 'lucide-react';
 import {
   LineChart,
@@ -1330,6 +1331,18 @@ export default function AttendanceView() {
               ))}
             </SelectContent>
           </Select>
+
+          {/* Illness Report Button */}
+          <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
+            <Button
+              variant="outline"
+              className="rounded-xl border-amber-300 dark:border-amber-700 text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/20"
+              onClick={() => toast.info(t('attendance.illness_report'))}
+            >
+              <Heart className="h-4 w-4 mr-1" />
+              {t('attendance.report_illness')}
+            </Button>
+          </motion.div>
 
           {/* New session button */}
           <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>

@@ -468,6 +468,8 @@ model AssessmentResult {
   score            Float?
   masteryLevelValue Int?
   note             String?
+  annotationData   String?  // JSON: drawing annotation strokes for teacher grading
+  annotationImage  String?  // base64 PNG thumbnail of annotation
 
   assessment Assessment @relation(fields: [assessmentId], references: [id])
   student    Student    @relation(fields: [studentId], references: [id])
@@ -1004,7 +1006,7 @@ model CalendarEvent {
   date               DateTime
   startTime          String?   // HH:mm format, null = all day
   endTime            String?   // HH:mm format, null = all day
-  eventType          String    @default("reminder") // assessment | lesson | reminder
+  eventType          String    @default("reminder") // assessment | lesson | reminder | exam
   subjectId          String?
   classGroupId       String?
   notes              String?
@@ -1012,6 +1014,7 @@ model CalendarEvent {
   recurrencePattern  String?   // JSON: { type: "daily|weekly|monthly|yearly", interval: 1, endDate?: string, daysOfWeek?: number[] }
   recurrenceEnd      DateTime? // When recurrence ends
   parentEventId      String?   // For generated instances of a recurring event
+  assessmentId       String?   // Linked assessment (for exam events)
   createdAt          DateTime  @default(now())
   updatedAt          DateTime  @updatedAt
 
@@ -1028,6 +1031,7 @@ model CalendarEvent {
   @@index([subjectId])
   @@index([classGroupId])
   @@index([parentEventId])
+  @@index([eventType])
 }
 
 // ─── Parent-Student Link ──────────────────────────────────────────────

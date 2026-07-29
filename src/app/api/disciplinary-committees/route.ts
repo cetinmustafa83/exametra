@@ -55,7 +55,8 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
-    const { schoolId, name, description, members } = body;
+    const { name, description, members } = body;
+    const schoolId = body.schoolId || session.user?.schoolId;
 
     if (!schoolId || !name) {
       return NextResponse.json({ error: 'schoolId and name are required' }, { status: 400 });

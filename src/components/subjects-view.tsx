@@ -216,6 +216,12 @@ export default function SubjectsView() {
   const [contentForm, setContentForm] = useState({ title: '', slug: '', description: '', icon: 'BookOpen', contentType: 'topic', difficulty: 'medium', isActive: true, isPublic: true });
   const [changeRequestForm, setChangeRequestForm] = useState({ requestType: 'edit' as const, title: '', description: '', proposedChanges: '' });
 
+  // Crawl state
+  const [showCrawlDialog, setShowCrawlDialog] = useState(false);
+  const [crawlUrl, setCrawlUrl] = useState('');
+  const [isCrawling, setIsCrawling] = useState(false);
+  const [crawlResult, setCrawlResult] = useState<{ topicsFound: number; contentsCreated: number } | null>(null);
+
   /* ── Data loading ───────────────────────────────────────────────── */
 
   const loadCategories = useCallback(async () => {
@@ -583,6 +589,12 @@ export default function SubjectsView() {
             <Button onClick={handleSeedData} variant="outline" size="sm" className="gap-1 bg-white/20 border-white/30 text-white hover:bg-white/30 hover:text-white">
               <Sparkles className="h-4 w-4" />
               {t('subjects.seed_data')}
+            </Button>
+          )}
+          {isAdmin && (
+            <Button onClick={() => setShowCrawlDialog(true)} variant="outline" size="sm" className="gap-1 bg-white/20 border-white/30 text-white hover:bg-white/30 hover:text-white">
+              <Globe className="h-4 w-4" />
+              {t('subjects.crawl')}
             </Button>
           )}
         </div>
@@ -2177,6 +2189,87 @@ export default function SubjectsView() {
             <Button onClick={handleSubmitChangeRequest} className="bg-emerald-600 hover:bg-emerald-700">
               <Send className="h-4 w-4 mr-2" />
               {t('subjects.request_change')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Crawl Dialog */}
+      <Dialog open={showCrawlDialog} onOpenChange={setShowCrawlDialog}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Globe className="h-5 w-5 text-emerald-500" />
+              {t('subjects.crawl')}
+            </DialogTitle>
+            <DialogDescription>{t('subjects.crawl_desc')}</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label>{t('subjects.crawl_url')}</Label>
+              <Input
+                value={crawlUrl}
+                onChange={(e) => setCrawlUrl(e.target.value)}
+                placeholder={t('subjects.crawl_url_placeholder')}
+              />
+              <p className="text-xs text-gray-500 dark:text-gray-400">
+                {t('subjects.crawl_admin_only')}
+              </p>
+            </div>
+            {isCrawling && (
+              <div className="flex items-center gap-3 p-3 rounded-lg bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800">
+                <Loader2 className="h-4 w-4 animate-spin text-emerald-500" />
+                <span className="text-sm text-emerald-700 dark:text-emerald-300">{t('subjects.crawling')}</span>
+              </div>
+            )}
+            {crawlResult && (
+              <div className="p-3 rounded-lg bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 space-y-1">
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                  <span className="text-sm font-medium text-emerald-700 dark:text-emerald-300">{t('subjects.crawl_complete')}</span>
+                </div>
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  <div className="text-gray-600 dark:text-gray-400">{t('subjects.crawl_topics_found')}: <span className="font-semibold text-gray-900 dark:text-gray-100">{crawlResult.topicsFound}</span></div>
+                  <div className="text-gray-600 dark:text-gray-400">{t('subjects.crawl_contents_created')}: <span className="font-semibold text-gray-900 dark:text-gray-100">{crawlResult.contentsCreated}</span></div>
+                </div>
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setShowCrawlDialog(false); setCrawlResult(null); }}>
+              {t('action.close')}
+            </Button>
+            <Button
+              onClick={async () => {
+                if (!crawlUrl || !schoolId) return;
+                setIsCrawling(true);
+                setCrawlResult(null);
+                try {
+                  const res = await apiPost<{
+                    success: boolean;
+                    topicsFound: number;
+                    contentsCreated: number;
+                  }>('/api/subject-contents/crawl', {
+                    url: crawlUrl,
+                    schoolId,
+                    categoryId: selectedCategory?.id,
+                  });
+                  if (res.success) {
+                    setCrawlResult({ topicsFound: res.topicsFound, contentsCreated: res.contentsCreated });
+                    toast.success(t('subjects.crawl_success'));
+                    loadCategories();
+                  }
+                } catch {
+                  toast.error(t('subjects.crawl_error'));
+                } finally {
+                  setIsCrawling(false);
+                }
+              }}
+              disabled={isCrawling || !crawlUrl.trim()}
+              className="bg-emerald-600 hover:bg-emerald-700 text-white"
+            >
+              {isCrawling ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Globe className="h-4 w-4 mr-2" />}
+              {t('subjects.crawl')}
             </Button>
           </DialogFooter>
         </DialogContent>

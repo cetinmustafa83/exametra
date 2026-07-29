@@ -67,6 +67,7 @@ import {
   Target,
   CalendarCheck,
   Flame,
+  MessageSquare,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -2470,6 +2471,14 @@ export default function SettingsView() {
             <TabsTrigger value="privacy" className="rounded-lg min-h-[44px] data-[state=active]:bg-emerald-600 data-[state=active]:text-white">
               <Shield className="h-4 w-4 mr-1.5" />
               <span className="hidden sm:inline">{t('dsgvo.tab_privacy')}</span>
+            </TabsTrigger>
+            <TabsTrigger value="ai" className="rounded-lg min-h-[44px] data-[state=active]:bg-violet-500 data-[state=active]:text-white">
+              <Zap className="h-4 w-4 mr-1.5" />
+              <span className="hidden sm:inline">{t('settings.tab_ai')}</span>
+            </TabsTrigger>
+            <TabsTrigger value="management" className="rounded-lg min-h-[44px] data-[state=active]:bg-teal-500 data-[state=active]:text-white">
+              <Users className="h-4 w-4 mr-1.5" />
+              <span className="hidden sm:inline">{t('settings.tab_management')}</span>
             </TabsTrigger>
           </TabsList>
 
@@ -5182,6 +5191,199 @@ export default function SettingsView() {
       {/* ── Datenschutz / Privacy Tab ─────────────────────────────── */}
       <TabsContent value="privacy">
         <PrivacyTab currentUser={currentUser} />
+      </TabsContent>
+
+      {/* ── AI Settings Tab ─────────────────────────────────────────── */}
+      <TabsContent value="ai">
+        <Card className="card-hover-lift border-0 shadow-sm rounded-xl border-l-3 border-l-violet-500 overflow-hidden">
+          <CardHeader className="bg-gradient-to-r from-violet-50/50 to-transparent dark:from-violet-900/10 dark:to-transparent">
+            <CardTitle className="flex items-center gap-2">
+              <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-gradient-to-br from-violet-400 to-violet-500 text-white shadow-sm">
+                <Zap className="h-4 w-4" />
+              </div>
+              {t('settings.ai_settings')}
+            </CardTitle>
+            <CardDescription>{t('settings.ai_settings_desc')}</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            {/* AI Provider Selection */}
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">{t('settings.ai_provider')}</Label>
+              <Select defaultValue="pollination">
+                <SelectTrigger className="rounded-xl">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="pollination">Pollination AI</SelectItem>
+                  <SelectItem value="openai">OpenAI</SelectItem>
+                  <SelectItem value="anthropic">Anthropic</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            {/* API Key */}
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">{t('settings.ai_api_key')}</Label>
+              <Input type="password" placeholder="sk-..." className="rounded-xl" />
+              <p className="text-xs text-gray-500 dark:text-gray-400">{locale === 'de' ? 'Ihr API-Schluessel wird verschluesselt gespeichert.' : 'Your API key is stored encrypted.'}</p>
+            </div>
+            {/* Model Selection */}
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">{t('settings.ai_model')}</Label>
+              <Select defaultValue="gpt-4o-mini">
+                <SelectTrigger className="rounded-xl">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="gpt-4o-mini">GPT-4o Mini</SelectItem>
+                  <SelectItem value="gpt-4o">GPT-4o</SelectItem>
+                  <SelectItem value="claude-3-haiku">Claude 3 Haiku</SelectItem>
+                  <SelectItem value="claude-3-sonnet">Claude 3 Sonnet</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            {/* Test Connection */}
+            <Button className="rounded-xl bg-gradient-to-r from-violet-500 to-violet-600 text-white shadow-md" onClick={() => toast.success(t('settings.ai_connection_ok'))}>
+              <Zap className="h-4 w-4 mr-1" />
+              {t('settings.ai_test_connection')}
+            </Button>
+
+            {/* Virtual Character Toggle */}
+            <div className="mt-6 p-4 rounded-xl bg-gradient-to-r from-teal-50/60 to-teal-50/0 dark:from-teal-900/15 dark:to-teal-900/0 border border-teal-100/60 dark:border-teal-900/30">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-gradient-to-br from-teal-400 to-teal-500 text-white shadow-sm">
+                    <MessageSquare className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-bold text-gray-900 dark:text-gray-100">{t('settings.virtual_character')}</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">{t('settings.virtual_character_desc')}</p>
+                  </div>
+                </div>
+                <Switch defaultChecked />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </TabsContent>
+
+      {/* ── Management Tab ─────────────────────────────────────────── */}
+      <TabsContent value="management">
+        <div className="space-y-6">
+          {/* Responsible Teacher */}
+          <Card className="card-hover-lift border-0 shadow-sm rounded-xl border-l-3 border-l-emerald-500 overflow-hidden">
+            <CardHeader className="bg-gradient-to-r from-emerald-50/50 to-transparent dark:from-emerald-900/10 dark:to-transparent">
+              <CardTitle className="flex items-center gap-2">
+                <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-400 to-emerald-500 text-white shadow-sm">
+                  <GraduationCap className="h-4 w-4" />
+                </div>
+                {t('settings.responsible_teacher')}
+              </CardTitle>
+              <CardDescription>{t('settings.responsible_teacher_desc')}</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {classes.slice(0, 5).map((cls) => (
+                  <div key={cls.id} className="flex items-center justify-between p-3 rounded-xl bg-gradient-to-r from-emerald-50/40 to-transparent dark:from-emerald-900/10 dark:to-transparent border border-emerald-100/40 dark:border-emerald-900/20">
+                    <div className="flex items-center gap-2">
+                      <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 text-xs font-bold">
+                        {cls.name.substring(0, 2).toUpperCase()}
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">{cls.name}</p>
+                        <p className="text-xs text-gray-500 dark:text-gray-400">{t('label.grade')} {cls.gradeLevel}</p>
+                      </div>
+                    </div>
+                    <Select defaultValue="">
+                      <SelectTrigger className="w-48 rounded-xl h-8 text-xs">
+                        <SelectValue placeholder={locale === 'de' ? 'Lehrer zuweisen' : 'Assign teacher'} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="auto">{locale === 'de' ? 'Automatisch' : 'Automatic'}</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Vice Principal Management */}
+          <Card className="card-hover-lift border-0 shadow-sm rounded-xl border-l-3 border-l-teal-500 overflow-hidden">
+            <CardHeader className="bg-gradient-to-r from-teal-50/50 to-transparent dark:from-teal-900/10 dark:to-transparent">
+              <CardTitle className="flex items-center gap-2">
+                <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-gradient-to-br from-teal-400 to-teal-500 text-white shadow-sm">
+                  <Shield className="h-4 w-4" />
+                </div>
+                {t('settings.vice_principal')}
+              </CardTitle>
+              <CardDescription>{t('settings.vice_principal_desc')}</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="text-center py-6">
+                <div className="flex items-center justify-center w-12 h-12 rounded-xl bg-teal-100 dark:bg-teal-900/30 mx-auto mb-3">
+                  <Shield className="h-6 w-6 text-teal-600 dark:text-teal-400" />
+                </div>
+                <p className="text-sm text-gray-500 dark:text-gray-400 mb-3">{locale === 'de' ? 'Keine Stellvertretenden Schulleiter zugewiesen' : 'No vice principals assigned'}</p>
+                <Button className="rounded-xl bg-gradient-to-r from-teal-500 to-teal-600 text-white shadow-md" onClick={() => toast.info(locale === 'de' ? 'Funktion wird bald verfuegbar sein' : 'Feature coming soon')}>
+                  <UserPlus className="h-4 w-4 mr-1" />
+                  {t('action.add')}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Disciplinary Committee */}
+          <Card className="card-hover-lift border-0 shadow-sm rounded-xl border-l-3 border-l-amber-500 overflow-hidden">
+            <CardHeader className="bg-gradient-to-r from-amber-50/50 to-transparent dark:from-amber-900/10 dark:to-transparent">
+              <CardTitle className="flex items-center gap-2">
+                <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-gradient-to-br from-amber-400 to-amber-500 text-white shadow-sm">
+                  <AlertTriangle className="h-4 w-4" />
+                </div>
+                {t('settings.disciplinary_committee')}
+              </CardTitle>
+              <CardDescription>{t('settings.disciplinary_committee_desc')}</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="text-center py-6">
+                <div className="flex items-center justify-center w-12 h-12 rounded-xl bg-amber-100 dark:bg-amber-900/30 mx-auto mb-3">
+                  <AlertTriangle className="h-6 w-6 text-amber-600 dark:text-amber-400" />
+                </div>
+                <p className="text-sm text-gray-500 dark:text-gray-400 mb-3">{locale === 'de' ? 'Kein Ausschuss konfiguriert' : 'No committee configured'}</p>
+                <Button className="rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 text-white shadow-md" onClick={() => toast.info(locale === 'de' ? 'Funktion wird bald verfuegbar sein' : 'Feature coming soon')}>
+                  <UserPlus className="h-4 w-4 mr-1" />
+                  {t('action.add')}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Data Import */}
+          <Card className="card-hover-lift border-0 shadow-sm rounded-xl border-l-3 border-l-violet-500 overflow-hidden">
+            <CardHeader className="bg-gradient-to-r from-violet-50/50 to-transparent dark:from-violet-900/10 dark:to-transparent">
+              <CardTitle className="flex items-center gap-2">
+                <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-gradient-to-br from-violet-400 to-violet-500 text-white shadow-sm">
+                  <Upload className="h-4 w-4" />
+                </div>
+                {t('settings.data_import')}
+              </CardTitle>
+              <CardDescription>{t('settings.data_import_desc')}</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div className="flex items-center gap-4 p-4 rounded-xl border-2 border-dashed border-violet-200 dark:border-violet-800 bg-violet-50/30 dark:bg-violet-900/10">
+                  <Upload className="h-8 w-8 text-violet-400 dark:text-violet-500" />
+                  <div className="flex-1">
+                    <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">{t('settings.data_import_file')}</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">CSV, JSON</p>
+                  </div>
+                  <Button className="rounded-xl bg-gradient-to-r from-violet-500 to-violet-600 text-white shadow-md" onClick={() => toast.info(t('settings.data_import_started'))}>
+                    {t('settings.data_import_file')}
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       </TabsContent>
       </Tabs>
     </motion.div>
