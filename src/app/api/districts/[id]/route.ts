@@ -12,7 +12,6 @@ export async function GET(
       where: { id, deletedAt: null },
       include: {
         schools: {
-          where: { deletedAt: null },
           select: {
             id: true,
             name: true,

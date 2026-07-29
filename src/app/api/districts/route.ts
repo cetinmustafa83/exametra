@@ -8,7 +8,6 @@ export async function GET() {
       where: { deletedAt: null },
       include: {
         schools: {
-          where: { deletedAt: null },
           select: { id: true, name: true, schoolType: true, country: true },
         },
       },

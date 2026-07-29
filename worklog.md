@@ -1,6 +1,32 @@
 # CompetenceTrack — Project Worklog
 
 ---
+Task ID: 14
+Agent: reports-scheduling-multi-school
+Task: Report Scheduling + Multi-School District Support
+
+Work Log:
+- Verified existing ReportSchedule Prisma model (already present in schema with all required fields: schoolId, classGroupId, template, frequency, dayOfWeek, dayOfMonth, monthOfYear, recipients, includeStudents, includeGrades, includeAttendance, includeBehavior, includeCompetencies, isActive, lastRunAt, nextRunAt, isDemo, deletedAt)
+- Verified SchoolDistrict Prisma model (already present with name, code, region, country, adminEmail, isActive, deletedAt)
+- Verified School model has districtId and district relation to SchoolDistrict
+- Verified ClassGroup model has reportSchedules relation to ReportSchedule
+- Verified API routes for report-schedules: GET/POST /api/report-schedules, GET/PUT/DELETE /api/report-schedules/[id], POST /api/report-schedules/[id]/run
+- Verified API routes for districts: GET/POST /api/districts, GET/PUT/DELETE /api/districts/[id], GET/POST /api/districts/[id]/schools
+- Fixed districts API routes: removed `deletedAt: null` filter on School model (School model has no deletedAt field) in districts/route.ts, districts/[id]/route.ts, and districts/[id]/schools/route.ts
+- Verified reports-view.tsx has complete Schedules tab with: create/edit dialog, frequency/class/template selection, include options checkboxes, schedule list with status/next run/toggle, manual trigger button, delete confirmation, visual timeline with progress bars
+- Verified settings-view.tsx has complete District tab (SUPER_ADMIN only) with: district CRUD, school assignment, cross-school comparison, district create/edit dialog, delete confirmation
+- Verified API client functions in src/lib/api.ts: fetchReportSchedules, createReportSchedule, updateReportSchedule, deleteReportSchedule, runReportSchedule, fetchDistricts, createDistrict, updateDistrict, deleteDistrict, fetchDistrictSchools, assignSchoolToDistrict
+- Verified i18n keys for both schedules and district in DE and EN (35+ keys each)
+- Ran bun run lint: no errors
+- Ran bun run db:push: schema already in sync
+
+Stage Summary:
+- All Report Scheduling features already implemented from previous agent: Prisma model, API routes, UI with Schedules tab, i18n keys
+- All Multi-School District Support features already implemented from previous agent: Prisma model, API routes, UI with District tab, i18n keys
+- Bug fix: removed invalid `deletedAt: null` filter on School model in 3 district API route files
+- Current status: Round 13 complete
+
+---
 Task ID: 12
 Agent: behavior-audit
 Task: Behavior Tracking Enhancement + Audit Logging

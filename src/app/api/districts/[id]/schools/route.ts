@@ -17,7 +17,7 @@ export async function GET(
     }
 
     const schools = await db.school.findMany({
-      where: { districtId: id, deletedAt: null },
+      where: { districtId: id },
       include: {
         _count: {
           select: { students: true, classGroups: true, users: true },
