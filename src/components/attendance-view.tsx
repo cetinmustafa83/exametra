@@ -84,6 +84,7 @@ import {
 } from '@/components/ui/tooltip';
 import { useAppStore } from '@/lib/store';
 import { t } from '@/lib/i18n';
+import StudentAvatar from '@/components/student-avatar';
 import {
   fetchAttendanceSessions,
   createAttendanceSession,
@@ -1767,9 +1768,7 @@ export default function AttendanceView() {
                           {sessions[0]?.records.map((record) => (
                             <div key={record.id} className="flex items-center justify-between p-2 rounded-lg bg-white dark:bg-gray-800/50 border border-gray-100 dark:border-gray-700/50">
                               <div className="flex items-center gap-2">
-                                <div className="w-8 h-8 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center text-xs font-medium">
-                                  {record.student.firstName[0]}{record.student.lastName[0]}
-                                </div>
+                                <StudentAvatar firstName={record.student.firstName} lastName={record.student.lastName} avatarUrl={record.student.avatarUrl} size="sm" />
                                 <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{record.student.firstName} {record.student.lastName}</span>
                               </div>
                               <StatusBadge status={record.status} />

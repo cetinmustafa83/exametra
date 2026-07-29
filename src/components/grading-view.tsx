@@ -24,6 +24,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { useAppStore } from '@/lib/store';
 import { t } from '@/lib/i18n';
+import StudentAvatar from '@/components/student-avatar';
 import {
   fetchClasses, fetchClassStudents, fetchSubjects,
   fetchGradingSchemes, createGradingScheme,
@@ -34,10 +35,12 @@ import {
 import { toast } from 'sonner';
 
 const gradeColor = (value: number) => {
-  if (value <= 1.5) return { bg: 'bg-gradient-to-br from-emerald-400 to-emerald-500', text: 'text-white', shadow: 'shadow-emerald-300/30', border: 'border-l-emerald-500' };
-  if (value <= 2.5) return { bg: 'bg-gradient-to-br from-teal-400 to-teal-500', text: 'text-white', shadow: 'shadow-teal-300/30', border: 'border-l-teal-500' };
-  if (value <= 3.5) return { bg: 'bg-gradient-to-br from-amber-400 to-amber-500', text: 'text-white', shadow: 'shadow-amber-300/30', border: 'border-l-amber-500' };
-  return { bg: 'bg-gradient-to-br from-red-400 to-red-500', text: 'text-white', shadow: 'shadow-red-300/30', border: 'border-l-red-500' };
+  if (value <= 1.5) return { bg: 'bg-gradient-to-br from-emerald-400 to-emerald-500', text: 'text-white', shadow: 'shadow-emerald-300/30', border: 'border-l-emerald-500', badge: 'grade-badge-1', label: t('grading.sehr_gut') };
+  if (value <= 2.5) return { bg: 'bg-gradient-to-br from-teal-400 to-teal-500', text: 'text-white', shadow: 'shadow-teal-300/30', border: 'border-l-teal-500', badge: 'grade-badge-2', label: t('grading.gut') };
+  if (value <= 3.5) return { bg: 'bg-gradient-to-br from-amber-400 to-amber-500', text: 'text-white', shadow: 'shadow-amber-300/30', border: 'border-l-amber-500', badge: 'grade-badge-3', label: t('grading.befriedigend') };
+  if (value <= 4.5) return { bg: 'bg-gradient-to-br from-orange-400 to-orange-500', text: 'text-white', shadow: 'shadow-orange-300/30', border: 'border-l-orange-500', badge: 'grade-badge-4', label: t('grading.ausreichend') };
+  if (value <= 5.5) return { bg: 'bg-gradient-to-br from-rose-400 to-rose-500', text: 'text-white', shadow: 'shadow-rose-300/30', border: 'border-l-rose-500', badge: 'grade-badge-5', label: t('grading.mangelhaft') };
+  return { bg: 'bg-gradient-to-br from-red-500 to-red-600', text: 'text-white', shadow: 'shadow-red-300/30', border: 'border-l-red-500', badge: 'grade-badge-6', label: t('grading.ungenuegend') };
 };
 
 const GradeIcon = ({ value, className = 'w-3 h-3' }: { value: number; className?: string }) => {
@@ -714,17 +717,15 @@ export default function GradingView() {
                           <TableRow key={grade.studentId} className={`hover:bg-teal-50/50 dark:hover:bg-teal-900/10 transition-all duration-150 ${idx % 2 === 1 ? 'bg-teal-50/20 dark:bg-teal-900/5' : ''}`}>
                             <TableCell className="font-semibold">
                               <div className="flex items-center gap-3">
-                                <div className="flex items-center justify-center w-8 h-8 rounded-full bg-gradient-to-br from-emerald-100 to-teal-100 dark:from-emerald-900/30 dark:to-teal-900/30 text-emerald-600 dark:text-emerald-300 text-xs font-bold shrink-0 ring-1 ring-emerald-200/50 dark:ring-emerald-900/20">
-                                  {student ? `${student.firstName[0]}${student.lastName[0]}` : '?'}
-                                </div>
+                                <StudentAvatar firstName={student?.firstName ?? ''} lastName={student?.lastName ?? ''} avatarUrl={student?.avatarUrl} size="sm" />
                                 {student ? `${student.firstName} ${student.lastName}` : grade.studentId}
                               </div>
                             </TableCell>
                             <TableCell className="text-center">
-                              <div className={`inline-flex items-center justify-center w-14 h-14 rounded-xl bg-gradient-to-br ${colors.bg} ${colors.text} shadow-lg ${colors.shadow} font-bold text-lg animate-pulse-soft relative`}>
+                              <div className={`inline-flex items-center justify-center w-14 h-14 rounded-xl ${colors.badge} shadow-lg font-bold text-lg relative`}>
                                 {grade.computedValue.toFixed(1)}
-                                <span className="absolute -bottom-1 -right-1 text-[9px] bg-white dark:bg-gray-900 text-gray-600 dark:text-gray-400 px-1 rounded-md shadow-sm border border-gray-200 dark:border-gray-700">
-                                  <GradeIcon value={grade.computedValue} className="w-3 h-3" />
+                                <span className="absolute -bottom-4 text-[9px] text-gray-500 dark:text-gray-400 whitespace-nowrap">
+                                  {colors.label}
                                 </span>
                               </div>
                             </TableCell>

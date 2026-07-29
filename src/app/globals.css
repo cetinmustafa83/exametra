@@ -2509,4 +2509,281 @@
   .section-header-icon:hover {
     opacity: 0.8;
   }
+
+  /* ─── Gradient Card Background ─────────────────────────────────── */
+  .gradient-card-bg {
+    background: linear-gradient(135deg, oklch(0.97 0.02 155) 0%, oklch(0.98 0.01 175) 100%);
+    border: 1px solid oklch(0.90 0.02 155);
+    transition: all 0.3s ease;
+  }
+  .gradient-card-bg:hover {
+    box-shadow: 0 4px 12px oklch(0.55 0.17 155 / 0.1);
+  }
+  .dark .gradient-card-bg {
+    background: linear-gradient(135deg, oklch(0.18 0.02 260) 0%, oklch(0.16 0.01 155) 100%);
+    border-color: oklch(0.30 0.02 260);
+  }
+
+  /* ─── Sparkline Mini Chart ─────────────────────────────────────── */
+  .sparkline-mini {
+    display: inline-flex;
+    align-items: flex-end;
+    gap: 1px;
+    height: 16px;
+  }
+  .sparkline-mini span {
+    display: block;
+    width: 2px;
+    border-radius: 1px;
+    background: oklch(0.55 0.17 155);
+    transition: height 0.3s ease;
+  }
+  .dark .sparkline-mini span {
+    background: oklch(0.65 0.17 155);
+  }
+
+  /* ─── Grade Color Badges (German 1-6 System) ──────────────────── */
+  .grade-badge-1 {
+    background: linear-gradient(135deg, #10b981, #059669);
+    color: white;
+    border: 1px solid #059669;
+  }
+  .grade-badge-2 {
+    background: linear-gradient(135deg, #14b8a6, #0d9488);
+    color: white;
+    border: 1px solid #0d9488;
+  }
+  .grade-badge-3 {
+    background: linear-gradient(135deg, #f59e0b, #d97706);
+    color: white;
+    border: 1px solid #d97706;
+  }
+  .grade-badge-4 {
+    background: linear-gradient(135deg, #f97316, #ea580c);
+    color: white;
+    border: 1px solid #ea580c;
+  }
+  .grade-badge-5 {
+    background: linear-gradient(135deg, #f43f5e, #e11d48);
+    color: white;
+    border: 1px solid #e11d48;
+  }
+  .grade-badge-6 {
+    background: linear-gradient(135deg, #dc2626, #b91c1c);
+    color: white;
+    border: 1px solid #b91c1c;
+  }
+
+  /* ─── Mastery Level Badges ─────────────────────────────────────── */
+  .mastery-badge-low {
+    background: linear-gradient(135deg, #fda4af, #fb7185);
+    color: #9f1239;
+    border: 1px solid #fda4af;
+  }
+  .dark .mastery-badge-low {
+    color: #fda4af;
+    background: linear-gradient(135deg, rgba(253,164,175,0.15), rgba(251,113,133,0.15));
+    border-color: rgba(251,113,133,0.3);
+  }
+  .mastery-badge-medium {
+    background: linear-gradient(135deg, #fde68a, #fbbf24);
+    color: #92400e;
+    border: 1px solid #fde68a;
+  }
+  .dark .mastery-badge-medium {
+    color: #fde68a;
+    background: linear-gradient(135deg, rgba(253,230,138,0.15), rgba(251,191,36,0.15));
+    border-color: rgba(251,191,36,0.3);
+  }
+  .mastery-badge-high {
+    background: linear-gradient(135deg, #6ee7b7, #34d399);
+    color: #065f46;
+    border: 1px solid #6ee7b7;
+  }
+  .dark .mastery-badge-high {
+    color: #6ee7b7;
+    background: linear-gradient(135deg, rgba(110,231,183,0.15), rgba(52,211,153,0.15));
+    border-color: rgba(52,211,153,0.3);
+  }
+
+  /* ─── Newsletter Category Badge ────────────────────────────────── */
+  .category-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.125rem 0.5rem;
+    border-radius: 9999px;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    transition: all 0.2s ease;
+  }
+  .category-badge-general {
+    background: oklch(0.95 0.01 260);
+    color: oklch(0.35 0.02 260);
+  }
+  .dark .category-badge-general {
+    background: oklch(0.22 0.02 260);
+    color: oklch(0.75 0.02 260);
+  }
+  .category-badge-academic {
+    background: #dbeafe;
+    color: #1e40af;
+  }
+  .dark .category-badge-academic {
+    background: rgba(59,130,246,0.15);
+    color: #93c5fd;
+  }
+  .category-badge-sports {
+    background: #dcfce7;
+    color: #166534;
+  }
+  .dark .category-badge-sports {
+    background: rgba(34,197,94,0.15);
+    color: #86efac;
+  }
+  .category-badge-arts {
+    background: #fae8ff;
+    color: #86198f;
+  }
+  .dark .category-badge-arts {
+    background: rgba(168,85,247,0.15);
+    color: #d8b4fe;
+  }
+  .category-badge-events {
+    background: #fef3c7;
+    color: #92400e;
+  }
+  .dark .category-badge-events {
+    background: rgba(245,158,11,0.15);
+    color: #fcd34d;
+  }
+  .category-badge-community {
+    background: #ffe4e6;
+    color: #9f1239;
+  }
+  .dark .category-badge-community {
+    background: rgba(244,63,94,0.15);
+    color: #fda4af;
+  }
+
+  /* ─── Newsletter Preview Card ──────────────────────────────────── */
+  .newsletter-card {
+    border-radius: 0.75rem;
+    overflow: hidden;
+    transition: all 0.3s ease;
+    border: 1px solid oklch(0.90 0.01 155);
+    background: white;
+  }
+  .newsletter-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px oklch(0.55 0.17 155 / 0.1);
+  }
+  .dark .newsletter-card {
+    background: oklch(0.18 0.015 260);
+    border-color: oklch(0.30 0.015 260);
+  }
+
+  /* ─── Student Avatar Circle ────────────────────────────────────── */
+  .avatar-circle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 9999px;
+    font-weight: 600;
+    font-size: 0.75rem;
+    line-height: 1;
+    transition: all 0.2s ease;
+    user-select: none;
+    flex-shrink: 0;
+  }
+  .avatar-circle:hover {
+    transform: scale(1.08);
+  }
+
+  /* ─── Student Photo Circle ─────────────────────────────────────── */
+  .avatar-photo {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 9999px;
+    overflow: hidden;
+    transition: all 0.2s ease;
+    flex-shrink: 0;
+  }
+  .avatar-photo img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+  .avatar-photo:hover {
+    transform: scale(1.08);
+    box-shadow: 0 0 0 2px oklch(0.55 0.17 155);
+  }
+
+  /* ─── Animated Section Underline ───────────────────────────────── */
+  .animated-underline {
+    position: relative;
+    display: inline-block;
+  }
+  .animated-underline::after {
+    content: '';
+    position: absolute;
+    bottom: -2px;
+    left: 0;
+    width: 0;
+    height: 2px;
+    background: linear-gradient(90deg, #10b981, #14b8a6);
+    border-radius: 1px;
+    transition: width 0.4s ease;
+  }
+  .animated-underline:hover::after {
+    width: 100%;
+  }
+
+  /* ─── Count-up Animation ───────────────────────────────────────── */
+  @keyframes count-up-fade {
+    0% { opacity: 0; transform: translateY(8px); }
+    100% { opacity: 1; transform: translateY(0); }
+  }
+  .animate-count-up {
+    animation: count-up-fade 0.6s ease-out forwards;
+  }
+
+  /* ─── Leaf Animation ───────────────────────────────────────────── */
+  @keyframes leaf-sway {
+    0%, 100% { transform: rotate(0deg); }
+    25% { transform: rotate(5deg); }
+    75% { transform: rotate(-5deg); }
+  }
+  .animate-leaf-sway {
+    animation: leaf-sway 3s ease-in-out infinite;
+  }
+
+  /* ─── Staggered Card Entrance ──────────────────────────────────── */
+  @keyframes card-entrance {
+    0% { opacity: 0; transform: translateY(12px) scale(0.97); }
+    100% { opacity: 1; transform: translateY(0) scale(1); }
+  }
+  .animate-card-entrance {
+    animation: card-entrance 0.4s ease-out forwards;
+  }
+
+  /* ─── Gradient Border for Class Cards ──────────────────────────── */
+  .gradient-border-card {
+    position: relative;
+    border-radius: 0.75rem;
+    overflow: hidden;
+  }
+  .gradient-border-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, #10b981, #14b8a6);
+    border-radius: 0.75rem 0.75rem 0 0;
+  }
 }

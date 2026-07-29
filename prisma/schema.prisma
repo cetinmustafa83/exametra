@@ -73,6 +73,7 @@ model School {
   healthRecords      HealthRecord[]
   badges             Badge[]
   studentBadges      StudentBadge[]
+  newsletters        Newsletter[]
   district           SchoolDistrict? @relation(fields: [districtId], references: [id])
   districtId         String?
 }
@@ -120,6 +121,7 @@ model User {
   organizedSchoolEvents     SchoolEvent[]
   eventRegistrations        EventRegistration[]
   awardedBadges             StudentBadge[]
+  newsletters               Newsletter[]
 }
 
 model SchoolYear {
@@ -188,15 +190,17 @@ model ClassGroupTeacher {
 }
 
 model Student {
-  id          String    @id @default(cuid())
-  schoolId    String
-  firstName   String
-  lastName    String
-  dateOfBirth DateTime?
-  externalId  String?   // for import matching
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  deletedAt   DateTime?
+  id              String    @id @default(cuid())
+  schoolId        String
+  firstName       String
+  lastName        String
+  dateOfBirth     DateTime?
+  externalId      String?   // for import matching
+  avatarUrl       String?   // student photo/avatar URL
+  avatarInitials  String?   // computed from firstName + lastName first chars
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  deletedAt       DateTime?
 
   school                School                @relation(fields: [schoolId], references: [id])
   enrollments           Enrollment[]
@@ -1587,4 +1591,30 @@ model StudentBadge {
   @@unique([studentId, badgeId])
   @@index([schoolId, studentId])
   @@map("student_badges")
+}
+
+// ─── Newsletter / School Blog ──────────────────────────────────────
+
+model Newsletter {
+  id              String    @id @default(cuid())
+  schoolId        String
+  authorId        String
+  title           String
+  content         String    // rich text content (HTML)
+  summary         String?   // short summary for preview
+  imageUrl        String?   // cover image URL
+  category        String    @default("general") // general, academic, sports, arts, events, community
+  isPublished     Boolean   @default(false)
+  publishedAt     DateTime?
+  tags            String?   // JSON array of tags
+  isDemo          Boolean   @default(false)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  deletedAt       DateTime?
+
+  school          School    @relation(fields: [schoolId], references: [id])
+  author          User      @relation(fields: [authorId], references: [id])
+
+  @@index([schoolId, isPublished, publishedAt])
+  @@map("newsletters")
 }

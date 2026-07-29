@@ -143,6 +143,7 @@ export async function PUT(request: Request) {
         .optional()
         .transform((v) => (v ? new Date(v) : v === null ? null : undefined)),
       externalId: z.string().nullable().optional(),
+      avatarUrl: z.string().nullable().optional(),
     });
 
     const parsed = updateSchema.safeParse(body);

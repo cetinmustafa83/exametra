@@ -30,6 +30,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { useAppStore } from '@/lib/store';
 import { t } from '@/lib/i18n';
+import StudentAvatar from '@/components/student-avatar';
 import {
   fetchClasses, fetchClassStudents, fetchSubjects,
   fetchClassCompetencyAssignments, fetchCompetencyTemplate,
@@ -68,13 +69,10 @@ function getMasteryIcon(level: number) {
 }
 
 const masteryBadge = (level: number) => {
-  const styles = [
-    'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300',
-    'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300',
-    'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300',
-    'bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-300',
-  ];
-  return styles[Math.min(level - 1, 3)] ?? styles[0];
+  // Use CSS class-based mastery badges for deeper polish
+  if (level <= 2) return 'mastery-badge-low';
+  if (level <= 4) return 'mastery-badge-medium';
+  return 'mastery-badge-high';
 };
 
 const masteryBorderColor = (level: number) => {
@@ -636,9 +634,7 @@ export default function ProgressEntriesView() {
                       <div className="flex items-center justify-between gap-3">
                         <div className="flex items-center gap-3 min-w-0">
                           {/* Avatar circle with gradient initials */}
-                          <div className={`flex items-center justify-center w-9 h-9 rounded-full bg-gradient-to-br ${avatarGradientFor(s)} text-sm font-bold shrink-0 ring-2 shadow-sm`}>
-                            {s.firstName[0]}{s.lastName[0]}
-                          </div>
+                          <StudentAvatar firstName={s.firstName} lastName={s.lastName} avatarUrl={s.avatarUrl} size="sm" />
                           <div className="min-w-0">
                             <p className="font-semibold text-gray-900 dark:text-gray-100 truncate">{s.firstName} {s.lastName}</p>
                             {/* Entry count badge + sparkline */}

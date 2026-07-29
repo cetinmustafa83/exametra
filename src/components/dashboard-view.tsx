@@ -59,6 +59,11 @@ import {
   Music,
   Flag,
   Tent,
+  Newspaper,
+  Share2,
+  PenSquare,
+  Eye,
+  Tag,
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -96,6 +101,7 @@ import { useAppStore, type ViewName, type CurrentUser } from '@/lib/store';
 import { t } from '@/lib/i18n';
 import { fetchDashboard, type DashboardData, getStoredNotifications, type AppNotification, addNotification, markNotificationsRead, fetchParentLinks, type ParentStudentLinkData, fetchStudents } from '@/lib/api';
 import { apiGet, apiPost, apiPut } from '@/lib/api';
+import { fetchNewsletters, createNewsletter, type NewsletterData } from '@/lib/api';
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -1815,14 +1821,14 @@ export default function DashboardView() {
                   transition={{ delay: 0.2, duration: 0.4, type: 'spring', stiffness: 150 }}
                   className="flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-emerald-400 to-teal-500 text-white shadow-lg shadow-emerald-300/30 shrink-0"
                 >
-                  <Leaf className="h-8 w-8" />
+                  <Leaf className="h-8 w-8 animate-leaf-sway" />
                 </motion.div>
                 <div className="flex-1 min-w-0">
                   <h3 className="text-sm font-bold text-emerald-700 dark:text-emerald-300 mb-1">
                     {locale === 'de' ? 'Papier gespart' : 'Paper Saved'}
                   </h3>
                   <div className="flex items-baseline gap-2">
-                    <span className="text-3xl font-bold text-gray-900 dark:text-gray-100">
+                    <span className="text-3xl font-bold text-gray-900 dark:text-gray-100 animate-count-up">
                       {data.stats.totalProgressEntries * 50}
                     </span>
                     <span className="text-sm text-emerald-600/70 dark:text-emerald-400/60 font-medium">
@@ -1884,6 +1890,10 @@ export default function DashboardView() {
           </Card>
         </motion.div>
       </div>
+
+      {/* ===== SCHOOL NEWS / NEWSLETTER SECTION ===== */}
+      <DashboardNewsletterCard currentUser={currentUser} locale={locale} />
+
     </motion.div>
   );
 }
@@ -2406,6 +2416,261 @@ function DashboardSchoolEventsCard({ currentUser, locale }: { currentUser: Curre
           )}
         </CardContent>
       </Card>
+    </motion.div>
+  );
+}
+
+/* ── Dashboard Newsletter Card ──────────────────────────────────── */
+
+const categoryConfig: Record<string, { icon: React.ElementType; color: string; bg: string }> = {
+  general: { icon: Newspaper, color: 'text-gray-600 dark:text-gray-300', bg: 'category-badge-general' },
+  academic: { icon: BookOpen, color: 'text-blue-600 dark:text-blue-400', bg: 'category-badge-academic' },
+  sports: { icon: Trophy, color: 'text-green-600 dark:text-green-400', bg: 'category-badge-sports' },
+  arts: { icon: Palette, color: 'text-purple-600 dark:text-purple-400', bg: 'category-badge-arts' },
+  events: { icon: CalendarDays, color: 'text-amber-600 dark:text-amber-400', bg: 'category-badge-events' },
+  community: { icon: UsersIcon, color: 'text-rose-600 dark:text-rose-400', bg: 'category-badge-community' },
+};
+
+function DashboardNewsletterCard({ currentUser, locale }: { currentUser: CurrentUser | null; locale: string }) {
+  const [newsletters, setNewsletters] = useState<NewsletterData[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [viewingNewsletter, setViewingNewsletter] = useState<NewsletterData | null>(null);
+  const [createOpen, setCreateOpen] = useState(false);
+  const [createForm, setCreateForm] = useState({ title: '', content: '', summary: '', category: 'general', imageUrl: '' });
+  const [creating, setCreating] = useState(false);
+
+  const isTeacherOrAdmin = currentUser?.role === 'TEACHER' || currentUser?.role === 'SCHOOL_ADMIN' || currentUser?.role === 'SUPER_ADMIN';
+
+  useEffect(() => {
+    if (!currentUser?.schoolId) return;
+    setLoading(true);
+    fetchNewsletters(currentUser.schoolId, true, undefined, 3)
+      .then((data) => { setNewsletters(data.newsletters); setLoading(false); })
+      .catch(() => setLoading(false));
+  }, [currentUser?.schoolId]);
+
+  const handleCreate = async () => {
+    if (!currentUser?.schoolId || !createForm.title || !createForm.content) return;
+    setCreating(true);
+    try {
+      const nl = await createNewsletter({
+        schoolId: currentUser.schoolId,
+        authorId: currentUser.id,
+        title: createForm.title,
+        content: createForm.content,
+        summary: createForm.summary || undefined,
+        category: createForm.category,
+        imageUrl: createForm.imageUrl || undefined,
+      });
+      await apiPost(`/api/newsletters/${nl.id}`, { action: 'publish' });
+      toast.success(t('newsletter.published'));
+      setCreateOpen(false);
+      setCreateForm({ title: '', content: '', summary: '', category: 'general', imageUrl: '' });
+      const data = await fetchNewsletters(currentUser.schoolId, true, undefined, 3);
+      setNewsletters(data.newsletters);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Error');
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  const formatDate = (dateStr: string) => {
+    const d = new Date(dateStr);
+    return d.toLocaleDateString(locale === 'de' ? 'de-DE' : 'en-US', { day: '2-digit', month: 'short', year: 'numeric' });
+  };
+
+  const handleShare = (nl: NewsletterData) => {
+    if (navigator.share) {
+      navigator.share({ title: nl.title, text: nl.summary || '', url: window.location.href });
+    } else {
+      navigator.clipboard.writeText(`${nl.title} - ${nl.summary || ''}`);
+      toast.success(locale === 'de' ? 'Link kopiert!' : 'Link copied!');
+    }
+  };
+
+  return (
+    <motion.div variants={itemVariants}>
+      <Card className="border-0 shadow-sm rounded-xl border-l-3 border-l-emerald-500 overflow-hidden transition-shadow duration-200 hover:shadow-md ring-1 ring-black/[0.03] dark:ring-white/[0.05]">
+        <CardHeader className="pb-3 pt-6 bg-gradient-to-r from-emerald-50/50 to-teal-50/30 dark:from-emerald-900/10 dark:to-teal-900/10">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-lg flex items-center gap-2">
+              <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-400 to-teal-500 text-white shadow-sm">
+                <Newspaper className="h-4 w-4" />
+              </div>
+              <span className="animated-underline">{t('newsletter.school_news')}</span>
+            </CardTitle>
+            {isTeacherOrAdmin && (
+              <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+                <DialogTrigger asChild>
+                  <Button size="sm" variant="outline" className="min-h-[44px] text-emerald-600 dark:text-emerald-400 border-emerald-200/50 dark:border-emerald-900/30 hover:bg-emerald-50 dark:hover:bg-emerald-900/20">
+                    <Plus className="h-3 w-3 mr-1" /> {t('newsletter.create')}
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="max-w-lg">
+                  <DialogHeader>
+                    <DialogTitle>{t('newsletter.create')}</DialogTitle>
+                    <DialogDescription>{locale === 'de' ? 'Erstellen Sie einen neuen Schulnachrichten-Eintrag.' : 'Create a new school newsletter entry.'}</DialogDescription>
+                  </DialogHeader>
+                  <div className="space-y-4">
+                    <div>
+                      <Label className="text-sm font-medium">{locale === 'de' ? 'Titel' : 'Title'}</Label>
+                      <Input value={createForm.title} onChange={(e) => setCreateForm({ ...createForm, title: e.target.value })} placeholder={locale === 'de' ? 'Nachrichtentitel...' : 'Newsletter title...'} className="mt-1" />
+                    </div>
+                    <div>
+                      <Label className="text-sm font-medium">{t('newsletter.summary')}</Label>
+                      <Input value={createForm.summary} onChange={(e) => setCreateForm({ ...createForm, summary: e.target.value })} placeholder={locale === 'de' ? 'Kurze Zusammenfassung...' : 'Short summary...'} className="mt-1" />
+                    </div>
+                    <div>
+                      <Label className="text-sm font-medium">{t('newsletter.content')}</Label>
+                      <Textarea value={createForm.content} onChange={(e) => setCreateForm({ ...createForm, content: e.target.value })} placeholder={locale === 'de' ? 'Inhalt der Nachricht...' : 'Newsletter content...'} className="mt-1 min-h-[120px]" />
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <Label className="text-sm font-medium">{t('newsletter.category')}</Label>
+                        <Select value={createForm.category} onValueChange={(v) => setCreateForm({ ...createForm, category: v })}>
+                          <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            {Object.entries(categoryConfig).map(([key, cfg]) => (
+                              <SelectItem key={key} value={key}>
+                                <span className="flex items-center gap-2"><cfg.icon className="h-3.5 w-3.5" /> {t(`newsletter.${key}`)}</span>
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <Label className="text-sm font-medium">{t('newsletter.cover_image')}</Label>
+                        <Input value={createForm.imageUrl} onChange={(e) => setCreateForm({ ...createForm, imageUrl: e.target.value })} placeholder="URL..." className="mt-1" />
+                      </div>
+                    </div>
+                  </div>
+                  <DialogFooter>
+                    <Button variant="outline" onClick={() => setCreateOpen(false)} className="min-h-[44px]">{t('action.cancel')}</Button>
+                    <Button onClick={handleCreate} disabled={creating || !createForm.title || !createForm.content} className="min-h-[44px] bg-gradient-to-r from-emerald-500 to-teal-500 text-white">
+                      {creating ? '...' : t('newsletter.publish')}
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+            )}
+          </div>
+        </CardHeader>
+        <CardContent>
+          {loading ? (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {[1, 2, 3].map((i) => <Skeleton key={i} className="h-48 w-full rounded-xl" />)}
+            </div>
+          ) : newsletters.length === 0 ? (
+            <div className="text-center py-10">
+              <div className="flex items-center justify-center w-16 h-16 rounded-2xl bg-emerald-100 dark:bg-emerald-900/20 mx-auto mb-4">
+                <Newspaper className="h-8 w-8 text-emerald-400 dark:text-emerald-500" />
+              </div>
+              <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">{t('newsletter.no_news')}</p>
+              {isTeacherOrAdmin && (
+                <Button size="sm" variant="outline" className="mt-3 min-h-[44px] text-emerald-600 border-emerald-200/50" onClick={() => setCreateOpen(true)}>
+                  <Plus className="h-3 w-3 mr-1" /> {t('newsletter.create')}
+                </Button>
+              )}
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {newsletters.map((nl) => {
+                const cfg = categoryConfig[nl.category] || categoryConfig.general;
+                const Icon = cfg.icon;
+                return (
+                  <motion.div
+                    key={nl.id}
+                    whileHover={{ y: -4, scale: 1.02 }}
+                    transition={{ duration: 0.2 }}
+                    className="newsletter-card"
+                  >
+                    {nl.imageUrl && (
+                      <div className="h-28 overflow-hidden bg-gradient-to-br from-emerald-100 to-teal-100 dark:from-emerald-900/20 dark:to-teal-900/20">
+                        <img src={nl.imageUrl} alt="" className="w-full h-full object-cover" />
+                      </div>
+                    )}
+                    {!nl.imageUrl && (
+                      <div className="h-16 bg-gradient-to-br from-emerald-100 to-teal-100 dark:from-emerald-900/20 dark:to-teal-900/20 flex items-center justify-center">
+                        <Icon className="h-6 w-6 text-emerald-400 dark:text-emerald-500" />
+                      </div>
+                    )}
+                    <div className="p-4">
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className={`category-badge ${cfg.bg}`}>
+                          <Icon className="h-3 w-3" />
+                          {t(`newsletter.${nl.category}`)}
+                        </span>
+                        <span className="text-[10px] text-gray-400 dark:text-gray-500">{formatDate(nl.publishedAt || nl.createdAt)}</span>
+                      </div>
+                      <h4 className="text-sm font-bold text-gray-900 dark:text-gray-100 line-clamp-2 mb-1">{nl.title}</h4>
+                      {nl.summary && (
+                        <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-2 mb-3">{nl.summary}</p>
+                      )}
+                      <div className="flex items-center justify-between">
+                        <Button size="sm" variant="ghost" className="min-h-[36px] text-emerald-600 dark:text-emerald-400 text-xs p-0 h-auto hover:bg-transparent" onClick={() => setViewingNewsletter(nl)}>
+                          <Eye className="h-3 w-3 mr-1" /> {t('newsletter.read_more')}
+                        </Button>
+                        <Button size="sm" variant="ghost" className="min-h-[36px] text-gray-400 h-auto p-0 hover:bg-transparent" onClick={() => handleShare(nl)}>
+                          <Share2 className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    </div>
+                  </motion.div>
+                );
+              })}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Newsletter View Dialog */}
+      <Dialog open={!!viewingNewsletter} onOpenChange={() => setViewingNewsletter(null)}>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+          {viewingNewsletter && (
+            <>
+              <DialogHeader>
+                <DialogTitle className="text-xl">{viewingNewsletter.title}</DialogTitle>
+                <DialogDescription className="flex items-center gap-3 mt-2">
+                  <span className={`category-badge ${categoryConfig[viewingNewsletter.category]?.bg || 'category-badge-general'}`}>
+                    {(() => { const Cfg = categoryConfig[viewingNewsletter.category] || categoryConfig.general; return <Cfg.icon className="h-3 w-3" />; })()}
+                    {t(`newsletter.${viewingNewsletter.category}`)}
+                  </span>
+                  <span className="text-xs text-gray-500">{formatDate(viewingNewsletter.publishedAt || viewingNewsletter.createdAt)}</span>
+                  <span className="text-xs text-gray-500">{viewingNewsletter.author.firstName} {viewingNewsletter.author.lastName}</span>
+                </DialogDescription>
+              </DialogHeader>
+              {viewingNewsletter.imageUrl && (
+                <div className="rounded-xl overflow-hidden mb-4">
+                  <img src={viewingNewsletter.imageUrl} alt="" className="w-full h-48 object-cover" />
+                </div>
+              )}
+              <div className="prose prose-sm dark:prose-invert max-w-none" dangerouslySetInnerHTML={{ __html: viewingNewsletter.content }} />
+              {viewingNewsletter.tags && (() => {
+                try {
+                  const parsed = JSON.parse(viewingNewsletter.tags);
+                  if (Array.isArray(parsed) && parsed.length > 0) {
+                    return (
+                      <div className="flex items-center gap-2 mt-4 pt-4 border-t border-gray-100 dark:border-gray-800">
+                        <Tag className="h-3.5 w-3.5 text-gray-400" />
+                        {parsed.map((tag: string, i: number) => (
+                          <Badge key={i} variant="outline" className="text-[10px]">{tag}</Badge>
+                        ))}
+                      </div>
+                    );
+                  }
+                } catch { /* ignore */ }
+                return null;
+              })()}
+              <div className="flex justify-end mt-4 pt-4 border-t border-gray-100 dark:border-gray-800">
+                <Button size="sm" variant="outline" className="min-h-[44px]" onClick={() => handleShare(viewingNewsletter)}>
+                  <Share2 className="h-3.5 w-3.5 mr-1.5" /> {t('newsletter.share')}
+                </Button>
+              </div>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
     </motion.div>
   );
 }

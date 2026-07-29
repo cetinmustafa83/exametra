@@ -1,6 +1,71 @@
 # CompetenceTrack — Project Worklog
 
 ---
+Task ID: 26
+Agent: round18-seating-chart-student-avatars-newsletter-badges-deep-styling
+Task: Seating Chart, Student Avatars, Newsletter, Badges, Deep Styling Polish
+Date: Round 18 complete
+
+Work Log:
+- Updated Prisma schema: added `avatarUrl` and `avatarInitials` fields to Student model, added Newsletter model with full fields (title, content, summary, imageUrl, category, isPublished, publishedAt, tags, etc.), added relations to School and User models
+- Ran `bun run db:push` successfully — database in sync
+- Added 40+ i18n keys for both DE and EN: newsletter.*, avatar.*, grading.sehr_gut through grading.ungenuegend
+- Created Newsletter API routes: `/api/newsletters/route.ts` (GET list with pagination/filters, POST create), `/api/newsletters/[id]/route.ts` (GET, PUT, DELETE, POST publish/unpublish)
+- Added newsletter API functions to lib/api.ts: fetchNewsletters, fetchNewsletter, createNewsletter, updateNewsletter, publishNewsletter, unpublishNewsletter, deleteNewsletter + NewsletterData interface
+- Updated Student interface in api.ts to include avatarUrl and avatarInitials fields
+- Updated students API route to support avatarUrl in PUT handler
+- Updated student details API to include avatarUrl and avatarInitials in select
+- Created StudentAvatar component (src/components/student-avatar.tsx): reusable avatar with initials in colored circles or photo display, name-hash-based consistent colors, tooltip support, multiple sizes (xs/sm/md/lg/xl)
+- Updated globals.css with 15+ new CSS utility classes: gradient-card-bg, sparkline-mini, grade-badge-1 through grade-badge-6, mastery-badge-low/medium/high, category-badge-*, newsletter-card, avatar-circle, avatar-photo, animated-underline, animate-count-up, animate-leaf-sway, animate-card-entrance, gradient-border-card
+- Updated dashboard-view.tsx: added DashboardNewsletterCard with newsletter section, category badges, preview cards, create dialog, view dialog with rich content, share button
+- Updated classes-view.tsx: added Class Photo Gallery section with StudentAvatar grid, staggered entrance animation, click-to-navigate-to-student-detail, gradient-border-card class, replaced inline avatar with StudentAvatar component
+- Updated progress-entries-view.tsx, assessments-view.tsx, grading-view.tsx, attendance-view.tsx, reports-view.tsx, student-detail-view.tsx: replaced inline avatar with StudentAvatar component
+- Updated grading-view.tsx: enhanced gradeColor with 6-level German grade system (sehr gut through ungenuegend) with grade-badge CSS classes and label text
+- Updated student-detail-view.tsx: added avatar upload button with dialog for URL input
+- Lint: 0 errors
+- i18n.ts: 0 duplicate keys in both DE and EN dictionaries
+- Dev log: stale browser cache error (not a code error), compilation successful
+- Committed and pushed to GitHub as Round 18
+
+Verification Results (Round 18):
+- `bun run lint`: 0 errors ✓
+- `bun run db:push`: Database in sync ✓
+- i18n.ts duplicate keys: 0 ✓
+
+---
+Task ID: 25
+Agent: newsletter-avatar-styling
+Task: Student Avatars + School Newsletter + Deep Styling Polish
+
+Work Log:
+- Updated Prisma schema: added `avatarUrl` and `avatarInitials` fields to Student model, added Newsletter model with full fields (title, content, summary, imageUrl, category, isPublished, publishedAt, tags, etc.), added relations to School and User models
+- Ran `bun run db:push` successfully — database in sync
+- Added 40+ i18n keys for both DE and EN: newsletter.*, avatar.*, grading.sehr_gut through grading.ungenuegend
+- Created Newsletter API routes: `/api/newsletters/route.ts` (GET list with pagination/filters, POST create), `/api/newsletters/[id]/route.ts` (GET, PUT, DELETE, POST publish/unpublish)
+- Added newsletter API functions to lib/api.ts: fetchNewsletters, fetchNewsletter, createNewsletter, updateNewsletter, publishNewsletter, unpublishNewsletter, deleteNewsletter + NewsletterData interface
+- Updated Student interface in api.ts to include avatarUrl and avatarInitials fields
+- Updated students API route to support avatarUrl in PUT handler
+- Updated student details API to include avatarUrl and avatarInitials in select
+- Created StudentAvatar component (src/components/student-avatar.tsx): reusable avatar with initials in colored circles or photo display, name-hash-based consistent colors, tooltip support, multiple sizes (xs/sm/md/lg/xl)
+- Updated globals.css with 15+ new CSS utility classes: gradient-card-bg, sparkline-mini, grade-badge-1 through grade-badge-6, mastery-badge-low/medium/high, category-badge-* (6 categories), newsletter-card, avatar-circle, avatar-photo, animated-underline, animate-count-up, animate-leaf-sway, animate-card-entrance, gradient-border-card
+- Updated dashboard-view.tsx: added DashboardNewsletterCard with newsletter section (3 latest published newsletters, category badges, preview cards, create dialog, view dialog with rich content, share button), added Leaf sway animation, added count-up animation for paper saved counter, added animated-underline class, imported Newspaper/Share2/PenSquare/Eye/Tag icons
+- Updated classes-view.tsx: added Class Photo Gallery section with StudentAvatar grid, staggered entrance animation, click-to-navigate-to-student-detail, added gradient-border-card class, replaced inline avatar with StudentAvatar component, added Camera icon
+- Updated progress-entries-view.tsx: replaced inline avatar with StudentAvatar component, updated masteryBadge to use CSS class-based mastery-badge-low/medium/high for deeper polish
+- Updated assessments-view.tsx: replaced inline avatar with StudentAvatar component
+- Updated grading-view.tsx: replaced inline avatar with StudentAvatar component, enhanced gradeColor to include 6-level German grade system (sehr gut through ungenuegend) with grade-badge CSS classes and label text, added grade label display below each grade badge
+- Updated student-detail-view.tsx: replaced inline initials with StudentAvatar component, added avatar upload button (Camera icon) with dialog for URL input, added avatarUploadOpen/avatarUrlInput/avatarUploading state, added Camera and Upload icons
+- Updated attendance-view.tsx: replaced inline avatar with StudentAvatar component
+- Updated reports-view.tsx: replaced inline avatar with StudentAvatar component (both draft and final report views)
+- Lint: 0 errors
+- Dev log: stale browser cache error (not a code error), compilation successful
+
+Stage Summary:
+- Student Avatar System: Created reusable StudentAvatar component with name-hash-based consistent colors, photo support, 5 sizes, tooltip support. Integrated across 7 views (classes, progress, assessments, grading, attendance, reports, student-detail)
+- School Newsletter: Full CRUD API + create/publish/unpublish flow, dashboard newsletter card with 3 latest items, category badges (6 categories), newsletter preview cards, create dialog, view dialog with rich content, share functionality
+- Deep Styling Polish: 15+ new CSS utility classes (gradient-card-bg, grade-badge-1-6, mastery-badge-low/medium/high, category-badge-*, newsletter-card, avatar-circle, avatar-photo, animated-underline, animate-count-up, animate-leaf-sway, animate-card-entrance, gradient-border-card), Leaf sway animation, count-up animation, animated underlines, German grade system with 6 levels and labels
+- 40+ i18n keys added for both DE and EN
+
+---
 Task ID: 18
 Agent: round17-qr-codes-gamification-badges-auto-award-badge-management
 Task: QR Codes, Gamification Badges, Auto-Award, Badge Management
@@ -1072,4 +1137,46 @@ Stage Summary:
 - 68 new i18n keys (DE + EN) for QR and badges
 - CSS styles for badge circles, celebrations, QR cards, attendance display, quick stats
 - No lint errors, app compiles and runs
+
+
+---
+Task ID: 24
+Agent: round24-student-transportation-health-records-seating-chart
+Task: Complete Student Transportation + Health Records + Interactive Seating Chart
+Date: Round 24 complete
+
+Work Log:
+- Reviewed existing work from previous agents. Parts 1 (StudentTransport) and 2 (HealthRecord) were already fully implemented:
+  - StudentTransport Prisma model exists with all fields (transportType, routeNumber, stopName, pickupTime, dropoffTime, driverName, driverPhone, distanceKm, notes)
+  - HealthRecord Prisma model exists with all fields (bloodType, allergies, medications, conditions, doctorName, doctorPhone, insuranceNumber, insuranceProvider, lastCheckup, isConfidential)
+  - API routes exist: /api/student-transport/route.ts, /api/student-transport/[id]/route.ts, /api/health-records/route.ts, /api/health-records/[id]/route.ts
+  - Seating API route exists: /api/classes/[id]/seating/route.ts
+  - Transportation UI section in student-detail-view.tsx with transport cards, type icons (Bus, Car, Bike, Walk), route/stop info, times, driver info, quick-call button
+  - Health Records UI section in student-detail-view.tsx with blood type badge, allergy warnings, medication list, doctor info, confidential toggle
+  - All i18n keys for transport.* and health.* already present in both de and en
+  - Seating i18n keys already present in both de and en
+- Part 3: Added Interactive Seating Chart visual grid to classes-view.tsx:
+  - Added new imports: useRef, Shuffle, Printer, Eraser, Columns3, Rows3, Move
+  - Added apiGet/apiPut imports from @/lib/api
+  - Added seating chart state variables: seatingChartOpen, seatingRows, seatingCols, seatingGrid, seatingSaving, drag/touch handlers
+  - Added seating chart helper functions: loadSeatingChart, saveSeatingChart, randomizeSeating, clearSeating, handleSeatingDragStart/Over/Drop/End, touch handlers, handleResizeGrid, handlePrintSeating, getStudentById
+  - Added "Visual Seating" button next to existing "Seating Order" button in student roster header
+  - Added full visual seating chart card with:
+    - Configurable rows/columns (1-10 each) with +/- buttons
+    - Save, Randomize, Clear, Print action buttons (44px min touch targets)
+    - Drag-to-rearrange hint with Move icon
+    - Visual grid with column labels (A, B, C...) and row labels (1, 2, 3...)
+    - Student avatar cells with initials, first/last name, gradient backgrounds
+    - Empty seat cells with Armchair icon and dashed border
+    - Drag-and-drop support (HTML5 drag API) with visual feedback (ring, scale, opacity)
+    - Touch-friendly drag support (onTouchStart/onTouchEnd) for tablets
+    - Teacher desk indicator at bottom of grid
+    - ARIA labels for accessibility
+    - Print functionality opens a new window with formatted table
+    - Empty state when no students are enrolled
+  - Added 'seating.teacher_desk' i18n key in both de and en
+- Verification Results:
+  - bun run db:push: Database already in sync
+  - bun run lint: 0 errors
+  - Dev server running without errors
 

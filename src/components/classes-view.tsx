@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState, useMemo, useCallback } from 'react';
+import React, { useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import { motion } from 'framer-motion';
 import {
   Users, Plus, Search, BookOpen, UserPlus, Grid3X3, School,
@@ -10,6 +10,8 @@ import {
   GraduationCap, Library, Backpack,
   Sprout, Leaf, TreePine, Trees,
   QrCode, FileDown,
+  Shuffle, Printer, Eraser, Columns3, Rows3, Move,
+  Camera,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -22,6 +24,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useAppStore } from '@/lib/store';
 import { t } from '@/lib/i18n';
+import StudentAvatar from '@/components/student-avatar';
 import {
   fetchClasses, fetchClassStudents, fetchStudents, createStudent, enrollStudent,
   fetchSubjects, fetchCompetencyTemplates, createClassCompetencyAssignment,
@@ -30,6 +33,7 @@ import {
   type LearningProgressEntry,
   type ClassGroup, type Student, type Subject, type CompetencyTemplate, type ClassCompetencyAssignment,
 } from '@/lib/api';
+import { apiGet, apiPut } from '@/lib/api';
 import { generateQRCodeSync, downloadQRCode, type QRCodeData } from '@/lib/qrcode';
 import { toast } from 'sonner';
 
@@ -193,6 +197,19 @@ export default function ClassesView() {
   const [dragOverIdx, setDragOverIdx] = useState<number | null>(null);
   const [dragIdx, setDragIdx] = useState<number | null>(null);
   const [reorderSaving, setReorderSaving] = useState(false);
+
+  // Visual seating chart state
+  const [seatingChartOpen, setSeatingChartOpen] = useState(false);
+  const [seatingRows, setSeatingRows] = useState(5);
+  const [seatingCols, setSeatingCols] = useState(6);
+  const [seatingGrid, setSeatingGrid] = useState<Array<Array<string | null>>>([]);
+  const [seatingSaving, setSeatingSaving] = useState(false);
+  const [seatingDragStudent, setSeatingDragStudent] = useState<string | null>(null);
+  const [seatingDragFrom, setSeatingDragFrom] = useState<{ row: number; col: number } | null>(null);
+  const [seatingDragOverCell, setSeatingDragOverCell] = useState<{ row: number; col: number } | null>(null);
+  const [touchDragStudent, setTouchDragStudent] = useState<string | null>(null);
+  const [touchDragFrom, setTouchDragFrom] = useState<{ row: number; col: number } | null>(null);
+  const seatingChartRef = useRef<HTMLDivElement>(null);
 
   // QR Code dialog
   const [classQrOpen, setClassQrOpen] = useState(false);
@@ -543,6 +560,238 @@ export default function ClassesView() {
     // Simplified: use student count as proxy for progress
     return Math.min((cls.studentCount ?? 0) * 10, 100);
   };
+
+  // ─── Visual Seating Chart helpers ──────────────────────────────────
+  interface SeatingPosition { studentId: string; row: number; col: number }
+  interface SeatingResponse { students: Array<{ id: string; firstName: string; lastName: string }>; seatingOrder: SeatingPosition[]; classId: string }
+
+  const loadSeatingChart = useCallback(async (classId: string) => {
+    try {
+      const data = await apiGet<SeatingResponse>(`/api/classes/${classId}/seating`);
+      const existingOrder = data.seatingOrder || [];
+      const studentList = data.students || [];
+      // Determine grid dimensions
+      let maxRow = 4;
+      let maxCol = 5;
+      if (existingOrder.length > 0) {
+        maxRow = Math.max(maxRow, ...existingOrder.map((p) => p.row)) + 1;
+        maxCol = Math.max(maxCol, ...existingOrder.map((p) => p.col)) + 1;
+      }
+      // Ensure grid fits all students
+      const totalNeeded = studentList.length;
+      while (maxRow * maxCol < totalNeeded) {
+        if (maxCol <= maxRow) maxCol++;
+        else maxRow++;
+      }
+      setSeatingRows(maxRow);
+      setSeatingCols(maxCol);
+      // Build the grid
+      const grid: Array<Array<string | null>> = Array.from({ length: maxRow }, () =>
+        Array.from({ length: maxCol }, () => null)
+      );
+      if (existingOrder.length > 0) {
+        for (const pos of existingOrder) {
+          if (pos.row < maxRow && pos.col < maxCol) {
+            grid[pos.row][pos.col] = pos.studentId;
+          }
+        }
+      }
+      // Place any unplaced students in empty cells
+      const placedIds = new Set(existingOrder.map((p) => p.studentId));
+      const unplaced = studentList.filter((s) => !placedIds.has(s.id));
+      let r = 0;
+      let c = 0;
+      for (const s of unplaced) {
+        while (r < maxRow && grid[r][c] !== null) {
+          c++;
+          if (c >= maxCol) { c = 0; r++; }
+        }
+        if (r < maxRow) {
+          grid[r][c] = s.id;
+        }
+      }
+      setSeatingGrid(grid);
+    } catch (err) {
+      console.error('Failed to load seating chart:', err);
+      // Build a default grid from the current students list
+      const total = students.length;
+      const rows = Math.max(1, Math.ceil(total / 6));
+      const cols = Math.min(6, total || 6);
+      setSeatingRows(rows);
+      setSeatingCols(cols);
+      const grid: Array<Array<string | null>> = Array.from({ length: rows }, () =>
+        Array.from({ length: cols }, () => null)
+      );
+      let idx = 0;
+      for (let ri = 0; ri < rows; ri++) {
+        for (let ci = 0; ci < cols; ci++) {
+          if (idx < students.length) {
+            grid[ri][ci] = students[idx].id;
+            idx++;
+          }
+        }
+      }
+      setSeatingGrid(grid);
+    }
+  }, [students]);
+
+  const saveSeatingChart = useCallback(async () => {
+    if (!selectedClass) return;
+    setSeatingSaving(true);
+    try {
+      const positions: SeatingPosition[] = [];
+      for (let r = 0; r < seatingGrid.length; r++) {
+        for (let c = 0; c < seatingGrid[r].length; c++) {
+          if (seatingGrid[r][c]) {
+            positions.push({ studentId: seatingGrid[r][c]!, row: r, col: c });
+          }
+        }
+      }
+      await apiPut<{ success: boolean }>(`/api/classes/${selectedClass.id}/seating`, { seatingOrder: positions });
+      toast.success(t('toast.saved'));
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : t('error.generic'));
+    } finally {
+      setSeatingSaving(false);
+    }
+  }, [selectedClass, seatingGrid, t]);
+
+  const randomizeSeating = useCallback(() => {
+    const allIds: (string | null)[] = seatingGrid.flat().filter((id): id is string => id !== null);
+    // Fisher-Yates shuffle
+    for (let i = allIds.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [allIds[i], allIds[j]] = [allIds[j], allIds[i]];
+    }
+    const newGrid: Array<Array<string | null>> = Array.from({ length: seatingRows }, () =>
+      Array.from({ length: seatingCols }, () => null)
+    );
+    let idx = 0;
+    for (let r = 0; r < seatingRows; r++) {
+      for (let c = 0; c < seatingCols; c++) {
+        if (idx < allIds.length) {
+          newGrid[r][c] = allIds[idx];
+          idx++;
+        }
+      }
+    }
+    setSeatingGrid(newGrid);
+  }, [seatingGrid, seatingRows, seatingCols]);
+
+  const clearSeating = useCallback(() => {
+    const newGrid: Array<Array<string | null>> = Array.from({ length: seatingRows }, () =>
+      Array.from({ length: seatingCols }, () => null)
+    );
+    setSeatingGrid(newGrid);
+  }, [seatingRows, seatingCols]);
+
+  const handleSeatingDragStart = useCallback((studentId: string, row: number, col: number) => {
+    setSeatingDragStudent(studentId);
+    setSeatingDragFrom({ row, col });
+  }, []);
+
+  const handleSeatingDragOver = useCallback((e: React.DragEvent, row: number, col: number) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    setSeatingDragOverCell({ row, col });
+  }, []);
+
+  const handleSeatingDrop = useCallback((row: number, col: number) => {
+    if (!seatingDragStudent || !seatingDragFrom) return;
+    const newGrid = seatingGrid.map((r) => [...r]);
+    // If target has a student, swap them
+    const targetStudent = newGrid[row][col];
+    newGrid[row][col] = seatingDragStudent;
+    newGrid[seatingDragFrom.row][seatingDragFrom.col] = targetStudent;
+    setSeatingGrid(newGrid);
+    setSeatingDragStudent(null);
+    setSeatingDragFrom(null);
+    setSeatingDragOverCell(null);
+  }, [seatingDragStudent, seatingDragFrom, seatingGrid]);
+
+  const handleSeatingDragEnd = useCallback(() => {
+    setSeatingDragStudent(null);
+    setSeatingDragFrom(null);
+    setSeatingDragOverCell(null);
+  }, []);
+
+  // Touch-friendly drag handlers
+  const handleTouchStart = useCallback((studentId: string, row: number, col: number) => {
+    setTouchDragStudent(studentId);
+    setTouchDragFrom({ row, col });
+  }, []);
+
+  const handleTouchEnd = useCallback((row: number, col: number) => {
+    if (!touchDragStudent || !touchDragFrom) return;
+    if (touchDragFrom.row === row && touchDragFrom.col === col) {
+      setTouchDragStudent(null);
+      setTouchDragFrom(null);
+      return;
+    }
+    const newGrid = seatingGrid.map((r) => [...r]);
+    const targetStudent = newGrid[row][col];
+    newGrid[row][col] = touchDragStudent;
+    newGrid[touchDragFrom.row][touchDragFrom.col] = targetStudent;
+    setSeatingGrid(newGrid);
+    setTouchDragStudent(null);
+    setTouchDragFrom(null);
+  }, [touchDragStudent, touchDragFrom, seatingGrid]);
+
+  const handleResizeGrid = useCallback((newRows: number, newCols: number) => {
+    const r = Math.max(1, Math.min(10, newRows));
+    const c = Math.max(1, Math.min(10, newCols));
+    setSeatingRows(r);
+    setSeatingCols(c);
+    const newGrid: Array<Array<string | null>> = Array.from({ length: r }, (_, ri) =>
+      Array.from({ length: c }, (_, ci) =>
+        seatingGrid[ri]?.[ci] ?? null
+      )
+    );
+    setSeatingGrid(newGrid);
+  }, [seatingGrid]);
+
+  const handlePrintSeating = useCallback(() => {
+    if (!seatingChartRef.current) return;
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) return;
+    const studentMap = new Map(students.map((s) => [s.id, s]));
+    let html = `<!DOCTYPE html><html><head><title>${t('seating.title')}</title><style>
+      body{font-family:system-ui,sans-serif;padding:20px;color:#1a1a1a}
+      h1{font-size:20px;margin-bottom:4px}
+      .subtitle{font-size:12px;color:#666;margin-bottom:16px}
+      table{border-collapse:collapse;width:100%}
+      td{border:1px solid #ccc;padding:8px;text-align:center;min-width:60px;height:44px;font-size:12px}
+      .empty{background:#f5f5f5;color:#999}
+      .student{background:#f0fdf4;font-weight:600}
+      .row-label{background:#f9fafb;font-size:10px;color:#999;width:24px}
+    </style></head><body>`;
+    html += `<h1>${t('seating.title')} - ${selectedClass?.name || ''}</h1>`;
+    html += `<div class="subtitle">${t('seating.rows')}: ${seatingRows} · ${t('seating.columns')}: ${seatingCols}</div>`;
+    html += '<table><tbody>';
+    for (let r = 0; r < seatingGrid.length; r++) {
+      html += '<tr>';
+      html += `<td class="row-label">${r + 1}</td>`;
+      for (let c = 0; c < seatingGrid[r].length; c++) {
+        const sid = seatingGrid[r][c];
+        if (sid) {
+          const s = studentMap.get(sid);
+          html += `<td class="student">${s ? `${s.firstName} ${s.lastName}` : ''}</td>`;
+        } else {
+          html += `<td class="empty">${t('seating.empty_seat')}</td>`;
+        }
+      }
+      html += '</tr>';
+    }
+    html += '</tbody></table></body></html>';
+    printWindow.document.write(html);
+    printWindow.document.close();
+    printWindow.print();
+  }, [seatingGrid, seatingRows, seatingCols, selectedClass, students, t]);
+
+  const getStudentById = useCallback((id: string | null) => {
+    if (!id) return null;
+    return students.find((s) => s.id === id) || null;
+  }, [students]);
 
   if (loading) {
     return (
@@ -903,6 +1152,20 @@ export default function ClassesView() {
                       <Armchair className="h-4 w-4 mr-1" />
                       {t('classes.seating_order')}
                     </Button>
+                    <Button
+                      size="sm"
+                      variant={seatingChartOpen ? 'default' : 'outline'}
+                      className={`rounded-xl ${seatingChartOpen ? 'bg-gradient-to-r from-violet-500 to-violet-600 text-white shadow-md shadow-violet-300/20' : 'border-violet-300 dark:border-violet-700 text-violet-700 dark:text-violet-300'}`}
+                      onClick={() => {
+                        if (!seatingChartOpen && selectedClass) {
+                          loadSeatingChart(selectedClass.id);
+                        }
+                        setSeatingChartOpen(!seatingChartOpen);
+                      }}
+                    >
+                      <Grid3X3 className="h-4 w-4 mr-1" />
+                      {t('seating.visual')}
+                    </Button>
                     <div className="relative">
                       <Filter className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-teal-400" />
                       <Input
@@ -1116,9 +1379,12 @@ export default function ClassesView() {
                               <TableCell className="font-semibold">{s.lastName}</TableCell>
                               <TableCell>
                                 <div className="flex items-center gap-2">
-                                  <div className={`flex items-center justify-center w-8 h-8 rounded-full bg-gradient-to-br ${avatarGradientFor(s)} text-xs font-bold shrink-0 ring-2 shadow-sm`}>
-                                    {s.firstName[0]}{s.lastName[0]}
-                                  </div>
+                                  <StudentAvatar
+                                    firstName={s.firstName}
+                                    lastName={s.lastName}
+                                    avatarUrl={s.avatarUrl}
+                                    size="sm"
+                                  />
                                   {s.firstName}
                                 </div>
                               </TableCell>
@@ -1167,6 +1433,292 @@ export default function ClassesView() {
                 )}
               </CardContent>
             </Card>
+
+            {/* ─── Class Photo Gallery ─────────────────────────────────── */}
+            {students.length > 0 && (
+              <motion.div
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3 }}
+              >
+                <Card className="border-0 shadow-sm rounded-xl border-l-3 border-l-emerald-500 overflow-hidden gradient-border-card">
+                  <CardHeader className="pb-3 pt-6 bg-gradient-to-r from-emerald-50/50 to-teal-50/30 dark:from-emerald-900/10 dark:to-teal-900/10">
+                    <CardTitle className="text-lg font-bold flex items-center gap-2">
+                      <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-400 to-teal-500 text-white shadow-sm shadow-emerald-300/20">
+                        <Camera className="h-4 w-4" />
+                      </div>
+                      <span className="animated-underline">{locale === 'de' ? 'Klassenfoto' : 'Class Photo'}</span>
+                      <Badge className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300 text-xs font-medium">{students.length}</Badge>
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="flex flex-wrap gap-3">
+                      {students.map((s, idx) => (
+                        <motion.div
+                          key={s.id}
+                          initial={{ opacity: 0, scale: 0.8 }}
+                          animate={{ opacity: 1, scale: 1 }}
+                          transition={{ delay: idx * 0.03, duration: 0.3 }}
+                          className="flex flex-col items-center gap-1 cursor-pointer"
+                          onClick={() => {
+                            useAppStore.getState().navigateToStudentDetail(s.id, 'classes');
+                          }}
+                        >
+                          <StudentAvatar
+                            firstName={s.firstName}
+                            lastName={s.lastName}
+                            avatarUrl={s.avatarUrl}
+                            size="lg"
+                            showTooltip={true}
+                          />
+                          <span className="text-[10px] text-gray-500 dark:text-gray-400 font-medium text-center max-w-[3.5rem] truncate">
+                            {s.firstName}
+                          </span>
+                        </motion.div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              </motion.div>
+            )}
+
+            {/* ─── Interactive Seating Chart ─────────────────────────────────── */}
+            {seatingChartOpen && selectedClass && (
+              <motion.div
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3 }}
+              >
+                <Card className="border-0 shadow-sm rounded-xl border-l-3 border-l-violet-500 overflow-hidden">
+                  <CardHeader className="pb-3 pt-6 bg-gradient-to-r from-violet-50/50 to-transparent dark:from-violet-900/10 dark:to-transparent">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <CardTitle className="text-lg font-bold flex items-center gap-2">
+                        <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-gradient-to-br from-violet-400 to-violet-500 text-white shadow-sm shadow-violet-300/20">
+                          <Grid3X3 className="h-4 w-4" />
+                        </div>
+                        {t('seating.title')}
+                        <Badge className="bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300 text-xs font-medium">{students.length}</Badge>
+                        <div className="h-0.5 w-12 rounded-full bg-gradient-to-r from-violet-400 to-transparent" />
+                      </CardTitle>
+                      <div className="flex gap-2 flex-wrap items-center">
+                        {/* Grid size controls */}
+                        <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-violet-50/80 dark:bg-violet-900/20 border border-violet-200/50 dark:border-violet-900/30">
+                          <div className="flex items-center gap-1.5">
+                            <Rows3 className="h-3.5 w-3.5 text-violet-500" />
+                            <span className="text-xs font-medium text-violet-700 dark:text-violet-300">{t('seating.rows')}:</span>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-7 w-7 p-0 rounded-lg border-violet-200 dark:border-violet-800 text-violet-600 dark:text-violet-400"
+                              onClick={() => handleResizeGrid(seatingRows - 1, seatingCols)}
+                              disabled={seatingRows <= 1}
+                            >
+                              -
+                            </Button>
+                            <span className="text-sm font-bold text-violet-800 dark:text-violet-200 w-5 text-center">{seatingRows}</span>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-7 w-7 p-0 rounded-lg border-violet-200 dark:border-violet-800 text-violet-600 dark:text-violet-400"
+                              onClick={() => handleResizeGrid(seatingRows + 1, seatingCols)}
+                              disabled={seatingRows >= 10}
+                            >
+                              +
+                            </Button>
+                          </div>
+                          <div className="w-px h-5 bg-violet-200/50 dark:bg-violet-800/50" />
+                          <div className="flex items-center gap-1.5">
+                            <Columns3 className="h-3.5 w-3.5 text-violet-500" />
+                            <span className="text-xs font-medium text-violet-700 dark:text-violet-300">{t('seating.columns')}:</span>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-7 w-7 p-0 rounded-lg border-violet-200 dark:border-violet-800 text-violet-600 dark:text-violet-400"
+                              onClick={() => handleResizeGrid(seatingRows, seatingCols - 1)}
+                              disabled={seatingCols <= 1}
+                            >
+                              -
+                            </Button>
+                            <span className="text-sm font-bold text-violet-800 dark:text-violet-200 w-5 text-center">{seatingCols}</span>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-7 w-7 p-0 rounded-lg border-violet-200 dark:border-violet-800 text-violet-600 dark:text-violet-400"
+                              onClick={() => handleResizeGrid(seatingRows, seatingCols + 1)}
+                              disabled={seatingCols >= 10}
+                            >
+                              +
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    {/* Action buttons */}
+                    <div className="flex flex-wrap items-center gap-2 mt-3">
+                      <Button
+                        size="sm"
+                        className="bg-gradient-to-r from-violet-500 to-violet-600 hover:from-violet-600 hover:to-violet-700 text-white rounded-xl shadow-md shadow-violet-300/20 min-h-[44px]"
+                        onClick={saveSeatingChart}
+                        disabled={seatingSaving}
+                      >
+                        {seatingSaving ? (
+                          <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full mr-1.5" />
+                        ) : null}
+                        {t('seating.save')}
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="rounded-xl border-violet-300 dark:border-violet-700 text-violet-700 dark:text-violet-300 min-h-[44px]"
+                        onClick={randomizeSeating}
+                      >
+                        <Shuffle className="h-4 w-4 mr-1.5" />
+                        {t('seating.randomize')}
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="rounded-xl border-violet-300 dark:border-violet-700 text-violet-700 dark:text-violet-300 min-h-[44px]"
+                        onClick={clearSeating}
+                      >
+                        <Eraser className="h-4 w-4 mr-1.5" />
+                        {t('seating.clear')}
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="rounded-xl border-violet-300 dark:border-violet-700 text-violet-700 dark:text-violet-300 min-h-[44px]"
+                        onClick={handlePrintSeating}
+                      >
+                        <Printer className="h-4 w-4 mr-1.5" />
+                        {t('seating.print')}
+                      </Button>
+                    </div>
+                    {/* Hint */}
+                    <motion.div
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      className="mt-3 px-3 py-2 rounded-lg bg-violet-50/60 dark:bg-violet-900/10 border border-violet-200/30 dark:border-violet-900/20 text-xs text-violet-600 dark:text-violet-400 flex items-center gap-2"
+                    >
+                      <Move className="h-3.5 w-3.5" />
+                      <span>{t('seating.drag_to_rearrange')}</span>
+                    </motion.div>
+                  </CardHeader>
+                  <CardContent>
+                    {students.length === 0 ? (
+                      <div className="text-center py-10">
+                        <div className="relative flex items-center justify-center w-20 h-20 rounded-3xl bg-gradient-to-br from-violet-100 to-violet-100 dark:from-violet-900/30 dark:to-violet-900/30 mx-auto mb-5 shadow-lg shadow-violet-200/50 dark:shadow-violet-900/20 ring-4 ring-violet-50 dark:ring-violet-900/30">
+                          <Grid3X3 className="h-10 w-10 text-violet-500 dark:text-violet-400" />
+                        </div>
+                        <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">{t('seating.no_students')}</p>
+                        <div className="flex justify-center">
+                          <div className="h-1 w-16 rounded-full bg-gradient-to-r from-violet-300 to-violet-400 dark:from-violet-600 dark:to-violet-700" />
+                        </div>
+                      </div>
+                    ) : (
+                      <div ref={seatingChartRef} className="overflow-x-auto">
+                        <div className="min-w-fit">
+                          {/* Column labels */}
+                          <div className="flex gap-1 mb-1 pl-8">
+                            {Array.from({ length: seatingCols }).map((_, ci) => (
+                              <div
+                                key={`col-${ci}`}
+                                className="flex-1 min-w-[72px] text-center text-[10px] font-semibold uppercase tracking-wider text-violet-400/60 dark:text-violet-500/40"
+                              >
+                                {String.fromCharCode(65 + ci)}
+                              </div>
+                            ))}
+                          </div>
+                          {/* Grid rows */}
+                          {seatingGrid.map((row, ri) => (
+                            <div key={`row-${ri}`} className="flex gap-1 mb-1">
+                              {/* Row label */}
+                              <div className="w-7 flex items-center justify-center text-[10px] font-semibold text-violet-400/60 dark:text-violet-500/40 shrink-0">
+                                {ri + 1}
+                              </div>
+                              {/* Cells */}
+                              {row.map((studentId, ci) => {
+                                const student = getStudentById(studentId);
+                                const isDragOver = seatingDragOverCell?.row === ri && seatingDragOverCell?.col === ci;
+                                const isDragFrom = seatingDragFrom?.row === ri && seatingDragFrom?.col === ci;
+                                const isTouchSelected = touchDragFrom?.row === ri && touchDragFrom?.col === ci;
+                                return (
+                                  <div
+                                    key={`cell-${ri}-${ci}`}
+                                    className={`flex-1 min-w-[72px] min-h-[72px] rounded-xl border-2 transition-all duration-200 flex flex-col items-center justify-center gap-1 cursor-grab active:cursor-grabbing select-none ${
+                                      student
+                                        ? `bg-gradient-to-br ${avatarGradientFor(student)} border-transparent shadow-sm ${
+                                            isDragFrom || isTouchSelected
+                                              ? 'opacity-50 scale-95 ring-2 ring-violet-400 ring-offset-2'
+                                              : isDragOver
+                                                ? 'ring-2 ring-violet-400 ring-offset-2 scale-105'
+                                                : 'hover:shadow-md hover:scale-[1.03]'
+                                          }`
+                                        : `bg-gray-50 dark:bg-gray-800/40 border-dashed border-gray-200 dark:border-gray-700 ${
+                                            isDragOver
+                                              ? 'ring-2 ring-violet-400 ring-offset-2 bg-violet-50/50 dark:bg-violet-900/10 border-violet-300 dark:border-violet-700'
+                                              : ''
+                                          }`
+                                    }`}
+                                    draggable={!!studentId}
+                                    onDragStart={(e) => {
+                                      if (!studentId) return;
+                                      handleSeatingDragStart(studentId, ri, ci);
+                                      e.dataTransfer.effectAllowed = 'move';
+                                      e.dataTransfer.setData('text/plain', studentId);
+                                    }}
+                                    onDragOver={(e) => handleSeatingDragOver(e, ri, ci)}
+                                    onDragLeave={() => {
+                                      if (seatingDragOverCell?.row === ri && seatingDragOverCell?.col === ci) {
+                                        setSeatingDragOverCell(null);
+                                      }
+                                    }}
+                                    onDrop={() => handleSeatingDrop(ri, ci)}
+                                    onDragEnd={handleSeatingDragEnd}
+                                    onTouchStart={() => {
+                                      if (studentId) handleTouchStart(studentId, ri, ci);
+                                    }}
+                                    onTouchEnd={() => handleTouchEnd(ri, ci)}
+                                    role="gridcell"
+                                    aria-label={student ? `${student.firstName} ${student.lastName} - ${t('seating.row')} ${ri + 1}, ${t('seating.column')} ${String.fromCharCode(65 + ci)}` : t('seating.empty_seat')}
+                                  >
+                                    {student ? (
+                                      <>
+                                        <div className={`flex items-center justify-center w-10 h-10 rounded-full bg-gradient-to-br ${avatarGradientFor(student)} text-xs font-bold ring-2 ring-white/50 dark:ring-gray-800/50 shadow-sm`}>
+                                          {student.firstName[0]}{student.lastName[0]}
+                                        </div>
+                                        <span className="text-[10px] font-medium text-center leading-tight truncate max-w-[68px]">
+                                          {student.firstName}
+                                        </span>
+                                        <span className="text-[9px] text-gray-500 dark:text-gray-400 text-center leading-tight truncate max-w-[68px]">
+                                          {student.lastName}
+                                        </span>
+                                      </>
+                                    ) : (
+                                      <div className="flex flex-col items-center gap-1 text-gray-300 dark:text-gray-600">
+                                        <Armchair className="h-5 w-5" />
+                                        <span className="text-[9px]">{t('seating.empty_seat')}</span>
+                                      </div>
+                                    )}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          ))}
+                          {/* Teacher desk indicator */}
+                          <div className="flex justify-center mt-4">
+                            <div className="px-6 py-2 rounded-xl bg-gradient-to-r from-violet-100 to-violet-50 dark:from-violet-900/20 dark:to-violet-900/10 border border-violet-200/50 dark:border-violet-900/30 text-xs font-medium text-violet-600 dark:text-violet-400 flex items-center gap-2">
+                              <School className="h-3.5 w-3.5" />
+                              {t('seating.teacher_desk')}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </motion.div>
+            )}
           </>
         )}
       </div>

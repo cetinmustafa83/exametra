@@ -23,6 +23,8 @@ export async function GET(
         lastName: true,
         dateOfBirth: true,
         externalId: true,
+        avatarUrl: true,
+        avatarInitials: true,
         createdAt: true,
         schoolId: true,
         school: { select: { id: true, name: true } },

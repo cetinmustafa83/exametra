@@ -3161,6 +3161,7 @@ const de: TranslationDict = {
   'seating.no_students': 'Keine Schüler für Sitzplan',
   'seating.visual': 'Visueller Sitzplan',
   'seating.list': 'Listenansicht',
+  'seating.teacher_desk': 'Lehrerpult',
 
   // QR Code System
   'qr.title': 'QR-Code',
@@ -3229,6 +3230,49 @@ const de: TranslationDict = {
   'badges.team_player': 'Teamplayer',
   'badges.goal_achiever': 'Zielerreicher',
   'badges.eco_warrior': 'Umweltkrieger',
+
+  // Newsletter / School Blog
+  'newsletter.title': 'Schulnachrichten',
+  'newsletter.create': 'Nachricht erstellen',
+  'newsletter.published': 'Veröffentlicht',
+  'newsletter.draft': 'Entwurf',
+  'newsletter.category': 'Kategorie',
+  'newsletter.general': 'Allgemein',
+  'newsletter.academic': 'Akademisch',
+  'newsletter.sports': 'Sport',
+  'newsletter.arts': 'Kunst',
+  'newsletter.events': 'Veranstaltungen',
+  'newsletter.community': 'Gemeinschaft',
+  'newsletter.read_more': 'Weiterlesen',
+  'newsletter.view_all': 'Alle Nachrichten',
+  'newsletter.cover_image': 'Titelbild',
+  'newsletter.summary': 'Zusammenfassung',
+  'newsletter.tags': 'Schlagwörter',
+  'newsletter.publish': 'Veröffentlichen',
+  'newsletter.unpublish': 'Veröffentlichung zurückziehen',
+  'newsletter.share': 'Teilen',
+  'newsletter.author': 'Autor',
+  'newsletter.date': 'Datum',
+  'newsletter.content': 'Inhalt',
+  'newsletter.no_news': 'Keine Nachrichten verfügbar',
+  'newsletter.latest': 'Neueste Nachrichten',
+  'newsletter.school_news': 'Schulnachrichten',
+
+  // Avatar / Student Photo
+  'avatar.title': 'Foto',
+  'avatar.upload': 'Foto hochladen',
+  'avatar.initials': 'Initialen',
+  'avatar.photo': 'Foto',
+  'avatar.change': 'Foto ändern',
+  'avatar.remove': 'Foto entfernen',
+
+  // German Grade Labels
+  'grading.sehr_gut': 'Sehr gut',
+  'grading.gut': 'Gut',
+  'grading.befriedigend': 'Befriedigend',
+  'grading.ausreichend': 'Ausreichend',
+  'grading.mangelhaft': 'Mangelhaft',
+  'grading.ungenuegend': 'Ungenügend',
 };
 
 const en: TranslationDict = {
@@ -6389,6 +6433,7 @@ const en: TranslationDict = {
   'seating.no_students': 'No students for seating chart',
   'seating.visual': 'Visual Seating',
   'seating.list': 'List View',
+  'seating.teacher_desk': 'Teacher Desk',
 
   // QR Code System
   'qr.title': 'QR Code',
@@ -6457,6 +6502,49 @@ const en: TranslationDict = {
   'badges.team_player': 'Team Player',
   'badges.goal_achiever': 'Goal Achiever',
   'badges.eco_warrior': 'Eco Warrior',
+
+  // Newsletter / School Blog
+  'newsletter.title': 'School News',
+  'newsletter.create': 'Create Newsletter',
+  'newsletter.published': 'Published',
+  'newsletter.draft': 'Draft',
+  'newsletter.category': 'Category',
+  'newsletter.general': 'General',
+  'newsletter.academic': 'Academic',
+  'newsletter.sports': 'Sports',
+  'newsletter.arts': 'Arts',
+  'newsletter.events': 'Events',
+  'newsletter.community': 'Community',
+  'newsletter.read_more': 'Read More',
+  'newsletter.view_all': 'View All News',
+  'newsletter.cover_image': 'Cover Image',
+  'newsletter.summary': 'Summary',
+  'newsletter.tags': 'Tags',
+  'newsletter.publish': 'Publish',
+  'newsletter.unpublish': 'Unpublish',
+  'newsletter.share': 'Share',
+  'newsletter.author': 'Author',
+  'newsletter.date': 'Date',
+  'newsletter.content': 'Content',
+  'newsletter.no_news': 'No news available',
+  'newsletter.latest': 'Latest News',
+  'newsletter.school_news': 'School News',
+
+  // Avatar / Student Photo
+  'avatar.title': 'Photo',
+  'avatar.upload': 'Upload Photo',
+  'avatar.initials': 'Initials',
+  'avatar.photo': 'Photo',
+  'avatar.change': 'Change Photo',
+  'avatar.remove': 'Remove Photo',
+
+  // German Grade Labels
+  'grading.sehr_gut': 'Sehr gut',
+  'grading.gut': 'Gut',
+  'grading.befriedigend': 'Befriedigend',
+  'grading.ausreichend': 'Ausreichend',
+  'grading.mangelhaft': 'Mangelhaft',
+  'grading.ungenuegend': 'Ungenügend',
 };
 
 const translations: Record<string, TranslationDict> = { de, en };

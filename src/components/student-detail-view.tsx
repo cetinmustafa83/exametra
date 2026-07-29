@@ -22,6 +22,7 @@ import {
   Bus, Car, Bike, Footprints, Train, Truck, Droplets, Pill, Stethoscope,
   EyeOff, Shield, Activity, HeartPulse, Syringe,
   QrCode, CalendarCheck, Leaf,
+  Camera, Upload,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -39,6 +40,7 @@ import {
 } from '@/components/ui/tooltip';
 import { useAppStore, type CurrentUser } from '@/lib/store';
 import { t } from '@/lib/i18n';
+import StudentAvatar from '@/components/student-avatar';
 import { fetchStudentDetail, getReportPdfUrl, type StudentDetailData, fetchParentLinks, type ParentStudentLinkData, apiGet, apiPost, apiPut, apiDelete, fetchBadgeProgress, type BadgeProgressData, fetchStudentBadges, type StudentBadgeData, type BadgeData } from '@/lib/api';
 import { generateQRCodeSync, downloadQRCode, type QRCodeData } from '@/lib/qrcode';
 import { toast } from 'sonner';
@@ -519,6 +521,11 @@ export default function StudentDetailView() {
   const [badgeDetailDialogOpen, setBadgeDetailDialogOpen] = useState(false);
   const [selectedBadgeDetail, setSelectedBadgeDetail] = useState<BadgeProgressData | null>(null);
 
+  // Avatar upload dialog
+  const [avatarUploadOpen, setAvatarUploadOpen] = useState(false);
+  const [avatarUrlInput, setAvatarUrlInput] = useState('');
+  const [avatarUploading, setAvatarUploading] = useState(false);
+
   // Load parent links for parent users
   useEffect(() => {
     if (isParent && currentUser?.id) {
@@ -758,13 +765,26 @@ export default function StudentDetailView() {
                 <div className="relative shrink-0">
                   {/* Decorative halo */}
                   <div className="absolute -inset-1.5 rounded-3xl bg-gradient-to-br from-emerald-400/30 via-teal-400/20 to-amber-400/20 dark:from-emerald-500/20 dark:to-teal-500/10 blur-md animate-pulse-soft" />
-                  <div className="relative flex items-center justify-center w-20 h-20 rounded-3xl bg-gradient-to-br from-emerald-100 via-teal-50 to-emerald-50 dark:from-emerald-900/40 dark:via-teal-900/30 dark:to-emerald-900/20 text-emerald-700 dark:text-emerald-200 text-2xl font-bold ring-2 ring-emerald-200/60 dark:ring-emerald-700/40 shadow-lg shadow-emerald-200/40 dark:shadow-emerald-900/30">
-                    {initials}
-                  </div>
+                  <StudentAvatar
+                    firstName={student.firstName}
+                    lastName={student.lastName}
+                    avatarUrl={student.avatarUrl}
+                    size="xl"
+                    className="w-20 h-20 text-2xl rounded-3xl ring-2 ring-emerald-200/60 dark:ring-emerald-700/40 shadow-lg shadow-emerald-200/40 dark:shadow-emerald-900/30"
+                  />
                   {/* Mastery badge */}
                   <div className="absolute -bottom-1.5 -right-1.5 flex items-center justify-center w-7 h-7 rounded-full bg-gradient-to-br from-amber-300 to-amber-500 dark:from-amber-400 dark:to-amber-600 ring-2 ring-white dark:ring-gray-900 shadow-sm text-xs">
                     <Star className="w-3.5 h-3.5 text-amber-900" />
                   </div>
+                  {/* Upload button */}
+                  <button
+                    className="absolute -top-1.5 -right-1.5 flex items-center justify-center w-7 h-7 rounded-full bg-gradient-to-br from-emerald-400 to-teal-500 text-white ring-2 ring-white dark:ring-gray-900 shadow-md hover:scale-110 transition-transform"
+                    onClick={() => setAvatarUploadOpen(true)}
+                    title={t('avatar.change')}
+                    aria-label={t('avatar.change')}
+                  >
+                    <Camera className="w-3.5 h-3.5" />
+                  </button>
                 </div>
                 <div>
                   <h2 className="text-2xl font-bold gradient-text">{studentName}</h2>
@@ -3363,6 +3383,66 @@ export default function StudentDetailView() {
               }}
             >
               {ecEditId ? t('action.save') : t('action.create')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Avatar Upload Dialog */}
+      <Dialog open={avatarUploadOpen} onOpenChange={setAvatarUploadOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>{t('avatar.upload')}</DialogTitle>
+            <DialogDescription>{t('avatar.change')}</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="flex items-center gap-4">
+              <StudentAvatar
+                firstName={student?.firstName ?? ''}
+                lastName={student?.lastName ?? ''}
+                avatarUrl={avatarUrlInput || student?.avatarUrl}
+                size="xl"
+              />
+              <div className="flex-1">
+                <Label className="text-sm font-medium">URL</Label>
+                <Input
+                  value={avatarUrlInput}
+                  onChange={(e) => setAvatarUrlInput(e.target.value)}
+                  placeholder="https://example.com/photo.jpg"
+                  className="mt-1"
+                />
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                  {locale === 'de' ? 'Geben Sie eine URL für das Schülerfoto ein.' : 'Enter a URL for the student photo.'}
+                </p>
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setAvatarUploadOpen(false); setAvatarUrlInput(''); }} className="min-h-[44px]">{t('action.cancel')}</Button>
+            <Button
+              onClick={async () => {
+                if (!student?.id) return;
+                setAvatarUploading(true);
+                try {
+                  await apiPut(`/api/students/${student.id}`, { avatarUrl: avatarUrlInput || null });
+                  toast.success(t('toast.saved'));
+                  setAvatarUploadOpen(false);
+                  setAvatarUrlInput('');
+                  // Reload student detail
+                  if (studentId) {
+                    const fresh = await fetchStudentDetail(studentId);
+                    setStudent(fresh);
+                  }
+                } catch (err) {
+                  toast.error(err instanceof Error ? err.message : t('error.generic'));
+                } finally {
+                  setAvatarUploading(false);
+                }
+              }}
+              disabled={avatarUploading}
+              className="min-h-[44px] bg-gradient-to-r from-emerald-500 to-teal-500 text-white"
+            >
+              {avatarUploading ? '...' : t('action.save')}
             </Button>
           </DialogFooter>
         </DialogContent>

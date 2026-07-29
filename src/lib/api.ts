@@ -188,6 +188,8 @@ export interface Student {
   lastName: string;
   dateOfBirth: string | null;
   externalId: string | null;
+  avatarUrl: string | null;
+  avatarInitials: string | null;
   school: { id: string; name: string };
   enrollments: Array<{ classGroup: { id: string; name: string; gradeLevel: number } }>;
   _count?: { learningProgressEntries: number; assessmentResults: number };
@@ -207,6 +209,7 @@ export function createStudent(data: {
   lastName: string;
   dateOfBirth?: string;
   externalId?: string;
+  avatarUrl?: string;
 }) {
   return apiPost<Student>('/api/students', data);
 }
@@ -2993,4 +2996,74 @@ export function checkAndAwardBadges(schoolId: string, studentId: string): Promis
 
 export function seedBadges(schoolId: string): Promise<{ success: boolean }> {
   return apiPost<{ success: boolean }>('/api/badge-seed', { schoolId });
+}
+
+/* ── Newsletter / School Blog ─────────────────────────────────────── */
+
+export interface NewsletterData {
+  id: string;
+  schoolId: string;
+  authorId: string;
+  title: string;
+  content: string;
+  summary: string | null;
+  imageUrl: string | null;
+  category: string;
+  isPublished: boolean;
+  publishedAt: string | null;
+  tags: string | null;
+  isDemo: boolean;
+  createdAt: string;
+  updatedAt: string;
+  deletedAt: string | null;
+  author: { id: string; firstName: string; lastName: string };
+}
+
+export function fetchNewsletters(schoolId: string, published?: boolean, category?: string, limit?: number): Promise<{ newsletters: NewsletterData[]; total: number }> {
+  const params = new URLSearchParams({ schoolId });
+  if (published !== undefined) params.set('published', String(published));
+  if (category) params.set('category', category);
+  if (limit) params.set('limit', String(limit));
+  return apiGet<{ newsletters: NewsletterData[]; total: number }>(`/api/newsletters?${params.toString()}`);
+}
+
+export function fetchNewsletter(id: string): Promise<NewsletterData> {
+  return apiGet<NewsletterData>(`/api/newsletters/${id}`);
+}
+
+export function createNewsletter(data: {
+  schoolId: string;
+  authorId: string;
+  title: string;
+  content: string;
+  summary?: string;
+  imageUrl?: string;
+  category?: string;
+  tags?: string[];
+  isDemo?: boolean;
+}): Promise<NewsletterData> {
+  return apiPost<NewsletterData>('/api/newsletters', data);
+}
+
+export function updateNewsletter(id: string, data: Partial<{
+  title: string;
+  content: string;
+  summary: string;
+  imageUrl: string;
+  category: string;
+  tags: string[];
+}>): Promise<NewsletterData> {
+  return apiPut<NewsletterData>(`/api/newsletters/${id}`, data);
+}
+
+export function publishNewsletter(id: string): Promise<NewsletterData> {
+  return apiPost<NewsletterData>(`/api/newsletters/${id}`, { action: 'publish' });
+}
+
+export function unpublishNewsletter(id: string): Promise<NewsletterData> {
+  return apiPost<NewsletterData>(`/api/newsletters/${id}`, { action: 'unpublish' });
+}
+
+export function deleteNewsletter(id: string): Promise<{ success: boolean }> {
+  return apiDelete<{ success: boolean }>(`/api/newsletters/${id}`);
 }

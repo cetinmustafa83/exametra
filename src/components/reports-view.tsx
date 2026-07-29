@@ -33,6 +33,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { useAppStore } from '@/lib/store';
 import { t } from '@/lib/i18n';
+import StudentAvatar from '@/components/student-avatar';
 import {
   fetchClasses, fetchClassStudents,
   fetchReports, createReport, updateReport, getReportPdfUrl,
@@ -633,9 +634,7 @@ export default function ReportsView() {
                           >
                             <div className="flex items-center justify-between">
                               <div className="flex items-center gap-2">
-                                <div className="flex items-center justify-center w-8 h-8 rounded-full bg-gradient-to-br from-amber-100 to-amber-200 dark:from-amber-900/30 dark:to-amber-800/30 text-amber-600 dark:text-amber-300 text-xs font-bold shrink-0">
-                                  {r.student.firstName[0]}{r.student.lastName[0]}
-                                </div>
+                                <StudentAvatar firstName={r.student.firstName} lastName={r.student.lastName} avatarUrl={r.student.avatarUrl} size="sm" />
                                 <p className="font-semibold text-gray-900 dark:text-gray-100">
                                   {r.student.firstName} {r.student.lastName}
                                 </p>
@@ -672,9 +671,7 @@ export default function ReportsView() {
                           >
                             <div className="flex items-center justify-between">
                               <div className="flex items-center gap-2">
-                                <div className="flex items-center justify-center w-8 h-8 rounded-full bg-gradient-to-br from-emerald-100 to-emerald-200 dark:from-emerald-900/30 dark:to-emerald-800/30 text-emerald-600 dark:text-emerald-300 text-xs font-bold shrink-0">
-                                  {r.student.firstName[0]}{r.student.lastName[0]}
-                                </div>
+                                <StudentAvatar firstName={r.student.firstName} lastName={r.student.lastName} avatarUrl={r.student.avatarUrl} size="sm" />
                                 <p className="font-semibold text-gray-900 dark:text-gray-100">
                                   {r.student.firstName} {r.student.lastName}
                                 </p>

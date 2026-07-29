@@ -20,6 +20,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useAppStore } from '@/lib/store';
 import { t } from '@/lib/i18n';
+import StudentAvatar from '@/components/student-avatar';
 import {
   fetchClasses, fetchClassStudents, fetchSubjects,
   fetchAssessments, createAssessment,
@@ -718,9 +719,7 @@ export default function AssessmentsView() {
                     >
                       <TableCell className="font-semibold">
                         <div className="flex items-center gap-2">
-                          <div className="flex items-center justify-center w-7 h-7 rounded-full bg-gradient-to-br from-emerald-100 to-teal-100 dark:from-emerald-900/30 dark:to-teal-900/30 text-emerald-600 dark:text-emerald-300 text-xs font-bold shrink-0 ring-1 ring-emerald-200/50 dark:ring-emerald-900/20">
-                            {s.firstName[0]}{s.lastName[0]}
-                          </div>
+                          <StudentAvatar firstName={s.firstName} lastName={s.lastName} avatarUrl={s.avatarUrl} size="xs" />
                           <span>{s.firstName} {s.lastName}</span>
                           {isBest && (
                             <Badge className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300 text-[10px]">
