@@ -1175,6 +1175,56 @@ export interface AnalyticsAtRiskStudent {
   latestEntryDate: string;
 }
 
+export interface AnalyticsSubjectMasteryPoint {
+  categoryId: string;
+  categoryName: string;
+  avgMastery: number;
+  entryCount: number;
+}
+
+export interface AnalyticsTeacherPerformancePoint {
+  teacherId: string;
+  teacherName: string;
+  assessmentCount: number;
+  progressCount: number;
+  improvementRate: number;
+  notebookCount: number;
+}
+
+export interface AnalyticsSelfVsTeacherAgg {
+  avgSelfLevel: number;
+  avgTeacherLevel: number;
+  avgGap: number;
+  totalComparisons: number;
+}
+
+export interface AnalyticsGapAnalysisPoint {
+  studentId: string;
+  studentName: string;
+  competencyId: string;
+  selfLevel: number;
+  teacherLevel: number;
+  gap: number;
+}
+
+export interface AnalyticsExcellingStudent {
+  studentId: string;
+  studentName: string;
+  className: string;
+  latestMastery: number;
+  improvement: number;
+}
+
+export interface AnalyticsClassRadarPoint {
+  classId: string;
+  className: string;
+  mastery: number;
+  attendance: number;
+  engagement: number;
+  progress: number;
+  behavior: number;
+}
+
 export interface AnalyticsData {
   masteryTrend: AnalyticsMasteryTrendPoint[];
   classComparison: AnalyticsClassComparisonPoint[];
@@ -1187,6 +1237,17 @@ export interface AnalyticsData {
   totalEntries: number;
   totalStudents: number;
   overallAvgMastery: number;
+  // New fields
+  totalClasses: number;
+  totalTeachers: number;
+  totalCompetencies: number;
+  competencyCoveragePct: number;
+  subjectMasteryAvg: AnalyticsSubjectMasteryPoint[];
+  teacherPerformance: AnalyticsTeacherPerformancePoint[];
+  selfVsTeacherAgg: AnalyticsSelfVsTeacherAgg | null;
+  gapAnalysis: AnalyticsGapAnalysisPoint[];
+  excellingStudents: AnalyticsExcellingStudent[];
+  classRadarData: AnalyticsClassRadarPoint[];
 }
 
 export function fetchAnalytics(params: {

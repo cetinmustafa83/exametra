@@ -26,7 +26,9 @@ export type ViewName =
   | 'notebooks'
   | 'drawing'
   | 'homework'
-  | 'portfolio';
+  | 'portfolio'
+  | 'timetable'
+  | 'resources';
 
 export interface CurrentUser {
   id: string;

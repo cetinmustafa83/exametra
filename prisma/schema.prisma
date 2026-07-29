@@ -49,6 +49,8 @@ model School {
   selfAssessments    SelfAssessment[]
   learningGoals      LearningGoal[]
   portfolioEntries   PortfolioEntry[]
+  timetableSlots     TimetableSlot[]
+  resources          Resource[]
   district           SchoolDistrict? @relation(fields: [districtId], references: [id])
   districtId         String?
 }
@@ -91,6 +93,8 @@ model User {
   assignedInterventions     BehaviorIntervention[] @relation("InterventionAssignee")
   homeworks                 Homework[]
   announcements             Announcement[]
+  timetableSlots            TimetableSlot[]
+  resources                 Resource[]
 }
 
 model SchoolYear {
@@ -140,6 +144,8 @@ model ClassGroup {
   homeworks           Homework[]
   announcements       Announcement[]
   selfAssessments     SelfAssessment[]
+  timetableSlots      TimetableSlot[]
+  resources           Resource[]
 }
 
 model ClassGroupTeacher {
@@ -221,6 +227,8 @@ model Subject {
   calendarEvents      CalendarEvent[]
   curriculumStandards CurriculumStandard[]
   homeworks           Homework[]
+  timetableSlots      TimetableSlot[]
+  resources           Resource[]
 }
 
 model CompetencyTemplate {
@@ -1237,4 +1245,64 @@ model PortfolioEntry {
 
   @@index([schoolId, studentId])
   @@map("portfolio_entries")
+}
+
+// ─── Timetable ──────────────────────────────────────────────────────
+
+model TimetableSlot {
+  id              String   @id @default(cuid())
+  schoolId        String
+  classGroupId    String
+  dayOfWeek       Int      // 0=Monday, 1=Tuesday, ..., 4=Friday
+  period          Int      // 1-8 (lesson period)
+  subjectId       String?
+  teacherId       String?
+  roomId          String?  // optional room
+  startTime       String   // "08:00"
+  endTime         String   // "08:45"
+  isBreak         Boolean  @default(false)
+  isDemo          Boolean  @default(false)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  deletedAt       DateTime?
+
+  school          School     @relation(fields: [schoolId], references: [id])
+  classGroup      ClassGroup @relation(fields: [classGroupId], references: [id])
+  subject         Subject?   @relation(fields: [subjectId], references: [id])
+  teacher         User?      @relation(fields: [teacherId], references: [id])
+
+  @@unique([classGroupId, dayOfWeek, period])
+  @@index([schoolId, classGroupId])
+  @@map("timetable_slots")
+}
+
+// ─── Digital Resource Library ──────────────────────────────────────
+
+model Resource {
+  id              String   @id @default(cuid())
+  schoolId        String
+  authorId        String
+  title           String
+  description     String?
+  resourceType    String   // "document", "worksheet", "presentation", "video_link", "image", "link", "audio"
+  url             String?  // external URL or file path
+  content         String?  // text content
+  subjectId       String?
+  classGroupId    String?
+  gradeLevel      Int?
+  tags            String?  // JSON array of tags
+  isPublic        Boolean  @default(true)
+  downloadCount   Int      @default(0)
+  isDemo          Boolean  @default(false)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  deletedAt       DateTime?
+
+  school          School       @relation(fields: [schoolId], references: [id])
+  author          User         @relation(fields: [authorId], references: [id])
+  subject         Subject?     @relation(fields: [subjectId], references: [id])
+  classGroup      ClassGroup?  @relation(fields: [classGroupId], references: [id])
+
+  @@index([schoolId, resourceType])
+  @@map("resources")
 }

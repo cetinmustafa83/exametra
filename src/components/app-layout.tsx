@@ -55,6 +55,8 @@ import {
   BookCheck,
   Megaphone,
   Briefcase,
+  Clock as ClockIcon,
+  Library as LibraryIcon,
 } from 'lucide-react';
 import {
   Sidebar,
@@ -145,6 +147,8 @@ import NotebooksView from './notebooks-view';
 import DrawingView from './drawing-view';
 import HomeworkView from './homework-view';
 import PortfolioView from './portfolio-view';
+import TimetableView from './timetable-view';
+import ResourceLibraryView from './resource-library-view';
 
 type NavItem = { key: ViewName; icon: React.ElementType; labelKey: string };
 type NavSection = { id: string; labelKey: string; items: NavItem[] };
@@ -181,6 +185,8 @@ const navSections: NavSection[] = [
       { key: 'notebooks', icon: BookOpen, labelKey: 'nav.notebooks' },
       { key: 'drawing', icon: Palette, labelKey: 'nav.drawing' },
       { key: 'portfolio', icon: Briefcase, labelKey: 'nav.portfolio' },
+      { key: 'timetable', icon: ClockIcon, labelKey: 'nav.timetable' },
+      { key: 'resources', icon: LibraryIcon, labelKey: 'nav.resources' },
     ],
   },
   {
@@ -348,6 +354,8 @@ function renderView(view: ViewName) {
     case 'drawing': return <DrawingView />;
     case 'homework': return <HomeworkView />;
     case 'portfolio': return <PortfolioView />;
+    case 'timetable': return <TimetableView />;
+    case 'resources': return <ResourceLibraryView />;
     default: return <DashboardView />;
   }
 }

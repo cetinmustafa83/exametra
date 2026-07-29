@@ -419,6 +419,256 @@ export async function GET(request: Request) {
           ) / 100
         : 0;
 
+    // ── Advanced: School Overview counts ──
+    const classGroupWhere: Record<string, unknown> = {};
+    if (schoolId) classGroupWhere.schoolId = schoolId;
+    if (schoolYearId) classGroupWhere.schoolYearId = schoolYearId;
+    if (classGroupId) classGroupWhere.id = classGroupId;
+
+    const [totalClasses, totalTeachers, totalCompetencies] = await Promise.all([
+      db.classGroup.count({ where: classGroupWhere }).catch(() => 0),
+      db.classGroupTeacher.findMany({
+        where: Object.keys(classGroupWhere).length > 0
+          ? { classGroup: classGroupWhere }
+          : {},
+        select: { userId: true },
+      }).then((rows) => new Set(rows.map((r) => r.userId)).size).catch(() => 0),
+      db.competency.count().catch(() => 0),
+    ]);
+
+    // ── Advanced: Subject Mastery Avg ──
+    const subjectAgg = new Map<string, { subjectName: string; total: number; count: number }>();
+    for (const e of entries) {
+      const cat = e.competency?.category;
+      if (!cat) continue;
+      const sid = cat.id;
+      const cur = subjectAgg.get(sid) ?? { subjectName: cat.name, total: 0, count: 0 };
+      cur.total += e.masteryLevelValue;
+      cur.count += 1;
+      subjectAgg.set(sid, cur);
+    }
+    const subjectMasteryAvg = Array.from(subjectAgg.entries())
+      .map(([categoryId, v]) => ({
+        categoryId,
+        categoryName: v.subjectName,
+        avgMastery: v.count > 0 ? Math.round((v.total / v.count) * 100) / 100 : 0,
+        entryCount: v.count,
+      }))
+      .sort((a, b) => b.avgMastery - a.avgMastery);
+
+    // ── Advanced: Teacher Performance ──
+    const teacherAssessments = await db.assessment.findMany({
+      where: {
+        ...(classGroupId ? { classGroupId } : {}),
+        ...(schoolYearId ? { classGroup: { schoolYearId } } : {}),
+        ...(schoolId ? { classGroup: { schoolId } } : {}),
+      },
+      select: {
+        teacherId: true,
+        teacher: { select: { firstName: true, lastName: true } },
+      },
+    }).catch(() => []);
+
+    const teacherProgressEntries = await db.learningProgressEntry.findMany({
+      where,
+      select: {
+        classGroupId: true,
+        classGroup: {
+          select: {
+            teachers: { select: { userId: true, user: { select: { firstName: true, lastName: true } } } },
+          },
+        },
+      },
+    }).catch(() => []);
+
+    // Build teacher stats
+    const teacherStatsMap = new Map<string, { name: string; assessmentCount: number; progressCount: number }>();
+    for (const a of teacherAssessments) {
+      const name = `${a.teacher?.firstName ?? ''} ${a.teacher?.lastName ?? ''}`.trim();
+      const cur = teacherStatsMap.get(a.teacherId) ?? { name: name || a.teacherId, assessmentCount: 0, progressCount: 0 };
+      cur.assessmentCount += 1;
+      teacherStatsMap.set(a.teacherId, cur);
+    }
+    for (const p of teacherProgressEntries) {
+      for (const t of p.classGroup?.teachers ?? []) {
+        const name = `${t.user?.firstName ?? ''} ${t.user?.lastName ?? ''}`.trim();
+        const cur = teacherStatsMap.get(t.userId) ?? { name: name || t.userId, assessmentCount: 0, progressCount: 0 };
+        cur.progressCount += 1;
+        teacherStatsMap.set(t.userId, cur);
+      }
+    }
+
+    // Compute student improvement rate per teacher
+    // Batch-fetch all class teachers for students in scope
+    const classGroupIds = new Set(enrollments.map((enr) => enr.classGroup?.id).filter(Boolean) as string[]);
+    const allClassTeachers = classGroupIds.size > 0
+      ? await db.classGroupTeacher.findMany({
+          where: { classGroupId: { in: Array.from(classGroupIds) } },
+          select: { classGroupId: true, userId: true },
+        }).catch(() => [])
+      : [];
+    const classTeacherMap = new Map<string, string[]>();
+    for (const ct of allClassTeachers) {
+      const arr = classTeacherMap.get(ct.classGroupId) ?? [];
+      arr.push(ct.userId);
+      classTeacherMap.set(ct.classGroupId, arr);
+    }
+
+    const teacherImprovementMap = new Map<string, { improved: number; total: number }>();
+    for (const [studentId, eArr] of studentEntries) {
+      if (eArr.length < 2) continue;
+      const sorted = eArr.sort((a, b) => a.date.getTime() - b.date.getTime());
+      const firstHalf = sorted.slice(0, Math.floor(sorted.length / 2));
+      const secondHalf = sorted.slice(Math.floor(sorted.length / 2));
+      const firstAvg = firstHalf.reduce((s, e) => s + e.masteryLevelValue, 0) / firstHalf.length;
+      const secondAvg = secondHalf.reduce((s, e) => s + e.masteryLevelValue, 0) / secondHalf.length;
+      const improved = secondAvg > firstAvg;
+
+      // Find the student's class teacher(s) for attribution
+      const studentEnr = enrollments.find((enr) => enr.studentId === studentId);
+      const teacherIds = studentEnr?.classGroup?.id ? (classTeacherMap.get(studentEnr.classGroup.id) ?? []) : [];
+      for (const tid of teacherIds) {
+        const cur = teacherImprovementMap.get(tid) ?? { improved: 0, total: 0 };
+        cur.total += 1;
+        if (improved) cur.improved += 1;
+        teacherImprovementMap.set(tid, cur);
+      }
+    }
+
+    // Notebook usage per teacher
+    const teacherNotebookCounts = await db.notebook.groupBy({
+      by: ['ownerId'],
+      where: {
+        ownerType: 'TEACHER',
+        ...(schoolId ? { schoolId } : {}),
+        deletedAt: null,
+      },
+      _count: { id: true },
+    }).catch(() => []);
+
+    const teacherPerformance = Array.from(teacherStatsMap.entries())
+      .map(([teacherId, v]) => {
+        const imp = teacherImprovementMap.get(teacherId);
+        const notebook = teacherNotebookCounts.find((n) => n.ownerId === teacherId);
+        return {
+          teacherId,
+          teacherName: v.name,
+          assessmentCount: v.assessmentCount,
+          progressCount: v.progressCount,
+          improvementRate: imp && imp.total > 0 ? Math.round((imp.improved / imp.total) * 1000) / 10 : 0,
+          notebookCount: notebook?._count.id ?? 0,
+        };
+      })
+      .sort((a, b) => b.assessmentCount - a.assessmentCount);
+
+    // ── Advanced: Self-Assessment vs Teacher Gap Analysis ──
+    const selfAssessmentData = await db.selfAssessment.findMany({
+      where: {
+        ...(schoolId ? { schoolId } : {}),
+        ...(classGroupId ? { classGroupId } : {}),
+        deletedAt: null,
+      },
+      select: {
+        studentId: true,
+        competencyId: true,
+        selfLevel: true,
+        createdAt: true,
+        student: { select: { firstName: true, lastName: true } },
+      },
+    }).catch(() => []);
+
+    // For each self-assessment, find the latest teacher progress entry for the same student+competency
+    const gapAnalysis: Array<{
+      studentId: string;
+      studentName: string;
+      competencyId: string;
+      selfLevel: number;
+      teacherLevel: number;
+      gap: number;
+    }> = [];
+    for (const sa of selfAssessmentData) {
+      const teacherEntries = studentEntries.get(sa.studentId)
+        ?.filter((e) => e.masteryLevelValue > 0)
+        ?? [];
+      if (teacherEntries.length === 0) continue;
+      const latestTeacher = teacherEntries.sort((a, b) => b.date.getTime() - a.date.getTime())[0];
+      const gap = sa.selfLevel - latestTeacher.masteryLevelValue;
+      gapAnalysis.push({
+        studentId: sa.studentId,
+        studentName: `${sa.student?.firstName ?? ''} ${sa.student?.lastName ?? ''}`.trim() || sa.studentId,
+        competencyId: sa.competencyId,
+        selfLevel: sa.selfLevel,
+        teacherLevel: Math.round(latestTeacher.masteryLevelValue * 100) / 100,
+        gap: Math.round(gap * 100) / 100,
+      });
+    }
+
+    // Aggregate gap analysis for chart
+    const selfVsTeacherAgg = gapAnalysis.length > 0 ? {
+      avgSelfLevel: Math.round((gapAnalysis.reduce((s, g) => s + g.selfLevel, 0) / gapAnalysis.length) * 100) / 100,
+      avgTeacherLevel: Math.round((gapAnalysis.reduce((s, g) => s + g.teacherLevel, 0) / gapAnalysis.length) * 100) / 100,
+      avgGap: Math.round((gapAnalysis.reduce((s, g) => s + g.gap, 0) / gapAnalysis.length) * 100) / 100,
+      totalComparisons: gapAnalysis.length,
+    } : null;
+
+    // ── Advanced: Competency Coverage ──
+    const assessedCompetencyIds = new Set(entries.map((e) => e.competencyId));
+    const competencyCoveragePct = totalCompetencies > 0
+      ? Math.round((assessedCompetencyIds.size / totalCompetencies) * 1000) / 10
+      : 0;
+
+    // ── Advanced: Students Excelling (improvement trajectory) ──
+    const excellingStudents: Array<{
+      studentId: string;
+      studentName: string;
+      className: string;
+      latestMastery: number;
+      improvement: number;
+    }> = [];
+    for (const [studentId, eArr] of studentEntries) {
+      if (eArr.length < 4) continue;
+      const sorted = eArr.sort((a, b) => a.date.getTime() - b.date.getTime());
+      const first2 = sorted.slice(0, 2);
+      const last2 = sorted.slice(-2);
+      const firstAvg = first2.reduce((s, e) => s + e.masteryLevelValue, 0) / 2;
+      const lastAvg = last2.reduce((s, e) => s + e.masteryLevelValue, 0) / 2;
+      const improvement = Math.round((lastAvg - firstAvg) * 100) / 100;
+      if (improvement > 0.5) {
+        const meta = studentMeta.get(studentId);
+        if (meta) {
+          excellingStudents.push({
+            studentId,
+            studentName: meta.studentName,
+            className: meta.className,
+            latestMastery: Math.round(lastAvg * 100) / 100,
+            improvement,
+          });
+        }
+      }
+    }
+    excellingStudents.sort((a, b) => b.improvement - a.improvement);
+
+    // ── Advanced: Class Radar Data ──
+    // For each class, compute multi-dimensional scores
+    const classRadarData = Array.from(classAgg.entries()).map(([classId, v]) => {
+      const classStudents = Array.from(v.students);
+      const classAttendance = classStudents.reduce((sum, sid) => {
+        const att = attendanceMap.get(sid);
+        return sum + (att && att.total > 0 ? (att.present / att.total) * 100 : 0);
+      }, 0) / (classStudents.length || 1);
+      const engagement = Math.min(100, (v.count / Math.max(1, v.students.size)) * 20);
+      const progress = v.count > 0 ? (v.total / v.count / 4) * 100 : 0;
+      return {
+        classId,
+        className: v.className,
+        mastery: Math.round((v.count > 0 ? (v.total / v.count / 4) * 100 : 0) * 10) / 10,
+        attendance: Math.round(classAttendance * 10) / 10,
+        engagement: Math.round(engagement * 10) / 10,
+        progress: Math.round(progress * 10) / 10,
+        behavior: Math.round(((v.count > 0 ? (v.total / v.count / 4) * 100 : 0) * 0.6 + classAttendance * 0.4) * 10) / 10,
+      };
+    });
+
     return NextResponse.json({
       masteryTrend,
       classComparison,
@@ -431,6 +681,17 @@ export async function GET(request: Request) {
       totalEntries,
       totalStudents,
       overallAvgMastery,
+      // New fields
+      totalClasses,
+      totalTeachers,
+      totalCompetencies,
+      competencyCoveragePct,
+      subjectMasteryAvg,
+      teacherPerformance,
+      selfVsTeacherAgg,
+      gapAnalysis: gapAnalysis.slice(0, 50),
+      excellingStudents: excellingStudents.slice(0, 10),
+      classRadarData,
     });
   } catch (error) {
     console.error('Analytics GET error:', error);

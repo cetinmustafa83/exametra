@@ -135,51 +135,81 @@ Stage Summary:
 
 ---
 
-## Current Project Status (Round 14 — Lint Cleanup, ESLint Config Fix, Hook Violation Fix, WS Service Restart)
+## Current Project Status (Round 14 — Self-Assessment, Learning Goals, Portfolio, Homework, Announcements)
 
-**Status**: Stable, all features working, lint passes with 0 errors
-**Version**: v14
-**Commit**: ba55bd1
+**Status**: Stable, all features working, pushed to GitHub
+**Version**: v14 (0a7cfae)
 
 ### Completed Modifications (Round 14)
 
-1. **ESLint Configuration Fix**
-   - Added `react-hooks/set-state-in-effect: "off"` — Disables overly strict React Compiler rule that flags `setState` calls inside `useEffect` (common and valid pattern in React apps)
-   - Added `react-hooks/preserve-manual-memoization: "off"` — Disables rule that flags `useCallback`/`useMemo` dependency mismatches with React Compiler's inference
-   - Added `react-hooks/immutability: "off"` — Disables rule that flags variable access before declaration in component scope
-   - These rules are from the React Compiler and are excessively strict for production React apps; they caused 56 lint errors across 20+ files
+1. **Student Self-Assessment**
+   - Prisma model: SelfAssessment (schoolId, studentId, competencyId, classGroupId, selfLevel 1-6, confidence 1-5, reflection, evidence, goalId)
+   - API: GET/POST /api/self-assessments, GET/PUT/DELETE /api/self-assessments/[id]
+   - UI: Self-assessment section in student-detail-view with radar chart comparing self vs teacher assessment, competency selector, mastery level slider (1-6), confidence selector (1-5), reflection/evidence text areas, gap analysis badges, create/edit/delete dialogs
 
-2. **Hook Violation Fix (rubric-library-view.tsx)**
-   - Fixed `useTemplate(template)` called inside an `onClick` handler — React hooks cannot be called inside callbacks
-   - Changed to `applyTemplate(template)` which is the correct function that applies the template to the form state
-   - This was a genuine bug: `useTemplate` was never defined as a hook, it was a misnamed function call
+2. **Learning Goals**
+   - Prisma model: LearningGoal (schoolId, studentId, competencyId, title, description, targetLevel, currentLevel, deadline, status active/completed/abandoned, progress 0-100)
+   - API: GET/POST /api/learning-goals, GET/PUT/DELETE /api/learning-goals/[id]
+   - UI: Learning goals section in student-detail-view with progress bars, deadline countdown tracking, status tracking (active/completed/abandoned), celebration animation on completion, create/edit/delete dialogs, competency linking
 
-3. **WebSocket Service Restart**
-   - Restarted ws-service on port 3003 (Socket.IO server)
-   - Confirmed health check returns OK
+3. **Portfolio System**
+   - Prisma model: PortfolioEntry (schoolId, studentId, title, description, entryType artwork/writing/project/presentation/achievement/reflection, competencyId, content, mediaUrls, notebookPageId, drawingId, isPublic, tags)
+   - API: GET/POST /api/portfolio, GET/PUT/DELETE /api/portfolio/[id]
+   - UI: Portfolio View with grid and timeline views, type-based filtering (artwork/writing/project/presentation/achievement/reflection), tag filtering, search, public/private toggle, create/edit/delete dialogs
 
-4. **Prisma Schema Push**
-   - Ran `bun run db:push` — database is already in sync with schema
-   - Prisma Client regenerated successfully
+4. **Homework Management**
+   - Prisma models: Homework (schoolId, classGroupId, subjectId, teacherId, title, description, dueDate, homeworkType assignment/reading/project/practice/research, maxPoints, attachments, isPublished) + HomeworkSubmission (homeworkId, studentId, content, attachments, status pending/submitted/graded/late, score, feedback, submittedAt, gradedAt)
+   - API: GET/POST /api/homework, GET/PUT/DELETE /api/homework/[id], GET/POST /api/homework/[id]/submissions, GET/PUT/DELETE /api/homework/[id]/submissions/[submissionId]
+   - UI: Homework View with teacher mode (create, edit, delete, submissions, grading with score slider and feedback) and student mode (submit, view feedback), color-coded due date badges (overdue=rose, today=amber, upcoming=emerald), homework type badges with icons
 
-5. **i18n Duplicate Key Check**
-   - Verified no duplicate keys in either `de` or `en` dictionaries
-   - All keys are unique
+5. **Announcements**
+   - Prisma model: Announcement (schoolId, authorId, title, content, priority low/normal/high/urgent, targetAudience all/teachers/students/parents/class, classGroupId, isPinned, expiresAt)
+   - API: GET/POST /api/announcements, GET/PUT/DELETE /api/announcements/[id]
+   - UI: Announcement banner in app-layout with priority colors (urgent=rose, high=amber, normal=emerald, low=teal), dismiss button with localStorage persistence, dashboard announcements card with expand/collapse, create announcement dialog for admin/teacher roles
 
-6. **Lint Results**
-   - Before fixes: 56 errors (54 from React Compiler rules, 1 hook violation, 1 immutability)
-   - After fixes: 0 errors, 0 warnings
+6. **6 New Prisma Models**
+   - SelfAssessment, LearningGoal, PortfolioEntry, Homework, HomeworkSubmission, Announcement
+   - Relations added to School, User, ClassGroup, Student, Subject, Competency models
 
-### Files Modified
-- `eslint.config.mjs` — Added 3 new rule overrides for React Compiler rules
-- `src/components/rubric-library-view.tsx` — Fixed `useTemplate` → `applyTemplate` in onClick handler
+7. **10+ New API Route Directories**
+   - /api/self-assessments, /api/learning-goals, /api/portfolio, /api/homework, /api/homework/[id]/submissions, /api/announcements, and more
+
+8. **2 New Views**
+   - portfolio-view.tsx — Grid/timeline portfolio with type filtering, tags, public/private toggle
+   - homework-view.tsx — Teacher/student homework management with grading interface
+
+9. **2 New Navigation Items**
+   - Portfolio (Briefcase icon) — added to Teaching section and Student nav
+   - Homework (BookCheck icon) — added to teacher, student, and parent nav sections
+
+10. **170+ New i18n Keys**
+    - Self-assessment, learning goals, portfolio, homework, and announcements keys in both DE and EN
+    - No duplicate keys, full DE/EN parity
+
+11. **Styling Improvements**
+    - Priority colors for announcements (urgent=rose, high=amber, normal=emerald, low=teal)
+    - Due date colors for homework (overdue=rose, today=amber, upcoming=emerald)
+    - Announcement banner with dismiss animation (framer-motion slide up + fade out)
+    - 44px minimum touch targets for tablet compatibility
 
 ### Verification Results
-- Lint: 0 errors, 0 warnings ✅
+- Lint: 0 errors ✅
+- Dev server: Running, no compilation errors ✅
 - Prisma: Database in sync ✅
-- Dev server: Running on port 3000 ✅
-- WS service: Running on port 3003 ✅
-- Commit: ba55bd1 pushed to GitHub ✅
+- Pushed to GitHub ✅
+
+### Unresolved Issues / Next Phase Priority
+
+1. Timetable/Schedule management
+2. Digital resource library
+3. Emergency contacts management
+4. Student transportation management
+5. Peer assessment system
+6. School events management
+7. Advanced analytics dashboard
+8. Email notification integration
+9. Keyboard navigation improvements
+10. More accessibility improvements
 
 ---
 
@@ -695,3 +725,67 @@ Stage Summary:
 - Portfolio view as standalone page with grid/timeline views, type/tag filtering, public/private toggle
 - Portfolio nav item with Briefcase icon added to Teaching section and Student nav
 - 60+ new i18n keys in both DE and EN
+
+---
+Task ID: 17
+Agent: timetable-resources
+Task: Timetable Management + Digital Resource Library
+
+Work Log:
+- Added TimetableSlot model to Prisma schema (dayOfWeek, period, subjectId, teacherId, roomId, startTime, endTime, isBreak) with unique constraint on (classGroupId, dayOfWeek, period)
+- Added Resource model to Prisma schema (title, description, resourceType, url, content, subjectId, classGroupId, gradeLevel, tags JSON, isPublic, downloadCount) with index on (schoolId, resourceType)
+- Added timetableSlots and resources relations to School, User, ClassGroup, Subject models
+- Ran db:push to sync database successfully
+- Created /api/timetable/route.ts (GET list, POST single + batch create)
+- Created /api/timetable/[id]/route.ts (GET, PUT, DELETE soft delete)
+- Created /api/resources/route.ts (GET list with filters, POST create)
+- Created /api/resources/[id]/route.ts (GET, PUT, DELETE soft delete, incrementDownload)
+- Created timetable-view.tsx: weekly grid (Mon-Fri, Period 1-8), color-coded by subject, drag-and-drop to move lessons, click to add/edit, break rows, time display, print button, class selector
+- Created resource-library-view.tsx: grid view with resource cards, 7 type filters, subject filter, search, create/edit dialog, preview panel, download counter, public/private toggle, favorite/bookmark (localStorage)
+- Added ~70 i18n keys for both DE and EN covering timetable and resources
+- Added nav.timetable and nav.resources i18n keys
+- Updated store.ts ViewName type with 'timetable' and 'resources'
+- Updated app-layout.tsx: added Clock/Library icons, imports, nav items, renderView cases
+
+Stage Summary:
+- 2 new Prisma models: TimetableSlot, Resource with 4 relation updates
+- 4 new API route files with full CRUD
+- 2 new major UI components: weekly timetable grid with drag-and-drop, resource library with filtering/favorites/preview
+- 2 new navigation entries (Timetable with Clock icon, Resources with Library icon)
+- ~70 new i18n keys for both DE and EN
+- Lint passes clean
+
+---
+Task ID: 18
+Agent: analytics-styling-accessibility
+Task: Advanced Analytics + Styling Polish + Accessibility
+
+Work Log:
+- Enhanced analytics-view.tsx with tab-based navigation (School Overview, Student Performance, Class Comparison, Teacher Performance, Predictive, Export)
+- Added School Overview: total students/classes/teachers/competencies stats, student-teacher ratio, competency coverage pie chart, subject mastery bar chart, activity heatmap
+- Added Student Performance: mastery histogram, progress over time (area chart), subject comparison (horizontal bar), grade trend (composed chart), self-assessment vs teacher scatter plot, mastery distribution donut
+- Added Class Comparison: radar chart comparing classes across 5 dimensions (mastery/attendance/engagement/progress/behavior), class comparison bar chart, competency coverage heatmap with progress bars, ranking table
+- Added Teacher Performance: assessments/progress per teacher bar chart, teacher stats table with improvement rate and notebook usage
+- Added Predictive Analytics: students at risk with risk summary cards and filterable table, students excelling with improvement trajectory, areas needing attention (bottom competencies)
+- Added Export Options: PNG chart export, CSV data export, print report
+- Enhanced analytics API route to return: totalClasses, totalTeachers, totalCompetencies, competencyCoveragePct, subjectMasteryAvg, teacherPerformance, selfVsTeacherAgg, gapAnalysis, excellingStudents, classRadarData
+- Added new TypeScript types in api.ts: AnalyticsSubjectMasteryPoint, AnalyticsTeacherPerformancePoint, AnalyticsSelfVsTeacherAgg, AnalyticsGapAnalysisPoint, AnalyticsExcellingStudent, AnalyticsClassRadarPoint
+- Added CSS classes to globals.css: chart-container, stat-card, heatmap-cell, analytics-dashboard, loading-skeleton-chart, predictive-badge (risk/excel/attention variants), analytics-tab, export-btn, chart-sr-desc
+- Added accessibility features: skip-to-content link, keyboard shortcuts dialog (Alt+1-6), ARIA labels on all interactive elements, ARIA roles on tabs/tabpanels, live regions for dynamic content, screen reader descriptions for charts, table headers with scope attributes, 44px minimum touch targets, prefers-reduced-motion support via useReducedMotion hook
+- Added count-up animation hook (useCountUp) that respects reduced motion
+- Added StatCard component with gradient backgrounds and hover effects
+- Added EmptyState component for consistent empty state illustrations
+- Added ChartSkeleton component for loading states
+- Added 70+ new i18n keys for both DE and EN covering analytics sections, accessibility, and export options
+- Fixed API route bug: replaced nested await inside .then() callback with proper Promise chain
+- Refactored teacher improvement calculation to batch DB queries instead of N+1 pattern
+- Dark mode polish: all new chart containers, stat cards, and tabs have proper dark mode styles
+- Lint passes clean
+
+Stage Summary:
+- Complete analytics dashboard with 6 tabbed sections and advanced visualizations
+- New API data: school overview counts, subject mastery, teacher performance, self-assessment gap analysis, excelling students, class radar data
+- 70+ new i18n keys (DE + EN) for analytics, accessibility, and exports
+- Full accessibility: skip-to-content, keyboard shortcuts, ARIA labels, reduced motion, 44px touch targets
+- New CSS utilities: chart-container, stat-card, heatmap-cell, predictive-badge, analytics-tab, export-btn
+- Production-ready with dark mode support and responsive design
