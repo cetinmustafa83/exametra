@@ -1454,19 +1454,21 @@ export default function SettingsView() {
                 <CardContent>
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                     {[
-                      { type: 'students' as const, iconComponent: GraduationCap, label: t('settings.data_export_students'), color: 'emerald' },
-                      { type: 'progress' as const, iconComponent: TrendingUp, label: t('settings.data_export_progress'), color: 'amber' },
-                      { type: 'assessments' as const, iconComponent: CheckCircle, label: t('settings.data_export_assessments'), color: 'teal' },
-                      { type: 'grades' as const, iconComponent: BarChart3, label: t('settings.data_export_grades'), color: 'violet' },
+                      { type: 'students' as const, iconComponent: GraduationCap, label: t('settings.data_export_students'), color: 'from-emerald-50/60 to-emerald-100/0 dark:from-emerald-900/15 dark:to-emerald-900/0', border: 'border-emerald-200/40 dark:border-emerald-900/30', iconBg: 'bg-gradient-to-br from-emerald-400 to-emerald-500' },
+                      { type: 'progress' as const, iconComponent: TrendingUp, label: t('settings.data_export_progress'), color: 'from-amber-50/60 to-amber-100/0 dark:from-amber-900/15 dark:to-amber-900/0', border: 'border-amber-200/40 dark:border-amber-900/30', iconBg: 'bg-gradient-to-br from-amber-400 to-amber-500' },
+                      { type: 'assessments' as const, iconComponent: CheckCircle, label: t('settings.data_export_assessments'), color: 'from-teal-50/60 to-teal-100/0 dark:from-teal-900/15 dark:to-teal-900/0', border: 'border-teal-200/40 dark:border-teal-900/30', iconBg: 'bg-gradient-to-br from-teal-400 to-teal-500' },
+                      { type: 'grades' as const, iconComponent: BarChart3, label: t('settings.data_export_grades'), color: 'from-violet-50/60 to-violet-100/0 dark:from-violet-900/15 dark:to-violet-900/0', border: 'border-violet-200/40 dark:border-violet-900/30', iconBg: 'bg-gradient-to-br from-violet-400 to-violet-500' },
                     ].map((item) => (
                       <motion.div
                         key={item.type}
                         whileHover={{ scale: 1.03, y: -2 }}
                         whileTap={{ scale: 0.97 }}
-                        className="p-4 rounded-xl bg-gradient-to-br from-gray-50 to-gray-50/0 dark:from-gray-800/50 dark:to-gray-800/0 border border-gray-200/50 dark:border-gray-700/30 hover:border-emerald-200 dark:hover:border-emerald-900/30 hover:shadow-md transition-all cursor-pointer"
+                        className={`p-5 rounded-xl bg-gradient-to-br ${item.color} border ${item.border} hover:shadow-lg transition-all cursor-pointer`}
                         onClick={() => handleCsvExport(item.type)}
                       >
-                        <div className="text-2xl mb-2"><item.iconComponent className="w-7 h-7 inline" /></div>
+                        <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-gradient-to-br ${item.iconBg} text-white shadow-sm mb-3">
+                          <item.iconComponent className="w-5 h-5" />
+                        </div>
                         <p className="font-semibold text-gray-900 dark:text-gray-100 text-sm">{item.label}</p>
                         <p className="text-xs text-emerald-600/60 dark:text-emerald-400/40 mt-1">CSV</p>
                       </motion.div>
@@ -1551,7 +1553,7 @@ export default function SettingsView() {
                 </CardHeader>
                 <CardContent className="space-y-4">
                   {/* Info hint */}
-                  <div className="p-3 rounded-xl bg-amber-50/50 dark:bg-amber-900/10 border border-amber-200/30 dark:border-amber-900/20">
+                  <div className="p-4 rounded-xl bg-gradient-to-r from-amber-50/50 to-emerald-50/30 dark:from-amber-900/10 dark:to-emerald-900/5 border border-amber-200/30 dark:border-amber-900/20">
                     <p className="text-xs text-amber-700 dark:text-amber-300 flex items-center gap-1.5">
                       <AlertTriangle className="h-3.5 w-3.5" />
                       {t('settings.demo_toggle_hint')}
@@ -1560,14 +1562,15 @@ export default function SettingsView() {
 
                   {/* Action buttons */}
                   <div className="flex flex-wrap gap-2">
-                    <Button
-                      onClick={handleEnableAllDemo}
-                      variant="outline"
-                      className="border-emerald-300 dark:border-emerald-700 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 rounded-xl"
-                    >
-                      <CheckCircle2 className="h-4 w-4 mr-1.5" />
-                      {t('settings.demo_enable')}
-                    </Button>
+                    <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
+                      <Button
+                        onClick={handleEnableAllDemo}
+                        className="bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white shadow-md shadow-emerald-300/20 rounded-xl"
+                      >
+                        <CheckCircle2 className="h-4 w-4 mr-1.5" />
+                        {t('settings.demo_enable')}
+                      </Button>
+                    </motion.div>
                     <Button
                       onClick={handleDisableAllDemo}
                       variant="outline"

@@ -259,16 +259,16 @@ function MonthlyHeatmap({ sessions }: { sessions: AttendanceSession[] }) {
     const data = dateMap.get(dateKey);
     if (!data || data.total === 0) return 'bg-gray-100 dark:bg-gray-800';
     const rate = data.present / data.total;
-    if (rate >= 0.9) return 'bg-emerald-500 dark:bg-emerald-600';
-    if (rate >= 0.7) return 'bg-emerald-400 dark:bg-emerald-500';
-    if (rate >= 0.5) return 'bg-emerald-300 dark:bg-emerald-700';
-    if (rate >= 0.3) return 'bg-emerald-200 dark:bg-emerald-800';
-    return 'bg-rose-300 dark:bg-rose-700';
+    if (rate >= 0.9) return 'bg-gradient-to-br from-emerald-500 to-emerald-600 dark:from-emerald-500 dark:to-emerald-600';
+    if (rate >= 0.7) return 'bg-gradient-to-br from-emerald-400 to-teal-500 dark:from-emerald-500 dark:to-emerald-600';
+    if (rate >= 0.5) return 'bg-gradient-to-br from-emerald-300 to-emerald-400 dark:from-emerald-700 dark:to-emerald-800';
+    if (rate >= 0.3) return 'bg-gradient-to-br from-amber-200 to-amber-300 dark:from-emerald-800 dark:to-emerald-900';
+    return 'bg-gradient-to-br from-rose-300 to-rose-400 dark:from-rose-700 dark:to-rose-800';
   }
 
   return (
-    <Card className="border-0 shadow-lg bg-gradient-to-br from-white to-emerald-50/30 dark:from-gray-900 dark:to-emerald-950/20">
-      <CardHeader className="pb-2">
+    <Card className="border-0 shadow-lg rounded-xl bg-gradient-to-br from-white to-emerald-50/30 dark:from-gray-900 dark:to-emerald-950/20 overflow-hidden">
+      <CardHeader className="pb-2 bg-gradient-to-r from-emerald-50/50 to-teal-50/30 dark:from-emerald-900/10 dark:to-teal-900/5">
         <CardTitle className="text-lg flex items-center gap-2">
           <CalendarCheck className="h-5 w-5 text-emerald-500" />
           {t('attendance.calendar')} — {monthNames[month]} {year}
@@ -290,7 +290,7 @@ function MonthlyHeatmap({ sessions }: { sessions: AttendanceSession[] }) {
                   <div
                     className={`aspect-square rounded-sm flex items-center justify-center text-xs
                       ${getHeatColor(cell.day, cell.dateKey)}
-                      ${cell.day ? 'hover:ring-2 hover:ring-emerald-400 transition-all cursor-default' : ''}
+                      ${cell.day ? 'hover:ring-2 hover:ring-emerald-400 hover:scale-110 transition-all duration-150 cursor-default' : ''}
                     `}
                   >
                     {cell.day && (
@@ -323,11 +323,11 @@ function MonthlyHeatmap({ sessions }: { sessions: AttendanceSession[] }) {
           <span>{t('attendance.absent')}</span>
           <div className="flex gap-0.5">
             <div className="w-3 h-3 rounded-sm bg-gray-100 dark:bg-gray-800" />
-            <div className="w-3 h-3 rounded-sm bg-rose-300 dark:bg-rose-700" />
-            <div className="w-3 h-3 rounded-sm bg-emerald-200 dark:bg-emerald-800" />
-            <div className="w-3 h-3 rounded-sm bg-emerald-300 dark:bg-emerald-700" />
-            <div className="w-3 h-3 rounded-sm bg-emerald-400 dark:bg-emerald-500" />
-            <div className="w-3 h-3 rounded-sm bg-emerald-500 dark:bg-emerald-600" />
+            <div className="w-3 h-3 rounded-sm bg-gradient-to-br from-rose-300 to-rose-400 dark:from-rose-700 dark:to-rose-800" />
+            <div className="w-3 h-3 rounded-sm bg-gradient-to-br from-amber-200 to-amber-300 dark:from-emerald-800 dark:to-emerald-900" />
+            <div className="w-3 h-3 rounded-sm bg-gradient-to-br from-emerald-300 to-emerald-400 dark:from-emerald-700 dark:to-emerald-800" />
+            <div className="w-3 h-3 rounded-sm bg-gradient-to-br from-emerald-400 to-teal-500 dark:from-emerald-500 dark:to-emerald-600" />
+            <div className="w-3 h-3 rounded-sm bg-gradient-to-br from-emerald-500 to-emerald-600 dark:from-emerald-500 dark:to-emerald-600" />
           </div>
           <span>{t('attendance.present')}</span>
         </div>
@@ -401,14 +401,15 @@ function StatsCards({ sessions }: { sessions: AttendanceSession[] }) {
 
   return (
     <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-      {cards.map((card) => (
+      {cards.map((card, idx) => (
         <motion.div
           key={card.label}
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.3 }}
+          transition={{ duration: 0.3, delay: idx * 0.06 }}
+          whileHover={{ y: -2 }}
         >
-          <Card className={`border-2 ${card.border} shadow-md hover:shadow-lg transition-shadow`}>
+          <Card className={`border-2 ${card.border} shadow-md hover:shadow-lg transition-shadow rounded-xl overflow-hidden`}>
             <CardContent className="p-4">
               <div className="flex items-center gap-2 mb-2">
                 <card.icon className="w-4 h-4" />
@@ -551,7 +552,7 @@ function SessionDetail({
                 size="sm"
                 onClick={handleSaveAll}
                 disabled={saving}
-                className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                className="bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white shadow-md shadow-emerald-300/20 rounded-xl"
               >
                 {saving ? (
                   <Loader2 className="h-4 w-4 animate-spin mr-1" />
@@ -604,7 +605,7 @@ function SessionDetail({
         ].map((s) => (
           <div
             key={s.label}
-            className="text-center p-2 rounded-lg bg-gray-50 dark:bg-gray-800/50 border border-gray-100 dark:border-gray-800"
+            className="text-center p-3 rounded-xl bg-gradient-to-br from-gray-50 to-gray-50/50 dark:from-gray-800/60 dark:to-gray-800/30 border border-gray-100 dark:border-gray-800 hover:shadow-md transition-shadow"
           >
             <div className={`text-xl font-bold ${s.color}`}>{s.value}</div>
             <div className="text-xs text-muted-foreground">{s.label}</div>
@@ -912,7 +913,7 @@ export default function AttendanceView() {
             <CalendarCheck className="h-8 w-8 text-emerald-500" />
             {t('attendance.title')}
           </h1>
-          <p className="text-muted-foreground mt-1">{t('attendance.subtitle')}</p>
+          <p className="text-emerald-600/60 dark:text-emerald-400/40 mt-1">{t('attendance.subtitle')}</p>
         </div>
 
         <div className="flex items-center gap-3">
@@ -936,13 +937,15 @@ export default function AttendanceView() {
           {/* New session button */}
           <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
             <DialogTrigger asChild>
-              <Button
-                className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl disabled:opacity-40 disabled:cursor-not-allowed disabled:pointer-events-none"
-                disabled={!currentClassId}
-              >
-                <Plus className="h-4 w-4 mr-1" />
-                {t('attendance.new_session')}
-              </Button>
+              <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
+                <Button
+                  className="bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white shadow-md shadow-emerald-300/20 rounded-xl disabled:opacity-40 disabled:cursor-not-allowed disabled:pointer-events-none"
+                  disabled={!currentClassId}
+                >
+                  <Plus className="h-4 w-4 mr-1" />
+                  {t('attendance.new_session')}
+                </Button>
+              </motion.div>
             </DialogTrigger>
             <DialogContent>
               <DialogHeader>
@@ -986,7 +989,7 @@ export default function AttendanceView() {
                 <Button
                   onClick={handleCreateSession}
                   disabled={creating || !newDate}
-                  className="w-full bg-emerald-600 hover:bg-emerald-700 text-white"
+                  className="w-full bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white shadow-md shadow-emerald-300/20 rounded-xl"
                 >
                   {creating ? (
                     <Loader2 className="h-4 w-4 animate-spin mr-2" />
@@ -1104,14 +1107,14 @@ export default function AttendanceView() {
       {/* Content */}
       {currentClassId && !loading && (
         <Tabs defaultValue="sessions" className="space-y-4">
-          <TabsList className="bg-gray-100 dark:bg-gray-800">
-            <TabsTrigger value="sessions" className="data-[state=active]:bg-emerald-100 data-[state=active]:dark:bg-emerald-900">
+          <TabsList className="bg-emerald-50 dark:bg-emerald-900/20 rounded-xl flex flex-wrap gap-1 h-auto p-1">
+            <TabsTrigger value="sessions" className="rounded-lg data-[state=active]:bg-emerald-500 data-[state=active]:text-white">
               {t('attendance.status')}
             </TabsTrigger>
-            <TabsTrigger value="stats" className="data-[state=active]:bg-emerald-100 data-[state=active]:dark:bg-emerald-900">
+            <TabsTrigger value="stats" className="rounded-lg data-[state=active]:bg-emerald-500 data-[state=active]:text-white">
               {t('attendance.stats')}
             </TabsTrigger>
-            <TabsTrigger value="calendar" className="data-[state=active]:bg-emerald-100 data-[state=active]:dark:bg-emerald-900">
+            <TabsTrigger value="calendar" className="rounded-lg data-[state=active]:bg-emerald-500 data-[state=active]:text-white">
               {t('attendance.calendar')}
             </TabsTrigger>
           </TabsList>

@@ -1,10 +1,11 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   FileText, Plus, Eye, Download, Check, PenLine, BookOpen, Printer,
   School, Clock, Sparkles, FileEdit, FileCheck, FileType,
-  CheckCircle, BarChart3,
+  CheckCircle, BarChart3, ClipboardList,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -167,7 +168,23 @@ export default function ReportsView() {
   }
 
   return (
-    <div className="space-y-6">
+    <motion.div
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3 }}
+      className="space-y-6"
+    >
+      {/* Section header */}
+      <div className="flex items-center gap-3 mb-2">
+        <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-400 to-teal-500 text-white shadow-md shadow-emerald-300/30">
+          <ClipboardList className="w-5 h-5" />
+        </div>
+        <div>
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">{t('reports.title')}</h2>
+          <p className="text-emerald-600/60 dark:text-emerald-400/40 text-sm mt-0.5">{t('reports.empty_subtitle')}</p>
+        </div>
+      </div>
+
       {/* Selection header */}
       <Card className="border-0 shadow-sm rounded-xl overflow-hidden">
         <CardContent className="p-6">
@@ -192,30 +209,42 @@ export default function ReportsView() {
               </Select>
             </div>
             {selectedClass && (
-              <Button className="bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white shadow-md shadow-emerald-300/20 rounded-xl" onClick={() => setCreateOpen(true)}>
-                <Plus className="h-4 w-4 mr-1" />
-                {t('reports.generate')}
-              </Button>
+              <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
+                <Button className="bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white shadow-md shadow-emerald-300/20 rounded-xl" onClick={() => setCreateOpen(true)}>
+                  <Plus className="h-4 w-4 mr-1" />
+                  {t('reports.generate')}
+                </Button>
+              </motion.div>
             )}
           </div>
         </CardContent>
       </Card>
 
       {!selectedClass ? (
-        <div className="space-y-4">
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
           <Card className="relative border-0 shadow-sm rounded-xl overflow-hidden">
             {/* Subtle dot grid pattern background */}
             <div className="absolute inset-0 bg-dots opacity-30 pointer-events-none" />
             <CardContent className="relative py-16 text-center">
-              <div className="flex items-center justify-center w-20 h-20 rounded-3xl bg-gradient-to-br from-emerald-100 to-teal-100 dark:from-emerald-900/30 dark:to-teal-900/30 mx-auto mb-5 shadow-md shadow-emerald-200/40 dark:shadow-emerald-900/20">
+              <motion.div
+                initial={{ scale: 0.8, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                transition={{ duration: 0.4, type: 'spring' }}
+                className="flex items-center justify-center w-20 h-20 rounded-3xl bg-gradient-to-br from-emerald-100 to-teal-100 dark:from-emerald-900/30 dark:to-teal-900/30 mx-auto mb-5 shadow-md shadow-emerald-200/40 dark:shadow-emerald-900/20"
+              >
                 <FileText className="h-10 w-10 text-emerald-500 dark:text-emerald-400" />
-              </div>
+              </motion.div>
               <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-1">{t('polish.empty_title_reports')}</h3>
               <p className="text-sm text-muted-foreground max-w-md mx-auto">{t('reports.empty_subtitle')}</p>
             </CardContent>
           </Card>
 
-          {/* Report Templates info card — explains the 3 report types */}
+          {/* Report Templates info card */}
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.15 }}
+          >
           <Card className="border-0 shadow-sm rounded-xl border-l-3 border-l-amber-400 overflow-hidden">
             <CardHeader className="pb-3 pt-6 bg-gradient-to-r from-amber-50/50 to-transparent dark:from-amber-900/10 dark:to-transparent">
               <CardTitle className="text-base font-bold flex items-center gap-2">
@@ -275,7 +304,8 @@ export default function ReportsView() {
               </div>
             </CardContent>
           </Card>
-        </div>
+          </motion.div>
+        </motion.div>
       ) : loadingReports ? (
         <Skeleton className="h-96 rounded-xl" />
       ) : reports.length === 0 ? (
@@ -293,7 +323,11 @@ export default function ReportsView() {
           </CardContent>
         </Card>
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="grid grid-cols-1 lg:grid-cols-3 gap-6"
+        >
           {/* Reports list */}
           <Card className="border-0 shadow-sm rounded-xl overflow-hidden">
             <CardHeader className="pb-3 pt-6 bg-gradient-to-r from-emerald-50/50 to-transparent dark:from-emerald-900/10 dark:to-transparent">
@@ -310,13 +344,14 @@ export default function ReportsView() {
                   <p className="text-xs font-semibold uppercase tracking-wider text-amber-600/60 dark:text-amber-400/40 mb-2">{t('reports.draft_reports')}</p>
                   <div className="space-y-2">
                     {draftReports.map((r) => (
-                      <div
+                      <motion.div
                         key={r.id}
                         role="button"
                         tabIndex={0}
                         onClick={() => setSelectedReport(r)}
                         onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setSelectedReport(r); }}
-                        className={`w-full text-left p-4 rounded-xl transition-all duration-200 cursor-pointer border-l-3 border-l-amber-400 hover:-translate-y-1 hover:shadow-lg hover:shadow-amber-500/5 ${
+                        whileHover={{ y: -2, boxShadow: '0 8px 25px -5px rgba(245, 158, 11, 0.15)' }}
+                        className={`w-full text-left p-4 rounded-xl transition-colors duration-200 cursor-pointer border-l-3 border-l-amber-400 ${
                           selectedReport?.id === r.id
                             ? 'bg-amber-50 dark:bg-amber-900/20 shadow-sm'
                             : 'bg-gray-50/80 dark:bg-gray-800/50 hover:bg-amber-50/50 dark:hover:bg-amber-900/10'
@@ -338,7 +373,7 @@ export default function ReportsView() {
                         <p className="text-xs text-gray-500 dark:text-gray-400 mt-1.5 ml-10">
                           {r.period} · {new Date(r.generatedAt).toLocaleDateString()}
                         </p>
-                      </div>
+                      </motion.div>
                     ))}
                   </div>
                 </div>
@@ -348,13 +383,14 @@ export default function ReportsView() {
                   <p className="text-xs font-semibold uppercase tracking-wider text-emerald-600/60 dark:text-emerald-400/40 mb-2">{t('reports.final_reports')}</p>
                   <div className="space-y-2">
                     {finalReports.map((r) => (
-                      <div
+                      <motion.div
                         key={r.id}
                         role="button"
                         tabIndex={0}
                         onClick={() => setSelectedReport(r)}
                         onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setSelectedReport(r); }}
-                        className={`w-full text-left p-4 rounded-xl transition-all duration-200 cursor-pointer border-l-3 border-l-emerald-400 hover:-translate-y-1 hover:shadow-lg hover:shadow-emerald-500/5 ${
+                        whileHover={{ y: -2, boxShadow: '0 8px 25px -5px rgba(16, 185, 129, 0.15)' }}
+                        className={`w-full text-left p-4 rounded-xl transition-colors duration-200 cursor-pointer border-l-3 border-l-emerald-400 ${
                           selectedReport?.id === r.id
                             ? 'bg-emerald-50 dark:bg-emerald-900/20 shadow-sm'
                             : 'bg-gray-50/80 dark:bg-gray-800/50 hover:bg-emerald-50/50 dark:hover:bg-emerald-900/10'
@@ -376,7 +412,7 @@ export default function ReportsView() {
                         <p className="text-xs text-gray-500 dark:text-gray-400 mt-1.5 ml-10">
                           {r.period} · {new Date(r.generatedAt).toLocaleDateString()}
                         </p>
-                      </div>
+                      </motion.div>
                     ))}
                   </div>
                 </div>
@@ -389,15 +425,24 @@ export default function ReportsView() {
             {!selectedReport ? (
               <Card className="border-0 shadow-sm rounded-xl overflow-hidden">
                 <CardContent className="py-16 text-center">
-                  <div className="flex items-center justify-center w-16 h-16 rounded-2xl bg-emerald-100 dark:bg-emerald-900/20 mx-auto mb-4">
+                  <motion.div
+                    initial={{ scale: 0.9, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    className="flex items-center justify-center w-16 h-16 rounded-2xl bg-emerald-100 dark:bg-emerald-900/20 mx-auto mb-4"
+                  >
                     <FileText className="h-8 w-8 text-emerald-400 dark:text-emerald-500" />
-                  </div>
+                  </motion.div>
                   <p className="text-gray-500 dark:text-gray-400 font-medium">{t('action.select')}</p>
                 </CardContent>
               </Card>
             ) : (
               <>
                 {/* Report header */}
+                <motion.div
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ duration: 0.3 }}
+                >
                 <Card className="border-0 shadow-sm rounded-xl border-l-3 border-l-emerald-500 overflow-hidden">
                   <CardHeader className="pb-3 pt-6 bg-gradient-to-r from-emerald-50/50 to-transparent dark:from-emerald-900/10 dark:to-transparent">
                     <div className="flex items-center justify-between">
@@ -506,8 +551,14 @@ export default function ReportsView() {
                     </div>
                   </CardContent>
                 </Card>
+                </motion.div>
 
                 {/* Report sections */}
+                <motion.div
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ duration: 0.3, delay: 0.1 }}
+                >
                 <Card className="border-0 shadow-sm rounded-xl border-l-3 border-l-teal-500 overflow-hidden">
                   <CardHeader className="pb-3 pt-6 bg-gradient-to-r from-teal-50/50 to-transparent dark:from-teal-900/10 dark:to-transparent">
                     <CardTitle className="text-lg font-bold flex items-center gap-2">
@@ -559,10 +610,11 @@ export default function ReportsView() {
                     )}
                   </CardContent>
                 </Card>
+                </motion.div>
               </>
             )}
           </div>
-        </div>
+        </motion.div>
       )}
 
       {/* Create report dialog */}
@@ -726,6 +778,6 @@ export default function ReportsView() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </motion.div>
   );
 }

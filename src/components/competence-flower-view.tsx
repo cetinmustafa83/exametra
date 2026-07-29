@@ -19,7 +19,7 @@ import {
 } from 'recharts';
 import {
   Flower2, Download, User, Target, TrendingUp, Award, AlertTriangle, Sparkles, GitCompareArrows,
-  Palette, Check,
+  Palette, Check, X,
   BookOpen, Calculator, PenLine, MessageSquare, FlaskConical, Palette as PaletteIcon, Footprints, Music, Globe, Lightbulb,
   Sprout, Leaf, TreePine, Trees, Star, BarChart3, Ruler, Compass, Triangle, Calculator as Abacus,
   LucideIcon,
@@ -141,6 +141,9 @@ export default function CompetenceFlowerView() {
   const [showClassAverage, setShowClassAverage] = useState(true);
   const [primaryColor, setPrimaryColor] = useState('#10b981');
   const [colorPickerOpen, setColorPickerOpen] = useState(false);
+  const [compareStudentId, setCompareStudentId] = useState<string>('');
+  const [compareFlowerData, setCompareFlowerData] = useState<FlowerData | null>(null);
+  const [compareLoading, setCompareLoading] = useState(false);
 
   // Load stored color on mount
   useEffect(() => {
@@ -208,6 +211,38 @@ export default function CompetenceFlowerView() {
     }
   }, [selectedClass?.id, selectedSubjectId, selectedStudentId]);
 
+  // Load comparison student data
+  useEffect(() => {
+    if (!compareStudentId || !selectedClass || !selectedSubjectId) {
+      setCompareFlowerData(null);
+      return;
+    }
+    let cancelled = false;
+    setCompareLoading(true);
+    fetchCompetenceFlower({
+      classGroupId: selectedClass.id,
+      subjectId: selectedSubjectId,
+      studentId: compareStudentId,
+    })
+      .then((data) => {
+        if (cancelled) return;
+        if (data.length > 0) {
+          setCompareFlowerData(data[0]);
+        } else {
+          setCompareFlowerData(null);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setCompareFlowerData(null);
+      })
+      .finally(() => {
+        if (!cancelled) setCompareLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [compareStudentId, selectedClass?.id, selectedSubjectId]);
+
   const assignedSubjects = assignments.map((a) => a.subjectId);
   const availableSubjects = subjects.filter((s) => assignedSubjects.includes(s.id));
 
@@ -221,6 +256,10 @@ export default function CompetenceFlowerView() {
     total: cat.competencyCount,
     classAvg: cat.assessedCompetencyCount > 0 ? Math.min(cat.averageMasteryLevel + 0.3, 4) : 0.15,
     fill: PETAL_COLORS[i % PETAL_COLORS.length],
+    compareValue: compareFlowerData?.categories[i]
+      ? (compareFlowerData.categories[i].assessedCompetencyCount > 0 ? compareFlowerData.categories[i].averageMasteryLevel : 0.15)
+      : undefined,
+    compareTrueValue: compareFlowerData?.categories[i]?.averageMasteryLevel ?? undefined,
   })) ?? [];
 
   // Class average data (kept for legacy compatibility)
@@ -384,6 +423,21 @@ export default function CompetenceFlowerView() {
                 </Select>
               </div>
             )}
+            {selectedClass && selectedSubjectId && selectedStudentId && (
+              <div className="space-y-1 min-w-[200px]">
+                <Label className="text-sm font-medium text-emerald-600/60 dark:text-emerald-400/40">{t('flower.compare_with')}</Label>
+                <Select value={compareStudentId} onValueChange={setCompareStudentId}>
+                  <SelectTrigger className="rounded-xl border-emerald-200/50 dark:border-emerald-900/30">
+                    <SelectValue placeholder={t('flower.compare_with')} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {students.filter((s) => s.id !== selectedStudentId).map((s) => (
+                      <SelectItem key={s.id} value={s.id}>{s.firstName} {s.lastName}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>
@@ -529,6 +583,18 @@ export default function CompetenceFlowerView() {
                 >
                   {showClassAverage ? t('flower.hide_average') : t('flower.show_average')}
                 </Button>
+                {/* Clear comparison button */}
+                {compareStudentId && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="rounded-xl text-xs border-amber-300 dark:border-amber-700 text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/20"
+                    onClick={() => setCompareStudentId('')}
+                  >
+                    <X className="h-3.5 w-3.5 mr-1" />
+                    {t('flower.compare_clear')}
+                  </Button>
+                )}
               </div>
             </CardHeader>
             <CardContent>
@@ -543,6 +609,10 @@ export default function CompetenceFlowerView() {
                       <linearGradient id="petalGradientClass" x1="0" y1="0" x2="0" y2="1">
                         <stop offset="0%" stopColor="#94a3b8" stopOpacity={0.18} />
                         <stop offset="100%" stopColor="#94a3b8" stopOpacity={0.05} />
+                      </linearGradient>
+                      <linearGradient id="petalGradientCompare" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#f59e0b" stopOpacity={0.25} />
+                        <stop offset="100%" stopColor="#f59e0b" stopOpacity={0.05} />
                       </linearGradient>
                     </defs>
                     <PolarGrid stroke="#e5e7eb" strokeDasharray="3 3" />
@@ -579,6 +649,19 @@ export default function CompetenceFlowerView() {
                       dot={false}
                     />
                     )}
+                    {/* Comparison student radar */}
+                    {compareStudentId && compareFlowerData && (
+                    <Radar
+                      name={compareFlowerData.studentName}
+                      dataKey="compareValue"
+                      stroke="#f59e0b"
+                      fill="url(#petalGradientCompare)"
+                      fillOpacity={1}
+                      strokeWidth={2}
+                      strokeDasharray="8 4"
+                      dot={{ r: 3, fill: '#f59e0b', stroke: '#fff', strokeWidth: 1.5 }}
+                    />
+                    )}
                     <Tooltip
                       contentStyle={{
                         borderRadius: '12px',
@@ -599,10 +682,13 @@ export default function CompetenceFlowerView() {
                       iconType="circle"
                       formatter={(value: string) => {
                         const isStudent = value === flowerData.studentName;
-                        const Icon = isStudent ? Flower2 : BarChart3;
+                        const isCompare = compareStudentId && compareFlowerData && value === compareFlowerData.studentName;
+                        const Icon = isStudent ? Flower2 : isCompare ? GitCompareArrows : BarChart3;
                         return (
                           <span
-                            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/80 dark:bg-gray-800/80 border border-emerald-200/60 dark:border-emerald-900/40 shadow-sm text-[11px] font-medium text-gray-700 dark:text-gray-200"
+                            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/80 dark:bg-gray-800/80 border shadow-sm text-[11px] font-medium text-gray-700 dark:text-gray-200 ${
+                              isCompare ? 'border-amber-200/60 dark:border-amber-900/40' : 'border-emerald-200/60 dark:border-emerald-900/40'
+                            }`}
                           >
                             <Icon className="w-3 h-3" />
                             <span>{value}</span>

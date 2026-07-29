@@ -504,7 +504,13 @@ const de: TranslationDict = {
   'flower.hide_average': 'Vergleich aus',
   'flower.show_average': 'Vergleich an',
   'flower.download_png': 'Als PNG',
+  'flower.compare_with': 'Vergleichen mit',
+  'flower.compare_clear': 'Vergleich entfernen',
+  'flower.compare_legend': 'Vergleich',
   'grading.grade_distribution': 'Notenverteilung',
+  'grading.trend_title': 'Notenverlauf',
+  'grading.trend_desc': 'Entwicklung der Durchschnittsnote im Zeitverlauf',
+  'grading.trend_average': 'Klassenschnitt',
 
   // Navigation (new view)
   'nav.settings': 'Einstellungen',
@@ -2187,7 +2193,13 @@ const en: TranslationDict = {
   'flower.hide_average': 'Hide Average',
   'flower.show_average': 'Show Average',
   'flower.download_png': 'As PNG',
+  'flower.compare_with': 'Compare with',
+  'flower.compare_clear': 'Clear comparison',
+  'flower.compare_legend': 'Comparison',
   'grading.grade_distribution': 'Grade Distribution',
+  'grading.trend_title': 'Grade Trend',
+  'grading.trend_desc': 'Average grade development over time',
+  'grading.trend_average': 'Class average',
 
   // Navigation (new view)
   'nav.settings': 'Settings',
