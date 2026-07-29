@@ -101,6 +101,7 @@ import { useAppStore, type ViewName, type CurrentUser } from '@/lib/store';
 import { t } from '@/lib/i18n';
 import { fetchDashboard, type DashboardData, getStoredNotifications, type AppNotification, addNotification, markNotificationsRead, fetchParentLinks, type ParentStudentLinkData, fetchStudents } from '@/lib/api';
 import { apiGet, apiPost, apiPut } from '@/lib/api';
+import { sanitizeHtml } from '@/lib/utils';
 import { fetchNewsletters, createNewsletter, type NewsletterData } from '@/lib/api';
 
 const containerVariants = {
@@ -2645,7 +2646,7 @@ function DashboardNewsletterCard({ currentUser, locale }: { currentUser: Current
                   <img src={viewingNewsletter.imageUrl} alt="" className="w-full h-48 object-cover" />
                 </div>
               )}
-              <div className="prose prose-sm dark:prose-invert max-w-none" dangerouslySetInnerHTML={{ __html: viewingNewsletter.content }} />
+              <div className="prose prose-sm dark:prose-invert max-w-none" dangerouslySetInnerHTML={{ __html: sanitizeHtml(viewingNewsletter.content) }} />
               {viewingNewsletter.tags && (() => {
                 try {
                   const parsed = JSON.parse(viewingNewsletter.tags);

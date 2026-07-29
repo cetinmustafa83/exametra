@@ -1,8 +1,8 @@
 // CompetenceTrack — Service Worker for PWA Offline Support
-const CACHE_NAME = 'competencetrack-v1';
-const STATIC_CACHE = 'competencetrack-static-v1';
-const DATA_CACHE = 'competencetrack-data-v1';
-const OFFLINE_CACHE = 'competencetrack-offline-v1';
+const CACHE_NAME = 'competencetrack-v2';
+const STATIC_CACHE = 'competencetrack-static-v2';
+const DATA_CACHE = 'competencetrack-data-v2';
+const OFFLINE_CACHE = 'competencetrack-offline-v2';
 
 // Static assets to cache on install
 const STATIC_ASSETS = [
@@ -81,9 +81,16 @@ self.addEventListener('fetch', (event) => {
   }
 
   // Static assets (CSS, JS, images) — CacheFirst strategy
+  // But use NetworkFirst for JS/CSS from Next.js dev server (_next/) to avoid stale module factories
   if (
     url.pathname.endsWith('.css') ||
-    url.pathname.endsWith('.js') ||
+    url.pathname.endsWith('.js')
+  ) {
+    // Always use NetworkFirst for JS/CSS to avoid stale Turbopack chunks
+    event.respondWith(networkFirstStrategy(request, STATIC_CACHE));
+    return;
+  }
+  if (
     url.pathname.endsWith('.png') ||
     url.pathname.endsWith('.jpg') ||
     url.pathname.endsWith('.svg') ||

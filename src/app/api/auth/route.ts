@@ -41,7 +41,7 @@ export const POST = withRateLimit(async function POST(request: Request) {
 
       const { email, password } = parsed.data;
 
-      const user = await db.user.findUnique({
+      const user = await db.user.findFirst({
         where: { email, deletedAt: null },
       });
 

@@ -153,6 +153,7 @@ import ResourceLibraryView from './resource-library-view';
 
 // Dynamic imports for heavy components with loading skeletons
 const AnalyticsView = dynamic(() => import('./analytics-view'), {
+  ssr: false,
   loading: () => <div className="space-y-4 p-4"><Skeleton className="h-8 w-48" /><div className="grid grid-cols-1 md:grid-cols-3 gap-4">{[1,2,3].map(i => <Skeleton key={i} className="h-32" />)}</div><Skeleton className="h-64" /></div>,
 });
 
