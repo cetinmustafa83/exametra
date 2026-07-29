@@ -1562,3 +1562,46 @@ Work Log:
 
 - **Lint**: All checks pass (`npx eslint` — no errors on any modified file)
 - **Dev Server**: Compiles successfully, no errors in dev.log
+
+---
+Task ID: Round-19
+Agent: main
+Task: Round 19 — Critical Bug Fixes, Competition System, German Curriculum Learning, DSGVO Compliance
+Date: 2025-07-29
+
+Work Log:
+- Fixed portfolio-view.tsx runtime error: `entry.isPublic` → `form.isPublic` (entry was not defined)
+- Fixed auth 500 errors: session cookie now set on both cookies() and NextResponse
+- Fixed auth 429 errors: increased rate limits (auth POST 30/min, auth GET 120/min)
+- Fixed script tag warning: chart.tsx uses ref-based textContent instead of dangerouslySetInnerHTML
+- Fixed module factory error: disabled SW registration in dev, skip /_next/ caching in sw.js
+- Added Competition system: 5 Prisma models (Competition, CompetitionParticipant, CompetitionReward, CompetitionLeaderboard, RewardClaim)
+- Added German curriculum learning: 4 Prisma models (SubjectTopic, SubjectLesson, LessonQuestion, StudentAnswer)
+- Added 12 API routes for competitions and rewards
+- Added 7 API routes for subject topics, lessons, questions, and student answers
+- Created competitions-view.tsx (1793 lines) with full CRUD, leaderboard, rewards, registration
+- Enhanced notebooks-view.tsx with 'Lernen' tab for German curriculum subjects (Mathematik, Deutsch, Sachkunde, etc.)
+- Added student-specific dashboard with Papier sparen banner, notebook quick access, learning progress
+- Added competitions to teacher and student navigation
+- Added DSGVO/GDPR compliance: cookie consent, data export (Art. 20), account deletion (Art. 17, 30-day grace period)
+- Added Datenschutz (Privacy) tab in Settings with user rights, Jugendschutz notices, DPA/AVV
+- Added Jugendschutz notice in student login (parental consent for under 16)
+- Added 200+ i18n keys for DE and EN (competitions, rewards, learning, DSGVO, privacy, Jugendschutz)
+- Pushed 3 commits to GitHub: 7440470, 849b48a, 6306217
+
+Stage Summary:
+- All critical bugs fixed (auth 500, auth 429, script tag, module factory, portfolio entry)
+- Competition system fully implemented (backend + frontend)
+- German curriculum learning content system fully implemented (backend + frontend)
+- Student dashboard enhanced with environmental messaging and notebook access
+- DSGVO/GDPR compliance features implemented (cookie consent, data export, account deletion, privacy settings)
+- 65+ Prisma models, 90+ API routes, 3200+ i18n keys
+- Lint: 0 errors, dev server running
+
+Unresolved Issues:
+- WebSocket connection timeout (non-critical, service is running but browser can't connect through proxy)
+- Need to seed demo data for competitions and learning content
+- Need to add more German curriculum content (Mathematik, Deutsch, etc.)
+- Email notification integration (SMTP) still pending
+- Advanced analytics dashboard refinements
+- Performance optimization for older tablets
