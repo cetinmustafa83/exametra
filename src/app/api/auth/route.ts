@@ -24,7 +24,7 @@ const registerSchema = z.object({
   firstName: z.string().min(1),
   lastName: z.string().min(1),
   schoolId: z.string().optional(),
-  role: z.enum(['TEACHER', 'SCHOOL_ADMIN', 'SUPER_ADMIN']).default('TEACHER'),
+  role: z.enum(['TEACHER', 'SCHOOL_ADMIN', 'SUPER_ADMIN', 'VICE_PRINCIPAL']).default('TEACHER'),
 });
 
 export const POST = withRateLimit(async function POST(request: Request) {

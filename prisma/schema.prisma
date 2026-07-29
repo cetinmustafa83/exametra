@@ -81,6 +81,19 @@ model School {
   subjectTopics      SubjectTopic[]
   district           SchoolDistrict? @relation(fields: [districtId], references: [id])
   districtId         String?
+  // New features
+  subjectCategories  SubjectCategory[]
+  subjectContents    SubjectContent[]
+  contentChangeRequests ContentChangeRequest[]
+  aiSettings         AISettings?
+  virtualCharacters  VirtualCharacter[]
+  illnessReports     IllnessReport[]
+  counselingAppointments CounselingAppointment[]
+  disciplinaryCommittees DisciplinaryCommittee[]
+  communicationRooms CommunicationRoom[]
+  aiTestGenerations  AITestGeneration[]
+  gradingReviews     TeacherGradingReview[]
+  chatMessages       ChatMessage[]
 }
 
 model User {
@@ -90,7 +103,7 @@ model User {
   passwordHash    String
   firstName       String
   lastName        String
-  role            String   @default("TEACHER") // TEACHER, SCHOOL_ADMIN, SUPER_ADMIN, STUDENT, PARENT
+  role            String   @default("TEACHER") // TEACHER, SCHOOL_ADMIN, SUPER_ADMIN, STUDENT, PARENT, VICE_PRINCIPAL
   locale          String   @default("de")
   twoFactorSecret String?
   isDemo          Boolean  @default(false)
@@ -134,6 +147,29 @@ model User {
   rewardPoints              RewardPoints[]
   studentAnswers            StudentAnswer[]
   student                   Student?
+  // New features
+  contentChangeRequests     ContentChangeRequest[] @relation("ContentRequester")
+  contentChangeReviews      ContentChangeRequest[] @relation("ContentReviewer")
+  chatMessages              ChatMessage[]
+  illnessReports            IllnessReport[]
+  illnessReportApprovals    IllnessReport[] @relation("IllnessApprover")
+  communicationRoomMembers  CommunicationRoomMember[]
+  communicationMessages     CommunicationMessage[]
+  counselingAppointments    CounselingAppointment[] @relation("Counselor")
+  counselingStudentAppts    CounselingAppointment[] @relation("CounselingStudent")
+  disciplinaryCasesReported DisciplinaryCase[] @relation("CaseReporter")
+  disciplinaryCasesReviewed DisciplinaryCase[] @relation("CaseReviewer")
+  disciplinaryCommitteeMembers DisciplinaryCommitteeMember[]
+  virtualCharacter          VirtualCharacter?
+  aiTestGenerations         AITestGeneration[]
+  gradingReviews            TeacherGradingReview[]
+  gradingReviewComments     GradingReviewComment[]
+  selectedCharacterId       String?
+  // Communication room relations
+  roomStudent               CommunicationRoom[] @relation("RoomStudent")
+  roomTeacher               CommunicationRoom[] @relation("RoomTeacher")
+  // Class responsible teacher
+  responsibleClasses        ClassGroup[] @relation("ResponsibleTeacher")
 }
 
 model SchoolYear {
@@ -160,11 +196,13 @@ model ClassGroup {
   gradeLevel   Int
   schoolType   String   @default("ELEMENTARY")
   seatingOrder String?  // JSON array of student IDs
+  responsibleTeacherId String? // Class responsible teacher (Klassenlehrer)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
   school              School              @relation(fields: [schoolId], references: [id])
   schoolYear          SchoolYear          @relation(fields: [schoolYearId], references: [id])
+  responsibleTeacher  User?               @relation("ResponsibleTeacher", fields: [responsibleTeacherId], references: [id])
   teachers            ClassGroupTeacher[]
   enrollments         Enrollment[]
   classCompetencyAssignments ClassCompetencyAssignment[]
@@ -187,6 +225,7 @@ model ClassGroup {
   resources           Resource[]
   peerAssessments     PeerAssessment[]
   schoolEvents        SchoolEvent[]
+  aiTestGenerations   AITestGeneration[]
 }
 
 model ClassGroupTeacher {
@@ -240,6 +279,8 @@ model Student {
   healthRecords         HealthRecord[]
   studentBadges         StudentBadge[]
   goals                 StudentGoal[]
+  illnessReports        IllnessReport[]
+  disciplinaryCases     DisciplinaryCase[]
 
   @@index([userId])
 }
@@ -285,6 +326,8 @@ model Subject {
   resources           Resource[]
   topics              SubjectTopic[]
   competitions        Competition[]
+  subjectContents     SubjectContent[]
+  aiTestGenerations   AITestGeneration[]
 }
 
 model CompetencyTemplate {
@@ -402,6 +445,8 @@ model Assessment {
   teacher              User                 @relation(fields: [teacherId], references: [id])
   assessmentCompetencyLinks AssessmentCompetencyLink[]
   assessmentResults    AssessmentResult[]
+  aiTestGenerations    AITestGeneration[]
+  gradingReviews       TeacherGradingReview[]
 }
 
 model AssessmentCompetencyLink {
@@ -1936,4 +1981,450 @@ model StudentGoal {
 
   @@index([studentId])
   @@index([status])
+}
+
+// ─── Subject Content Management (Schlaukopf Clone) ──────────────────
+
+model SubjectCategory {
+  id          String   @id @default(cuid())
+  schoolId    String
+  name        String   // e.g. "Klasse 5", "Klasse 6", "Oberstufe"
+  slug        String   // e.g. "klasse5", "klasse6", "oberstufe"
+  description String?
+  icon        String?  // Lucide icon name
+  sortOrder   Int      @default(0)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  school      School   @relation(fields: [schoolId], references: [id])
+  contents    SubjectContent[]
+
+  @@index([schoolId])
+  @@index([slug])
+  @@map("subject_categories")
+}
+
+model SubjectContent {
+  id           String   @id @default(cuid())
+  schoolId     String
+  categoryId   String
+  subjectId    String?  // Link to existing Subject
+  parentId     String?  // For nested topics
+  title        String
+  slug         String
+  description  String?
+  icon         String?  // Lucide icon name
+  contentType  String   @default("topic") // topic, exercise, lesson, quiz, vocabulary
+  content      String?  // JSON content (questions, explanations, etc.)
+  difficulty   String   @default("medium") // easy, medium, hard
+  questionCount Int     @default(0)
+  sortOrder    Int      @default(0)
+  isActive     Boolean  @default(true)
+  isPublic     Boolean  @default(true) // visible to all schools
+  sourceUrl    String?  // original schlaukopf.de URL
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  school      School          @relation(fields: [schoolId], references: [id])
+  category    SubjectCategory @relation(fields: [categoryId], references: [id])
+  parent      SubjectContent? @relation("ContentHierarchy", fields: [parentId], references: [id])
+  children    SubjectContent[] @relation("ContentHierarchy")
+  changeRequests ContentChangeRequest[]
+  subject     Subject?        @relation(fields: [subjectId], references: [id])
+
+  @@index([schoolId])
+  @@index([categoryId])
+  @@index([parentId])
+  @@index([slug])
+  @@index([contentType])
+  @@map("subject_contents")
+}
+
+model ContentChangeRequest {
+  id          String   @id @default(cuid())
+  schoolId    String
+  contentId   String
+  requestedBy String
+  requestType String   // edit, add, delete
+  title       String
+  description String
+  proposedChanges String? // JSON with proposed changes
+  status      String   @default("pending") // pending, approved, rejected
+  reviewedBy  String?
+  reviewNote  String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  school     School          @relation(fields: [schoolId], references: [id])
+  content    SubjectContent  @relation(fields: [contentId], references: [id])
+  requester  User            @relation("ContentRequester", fields: [requestedBy], references: [id])
+  reviewer   User?           @relation("ContentReviewer", fields: [reviewedBy], references: [id])
+
+  @@index([schoolId])
+  @@index([contentId])
+  @@index([status])
+  @@index([requestedBy])
+  @@map("content_change_requests")
+}
+
+// ─── AI Settings (Pollination, OpenAI, Anthropic) ────────────────────
+
+model AISettings {
+  id                    String   @id @default(cuid())
+  schoolId              String   @unique
+  // Pollination AI
+  pollinationEnabled    Boolean  @default(true)
+  pollinationApiKey     String?
+  pollinationModel      String   @default("flux")
+  // OpenAI
+  openaiEnabled         Boolean  @default(false)
+  openaiApiKey          String?
+  openaiModel           String   @default("gpt-4o")
+  // Anthropic
+  anthropicEnabled      Boolean  @default(false)
+  anthropicApiKey       String?
+  anthropicModel        String   @default("claude-3-5-sonnet-20241022")
+  // AI Features
+  aiChatEnabled         Boolean  @default(true) // Student AI helper
+  aiImageGenEnabled     Boolean  @default(true) // Admin/Teacher image generation
+  aiVideoGenEnabled     Boolean  @default(false) // Admin/Teacher video generation
+  aiAutoTestEnabled     Boolean  @default(true) // Auto test generation before exams
+  aiGradingAuditEnabled Boolean  @default(false) // AI grading audit
+  aiTopicGenEnabled     Boolean  @default(true) // Auto topic generation from categories
+  // Virtual Character
+  virtualCharacterEnabled Boolean @default(true) // Enable/disable for students
+  // Restrictions
+  aiMaxRequestsPerDay   Int      @default(50) // Student daily limit
+  aiHelperMode          String   @default("guided") // guided, full, restricted
+  aiSystemPrompt        String?  // Custom system prompt for AI chat
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  school    School    @relation(fields: [schoolId], references: [id])
+
+  @@map("ai_settings")
+}
+
+// ─── Virtual Character System ────────────────────────────────────────
+
+model VirtualCharacter {
+  id          String   @id @default(cuid())
+  userId      String   @unique
+  schoolId    String
+  characterId String   // e.g. "owl", "dragon", "robot", "cat", "wizard"
+  name        String   // Custom name for the character
+  color       String   @default("#10b981") // Character accent color
+  level       Int      @default(1)
+  xp          Int      @default(0)
+  mood        String   @default("happy") // happy, excited, thinking, sleepy, celebrating
+  accessories String?  // JSON array of unlocked accessories
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user        User     @relation(fields: [userId], references: [id])
+  school      School   @relation(fields: [schoolId], references: [id])
+
+  @@index([userId])
+  @@index([schoolId])
+  @@map("virtual_characters")
+}
+
+// ─── Chat Messages (AI Chatbot & Student-Teacher) ────────────────────
+
+model ChatMessage {
+  id          String   @id @default(cuid())
+  schoolId    String
+  userId      String
+  roomId      String?  // For room-based chat (null = AI chatbot)
+  content     String
+  senderType  String   @default("user") // user, ai, teacher, system
+  metadata    String?  // JSON metadata (attachments, etc.)
+  isRead      Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  user        User     @relation(fields: [userId], references: [id])
+  school      School   @relation(fields: [schoolId], references: [id])
+  room        CommunicationRoom? @relation(fields: [roomId], references: [id])
+
+  @@index([userId])
+  @@index([roomId])
+  @@index([schoolId])
+  @@index([createdAt])
+  @@map("chat_messages")
+}
+
+// ─── Illness Reporting with Parent Approval ──────────────────────────
+
+model IllnessReport {
+  id            String   @id @default(cuid())
+  schoolId      String
+  studentId     String
+  reportedBy    String   // userId of the person reporting
+  reporterType  String   // student, parent
+  reason        String   // illness, doctor_visit, other
+  description   String?
+  startDate     DateTime
+  endDate       DateTime?
+  documentUrl   String?  // Medical certificate URL
+  parentApprovalStatus String @default("pending") // pending, approved, rejected
+  parentApprovedBy String? // userId of approving parent
+  parentApprovedAt DateTime?
+  // Status: only visible to student/parent until approved
+  isVisibleToTeacher Boolean @default(false)
+  isVisibleToAdmin   Boolean @default(false)
+  status        String   @default("pending") // pending, approved, rejected, expired
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  school        School   @relation(fields: [schoolId], references: [id])
+  student       Student  @relation(fields: [studentId], references: [id])
+  reporter      User     @relation(fields: [reportedBy], references: [id])
+  approver      User?    @relation("IllnessApprover", fields: [parentApprovedBy], references: [id])
+
+  @@index([schoolId])
+  @@index([studentId])
+  @@index([reportedBy])
+  @@index([parentApprovalStatus])
+  @@index([status])
+  @@map("illness_reports")
+}
+
+// ─── Communication Rooms (Student-Teacher) ───────────────────────────
+
+model CommunicationRoom {
+  id            String   @id @default(cuid())
+  schoolId      String
+  studentId     String
+  teacherId     String
+  roomType      String   @default("chat") // chat, voice, video
+  status        String   @default("requested") // requested, active, closed
+  requestedBy   String   // student or teacher
+  acceptedAt    DateTime?
+  closedAt      DateTime?
+  closeReason   String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  school        School   @relation(fields: [schoolId], references: [id])
+  student       User     @relation("RoomStudent", fields: [studentId], references: [id])
+  teacher       User     @relation("RoomTeacher", fields: [teacherId], references: [id])
+  members       CommunicationRoomMember[]
+  messages      CommunicationMessage[]
+  chatMessages  ChatMessage[]
+
+  @@index([schoolId])
+  @@index([studentId])
+  @@index([teacherId])
+  @@index([status])
+  @@map("communication_rooms")
+}
+
+model CommunicationRoomMember {
+  id        String   @id @default(cuid())
+  roomId    String
+  userId    String
+  role      String   @default("member") // member, moderator
+  joinedAt  DateTime @default(now())
+
+  room      CommunicationRoom @relation(fields: [roomId], references: [id])
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@unique([roomId, userId])
+  @@index([roomId])
+  @@index([userId])
+  @@map("communication_room_members")
+}
+
+model CommunicationMessage {
+  id          String   @id @default(cuid())
+  roomId      String
+  senderId    String
+  content     String
+  messageType String   @default("text") // text, voice, image, note_share, file
+  fileUrl     String?
+  metadata    String?  // JSON
+  isRead      Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  room        CommunicationRoom @relation(fields: [roomId], references: [id])
+  sender      User     @relation(fields: [senderId], references: [id])
+
+  @@index([roomId])
+  @@index([senderId])
+  @@index([createdAt])
+  @@map("communication_messages")
+}
+
+// ─── Counseling / Guidance System ────────────────────────────────────
+
+model CounselingAppointment {
+  id            String   @id @default(cuid())
+  schoolId      String
+  studentId     String
+  counselorId   String
+  requestType   String   @default("guidance") // guidance, psychological, career, social
+  description   String?
+  status        String   @default("requested") // requested, scheduled, completed, cancelled
+  scheduledAt   DateTime?
+  duration      Int      @default(30) // minutes
+  notes         String?  // Counselor notes
+  isPrivate     Boolean  @default(true)
+  addToCalendar Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  school        School   @relation(fields: [schoolId], references: [id])
+  counselor     User     @relation("Counselor", fields: [counselorId], references: [id])
+  student       User     @relation("CounselingStudent", fields: [studentId], references: [id])
+
+  @@index([schoolId])
+  @@index([counselorId])
+  @@index([studentId])
+  @@index([status])
+  @@index([scheduledAt])
+  @@map("counseling_appointments")
+}
+
+// ─── Disciplinary Committee System ───────────────────────────────────
+
+model DisciplinaryCommittee {
+  id            String   @id @default(cuid())
+  schoolId      String
+  name          String
+  description   String?
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  school        School   @relation(fields: [schoolId], references: [id])
+  members       DisciplinaryCommitteeMember[]
+  cases         DisciplinaryCase[]
+
+  @@index([schoolId])
+  @@map("disciplinary_committees")
+}
+
+model DisciplinaryCommitteeMember {
+  id           String   @id @default(cuid())
+  committeeId  String
+  userId       String
+  role         String   @default("member") // chair, vice_chair, member
+  isLead       Boolean  @default(false)
+  createdAt    DateTime @default(now())
+
+  committee    DisciplinaryCommittee @relation(fields: [committeeId], references: [id])
+  user         User     @relation(fields: [userId], references: [id])
+
+  @@unique([committeeId, userId])
+  @@index([committeeId])
+  @@index([userId])
+  @@map("disciplinary_committee_members")
+}
+
+model DisciplinaryCase {
+  id            String   @id @default(cuid())
+  schoolId      String
+  committeeId   String
+  studentId     String
+  reportedBy    String
+  reviewedBy    String?
+  caseType      String   // warning, minor_violation, major_violation, serious_offense
+  description   String
+  evidence      String?  // JSON array of evidence URLs
+  status        String   @default("open") // open, under_review, resolved, dismissed
+  resolution    String?
+  resolutionDate DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  committee     DisciplinaryCommittee @relation(fields: [committeeId], references: [id])
+  student       Student  @relation(fields: [studentId], references: [id])
+  reporter      User     @relation("CaseReporter", fields: [reportedBy], references: [id])
+  reviewer      User?    @relation("CaseReviewer", fields: [reviewedBy], references: [id])
+
+  @@index([schoolId])
+  @@index([committeeId])
+  @@index([studentId])
+  @@index([status])
+  @@map("disciplinary_cases")
+}
+
+// ─── AI Test Generation ──────────────────────────────────────────────
+
+model AITestGeneration {
+  id            String   @id @default(cuid())
+  schoolId      String
+  assessmentId  String?  // Linked assessment
+  studentId     String?  // For individual student tests
+  classGroupId  String?  // For class-wide tests
+  subjectId     String?
+  topicId       String?  // SubjectContent ID
+  testType      String   @default("practice") // practice, mock_exam, review
+  difficulty    String   @default("medium")
+  questionCount Int      @default(10)
+  questions     String?  // JSON array of generated questions
+  aiProvider    String   @default("pollination") // pollination, openai, anthropic
+  generatedAt   DateTime?
+  isCompleted   Boolean  @default(false)
+  completedAt   DateTime?
+  score         Float?   // Student's score if completed
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  school        School   @relation(fields: [schoolId], references: [id])
+  assessment    Assessment? @relation(fields: [assessmentId], references: [id])
+  student       User?    @relation(fields: [studentId], references: [id])
+  classGroup    ClassGroup? @relation(fields: [classGroupId], references: [id])
+  subject       Subject? @relation(fields: [subjectId], references: [id])
+
+  @@index([schoolId])
+  @@index([assessmentId])
+  @@index([studentId])
+  @@index([classGroupId])
+  @@map("ai_test_generations")
+}
+
+// ─── Teacher Grading Review (AI Audit) ───────────────────────────────
+
+model TeacherGradingReview {
+  id            String   @id @default(cuid())
+  schoolId      String
+  assessmentId  String
+  teacherId     String
+  aiProvider    String   @default("pollination")
+  status        String   @default("pending") // pending, in_progress, completed
+  reviewResult  String?  // JSON with review findings
+  discrepanciesFound Int  @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  school        School   @relation(fields: [schoolId], references: [id])
+  assessment    Assessment @relation(fields: [assessmentId], references: [id])
+  teacher       User     @relation(fields: [teacherId], references: [id])
+  comments      GradingReviewComment[]
+
+  @@index([schoolId])
+  @@index([assessmentId])
+  @@index([teacherId])
+  @@index([status])
+  @@map("teacher_grading_reviews")
+}
+
+model GradingReviewComment {
+  id          String   @id @default(cuid())
+  reviewId    String
+  userId      String
+  resultId    String?  // AssessmentResult ID
+  comment     String
+  suggestedGrade String?
+  reason      String?
+  createdAt   DateTime @default(now())
+
+  review      TeacherGradingReview @relation(fields: [reviewId], references: [id])
+  user        User     @relation(fields: [userId], references: [id])
+
+  @@index([reviewId])
+  @@index([userId])
+  @@map("grading_review_comments")
 }

@@ -60,6 +60,8 @@ import {
   Trophy,
   FolderOpen,
   Building2,
+  MessageSquare,
+  Brain,
 } from 'lucide-react';
 import {
   Sidebar,
@@ -156,6 +158,14 @@ import TimetableView from './timetable-view';
 import ResourceLibraryView from './resource-library-view';
 import CompetitionsView from './competitions-view';
 import DistrictManagementView from './district-management-view';
+import IllnessReportingView from './illness-reporting-view';
+import CommunicationView from './communication-view';
+import SubjectsView from './subjects-view';
+import CounselingView from './counseling-view';
+import DisciplinaryView from './disciplinary-view';
+import AITestsView from './ai-tests-view';
+import AIChatWidget from './ai-chat-widget';
+import VirtualCharacter from './virtual-character';
 
 // Dynamic imports for heavy components with loading skeletons
 const AnalyticsView = dynamic(() => import('./analytics-view'), {
@@ -214,6 +224,12 @@ const navSections: NavSection[] = [
       { key: 'timetable', icon: ClockIcon, labelKey: 'nav.timetable' },
       { key: 'resources', icon: LibraryIcon, labelKey: 'nav.resources' },
       { key: 'competitions', icon: Trophy, labelKey: 'nav.competitions' },
+      { key: 'subjects', icon: BookOpen, labelKey: 'nav.subjects' },
+      { key: 'illness', icon: Heart, labelKey: 'nav.illness' },
+      { key: 'communication', icon: MessageSquare, labelKey: 'nav.communication' },
+      { key: 'counseling', icon: Heart, labelKey: 'counseling.title' },
+      { key: 'disciplinary', icon: Shield, labelKey: 'disciplinary.title' },
+      { key: 'ai-tests', icon: Brain, labelKey: 'ai_tests.title' },
     ],
   },
   {
@@ -243,6 +259,11 @@ const studentNavSections: NavSection[] = [
       { key: 'portfolio', icon: Briefcase, labelKey: 'nav.portfolio' },
       { key: 'calendar', icon: CalendarIconNav, labelKey: 'nav.calendar' },
       { key: 'competitions', icon: Trophy, labelKey: 'nav.competitions' },
+      { key: 'subjects', icon: BookOpen, labelKey: 'nav.subjects' },
+      { key: 'illness', icon: Heart, labelKey: 'nav.illness' },
+      { key: 'communication', icon: MessageSquare, labelKey: 'nav.communication' },
+      { key: 'counseling', icon: Heart, labelKey: 'counseling.title' },
+      { key: 'ai-tests', icon: Brain, labelKey: 'ai_tests.title' },
       { key: 'resources', icon: FolderOpen, labelKey: 'nav.resources' },
       { key: 'settings', icon: Settings, labelKey: 'nav.settings' },
     ],
@@ -262,6 +283,8 @@ const parentNavSections: NavSection[] = [
       { key: 'attendance', icon: CalendarCheck, labelKey: 'nav.student_attendance' },
       { key: 'calendar', icon: CalendarIconNav, labelKey: 'nav.calendar' },
       { key: 'competitions', icon: Trophy, labelKey: 'nav.competitions' },
+      { key: 'illness', icon: Heart, labelKey: 'nav.illness' },
+      { key: 'communication', icon: MessageSquare, labelKey: 'nav.communication' },
     ],
   },
 ];
@@ -394,6 +417,12 @@ function renderView(view: ViewName) {
     case 'resources': return <ResourceLibraryView />;
     case 'competitions': return <CompetitionsView />;
     case 'districts': return <DistrictManagementView />;
+    case 'subjects': return <SubjectsView />;
+    case 'illness': return <IllnessReportingView />;
+    case 'communication': return <CommunicationView />;
+    case 'counseling': return <CounselingView />;
+    case 'disciplinary': return <DisciplinaryView />;
+    case 'ai-tests': return <AITestsView />;
     default: return <DashboardView />;
   }
 }
@@ -445,7 +474,7 @@ export default function AppLayout() {
     ? `${currentUser.firstName} ${currentUser.lastName}`
     : '';
 
-  const roleKey = currentUser?.role === 'TEACHER' ? 'role.teacher' : currentUser?.role === 'SCHOOL_ADMIN' ? 'role.school_admin' : currentUser?.role === 'STUDENT' ? 'role.student' : currentUser?.role === 'PARENT' ? 'role.parent' : 'role.super_admin';
+  const roleKey = currentUser?.role === 'TEACHER' ? 'role.teacher' : currentUser?.role === 'SCHOOL_ADMIN' || currentUser?.role === 'VICE_PRINCIPAL' ? 'role.school_admin' : currentUser?.role === 'STUDENT' ? 'role.student' : currentUser?.role === 'PARENT' ? 'role.parent' : 'role.super_admin';
 
   const isStudent = currentUser?.role === 'STUDENT';
   const isParent = currentUser?.role === 'PARENT';
@@ -1482,6 +1511,12 @@ export default function AppLayout() {
 
       {/* ─── Onboarding Tour ─────────────────────────────────────── */}
       <OnboardingTour open={onboardingOpen} onClose={() => setOnboardingOpen(false)} />
+
+      {/* ─── AI Chat Widget ─────────────────────────────────────────── */}
+      <AIChatWidget />
+
+      {/* ─── Virtual Character ──────────────────────────────────────── */}
+      <VirtualCharacter userRole={currentUser?.role ?? 'TEACHER'} />
     </SidebarProvider>
   );
 }

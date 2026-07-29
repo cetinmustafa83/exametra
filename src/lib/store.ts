@@ -31,7 +31,13 @@ export type ViewName =
   | 'resources'
   | 'competitions'
   | 'districts'
-  | 'student-portal';
+  | 'student-portal'
+  | 'subjects'
+  | 'illness'
+  | 'communication'
+  | 'counseling'
+  | 'disciplinary'
+  | 'ai-tests';
 
 export interface CurrentUser {
   id: string;

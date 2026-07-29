@@ -18,6 +18,7 @@ type LoginRole = 'teacher' | 'student' | 'parent';
 
 const DEMO_ACCOUNTS = [
   { email: 'demo@competencetrack.org', password: 'Demo2025!', role: 'SCHOOL_ADMIN', labelKey: 'auth.demo_admin', icon: Shield, colorClass: 'from-emerald-400 to-emerald-600 hover:from-emerald-500 hover:to-emerald-700 shadow-emerald-300/40 dark:shadow-emerald-900/40' },
+  { email: 'demo.vice@competencetrack.org', password: 'Demo2025!', role: 'VICE_PRINCIPAL', labelKey: 'auth.demo_vice_principal', icon: Shield, colorClass: 'from-emerald-400 to-emerald-600 hover:from-emerald-500 hover:to-emerald-700 shadow-emerald-300/40 dark:shadow-emerald-900/40' },
   { email: 'demo.teacher@competencetrack.org', password: 'Demo2025!', role: 'TEACHER', labelKey: 'auth.demo_teacher', icon: GraduationCap, colorClass: 'from-teal-400 to-teal-600 hover:from-teal-500 hover:to-teal-700 shadow-teal-300/40 dark:shadow-teal-900/40' },
   { email: 'demo.student@competencetrack.org', password: 'Demo2025!', role: 'STUDENT', labelKey: 'auth.demo_student', icon: User, colorClass: 'from-amber-400 to-amber-600 hover:from-amber-500 hover:to-amber-700 shadow-amber-300/40 dark:shadow-amber-900/40' },
   { email: 'demo.parent@competencetrack.org', password: 'Demo2025!', role: 'PARENT', labelKey: 'auth.demo_parent', icon: Heart, colorClass: 'from-violet-400 to-violet-600 hover:from-violet-500 hover:to-violet-700 shadow-violet-300/40 dark:shadow-violet-900/40' },
