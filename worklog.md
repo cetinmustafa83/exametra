@@ -834,3 +834,124 @@ Stage Summary:
 - Full accessibility: skip-to-content, keyboard shortcuts, ARIA labels, reduced motion, 44px touch targets
 - New CSS utilities: chart-container, stat-card, heatmap-cell, predictive-badge, analytics-tab, export-btn
 - Production-ready with dark mode support and responsive design
+
+---
+Task ID: 21
+Agent: performance-styling-onboarding
+Task: Performance Optimization + Comprehensive Styling Polish + Onboarding Tour Update
+
+Work Log:
+- Created src/lib/cache.ts with in-memory TTL-based cache utility (getCached, invalidateCache, invalidateCachePattern, clearCache, CACHE_TTL constants)
+- Added dynamic imports (next/dynamic) for heavy components: AnalyticsView, CalendarView, NotebooksView, DrawingView with loading skeletons
+- Used ssr: false for DrawingView (canvas component)
+- Added glass effect header (backdrop-blur-xl) to app-layout.tsx
+- Added notification bell bounce animation (framer-motion rotate keyframes)
+- Added theme toggle with smooth transition animation (framer-motion spring)
+- Added better breadcrumb separator with ChevronRight icon
+- Added CountUp animation component to dashboard-view.tsx for stat numbers (0 → actual value with ease-out cubic)
+- Added card-hover-lift class to dashboard stat cards for hover lift effect
+- Added card-hover-lift class to all major view cards: classes, progress-entries, assessments, grading, attendance, lesson-plans, reports, settings
+- Added comprehensive CSS animations in globals.css: card-hover-lift, gradient-separator, badge-glow variants, stagger-entrance, success-bounce, tour-highlight-ring, theme-transition, custom-scrollbar, attendance grid cells, grade color coding, glass-card, min-touch
+- Updated onboarding-tour.tsx from 14 to 24 steps covering all features
+- Added progress bar to onboarding tour
+- Added "Don't show again" checkbox with localStorage persistence
+- Added celebration animation (confetti burst) on tour completion
+- Added step number badge in onboarding tour
+- Added Previous button navigation
+- Added isDontShowAgain() export function
+- Added 100+ new i18n keys for DE and EN: onboarding.step_1 through step_24 (title + desc), onboarding.celebration, onboarding.complete, onboarding.previous, onboarding.dont_show_again, onboarding.restart_tour
+
+Stage Summary:
+- Performance: Dynamic imports for 4 heavy components (AnalyticsView, CalendarView, NotebooksView, DrawingView) with loading skeletons
+- Cache: Created src/lib/cache.ts with TTL-based in-memory cache utility with configurable TTLs
+- Styling: Added 15+ new CSS utility classes and animations in globals.css
+- Cards: Applied card-hover-lift hover effect across all views (10 views)
+- Dashboard: CountUp animation on stat numbers, card-hover-lift on stat cards
+- App Layout: Glass header, notification bell bounce, theme toggle animation, breadcrumb separator
+- Onboarding: Expanded from 14 to 24 steps, added progress bar, celebration, don't-show-again, previous button
+- i18n: 100+ new keys for DE and EN covering all onboarding steps and UI
+
+---
+Task ID: 19
+Agent: peer-assessment-emergency-events
+Task: Peer Assessment + Emergency Contacts + School Events
+
+Work Log:
+- Added 4 new Prisma models: PeerAssessment, EmergencyContact, SchoolEvent, EventRegistration
+  - PeerAssessment: schoolId, assessorId, assessedId, competencyId, classGroupId, assessmentType, level (1-6), comment, rubricId, isAnonymous
+  - EmergencyContact: schoolId, studentId, name, relationship, phone, phoneAlt, email, address, isPrimary, priority
+  - SchoolEvent: schoolId, title, eventType, startDate, endDate, location, organizerId, classGroupId, isAllSchool, requiresRegistration, maxParticipants
+  - EventRegistration: eventId, userId, status (registered/cancelled/attended)
+- Added relations to School, User, Student, Competency, ClassGroup, Rubric models
+- Ran db:push successfully to sync database
+- Created 6 API routes:
+  - Peer Assessments: GET/POST /api/peer-assessments, GET/PUT/DELETE /api/peer-assessments/[id]
+  - Emergency Contacts: GET/POST /api/emergency-contacts, GET/PUT/DELETE /api/emergency-contacts/[id]
+  - School Events: GET/POST /api/school-events, GET/PUT/DELETE /api/school-events/[id]
+  - Event Registration: POST/PUT /api/school-events/[id]/register
+- Added 90+ new i18n keys (DE and EN) for peer assessment, emergency contacts, school events
+- Updated student-detail-view.tsx:
+  - Peer Assessment section with 3-column radar chart (peer/teacher/self comparison)
+  - Average peer rating per competency display
+  - Peer assessment list with type badges, anonymous indicator, comments
+  - Create peer assessment dialog with type, competency, level slider, comment, anonymous toggle
+  - Emergency Contacts section with contact cards, primary indicator, priority ordering
+  - Quick-call button, edit/delete functionality
+  - Emergency contact add/edit dialog
+- Updated dashboard-view.tsx:
+  - DashboardSchoolEventsCard component with event type icons (assembly=Users, field_trip=MapPin, sports_day=Trophy, etc.)
+  - Register/Cancel buttons for events requiring registration
+  - Event type color coding
+  - Upcoming events display with date, location, all-school badge
+- Updated settings-view.tsx:
+  - EmergencyContactsManager component with searchable contact list
+  - Emergency contacts tab in settings
+  - Print list and CSV export buttons
+  - Add/edit/delete contact dialog
+  - Star icon for primary contacts
+
+Stage Summary:
+- 4 new Prisma models (PeerAssessment, EmergencyContact, SchoolEvent, EventRegistration)
+- 6 API route files with full CRUD operations
+- 90+ i18n keys added for DE and EN
+- Peer Assessment UI in student detail with 3-column radar comparison chart
+- Emergency Contacts UI in student detail and settings
+- School Events card on dashboard with registration functionality
+
+---
+Task ID: 20
+Agent: multi-tenancy-email-export
+Task: School Branding + Email Notifications + Data Export Enhancement
+
+Work Log:
+- Updated Prisma schema with School branding fields (logoUrl, primaryColor, secondaryColor, accentColor, fontFamily, customCss, motto, websiteUrl, emailDomain, address, phone) and 2 new models (EmailTemplate, EmailLog)
+- Added emailTemplates and emailLogs relations to School model
+- Ran db:push successfully to update database
+- Enhanced School API route to accept and return branding fields in GET and PUT
+- Seeded 5 default email templates on school creation (weekly_report, assessment_reminder, behavior_alert, attendance_notice, welcome)
+- Created EmailTemplate API routes (GET/POST list, GET/PUT/DELETE individual)
+- Created Email Send API route (/api/email-templates/send) with variable replacement and email logging
+- Created EmailLog API route (/api/email-logs) with status counts
+- Updated School interface and updateSchool function in api.ts with branding fields
+- Added 80+ new i18n keys for DE and EN (branding.*, email.*, export.*)
+- Updated globals.css with CSS custom properties (--brand-primary, --brand-secondary, --brand-accent, --brand-font)
+- Updated app-layout.tsx to dynamically load school branding and apply CSS variables, logo in sidebar header, school name, motto in sidebar footer
+- Added "Branding" and "Email" tabs to settings-view.tsx
+- Branding tab: logo URL input, color pickers for primary/secondary/accent colors, font family selector, motto input, website/email domain/address/phone inputs, custom CSS textarea, live preview panel, save/reset buttons
+- Email tab: email templates list with create/edit/delete/preview, email template dialog with variable placeholders, email preview dialog with test email send, email settings (SMTP config, frequency, toggle switches), email log viewer with status filter and counts
+- Enhanced data export UI with format selector (CSV/JSON/PDF), date range filters, progress indicator, export history with format badges, better export cards with descriptions
+
+Stage Summary:
+- 2 new Prisma models (EmailTemplate, EmailLog) + 11 branding fields on School model
+- 4 new API route files (email-templates, email-templates/[id], email-templates/send, email-logs)
+- Enhanced schools route with branding fields and default template seeding
+- 80+ i18n keys added for branding, email, and export (DE + EN)
+- CSS custom properties for dynamic branding (--brand-primary, --brand-secondary, --brand-accent, --brand-font)
+- Dynamic branding application in app-layout.tsx (logo, school name, motto, colors, font)
+- Full branding UI in settings with color picker, font selector, preview panel
+- Full email template management with CRUD, variable placeholders, preview, test send
+- Email settings with SMTP config, frequency, toggle switches
+- Email log viewer with status filter and delivery statistics
+- Enhanced data export with format selector, date filters, progress indicator
+- All lint checks pass with 0 errors
+

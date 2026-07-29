@@ -642,6 +642,17 @@ export interface School {
   schoolType: string;
   country: string;
   timezone: string;
+  logoUrl?: string | null;
+  primaryColor?: string | null;
+  secondaryColor?: string | null;
+  accentColor?: string | null;
+  fontFamily?: string | null;
+  customCss?: string | null;
+  motto?: string | null;
+  websiteUrl?: string | null;
+  emailDomain?: string | null;
+  address?: string | null;
+  phone?: string | null;
   _count: { users: number; classGroups: number; students: number };
 }
 
@@ -682,6 +693,17 @@ export function updateSchool(data: {
   schoolType?: string;
   country?: string;
   timezone?: string;
+  logoUrl?: string | null;
+  primaryColor?: string | null;
+  secondaryColor?: string | null;
+  accentColor?: string | null;
+  fontFamily?: string | null;
+  customCss?: string | null;
+  motto?: string | null;
+  websiteUrl?: string | null;
+  emailDomain?: string | null;
+  address?: string | null;
+  phone?: string | null;
 }) {
   return apiPut<School>('/api/schools', data);
 }
@@ -865,20 +887,102 @@ export function downloadCsvExport(params: {
   classGroupId?: string;
   schoolYearId?: string;
   schoolId?: string;
+  format?: 'csv' | 'json';
+  dateFrom?: string;
+  dateTo?: string;
 }): void {
   const sp = new URLSearchParams();
   sp.set('type', params.type);
   if (params.classGroupId) sp.set('classGroupId', params.classGroupId);
   if (params.schoolYearId) sp.set('schoolYearId', params.schoolYearId);
   if (params.schoolId) sp.set('schoolId', params.schoolId);
-  // Direct download — triggers browser download
+  if (params.dateFrom) sp.set('dateFrom', params.dateFrom);
+  if (params.dateTo) sp.set('dateTo', params.dateTo);
+  const format = params.format || 'csv';
   const url = `/api/data-export/csv?${sp.toString()}`;
   const a = document.createElement('a');
   a.href = url;
-  a.download = `${params.type}_export.csv`;
+  a.download = `${params.type}_export.${format}`;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
+}
+
+/* ── Email Templates ──────────────────────────────────────────────── */
+
+export interface EmailTemplate {
+  id: string;
+  schoolId: string;
+  name: string;
+  subject: string;
+  body: string;
+  isDefault: boolean;
+  isDemo: boolean;
+  createdAt: string;
+  updatedAt: string;
+  deletedAt: string | null;
+}
+
+export interface EmailLog {
+  id: string;
+  schoolId: string;
+  templateId: string | null;
+  recipientEmail: string;
+  recipientName: string | null;
+  subject: string;
+  body: string;
+  status: string;
+  sentAt: string | null;
+  error: string | null;
+  createdAt: string;
+}
+
+export function fetchEmailTemplates(schoolId: string): Promise<EmailTemplate[]> {
+  return apiGet<EmailTemplate[]>(`/api/email-templates?schoolId=${schoolId}`);
+}
+
+export function createEmailTemplate(data: {
+  schoolId: string;
+  name: string;
+  subject: string;
+  body: string;
+  isDefault?: boolean;
+}): Promise<EmailTemplate> {
+  return apiPost<EmailTemplate>('/api/email-templates', data);
+}
+
+export function updateEmailTemplate(id: string, data: {
+  name?: string;
+  subject?: string;
+  body?: string;
+  isDefault?: boolean;
+}): Promise<EmailTemplate> {
+  return apiPut<EmailTemplate>(`/api/email-templates/${id}`, data);
+}
+
+export function deleteEmailTemplate(id: string): Promise<{ success: boolean }> {
+  return apiDelete<{ success: boolean }>(`/api/email-templates/${id}`);
+}
+
+export function sendTestEmail(data: {
+  schoolId: string;
+  templateId?: string;
+  recipientEmail: string;
+  recipientName?: string;
+  subject: string;
+  body: string;
+}): Promise<{ success: boolean; logId: string; message: string }> {
+  return apiPost<{ success: boolean; logId: string; message: string }>('/api/email-templates/send', {
+    ...data,
+    isTest: true,
+  });
+}
+
+export function fetchEmailLogs(schoolId: string, status?: string): Promise<{ logs: EmailLog[]; counts: { total: number; sent: number; failed: number; pending: number; bounced: number } }> {
+  const sp = new URLSearchParams();
+  sp.set('schoolId', schoolId);
+  if (status) sp.set('status', status);
+  return apiGet(`/api/email-logs?${sp.toString()}`);
 }
 
 /* ── Data Erasure (GDPR) ──────────────────────────────────────────── */

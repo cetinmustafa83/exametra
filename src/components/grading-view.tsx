@@ -368,7 +368,7 @@ export default function GradingView() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.15 }}
           >
-          <Card className="border-0 shadow-sm rounded-xl border-l-3 border-l-amber-400 overflow-hidden">
+          <Card className="card-hover-lift border-0 shadow-sm rounded-xl border-l-3 border-l-amber-400 overflow-hidden">
             <CardHeader className="pb-3 pt-6 bg-gradient-to-r from-amber-50/50 to-transparent dark:from-amber-900/10 dark:to-transparent">
               <CardTitle className="text-base font-bold flex items-center gap-2">
                 <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400">
@@ -467,7 +467,7 @@ export default function GradingView() {
       ) : (
         <>
           {/* Schemes */}
-          <Card className="border-0 shadow-sm rounded-xl border-l-3 border-l-emerald-500 overflow-hidden">
+          <Card className="card-hover-lift border-0 shadow-sm rounded-xl border-l-3 border-l-emerald-500 overflow-hidden">
             <CardHeader className="pb-3 pt-6 bg-gradient-to-r from-emerald-50/50 to-transparent dark:from-emerald-900/10 dark:to-transparent">
               <CardTitle className="text-lg font-bold flex items-center gap-2">
                 <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400">
@@ -548,7 +548,7 @@ export default function GradingView() {
           </Card>
 
           {/* Computed grades */}
-          <Card className="border-0 shadow-sm rounded-xl border-l-3 border-l-teal-500 overflow-hidden">
+          <Card className="card-hover-lift border-0 shadow-sm rounded-xl border-l-3 border-l-teal-500 overflow-hidden">
             <CardHeader className="pb-3 pt-6 bg-gradient-to-r from-teal-50/50 to-transparent dark:from-teal-900/10 dark:to-transparent">
               <CardTitle className="text-lg font-bold flex items-center gap-2">
                 <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-teal-100 dark:bg-teal-900/30 text-teal-600 dark:text-teal-400">
@@ -769,7 +769,7 @@ export default function GradingView() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.4, delay: 0.1 }}
             >
-              <Card className="border-0 shadow-sm rounded-xl border-l-3 border-l-violet-500 overflow-hidden">
+              <Card className="card-hover-lift border-0 shadow-sm rounded-xl border-l-3 border-l-violet-500 overflow-hidden">
                 <CardHeader className="pb-3 pt-6 bg-gradient-to-r from-violet-50/50 to-transparent dark:from-violet-900/10 dark:to-transparent">
                   <CardTitle className="text-lg font-bold flex items-center gap-2">
                     <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-violet-100 dark:bg-violet-900/30 text-violet-600 dark:text-violet-400">

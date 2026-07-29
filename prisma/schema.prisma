@@ -21,6 +21,19 @@ model School {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  // School branding fields
+  logoUrl         String?   // school logo URL
+  primaryColor    String?   @default("#10b981") // primary brand color
+  secondaryColor  String?   @default("#14b8a6") // secondary brand color
+  accentColor     String?   @default("#059669") // accent brand color
+  fontFamily      String?   @default("Inter") // preferred font
+  customCss       String?   // custom CSS overrides
+  motto           String?   // school motto
+  websiteUrl      String?   // school website URL
+  emailDomain     String?   // school email domain (e.g., "@schule.de")
+  address         String?   // school address
+  phone           String?   // school phone number
+
   users           User[]
   schoolYears     SchoolYear[]
   classGroups     ClassGroup[]
@@ -51,6 +64,11 @@ model School {
   portfolioEntries   PortfolioEntry[]
   timetableSlots     TimetableSlot[]
   resources          Resource[]
+  emailTemplates     EmailTemplate[]
+  emailLogs          EmailLog[]
+  peerAssessments    PeerAssessment[]
+  emergencyContacts  EmergencyContact[]
+  schoolEvents       SchoolEvent[]
   district           SchoolDistrict? @relation(fields: [districtId], references: [id])
   districtId         String?
 }
@@ -95,6 +113,8 @@ model User {
   announcements             Announcement[]
   timetableSlots            TimetableSlot[]
   resources                 Resource[]
+  organizedSchoolEvents     SchoolEvent[]
+  eventRegistrations        EventRegistration[]
 }
 
 model SchoolYear {
@@ -146,6 +166,8 @@ model ClassGroup {
   selfAssessments     SelfAssessment[]
   timetableSlots      TimetableSlot[]
   resources           Resource[]
+  peerAssessments     PeerAssessment[]
+  schoolEvents        SchoolEvent[]
 }
 
 model ClassGroupTeacher {
@@ -188,6 +210,9 @@ model Student {
   selfAssessments       SelfAssessment[]
   learningGoals         LearningGoal[]
   portfolioEntries      PortfolioEntry[]
+  peerAssessmentsGiven  PeerAssessment[] @relation("PeerAssessor")
+  peerAssessmentsReceived PeerAssessment[] @relation("PeerAssessed")
+  emergencyContacts     EmergencyContact[]
 }
 
 model Enrollment {
@@ -280,6 +305,7 @@ model Competency {
   selfAssessments       SelfAssessment[]
   learningGoals         LearningGoal[]
   portfolioEntries      PortfolioEntry[]
+  peerAssessments       PeerAssessment[]
 }
 
 model MasteryLevelDefinition {
@@ -690,6 +716,7 @@ model Rubric {
   updatedAt   DateTime @updatedAt
 
   criteria RubricCriterion[]
+  peerAssessments PeerAssessment[]
 
   @@index([schoolId])
   @@index([teacherId])
@@ -1305,4 +1332,149 @@ model Resource {
 
   @@index([schoolId, resourceType])
   @@map("resources")
+}
+
+// ─── Email Templates & Logging ───────────────────────────────────────
+
+model EmailTemplate {
+  id              String   @id @default(cuid())
+  schoolId        String
+  name            String   // "weekly_report", "assessment_reminder", "behavior_alert", "attendance_notice", "welcome"
+  subject         String
+  body            String   // HTML template with {{variables}}
+  isDefault       Boolean  @default(false)
+  isDemo          Boolean  @default(false)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  deletedAt       DateTime?
+
+  school          School   @relation(fields: [schoolId], references: [id])
+
+  @@unique([schoolId, name])
+  @@map("email_templates")
+}
+
+model EmailLog {
+  id              String   @id @default(cuid())
+  schoolId        String
+  templateId      String?
+  recipientEmail   String
+  recipientName    String?
+  subject         String
+  body            String
+  status          String   @default("pending") // pending, sent, failed, bounced
+  sentAt          DateTime?
+  error           String?
+  createdAt       DateTime @default(now())
+
+  school          School   @relation(fields: [schoolId], references: [id])
+
+  @@index([schoolId, status])
+  @@map("email_logs")
+}
+
+// ─── Peer Assessment ──────────────────────────────────────────────
+
+model PeerAssessment {
+  id              String   @id @default(cuid())
+  schoolId        String
+  assessorId      String   // student who is assessing
+  assessedId      String   // student being assessed
+  competencyId    String?
+  classGroupId    String?
+  assessmentType  String   // "competency", "project", "presentation", "teamwork", "behavior"
+  level           Int?     // 1-6 rating
+  comment         String?
+  rubricId        String?  // optional rubric reference
+  isAnonymous     Boolean  @default(false)
+  isDemo          Boolean  @default(false)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  deletedAt       DateTime?
+
+  school          School       @relation(fields: [schoolId], references: [id])
+  assessor        Student      @relation("PeerAssessor", fields: [assessorId], references: [id])
+  assessed        Student      @relation("PeerAssessed", fields: [assessedId], references: [id])
+  competency      Competency?  @relation(fields: [competencyId], references: [id])
+  classGroup      ClassGroup?  @relation(fields: [classGroupId], references: [id])
+  rubric          Rubric?      @relation(fields: [rubricId], references: [id])
+
+  @@index([schoolId, assessedId])
+  @@index([schoolId, assessorId])
+  @@map("peer_assessments")
+}
+
+// ─── Emergency Contacts ───────────────────────────────────────────
+
+model EmergencyContact {
+  id              String   @id @default(cuid())
+  schoolId        String
+  studentId       String
+  name            String
+  relationship    String   // "mother", "father", "guardian", "grandparent", "other"
+  phone           String
+  phoneAlt        String?
+  email           String?
+  address         String?
+  isPrimary       Boolean  @default(false)
+  priority        Int      @default(1) // 1=first call, 2=second call, etc.
+  notes           String?
+  isDemo          Boolean  @default(false)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  deletedAt       DateTime?
+
+  school          School   @relation(fields: [schoolId], references: [id])
+  student         Student  @relation(fields: [studentId], references: [id])
+
+  @@index([schoolId, studentId])
+  @@map("emergency_contacts")
+}
+
+// ─── School Events ────────────────────────────────────────────────
+
+model SchoolEvent {
+  id              String   @id @default(cuid())
+  schoolId        String
+  title           String
+  description     String?
+  eventType       String   // "assembly", "field_trip", "sports_day", "concert", "fair", "parent_meeting", "graduation", "holiday"
+  startDate       DateTime
+  endDate         DateTime?
+  location        String?
+  organizerId     String?
+  classGroupId    String?  // if event is for specific class
+  isAllSchool     Boolean  @default(true)
+  isPublic        Boolean  @default(true)
+  requiresRegistration Boolean @default(false)
+  maxParticipants Int?
+  notes           String?
+  isDemo          Boolean  @default(false)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  deletedAt       DateTime?
+
+  school          School       @relation(fields: [schoolId], references: [id])
+  organizer       User?        @relation(fields: [organizerId], references: [id])
+  classGroup      ClassGroup?  @relation(fields: [classGroupId], references: [id])
+  registrations   EventRegistration[]
+
+  @@index([schoolId, startDate])
+  @@map("school_events")
+}
+
+model EventRegistration {
+  id              String   @id @default(cuid())
+  eventId         String
+  userId          String
+  status          String   @default("registered") // registered, cancelled, attended
+  notes           String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  event           SchoolEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user            User     @relation(fields: [userId], references: [id])
+
+  @@unique([eventId, userId])
+  @@map("event_registrations")
 }

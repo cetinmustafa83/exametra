@@ -500,7 +500,7 @@ export default function ReportsView() {
 
           {!selectedClass ? (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
-              <Card className="relative border-0 shadow-sm rounded-xl overflow-hidden">
+              <Card className="card-hover-lift relative border-0 shadow-sm rounded-xl overflow-hidden">
                 <div className="absolute inset-0 bg-dots opacity-30 pointer-events-none" />
                 <CardContent className="relative py-16 text-center">
                   <motion.div
@@ -522,7 +522,7 @@ export default function ReportsView() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.15 }}
               >
-              <Card className="border-0 shadow-sm rounded-xl border-l-3 border-l-amber-400 overflow-hidden">
+              <Card className="card-hover-lift border-0 shadow-sm rounded-xl border-l-3 border-l-amber-400 overflow-hidden">
                 <CardHeader className="pb-3 pt-6 bg-gradient-to-r from-amber-50/50 to-transparent dark:from-amber-900/10 dark:to-transparent">
                   <CardTitle className="text-base font-bold flex items-center gap-2">
                     <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400">
@@ -717,7 +717,7 @@ export default function ReportsView() {
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ duration: 0.3 }}
                     >
-                    <Card className="border-0 shadow-sm rounded-xl border-l-3 border-l-emerald-500 overflow-hidden">
+                    <Card className="card-hover-lift border-0 shadow-sm rounded-xl border-l-3 border-l-emerald-500 overflow-hidden">
                       <CardHeader className="pb-3 pt-6 bg-gradient-to-r from-emerald-50/50 to-transparent dark:from-emerald-900/10 dark:to-transparent">
                         <div className="flex items-center justify-between">
                           <div>
@@ -837,7 +837,7 @@ export default function ReportsView() {
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ duration: 0.3, delay: 0.1 }}
                     >
-                    <Card className="border-0 shadow-sm rounded-xl border-l-3 border-l-teal-500 overflow-hidden">
+                    <Card className="card-hover-lift border-0 shadow-sm rounded-xl border-l-3 border-l-teal-500 overflow-hidden">
                       <CardHeader className="pb-3 pt-6 bg-gradient-to-r from-teal-50/50 to-transparent dark:from-teal-900/10 dark:to-transparent">
                         <CardTitle className="text-lg font-bold flex items-center gap-2">
                           <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-teal-100 dark:bg-teal-900/30 text-teal-600 dark:text-teal-400">
@@ -897,7 +897,7 @@ export default function ReportsView() {
 
           {/* PDF Template Selection + Batch Generate */}
           {selectedClass && students.length > 0 && (
-            <Card className="border-0 shadow-sm rounded-xl border-l-3 border-l-teal-500 overflow-hidden mt-6">
+            <Card className="card-hover-lift border-0 shadow-sm rounded-xl border-l-3 border-l-teal-500 overflow-hidden mt-6">
               <CardHeader className="pb-3 pt-6 bg-gradient-to-r from-teal-50/50 to-transparent dark:from-teal-900/10 dark:to-transparent">
                 <CardTitle className="text-base font-bold flex items-center gap-2">
                   <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-teal-100 dark:bg-teal-900/30 text-teal-600 dark:text-teal-400">
@@ -1106,7 +1106,7 @@ export default function ReportsView() {
 
             {/* Schedule Calendar Preview */}
             {schedules.length > 0 && (
-              <Card className="border-0 shadow-sm rounded-xl border-l-3 border-l-emerald-500 overflow-hidden">
+              <Card className="card-hover-lift border-0 shadow-sm rounded-xl border-l-3 border-l-emerald-500 overflow-hidden">
                 <CardHeader className="pb-3 pt-6 bg-gradient-to-r from-emerald-50/50 to-transparent dark:from-emerald-900/10 dark:to-transparent">
                   <CardTitle className="text-base font-bold flex items-center gap-2">
                     <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400">

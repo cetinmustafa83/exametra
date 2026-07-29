@@ -107,6 +107,7 @@ import { useAppStore, type ViewName } from '@/lib/store';
 import { t } from '@/lib/i18n';
 import { fetchSchoolYears, fetchStudents, fetchClasses, fetchDBNotifications, markAllNotificationsRead, markSingleNotificationRead, type SchoolYear, type Student, type ClassGroup, type DBNotification, type DBNotificationData } from '@/lib/api';
 import { apiGet } from '@/lib/api';
+import type { School as SchoolType } from '@/lib/api';
 import OnboardingTour, { isOnboardingCompleted } from '@/components/onboarding-tour';
 import KeyboardShortcutsDialog from '@/components/keyboard-shortcuts-dialog';
 import {
@@ -123,6 +124,10 @@ import { toast } from 'sonner';
 import { useWebSocket, usePushNotifications, playNotificationSound, getNotificationSoundPref } from '@/lib/websocket';
 import { OfflineIndicator, PWAInstallPrompt, useServiceWorker, OfflineSyncManager } from '@/components/offline-indicator';
 
+import dynamic from 'next/dynamic';
+import { Skeleton } from '@/components/ui/skeleton';
+
+// Static imports for lightweight views
 import DashboardView from './dashboard-view';
 import ClassesView from './classes-view';
 import CompetencyGridView from './competency-grid-view';
@@ -133,22 +138,36 @@ import GradingView from './grading-view';
 import ReportsView from './reports-view';
 import SettingsView from './settings-view';
 import StudentDetailView from './student-detail-view';
-import AnalyticsView from './analytics-view';
 import MasteryMatrixView from './mastery-matrix-view';
 import AttendanceView from './attendance-view';
 import LessonPlansView from './lesson-plans-view';
-import CalendarView from './calendar-view';
 import ParentCommunicationView from './parent-communication-view';
 import BehaviorTrackingView from './behavior-tracking-view';
 import CurriculumCoverageView from './curriculum-coverage-view';
 import RubricLibraryView from './rubric-library-view';
 import CommentBankView from './comment-bank-view';
-import NotebooksView from './notebooks-view';
-import DrawingView from './drawing-view';
 import HomeworkView from './homework-view';
 import PortfolioView from './portfolio-view';
 import TimetableView from './timetable-view';
 import ResourceLibraryView from './resource-library-view';
+
+// Dynamic imports for heavy components with loading skeletons
+const AnalyticsView = dynamic(() => import('./analytics-view'), {
+  loading: () => <div className="space-y-4 p-4"><Skeleton className="h-8 w-48" /><div className="grid grid-cols-1 md:grid-cols-3 gap-4">{[1,2,3].map(i => <Skeleton key={i} className="h-32" />)}</div><Skeleton className="h-64" /></div>,
+});
+
+const CalendarView = dynamic(() => import('./calendar-view'), {
+  loading: () => <div className="space-y-4 p-4"><Skeleton className="h-8 w-48" /><Skeleton className="h-96" /></div>,
+});
+
+const NotebooksView = dynamic(() => import('./notebooks-view'), {
+  loading: () => <div className="space-y-4 p-4"><Skeleton className="h-8 w-48" /><div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">{[1,2,3].map(i => <Skeleton key={i} className="h-48" />)}</div></div>,
+});
+
+const DrawingView = dynamic(() => import('./drawing-view'), {
+  ssr: false,
+  loading: () => <div className="flex items-center justify-center h-96"><div className="flex items-center gap-3"><div className="h-5 w-5 animate-spin rounded-full border-2 border-emerald-500 border-t-transparent" /><span className="text-gray-500">Loading canvas...</span></div></div>,
+});
 
 type NavItem = { key: ViewName; icon: React.ElementType; labelKey: string };
 type NavSection = { id: string; labelKey: string; items: NavItem[] };
@@ -374,6 +393,9 @@ export default function AppLayout() {
   const setCurrentClass = useAppStore((s) => s.setCurrentClass);
   const [schoolYears, setSchoolYears] = useState<SchoolYear[]>([]);
   const [selectedYearId, setSelectedYearId] = useState<string>(storeSchoolYearId ?? '');
+
+  // School branding state
+  const [schoolBranding, setSchoolBranding] = useState<SchoolType | null>(null);
 
   // Service Worker registration for PWA
   useServiceWorker();
@@ -755,6 +777,33 @@ export default function AppLayout() {
     loadYears();
   }, [currentUser?.schoolId]);
 
+  // Load school branding and apply CSS custom properties
+  useEffect(() => {
+    async function loadBranding() {
+      if (!currentUser?.schoolId) return;
+      try {
+        const schools = await apiGet<SchoolType[]>('/api/schools');
+        const mySchool = schools.find((s) => s.id === currentUser.schoolId);
+        if (mySchool) {
+          setSchoolBranding(mySchool);
+          // Apply branding CSS variables
+          const root = document.documentElement;
+          if (mySchool.primaryColor) root.style.setProperty('--brand-primary', mySchool.primaryColor);
+          if (mySchool.secondaryColor) root.style.setProperty('--brand-secondary', mySchool.secondaryColor);
+          if (mySchool.accentColor) root.style.setProperty('--brand-accent', mySchool.accentColor);
+          if (mySchool.fontFamily) root.style.setProperty('--brand-font', `"${mySchool.fontFamily}", sans-serif`);
+          // Apply font family globally
+          if (mySchool.fontFamily) {
+            root.style.fontFamily = `"${mySchool.fontFamily}", sans-serif`;
+          }
+        }
+      } catch {
+        // ignore branding errors
+      }
+    }
+    loadBranding();
+  }, [currentUser?.schoolId]);
+
   return (
     <SidebarProvider>
       {/* Offline indicator bar */}
@@ -774,11 +823,19 @@ export default function AppLayout() {
             animate={{ opacity: 1 }}
             className="flex items-center gap-3 group-data-[collapsible=icon]:justify-center"
           >
-            <div className="flex items-center justify-center w-9 h-9 rounded-xl bg-gradient-to-br from-emerald-400 to-teal-500 text-white shrink-0 shadow-lg shadow-emerald-300/40 dark:shadow-emerald-900/40">
-              <BookOpen className="w-5 h-5" />
-            </div>
+            {schoolBranding?.logoUrl ? (
+              <img
+                src={schoolBranding.logoUrl}
+                alt={schoolBranding.name}
+                className="w-9 h-9 rounded-xl object-contain shrink-0"
+              />
+            ) : (
+              <div className="flex items-center justify-center w-9 h-9 rounded-xl bg-gradient-to-br from-emerald-400 to-teal-500 text-white shrink-0 shadow-lg shadow-emerald-300/40 dark:shadow-emerald-900/40">
+                <BookOpen className="w-5 h-5" />
+              </div>
+            )}
             <div className="group-data-[collapsible=icon]:hidden">
-              <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100 leading-tight">CompetenceTrack</h2>
+              <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100 leading-tight">{schoolBranding?.name || 'CompetenceTrack'}</h2>
               <p className="text-[10px] text-emerald-600/70 dark:text-emerald-400/50 leading-tight">{t('app.subtitle')}</p>
             </div>
           </motion.div>
@@ -827,7 +884,7 @@ export default function AppLayout() {
         </SidebarContent>
 
         <SidebarFooter className="p-3">
-          {/* Environmental message */}
+          {/* School motto or Environmental message */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -836,7 +893,7 @@ export default function AppLayout() {
           >
             <Leaf className="h-4 w-4 text-emerald-500 shrink-0" />
             <p className="text-xs text-emerald-600/70 dark:text-emerald-400/50 font-medium leading-snug">
-              {t('sidebar.eco_message')}
+              {schoolBranding?.motto || t('sidebar.eco_message')}
             </p>
           </motion.div>
           <Separator className="mb-3 bg-emerald-200/50 dark:bg-emerald-900/30" />
@@ -866,7 +923,14 @@ export default function AppLayout() {
               onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
               title={t('theme.toggle')}
             >
-              {theme === 'dark' ? <Sun className="h-4 w-4 text-amber-500" /> : <Moon className="h-4 w-4 text-gray-500" />}
+              <motion.div
+                key={theme}
+                initial={{ rotate: -90, opacity: 0 }}
+                animate={{ rotate: 0, opacity: 1 }}
+                transition={{ duration: 0.3, type: 'spring', stiffness: 200 }}
+              >
+                {theme === 'dark' ? <Sun className="h-4 w-4 text-amber-500" /> : <Moon className="h-4 w-4 text-gray-500" />}
+              </motion.div>
             </Button>
             <Button
               variant="ghost"
@@ -894,7 +958,7 @@ export default function AppLayout() {
       <SidebarInset>
         {/* Announcement Banner */}
         <AnnouncementBanner schoolId={currentUser?.schoolId ?? null} />
-        <header className="flex h-14 items-center gap-2 border-b border-emerald-200/50 dark:border-emerald-900/30 bg-white dark:bg-gray-950 backdrop-blur-sm px-4 sticky top-0 z-10 shadow-sm shadow-emerald-100/50 dark:shadow-emerald-900/10">
+        <header className="flex h-14 items-center gap-2 border-b border-emerald-200/50 dark:border-emerald-900/30 bg-white/80 dark:bg-gray-950/80 backdrop-blur-xl px-4 sticky top-0 z-10 shadow-sm shadow-emerald-100/50 dark:shadow-emerald-900/10 transition-all duration-300">
           <SidebarTrigger className="-ml-1 h-10 w-10 hover:bg-emerald-100 dark:hover:bg-emerald-900/20 shrink-0" />
           <Separator orientation="vertical" className="h-6 bg-emerald-200/50 dark:bg-emerald-900/30 shrink-0" />
           <Breadcrumb className="min-w-0 flex-1">
@@ -907,7 +971,7 @@ export default function AppLayout() {
                   {t('polish.breadcrumb_home')}
                 </BreadcrumbLink>
               </BreadcrumbItem>
-              <BreadcrumbSeparator />
+              <BreadcrumbSeparator><ChevronRight className="h-3 w-3 text-emerald-400/60" /></BreadcrumbSeparator>
               <BreadcrumbItem>
                 <BreadcrumbPage className="font-semibold text-gray-900 dark:text-gray-100 truncate">
                   {breadcrumbLabel}
@@ -979,7 +1043,12 @@ export default function AppLayout() {
                   className="h-9 w-9 hover:bg-emerald-100 dark:hover:bg-emerald-900/20 relative text-emerald-600 dark:text-emerald-400"
                   title={t('notifications.title')}
                 >
-                  <Bell className="h-4 w-4" />
+                  <motion.div
+                    animate={notifData && notifData.unreadCount > 0 ? { rotate: [0, -15, 15, -10, 10, 0] } : {}}
+                    transition={{ duration: 0.6, ease: 'easeInOut' }}
+                  >
+                    <Bell className="h-4 w-4" />
+                  </motion.div>
                   {notifData && notifData.unreadCount > 0 && (
                     <motion.span
                       initial={{ scale: 0 }}

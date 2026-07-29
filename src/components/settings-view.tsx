@@ -51,6 +51,17 @@ import {
   ArrowRightLeft,
   TrendingDown,
   ArrowUpRight,
+  Palette,
+  Eye,
+  Send,
+  Globe,
+  FileJson,
+  FileType,
+  Phone,
+  PhoneCall,
+  AlertCircle,
+  Star,
+  Printer,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -126,8 +137,217 @@ import {
   deleteDistrict,
   fetchDistrictSchools,
   assignSchoolToDistrict,
+  fetchEmailTemplates,
+  createEmailTemplate,
+  updateEmailTemplate,
+  deleteEmailTemplate,
+  sendTestEmail,
+  fetchEmailLogs,
+  type EmailTemplate,
+  type EmailLog,
 } from '@/lib/api';
 import { RateLimitStatus } from '@/components/offline-indicator';
+
+// ─── Emergency Contact Data Type ─────────────────────────────────────
+interface EmergencyContactData {
+  id: string;
+  schoolId: string;
+  studentId: string;
+  name: string;
+  relationship: string;
+  phone: string;
+  phoneAlt: string | null;
+  email: string | null;
+  address: string | null;
+  isPrimary: boolean;
+  priority: number;
+  notes: string | null;
+  isDemo: boolean;
+  createdAt: string;
+  updatedAt: string;
+  deletedAt: string | null;
+  student: { id: string; firstName: string; lastName: string };
+}
+
+// ─── Emergency Contacts Manager Component ────────────────────────────
+function EmergencyContactsManager({ schoolId }: { schoolId: string }) {
+  const [contacts, setContacts] = useState<EmergencyContactData[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [ecDialogOpen, setEcDialogOpen] = useState(false);
+  const [ecEditId, setEcEditId] = useState<string | null>(null);
+  const [ecForm, setEcForm] = useState({ studentId: '', name: '', relationship: 'mother', phone: '', phoneAlt: '', email: '', address: '', isPrimary: false, priority: 1, notes: '' });
+
+  const loadContacts = useCallback(async () => {
+    if (!schoolId) return;
+    setLoading(true);
+    try {
+      const data = await apiGet<EmergencyContactData[]>(`/api/emergency-contacts?schoolId=${schoolId}`);
+      setContacts(data);
+    } catch { /* ignore */ }
+    setLoading(false);
+  }, [schoolId]);
+
+  useEffect(() => { loadContacts(); }, [loadContacts]);
+
+  const filtered = contacts.filter((c) =>
+    c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    c.student.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    c.student.lastName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    c.phone.includes(searchTerm)
+  );
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center gap-3">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-rose-400" />
+          <Input
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            placeholder={t('emergency.search')}
+            className="pl-10 rounded-xl border-rose-200/50 dark:border-rose-900/30"
+          />
+        </div>
+        <Button
+          className="bg-gradient-to-r from-rose-500 to-rose-600 text-white rounded-xl min-h-[44px]"
+          onClick={() => {
+            setEcEditId(null);
+            setEcForm({ studentId: '', name: '', relationship: 'mother', phone: '', phoneAlt: '', email: '', address: '', isPrimary: false, priority: 1, notes: '' });
+            setEcDialogOpen(true);
+          }}
+        >
+          <Plus className="h-4 w-4 mr-1" />
+          {t('emergency.add')}
+        </Button>
+      </div>
+
+      {loading ? (
+        <div className="space-y-3">
+          {[1, 2, 3].map((i) => <Skeleton key={i} className="h-16 w-full" />)}
+        </div>
+      ) : filtered.length === 0 ? (
+        <div className="text-center py-12">
+          <AlertCircle className="h-12 w-12 text-rose-400 dark:text-rose-500 mx-auto mb-3" />
+          <p className="text-gray-500 dark:text-gray-400">{t('emergency.no_contacts')}</p>
+        </div>
+      ) : (
+        <div className="space-y-2 max-h-[600px] overflow-y-auto scrollbar-education">
+          {filtered.map((ec) => {
+            const relLabel = t(`emergency.${ec.relationship}`) || ec.relationship;
+            return (
+              <div key={ec.id} className="flex items-center justify-between p-3 rounded-xl bg-gray-50/50 dark:bg-gray-800/30 border border-gray-100/60 dark:border-gray-800/40 hover:border-rose-200/60 dark:hover:border-rose-800/30 transition-colors">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-rose-100 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400 shrink-0">
+                    {ec.isPrimary ? <Star className="h-4 w-4" /> : <Phone className="h-4 w-4" />}
+                  </div>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-sm font-semibold text-gray-900 dark:text-gray-100">{ec.name}</span>
+                      <Badge className="bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-300 text-[10px]">{relLabel}</Badge>
+                      {ec.isPrimary && <Badge className="bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300 text-[10px]"><Star className="h-2.5 w-2.5 mr-0.5" />{t('emergency.primary')}</Badge>}
+                    </div>
+                    <div className="flex items-center gap-2 text-[11px] text-gray-500 dark:text-gray-400">
+                      <span>{t('emergency.student')}: {ec.student.firstName} {ec.student.lastName}</span>
+                      <span className="text-rose-500">{ec.phone}</span>
+                    </div>
+                  </div>
+                </div>
+                <div className="flex gap-1 shrink-0">
+                  <Button variant="ghost" size="sm" className="rounded-lg min-h-[44px] min-w-[44px]" onClick={() => {
+                    setEcEditId(ec.id);
+                    setEcForm({ studentId: ec.studentId, name: ec.name, relationship: ec.relationship, phone: ec.phone, phoneAlt: ec.phoneAlt ?? '', email: ec.email ?? '', address: ec.address ?? '', isPrimary: ec.isPrimary, priority: ec.priority, notes: ec.notes ?? '' });
+                    setEcDialogOpen(true);
+                  }}><Pencil className="h-3.5 w-3.5" /></Button>
+                  <Button variant="ghost" size="sm" className="rounded-lg text-red-500 hover:text-red-700 min-h-[44px] min-w-[44px]" onClick={async () => {
+                    try { await apiDelete(`/api/emergency-contacts/${ec.id}`); setContacts((prev) => prev.filter((c) => c.id !== ec.id)); toast.success(t('action.delete')); } catch { toast.error(t('error.generic')); }
+                  }}><Trash2 className="h-3.5 w-3.5" /></Button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      <Dialog open={ecDialogOpen} onOpenChange={setEcDialogOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>{ecEditId ? t('emergency.edit') : t('emergency.add')}</DialogTitle>
+            <DialogDescription>{t('emergency.title')}</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div>
+              <Label className="text-xs font-medium">{t('emergency.name')}</Label>
+              <Input value={ecForm.name} onChange={(e) => setEcForm((f) => ({ ...f, name: e.target.value }))} className="mt-1 rounded-lg" placeholder={t('emergency.name')} />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label className="text-xs font-medium">{t('emergency.relationship')}</Label>
+                <Select value={ecForm.relationship} onValueChange={(v) => setEcForm((f) => ({ ...f, relationship: v }))}>
+                  <SelectTrigger className="h-10 rounded-lg mt-1"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="mother">{t('emergency.mother')}</SelectItem>
+                    <SelectItem value="father">{t('emergency.father')}</SelectItem>
+                    <SelectItem value="guardian">{t('emergency.guardian')}</SelectItem>
+                    <SelectItem value="grandparent">{t('emergency.grandparent')}</SelectItem>
+                    <SelectItem value="other">{t('emergency.other')}</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label className="text-xs font-medium">{t('emergency.priority')}</Label>
+                <Input type="number" min={1} max={10} value={ecForm.priority} onChange={(e) => setEcForm((f) => ({ ...f, priority: parseInt(e.target.value) || 1 }))} className="mt-1 rounded-lg" />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label className="text-xs font-medium">{t('emergency.phone')}</Label>
+                <Input value={ecForm.phone} onChange={(e) => setEcForm((f) => ({ ...f, phone: e.target.value }))} className="mt-1 rounded-lg" placeholder="+49 123 456789" />
+              </div>
+              <div>
+                <Label className="text-xs font-medium">{t('emergency.phone_alt')}</Label>
+                <Input value={ecForm.phoneAlt} onChange={(e) => setEcForm((f) => ({ ...f, phoneAlt: e.target.value }))} className="mt-1 rounded-lg" placeholder="+49 987 654321" />
+              </div>
+            </div>
+            <div>
+              <Label className="text-xs font-medium">{t('emergency.email')}</Label>
+              <Input type="email" value={ecForm.email} onChange={(e) => setEcForm((f) => ({ ...f, email: e.target.value }))} className="mt-1 rounded-lg" placeholder="name@example.com" />
+            </div>
+            <div>
+              <Label className="text-xs font-medium">{t('emergency.address')}</Label>
+              <Input value={ecForm.address} onChange={(e) => setEcForm((f) => ({ ...f, address: e.target.value }))} className="mt-1 rounded-lg" />
+            </div>
+            <div>
+              <Label className="text-xs font-medium">{t('emergency.notes')}</Label>
+              <Input value={ecForm.notes} onChange={(e) => setEcForm((f) => ({ ...f, notes: e.target.value }))} className="mt-1 rounded-lg" />
+            </div>
+            <div className="flex items-center gap-2">
+              <input type="checkbox" checked={ecForm.isPrimary} onChange={(e) => setEcForm((f) => ({ ...f, isPrimary: e.target.checked }))} className="rounded border-gray-300" />
+              <Label className="text-xs font-medium">{t('emergency.primary')}</Label>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" className="rounded-xl min-h-[44px]" onClick={() => setEcDialogOpen(false)}>{t('action.cancel')}</Button>
+            <Button className="rounded-xl bg-rose-600 hover:bg-rose-700 text-white min-h-[44px]" onClick={async () => {
+              if (!ecForm.name || !ecForm.phone || !ecForm.studentId) { toast.error(t('emergency.name') + ' & ' + t('emergency.phone')); return; }
+              try {
+                const payload = { schoolId, studentId: ecForm.studentId, name: ecForm.name, relationship: ecForm.relationship, phone: ecForm.phone, phoneAlt: ecForm.phoneAlt || null, email: ecForm.email || null, address: ecForm.address || null, isPrimary: ecForm.isPrimary, priority: ecForm.priority, notes: ecForm.notes || null };
+                if (ecEditId) {
+                  await apiPut(`/api/emergency-contacts/${ecEditId}`, payload);
+                } else {
+                  await apiPost('/api/emergency-contacts', payload);
+                }
+                setEcDialogOpen(false);
+                loadContacts();
+                toast.success(ecEditId ? t('action.save') : t('action.create'));
+              } catch { toast.error(t('error.generic')); }
+            }}>{ecEditId ? t('action.save') : t('action.create')}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -292,7 +512,62 @@ export default function SettingsView() {
   const [dragOver, setDragOver] = useState(false);
 
   // Export history
-  const [exportHistory, setExportHistory] = useState<Array<{ type: string; date: string }>>([]);
+  const [exportHistory, setExportHistory] = useState<Array<{ type: string; date: string; format: string }>>([]);
+
+  // Branding state
+  const [brandingForm, setBrandingForm] = useState({
+    logoUrl: '',
+    primaryColor: '#10b981',
+    secondaryColor: '#14b8a6',
+    accentColor: '#059669',
+    fontFamily: 'Inter',
+    customCss: '',
+    motto: '',
+    websiteUrl: '',
+    emailDomain: '',
+    address: '',
+    phone: '',
+  });
+  const [brandingSaving, setBrandingSaving] = useState(false);
+
+  // Email templates state
+  const [emailTemplates, setEmailTemplates] = useState<EmailTemplate[]>([]);
+  const [emailTemplatesLoading, setEmailTemplatesLoading] = useState(true);
+  const [showEmailTemplateDialog, setShowEmailTemplateDialog] = useState(false);
+  const [editingEmailTemplate, setEditingEmailTemplate] = useState<EmailTemplate | null>(null);
+  const [emailTemplateForm, setEmailTemplateForm] = useState({ name: '', subject: '', body: '' });
+  const [emailTemplateSaving, setEmailTemplateSaving] = useState(false);
+  const [deleteEmailTemplateId, setDeleteEmailTemplateId] = useState<string | null>(null);
+  const [showEmailPreview, setShowEmailPreview] = useState(false);
+  const [emailPreviewTemplate, setEmailPreviewTemplate] = useState<EmailTemplate | null>(null);
+  const [testEmailSending, setTestEmailSending] = useState(false);
+  const [testEmailRecipient, setTestEmailRecipient] = useState('');
+
+  // Email log state
+  const [emailLogs, setEmailLogs] = useState<EmailLog[]>([]);
+  const [emailLogCounts, setEmailLogCounts] = useState({ total: 0, sent: 0, failed: 0, pending: 0, bounced: 0 });
+  const [emailLogsLoading, setEmailLogsLoading] = useState(true);
+  const [emailLogFilter, setEmailLogFilter] = useState('all');
+
+  // Email settings state
+  const [emailSettings, setEmailSettings] = useState({
+    smtpHost: '',
+    smtpPort: '587',
+    smtpUser: '',
+    smtpPassword: '',
+    smtpFrom: '',
+    frequency: 'weekly',
+    autoReports: true,
+    autoBehavior: true,
+    autoAttendance: false,
+  });
+
+  // Enhanced export state
+  const [exportFormat, setExportFormat] = useState<'csv' | 'json' | 'pdf'>('csv');
+  const [exportClassFilter, setExportClassFilter] = useState('');
+  const [exportDateFrom, setExportDateFrom] = useState('');
+  const [exportDateTo, setExportDateTo] = useState('');
+  const [exporting, setExporting] = useState(false);
 
   // Backup state
   const [backups, setBackups] = useState<Array<{
@@ -421,6 +696,35 @@ export default function SettingsView() {
     }
   }, [currentUser?.schoolId]);
 
+  // Load email templates
+  const loadEmailTemplates = useCallback(async () => {
+    if (!currentUser?.schoolId) return;
+    setEmailTemplatesLoading(true);
+    try {
+      const data = await fetchEmailTemplates(currentUser.schoolId);
+      setEmailTemplates(data);
+    } catch {
+      // ignore
+    } finally {
+      setEmailTemplatesLoading(false);
+    }
+  }, [currentUser?.schoolId]);
+
+  // Load email logs
+  const loadEmailLogs = useCallback(async () => {
+    if (!currentUser?.schoolId) return;
+    setEmailLogsLoading(true);
+    try {
+      const data = await fetchEmailLogs(currentUser.schoolId, emailLogFilter !== 'all' ? emailLogFilter : undefined);
+      setEmailLogs(data.logs);
+      setEmailLogCounts(data.counts);
+    } catch {
+      // ignore
+    } finally {
+      setEmailLogsLoading(false);
+    }
+  }, [currentUser?.schoolId, emailLogFilter]);
+
   const loadDemoAccounts = useCallback(async () => {
     setDemoLoading(true);
     try {
@@ -467,7 +771,26 @@ export default function SettingsView() {
     if (tab === 'district' && isSuperAdmin) {
       loadDistricts();
     }
-  }, [isAdmin, loadDemoAccounts, loadBackups, isSuperAdmin]);
+    if (tab === 'email') {
+      loadEmailTemplates();
+      loadEmailLogs();
+    }
+    if (tab === 'branding' && selectedSchool) {
+      setBrandingForm({
+        logoUrl: selectedSchool.logoUrl || '',
+        primaryColor: selectedSchool.primaryColor || '#10b981',
+        secondaryColor: selectedSchool.secondaryColor || '#14b8a6',
+        accentColor: selectedSchool.accentColor || '#059669',
+        fontFamily: selectedSchool.fontFamily || 'Inter',
+        customCss: selectedSchool.customCss || '',
+        motto: selectedSchool.motto || '',
+        websiteUrl: selectedSchool.websiteUrl || '',
+        emailDomain: selectedSchool.emailDomain || '',
+        address: selectedSchool.address || '',
+        phone: selectedSchool.phone || '',
+      });
+    }
+  }, [isAdmin, loadDemoAccounts, loadBackups, isSuperAdmin, loadEmailTemplates, loadEmailLogs, selectedSchool]);
 
   // District handlers
   const loadDistricts = useCallback(async () => {
@@ -753,13 +1076,114 @@ export default function SettingsView() {
   };
 
   const handleCsvExport = (type: 'students' | 'progress' | 'assessments' | 'grades' | 'attendance') => {
+    setExporting(true);
     downloadCsvExport({
       type,
       schoolId: currentUser?.schoolId ?? undefined,
       schoolYearId: useAppStore.getState().schoolYearId ?? undefined,
+      format: exportFormat,
+      classGroupId: exportClassFilter || undefined,
+      dateFrom: exportDateFrom || undefined,
+      dateTo: exportDateTo || undefined,
     });
-    setExportHistory((prev) => [{ type, date: new Date().toLocaleDateString() }, ...prev].slice(0, 20));
+    setExportHistory((prev) => [{ type, date: new Date().toLocaleDateString(), format: exportFormat }, ...prev].slice(0, 20));
     toast.success(t('settings.data_export_started'));
+    setTimeout(() => setExporting(false), 1500);
+  };
+
+  // Branding save handler
+  const handleSaveBranding = async () => {
+    if (!selectedSchool) return;
+    setBrandingSaving(true);
+    try {
+      await updateSchool({
+        id: selectedSchool.id,
+        logoUrl: brandingForm.logoUrl || null,
+        primaryColor: brandingForm.primaryColor || null,
+        secondaryColor: brandingForm.secondaryColor || null,
+        accentColor: brandingForm.accentColor || null,
+        fontFamily: brandingForm.fontFamily || null,
+        customCss: brandingForm.customCss || null,
+        motto: brandingForm.motto || null,
+        websiteUrl: brandingForm.websiteUrl || null,
+        emailDomain: brandingForm.emailDomain || null,
+        address: brandingForm.address || null,
+        phone: brandingForm.phone || null,
+      });
+      toast.success(t('branding.saved'));
+      loadSchools();
+    } catch {
+      toast.error(t('error.generic'));
+    } finally {
+      setBrandingSaving(false);
+    }
+  };
+
+  // Email template handlers
+  const handleSaveEmailTemplate = async () => {
+    if (!currentUser?.schoolId) return;
+    setEmailTemplateSaving(true);
+    try {
+      if (editingEmailTemplate) {
+        await updateEmailTemplate(editingEmailTemplate.id, {
+          name: emailTemplateForm.name,
+          subject: emailTemplateForm.subject,
+          body: emailTemplateForm.body,
+        });
+        toast.success(t('email.template_edit'));
+      } else {
+        await createEmailTemplate({
+          schoolId: currentUser.schoolId,
+          name: emailTemplateForm.name,
+          subject: emailTemplateForm.subject,
+          body: emailTemplateForm.body,
+        });
+        toast.success(t('email.template_create'));
+      }
+      setShowEmailTemplateDialog(false);
+      setEditingEmailTemplate(null);
+      setEmailTemplateForm({ name: '', subject: '', body: '' });
+      loadEmailTemplates();
+    } catch {
+      toast.error(t('error.generic'));
+    } finally {
+      setEmailTemplateSaving(false);
+    }
+  };
+
+  const handleDeleteEmailTemplate = async () => {
+    if (!deleteEmailTemplateId) return;
+    try {
+      await deleteEmailTemplate(deleteEmailTemplateId);
+      toast.success(t('email.template_delete'));
+      setDeleteEmailTemplateId(null);
+      loadEmailTemplates();
+    } catch {
+      toast.error(t('error.generic'));
+    }
+  };
+
+  const handleSendTestEmail = async () => {
+    if (!currentUser?.schoolId || !testEmailRecipient || !emailPreviewTemplate) return;
+    setTestEmailSending(true);
+    try {
+      await sendTestEmail({
+        schoolId: currentUser.schoolId,
+        templateId: emailPreviewTemplate.id,
+        recipientEmail: testEmailRecipient,
+        recipientName: currentUser.firstName + ' ' + currentUser.lastName,
+        subject: emailPreviewTemplate.subject,
+        body: emailPreviewTemplate.body,
+      });
+      toast.success(t('email.test_sent'));
+      setShowEmailPreview(false);
+      setTestEmailRecipient('');
+      loadEmailLogs();
+    } catch {
+      toast.error(t('error.generic'));
+    } finally {
+      setTestEmailSending(false);
+    }
   };
 
   const handleImport = async () => {
@@ -1117,6 +1541,14 @@ export default function SettingsView() {
               <FileText className="h-4 w-4 mr-1.5" />
               <span className="hidden sm:inline">{t('settings.tab_data')}</span>
             </TabsTrigger>
+            <TabsTrigger value="branding" className="rounded-lg min-h-[44px] data-[state=active]:bg-teal-500 data-[state=active]:text-white">
+              <Palette className="h-4 w-4 mr-1.5" />
+              <span className="hidden sm:inline">{t('branding.tab')}</span>
+            </TabsTrigger>
+            <TabsTrigger value="email" className="rounded-lg min-h-[44px] data-[state=active]:bg-amber-500 data-[state=active]:text-white">
+              <Mail className="h-4 w-4 mr-1.5" />
+              <span className="hidden sm:inline">{t('email.tab')}</span>
+            </TabsTrigger>
             {isAdmin && (
               <TabsTrigger value="demo" className="rounded-lg min-h-[44px] data-[state=active]:bg-amber-500 data-[state=active]:text-white">
                 <Zap className="h-4 w-4 mr-1.5" />
@@ -1141,7 +1573,7 @@ export default function SettingsView() {
 
           {/* ── School Info Tab ─────────────────────────────────── */}
           <TabsContent value="school">
-            <Card className="border-0 shadow-sm rounded-xl border-l-3 border-l-emerald-500 overflow-hidden">
+            <Card className="card-hover-lift border-0 shadow-sm rounded-xl border-l-3 border-l-emerald-500 overflow-hidden">
               <CardHeader className="bg-gradient-to-r from-emerald-50/50 to-transparent dark:from-emerald-900/10 dark:to-transparent">
                 <CardTitle className="flex items-center gap-2">
                   <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400">
@@ -1235,7 +1667,7 @@ export default function SettingsView() {
 
           {/* ── School Years Tab ────────────────────────────────── */}
           <TabsContent value="years">
-            <Card className="border-0 shadow-sm rounded-xl border-l-3 border-l-teal-500 overflow-hidden">
+            <Card className="card-hover-lift border-0 shadow-sm rounded-xl border-l-3 border-l-teal-500 overflow-hidden">
               <CardHeader className="bg-gradient-to-r from-teal-50/50 to-transparent dark:from-teal-900/10 dark:to-transparent">
                 <CardTitle className="flex items-center gap-2">
                   <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-teal-100 dark:bg-teal-900/30 text-teal-600 dark:text-teal-400">
@@ -1347,7 +1779,7 @@ export default function SettingsView() {
 
           {/* ── Subjects Tab ────────────────────────────────────── */}
           <TabsContent value="subjects">
-            <Card className="border-0 shadow-sm rounded-xl border-l-3 border-l-amber-500 overflow-hidden">
+            <Card className="card-hover-lift border-0 shadow-sm rounded-xl border-l-3 border-l-amber-500 overflow-hidden">
               <CardHeader className="bg-gradient-to-r from-amber-50/50 to-transparent dark:from-amber-900/10 dark:to-transparent">
                 <CardTitle className="flex items-center gap-2">
                   <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400">
@@ -1506,7 +1938,7 @@ export default function SettingsView() {
 
           {/* ── Users Tab ──────────────────────────────────────── */}
           <TabsContent value="users">
-            <Card className="border-0 shadow-sm rounded-xl border-l-3 border-l-rose-500 overflow-hidden">
+            <Card className="card-hover-lift border-0 shadow-sm rounded-xl border-l-3 border-l-rose-500 overflow-hidden">
               <CardHeader className="bg-gradient-to-r from-rose-50/50 to-transparent dark:from-rose-900/10 dark:to-transparent">
                 <CardTitle className="flex items-center gap-2">
                   <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-rose-100 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400">
@@ -1865,7 +2297,7 @@ export default function SettingsView() {
 
           {/* ── Audit Log Tab ───────────────────────────────────── */}
           <TabsContent value="audit">
-            <Card className="border-0 shadow-sm rounded-xl border-l-3 border-l-violet-500 overflow-hidden">
+            <Card className="card-hover-lift border-0 shadow-sm rounded-xl border-l-3 border-l-violet-500 overflow-hidden">
               <CardHeader className="bg-gradient-to-r from-violet-50/50 to-transparent dark:from-violet-900/10 dark:to-transparent">
                 <div className="flex items-center justify-between">
                   <CardTitle className="flex items-center gap-2">
@@ -2207,7 +2639,7 @@ export default function SettingsView() {
           <TabsContent value="data">
             <div className="space-y-6">
               {/* Data Import */}
-              <Card className="border-0 shadow-sm rounded-xl border-l-3 border-l-amber-500 overflow-hidden">
+              <Card className="card-hover-lift border-0 shadow-sm rounded-xl border-l-3 border-l-amber-500 overflow-hidden">
                 <CardHeader className="bg-gradient-to-r from-amber-50/50 to-transparent dark:from-amber-900/10 dark:to-transparent">
                   <CardTitle className="flex items-center gap-2">
                     <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400">
@@ -2337,25 +2769,61 @@ export default function SettingsView() {
                 </CardContent>
               </Card>
 
-              {/* CSV Export */}
-              <Card className="border-0 shadow-sm rounded-xl border-l-3 border-l-emerald-500 overflow-hidden">
+              {/* Enhanced Data Export */}
+              <Card className="card-hover-lift border-0 shadow-sm rounded-xl border-l-3 border-l-emerald-500 overflow-hidden">
                 <CardHeader className="bg-gradient-to-r from-emerald-50/50 to-transparent dark:from-emerald-900/10 dark:to-transparent">
                   <CardTitle className="flex items-center gap-2">
                     <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400">
                       <Download className="h-4 w-4" />
                     </div>
-                    {t('settings.data_export_csv')}
+                    {t('export.enhanced_title')}
                   </CardTitle>
-                  <CardDescription>{t('csv.export_title')}</CardDescription>
+                  <CardDescription>{t('export.enhanced_desc')}</CardDescription>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="space-y-6">
+                  {/* Export format & filters */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium text-gray-700 dark:text-gray-300">{t('export.format')}</Label>
+                      <Select value={exportFormat} onValueChange={(v) => setExportFormat(v as 'csv' | 'json' | 'pdf')}>
+                        <SelectTrigger className="border-emerald-200 dark:border-emerald-900/30 rounded-xl">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="csv"><Download className="h-3 w-3 mr-1 inline" /> {t('export.csv')}</SelectItem>
+                          <SelectItem value="json"><FileJson className="h-3 w-3 mr-1 inline" /> {t('export.json')}</SelectItem>
+                          <SelectItem value="pdf"><FileType className="h-3 w-3 mr-1 inline" /> {t('export.pdf')}</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium text-gray-700 dark:text-gray-300">{t('export.date_from')}</Label>
+                      <Input
+                        type="date"
+                        value={exportDateFrom}
+                        onChange={(e) => setExportDateFrom(e.target.value)}
+                        className="border-emerald-200 dark:border-emerald-900/30 rounded-xl"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium text-gray-700 dark:text-gray-300">{t('export.date_to')}</Label>
+                      <Input
+                        type="date"
+                        value={exportDateTo}
+                        onChange={(e) => setExportDateTo(e.target.value)}
+                        className="border-emerald-200 dark:border-emerald-900/30 rounded-xl"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Export cards */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
                     {[
-                      { type: 'students' as const, iconComponent: GraduationCap, label: t('export.students'), color: 'from-emerald-50/60 to-emerald-100/0 dark:from-emerald-900/15 dark:to-emerald-900/0', border: 'border-emerald-200/40 dark:border-emerald-900/30', iconBg: 'bg-gradient-to-br from-emerald-400 to-emerald-500' },
-                      { type: 'progress' as const, iconComponent: TrendingUp, label: t('export.progress'), color: 'from-amber-50/60 to-amber-100/0 dark:from-amber-900/15 dark:to-amber-900/0', border: 'border-amber-200/40 dark:border-amber-900/30', iconBg: 'bg-gradient-to-br from-amber-400 to-amber-500' },
-                      { type: 'assessments' as const, iconComponent: ClipboardCheck, label: t('export.assessments'), color: 'from-teal-50/60 to-teal-100/0 dark:from-teal-900/15 dark:to-teal-900/0', border: 'border-teal-200/40 dark:border-teal-900/30', iconBg: 'bg-gradient-to-br from-teal-400 to-teal-500' },
-                      { type: 'grades' as const, iconComponent: BarChart3, label: t('export.grades'), color: 'from-violet-50/60 to-violet-100/0 dark:from-violet-900/15 dark:to-violet-900/0', border: 'border-violet-200/40 dark:border-violet-900/30', iconBg: 'bg-gradient-to-br from-violet-400 to-violet-500' },
-                      { type: 'attendance' as const, iconComponent: CalendarDays, label: t('export.attendance'), color: 'from-rose-50/60 to-rose-100/0 dark:from-rose-900/15 dark:to-rose-900/0', border: 'border-rose-200/40 dark:border-rose-900/30', iconBg: 'bg-gradient-to-br from-rose-400 to-rose-500' },
+                      { type: 'students' as const, iconComponent: GraduationCap, label: t('export.students'), desc: t('export.grade_report'), color: 'from-emerald-50/60 to-emerald-100/0 dark:from-emerald-900/15 dark:to-emerald-900/0', border: 'border-emerald-200/40 dark:border-emerald-900/30', iconBg: 'bg-gradient-to-br from-emerald-400 to-emerald-500' },
+                      { type: 'progress' as const, iconComponent: TrendingUp, label: t('export.progress'), desc: t('export.competency_report'), color: 'from-amber-50/60 to-amber-100/0 dark:from-amber-900/15 dark:to-amber-900/0', border: 'border-amber-200/40 dark:border-amber-900/30', iconBg: 'bg-gradient-to-br from-amber-400 to-amber-500' },
+                      { type: 'assessments' as const, iconComponent: ClipboardCheck, label: t('export.assessments'), desc: t('export.attendance_report'), color: 'from-teal-50/60 to-teal-100/0 dark:from-teal-900/15 dark:to-teal-900/0', border: 'border-teal-200/40 dark:border-teal-900/30', iconBg: 'bg-gradient-to-br from-teal-400 to-teal-500' },
+                      { type: 'grades' as const, iconComponent: BarChart3, label: t('export.grades'), desc: t('export.grade_report'), color: 'from-violet-50/60 to-violet-100/0 dark:from-violet-900/15 dark:to-violet-900/0', border: 'border-violet-200/40 dark:border-violet-900/30', iconBg: 'bg-gradient-to-br from-violet-400 to-violet-500' },
+                      { type: 'attendance' as const, iconComponent: CalendarDays, label: t('export.attendance'), desc: t('export.attendance_report'), color: 'from-rose-50/60 to-rose-100/0 dark:from-rose-900/15 dark:to-rose-900/0', border: 'border-rose-200/40 dark:border-rose-900/30', iconBg: 'bg-gradient-to-br from-rose-400 to-rose-500' },
                     ].map((item) => (
                       <motion.div
                         key={item.type}
@@ -2368,19 +2836,33 @@ export default function SettingsView() {
                           <item.iconComponent className="w-5 h-5" />
                         </div>
                         <p className="font-semibold text-gray-900 dark:text-gray-100 text-sm">{item.label}</p>
-                        <p className="text-xs text-emerald-600/60 dark:text-emerald-400/40 mt-1">CSV</p>
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{item.desc}</p>
+                        <div className="flex items-center gap-1 mt-2">
+                          <Badge variant="outline" className="text-[10px] bg-white/50 dark:bg-gray-800/50">{exportFormat.toUpperCase()}</Badge>
+                        </div>
                       </motion.div>
                     ))}
                   </div>
 
+                  {/* Progress indicator */}
+                  {exporting && (
+                    <div className="flex items-center gap-2 p-3 rounded-xl bg-emerald-50/50 dark:bg-emerald-900/10 border border-emerald-200/30">
+                      <Loader2 className="h-4 w-4 animate-spin text-emerald-500" />
+                      <p className="text-sm text-emerald-700 dark:text-emerald-300">{t('export.progress_indicator')}</p>
+                    </div>
+                  )}
+
                   {/* Export history */}
                   {exportHistory.length > 0 && (
-                    <div className="mt-4 space-y-2">
-                      <p className="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">{t('settings.export_history')}</p>
-                      <div className="max-h-24 overflow-y-auto scrollbar-education space-y-1">
+                    <div className="space-y-2">
+                      <p className="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">{t('export.download_history')}</p>
+                      <div className="max-h-32 overflow-y-auto scrollbar-education space-y-1">
                         {exportHistory.map((item, idx) => (
                           <div key={idx} className="flex items-center justify-between text-xs p-2 rounded-lg bg-gray-50 dark:bg-gray-800/50">
-                            <span className="text-gray-700 dark:text-gray-300 capitalize">{item.type}</span>
+                            <div className="flex items-center gap-2">
+                              <span className="text-gray-700 dark:text-gray-300 capitalize">{item.type}</span>
+                              <Badge variant="outline" className="text-[10px]">{item.format?.toUpperCase() || 'CSV'}</Badge>
+                            </div>
                             <span className="text-gray-500 dark:text-gray-400">{item.date}</span>
                           </div>
                         ))}
@@ -2462,7 +2944,7 @@ export default function SettingsView() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.1 }}
               >
-                <Card className="border-2 border-rose-200 dark:border-rose-900/40 shadow-sm rounded-xl overflow-hidden bg-white dark:bg-gray-950 mb-6">
+                <Card className="card-hover-lift border-2 border-rose-200 dark:border-rose-900/40 shadow-sm rounded-xl overflow-hidden bg-white dark:bg-gray-950 mb-6">
                   <CardHeader className="bg-gradient-to-r from-rose-50/80 to-rose-100/40 dark:from-rose-900/20 dark:to-rose-900/10 pb-3 pt-6">
                     <CardTitle className="flex items-center gap-2 text-rose-700 dark:text-rose-300">
                       <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-rose-100 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400">
@@ -2509,7 +2991,7 @@ export default function SettingsView() {
               </motion.div>
 
               {/* Demo Accounts Card */}
-              <Card className="border-0 shadow-sm rounded-xl border-l-3 border-l-amber-500 overflow-hidden bg-white dark:bg-gray-950">
+              <Card className="card-hover-lift border-0 shadow-sm rounded-xl border-l-3 border-l-amber-500 overflow-hidden bg-white dark:bg-gray-950">
                 <CardHeader className="bg-gradient-to-r from-amber-50/50 to-emerald-50/30 dark:from-amber-900/10 dark:to-emerald-900/5">
                   <CardTitle className="flex items-center gap-2">
                     <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400">
@@ -2662,7 +3144,7 @@ export default function SettingsView() {
 
           {/* ── Backup Tab ─────────────────────────────────────────── */}
           <TabsContent value="backup">
-            <Card className="border-0 shadow-sm rounded-xl border-l-3 border-l-teal-500 overflow-hidden">
+            <Card className="card-hover-lift border-0 shadow-sm rounded-xl border-l-3 border-l-teal-500 overflow-hidden">
               <CardHeader className="bg-gradient-to-r from-teal-50/50 to-transparent dark:from-teal-900/10 dark:to-transparent">
                 <CardTitle className="flex items-center gap-2">
                   <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-teal-100 dark:bg-teal-900/30 text-teal-600 dark:text-teal-400">
@@ -2963,7 +3445,7 @@ export default function SettingsView() {
 
             {/* District Schools Detail */}
             {selectedDistrictId && (
-              <Card className="border-0 shadow-sm rounded-xl border-l-3 border-l-violet-500 overflow-hidden">
+              <Card className="card-hover-lift border-0 shadow-sm rounded-xl border-l-3 border-l-violet-500 overflow-hidden">
                 <CardHeader className="pb-3 pt-6 bg-gradient-to-r from-violet-50/50 to-transparent dark:from-violet-900/10 dark:to-transparent">
                   <CardTitle className="text-base font-bold flex items-center gap-2">
                     <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-violet-100 dark:bg-violet-900/30 text-violet-600 dark:text-violet-400">
@@ -3053,7 +3535,7 @@ export default function SettingsView() {
 
             {/* Cross-School Comparison */}
             {districts.length > 0 && (
-              <Card className="border-0 shadow-sm rounded-xl border-l-3 border-l-purple-500 overflow-hidden">
+              <Card className="card-hover-lift border-0 shadow-sm rounded-xl border-l-3 border-l-purple-500 overflow-hidden">
                 <CardHeader className="pb-3 pt-6 bg-gradient-to-r from-purple-50/50 to-transparent dark:from-purple-900/10 dark:to-transparent">
                   <CardTitle className="text-base font-bold flex items-center gap-2">
                     <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400">
@@ -3191,7 +3673,7 @@ export default function SettingsView() {
 
       {/* ── Rate Limit Tab ─────────────────────────────────────────── */}
       <TabsContent value="rate-limit">
-        <Card className="border-0 shadow-sm rounded-xl border-l-3 border-l-rose-500 overflow-hidden">
+        <Card className="card-hover-lift border-0 shadow-sm rounded-xl border-l-3 border-l-rose-500 overflow-hidden">
           <CardHeader className="pb-3 pt-6 bg-gradient-to-r from-rose-50/50 to-transparent dark:from-rose-900/10 dark:to-transparent">
             <CardTitle className="text-lg font-bold flex items-center gap-2">
               <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-rose-100 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400">
@@ -3208,6 +3690,589 @@ export default function SettingsView() {
           </CardContent>
         </Card>
       </TabsContent>
+
+      {/* ── Branding Tab ───────────────────────────────────────────── */}
+      <TabsContent value="branding">
+        <Card className="border-0 shadow-sm rounded-xl border-l-3 border-l-teal-500 overflow-hidden">
+          <CardHeader className="bg-gradient-to-r from-teal-50/50 to-transparent dark:from-teal-900/10 dark:to-transparent">
+            <CardTitle className="flex items-center gap-2">
+              <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-teal-100 dark:bg-teal-900/30 text-teal-600 dark:text-teal-400">
+                <Palette className="h-4 w-4" />
+              </div>
+              {t('branding.title')}
+            </CardTitle>
+            <CardDescription>{t('branding.colors')} · {t('branding.typography')} · {t('branding.contact')}</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            {/* Logo */}
+            <div className="space-y-2">
+              <Label className="text-sm font-medium text-teal-700 dark:text-teal-400">{t('branding.logo_url')}</Label>
+              <Input
+                value={brandingForm.logoUrl}
+                onChange={(e) => setBrandingForm({ ...brandingForm, logoUrl: e.target.value })}
+                placeholder={t('branding.logo_placeholder')}
+                className="border-teal-200 dark:border-teal-900/30 rounded-xl"
+              />
+              {brandingForm.logoUrl && (
+                <div className="mt-2 flex items-center gap-3">
+                  <img src={brandingForm.logoUrl} alt="Logo preview" className="w-12 h-12 rounded-xl object-contain border border-teal-200 dark:border-teal-900/30" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                  <span className="text-xs text-gray-500 dark:text-gray-400">{t('branding.preview')}</span>
+                </div>
+              )}
+            </div>
+
+            {/* Colors */}
+            <div className="space-y-4">
+              <p className="text-sm font-semibold text-teal-700 dark:text-teal-400">{t('branding.colors')}</p>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="space-y-2">
+                  <Label className="text-xs text-gray-600 dark:text-gray-400">{t('branding.primary_color')}</Label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="color"
+                      value={brandingForm.primaryColor}
+                      onChange={(e) => setBrandingForm({ ...brandingForm, primaryColor: e.target.value })}
+                      className="w-10 h-10 rounded-lg border border-teal-200 dark:border-teal-900/30 cursor-pointer min-h-[44px]"
+                    />
+                    <Input
+                      value={brandingForm.primaryColor}
+                      onChange={(e) => setBrandingForm({ ...brandingForm, primaryColor: e.target.value })}
+                      className="border-teal-200 dark:border-teal-900/30 rounded-xl text-sm"
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-xs text-gray-600 dark:text-gray-400">{t('branding.secondary_color')}</Label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="color"
+                      value={brandingForm.secondaryColor}
+                      onChange={(e) => setBrandingForm({ ...brandingForm, secondaryColor: e.target.value })}
+                      className="w-10 h-10 rounded-lg border border-teal-200 dark:border-teal-900/30 cursor-pointer min-h-[44px]"
+                    />
+                    <Input
+                      value={brandingForm.secondaryColor}
+                      onChange={(e) => setBrandingForm({ ...brandingForm, secondaryColor: e.target.value })}
+                      className="border-teal-200 dark:border-teal-900/30 rounded-xl text-sm"
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-xs text-gray-600 dark:text-gray-400">{t('branding.accent_color')}</Label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="color"
+                      value={brandingForm.accentColor}
+                      onChange={(e) => setBrandingForm({ ...brandingForm, accentColor: e.target.value })}
+                      className="w-10 h-10 rounded-lg border border-teal-200 dark:border-teal-900/30 cursor-pointer min-h-[44px]"
+                    />
+                    <Input
+                      value={brandingForm.accentColor}
+                      onChange={(e) => setBrandingForm({ ...brandingForm, accentColor: e.target.value })}
+                      className="border-teal-200 dark:border-teal-900/30 rounded-xl text-sm"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Typography */}
+            <div className="space-y-2">
+              <Label className="text-sm font-semibold text-teal-700 dark:text-teal-400">{t('branding.font')}</Label>
+              <Select value={brandingForm.fontFamily} onValueChange={(v) => setBrandingForm({ ...brandingForm, fontFamily: v })}>
+                <SelectTrigger className="border-teal-200 dark:border-teal-900/30 rounded-xl">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Inter">Inter</SelectItem>
+                  <SelectItem value="Roboto">Roboto</SelectItem>
+                  <SelectItem value="Open Sans">Open Sans</SelectItem>
+                  <SelectItem value="Lato">Lato</SelectItem>
+                  <SelectItem value="Nunito">Nunito</SelectItem>
+                  <SelectItem value="Poppins">Poppins</SelectItem>
+                  <SelectItem value="Source Sans Pro">Source Sans Pro</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Motto */}
+            <div className="space-y-2">
+              <Label className="text-sm font-semibold text-teal-700 dark:text-teal-400">{t('branding.motto')}</Label>
+              <Input
+                value={brandingForm.motto}
+                onChange={(e) => setBrandingForm({ ...brandingForm, motto: e.target.value })}
+                placeholder={t('branding.motto_placeholder')}
+                className="border-teal-200 dark:border-teal-900/30 rounded-xl"
+              />
+            </div>
+
+            {/* Contact info */}
+            <div className="space-y-4">
+              <p className="text-sm font-semibold text-teal-700 dark:text-teal-400">{t('branding.contact')}</p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label className="text-xs text-gray-600 dark:text-gray-400">{t('branding.website')}</Label>
+                  <Input
+                    value={brandingForm.websiteUrl}
+                    onChange={(e) => setBrandingForm({ ...brandingForm, websiteUrl: e.target.value })}
+                    placeholder={t('branding.website_placeholder')}
+                    className="border-teal-200 dark:border-teal-900/30 rounded-xl"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-xs text-gray-600 dark:text-gray-400">{t('branding.email_domain')}</Label>
+                  <Input
+                    value={brandingForm.emailDomain}
+                    onChange={(e) => setBrandingForm({ ...brandingForm, emailDomain: e.target.value })}
+                    placeholder={t('branding.email_domain_placeholder')}
+                    className="border-teal-200 dark:border-teal-900/30 rounded-xl"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-xs text-gray-600 dark:text-gray-400">{t('branding.address')}</Label>
+                  <Input
+                    value={brandingForm.address}
+                    onChange={(e) => setBrandingForm({ ...brandingForm, address: e.target.value })}
+                    className="border-teal-200 dark:border-teal-900/30 rounded-xl"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-xs text-gray-600 dark:text-gray-400">{t('branding.phone')}</Label>
+                  <Input
+                    value={brandingForm.phone}
+                    onChange={(e) => setBrandingForm({ ...brandingForm, phone: e.target.value })}
+                    className="border-teal-200 dark:border-teal-900/30 rounded-xl"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Custom CSS */}
+            <div className="space-y-2">
+              <Label className="text-sm font-semibold text-teal-700 dark:text-teal-400">{t('branding.custom_css')}</Label>
+              <textarea
+                value={brandingForm.customCss}
+                onChange={(e) => setBrandingForm({ ...brandingForm, customCss: e.target.value })}
+                placeholder={t('branding.custom_css_placeholder')}
+                rows={4}
+                className="w-full border border-teal-200 dark:border-teal-900/30 rounded-xl px-3 py-2 text-sm bg-white dark:bg-gray-900 focus:border-teal-500 focus:outline-none resize-y"
+              />
+            </div>
+
+            {/* Preview */}
+            <div className="space-y-2">
+              <Label className="text-sm font-semibold text-teal-700 dark:text-teal-400">{t('branding.preview')}</Label>
+              <div className="p-4 rounded-xl border border-teal-200/50 dark:border-teal-900/30 bg-white dark:bg-gray-900" style={{ fontFamily: `"${brandingForm.fontFamily}", sans-serif` }}>
+                <div className="flex items-center gap-3 mb-3">
+                  {brandingForm.logoUrl ? (
+                    <img src={brandingForm.logoUrl} alt="Logo" className="w-10 h-10 rounded-xl object-contain" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                  ) : (
+                    <div className="w-10 h-10 rounded-xl flex items-center justify-center text-white" style={{ background: `linear-gradient(135deg, ${brandingForm.primaryColor}, ${brandingForm.secondaryColor})` }}>
+                      <BookOpen className="w-5 h-5" />
+                    </div>
+                  )}
+                  <div>
+                    <p className="font-bold text-gray-900 dark:text-gray-100" style={{ color: brandingForm.primaryColor }}>{selectedSchool?.name || 'CompetenceTrack'}</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">{brandingForm.motto || t('app.subtitle')}</p>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Button size="sm" className="rounded-xl min-h-[44px]" style={{ backgroundColor: brandingForm.primaryColor, color: '#fff' }}>
+                    {t('action.save')}
+                  </Button>
+                  <Button size="sm" variant="outline" className="rounded-xl min-h-[44px]" style={{ borderColor: brandingForm.secondaryColor, color: brandingForm.secondaryColor }}>
+                    {t('action.cancel')}
+                  </Button>
+                  <div className="flex gap-1 mt-2">
+                    <div className="w-6 h-6 rounded-full" style={{ backgroundColor: brandingForm.primaryColor }} />
+                    <div className="w-6 h-6 rounded-full" style={{ backgroundColor: brandingForm.secondaryColor }} />
+                    <div className="w-6 h-6 rounded-full" style={{ backgroundColor: brandingForm.accentColor }} />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Save button */}
+            <div className="flex items-center gap-3">
+              <Button
+                onClick={handleSaveBranding}
+                disabled={brandingSaving}
+                className="bg-gradient-to-r from-teal-500 to-emerald-500 hover:from-teal-600 hover:to-emerald-600 text-white shadow-md rounded-xl px-6 min-h-[44px]"
+              >
+                {brandingSaving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <CheckCircle2 className="h-4 w-4 mr-2" />}
+                {t('action.save')}
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => setBrandingForm({
+                  logoUrl: '',
+                  primaryColor: '#10b981',
+                  secondaryColor: '#14b8a6',
+                  accentColor: '#059669',
+                  fontFamily: 'Inter',
+                  customCss: '',
+                  motto: '',
+                  websiteUrl: '',
+                  emailDomain: '',
+                  address: '',
+                  phone: '',
+                })}
+                className="rounded-xl min-h-[44px]"
+              >
+                <RotateCcw className="h-4 w-4 mr-2" />
+                {t('branding.reset')}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </TabsContent>
+
+      {/* ── Email Tab ───────────────────────────────────────────────── */}
+      <TabsContent value="email">
+        <div className="space-y-6">
+          {/* Email Templates */}
+          <Card className="border-0 shadow-sm rounded-xl border-l-3 border-l-amber-500 overflow-hidden">
+            <CardHeader className="bg-gradient-to-r from-amber-50/50 to-transparent dark:from-amber-900/10 dark:to-transparent">
+              <CardTitle className="flex items-center gap-2">
+                <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400">
+                  <Mail className="h-4 w-4" />
+                </div>
+                {t('email.templates_title')}
+              </CardTitle>
+              <CardDescription>{t('email.templates_desc')}</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <Button
+                onClick={() => { setEditingEmailTemplate(null); setEmailTemplateForm({ name: '', subject: '', body: '' }); setShowEmailTemplateDialog(true); }}
+                className="bg-gradient-to-r from-amber-500 to-emerald-500 hover:from-amber-600 hover:to-emerald-600 text-white shadow-md rounded-xl px-6 min-h-[44px]"
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                {t('email.template_create')}
+              </Button>
+
+              {emailTemplatesLoading ? (
+                <div className="space-y-3">
+                  {Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-16 rounded-xl" />)}
+                </div>
+              ) : emailTemplates.length === 0 ? (
+                <div className="text-center py-8">
+                  <Mail className="h-8 w-8 text-amber-400 dark:text-amber-500 mx-auto mb-2" />
+                  <p className="text-gray-500 dark:text-gray-400">{t('empty.no_data')}</p>
+                </div>
+              ) : (
+                <div className="space-y-2 max-h-96 overflow-y-auto scrollbar-education">
+                  {emailTemplates.map((template) => (
+                    <motion.div
+                      key={template.id}
+                      whileHover={{ scale: 1.01 }}
+                      className="p-4 rounded-xl bg-gradient-to-r from-gray-50 to-gray-50/0 dark:from-gray-800/50 dark:to-gray-800/0 border border-gray-200/40 dark:border-gray-700/30 hover:shadow-md transition-all"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <p className="font-semibold text-gray-900 dark:text-gray-100 text-sm truncate">{template.name}</p>
+                            {template.isDefault && <Badge className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300 text-xs">{t('email.template_default')}</Badge>}
+                          </div>
+                          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 truncate">{template.subject}</p>
+                        </div>
+                        <div className="flex items-center gap-1 shrink-0">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-9 w-9 min-h-[44px] min-w-[44px] hover:bg-amber-50 dark:hover:bg-amber-900/20"
+                            onClick={() => { setEmailPreviewTemplate(template); setShowEmailPreview(true); setTestEmailRecipient(currentUser?.email || ''); }}
+                          >
+                            <Eye className="h-4 w-4 text-amber-500" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-9 w-9 min-h-[44px] min-w-[44px] hover:bg-amber-50 dark:hover:bg-amber-900/20"
+                            onClick={() => { setEditingEmailTemplate(template); setEmailTemplateForm({ name: template.name, subject: template.subject, body: template.body }); setShowEmailTemplateDialog(true); }}
+                          >
+                            <Pencil className="h-4 w-4 text-gray-500" />
+                          </Button>
+                          {!template.isDefault && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-9 w-9 min-h-[44px] min-w-[44px] hover:bg-red-50 dark:hover:bg-red-900/20 text-red-500"
+                              onClick={() => setDeleteEmailTemplateId(template.id)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    </motion.div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Email Settings */}
+          <Card className="border-0 shadow-sm rounded-xl border-l-3 border-l-teal-500 overflow-hidden">
+            <CardHeader className="bg-gradient-to-r from-teal-50/50 to-transparent dark:from-teal-900/10 dark:to-transparent">
+              <CardTitle className="flex items-center gap-2">
+                <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-teal-100 dark:bg-teal-900/30 text-teal-600 dark:text-teal-400">
+                  <SettingsIcon className="h-4 w-4" />
+                </div>
+                {t('email.settings')}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {/* SMTP config (display only — placeholder) */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label className="text-xs text-gray-600 dark:text-gray-400">{t('email.smtp_host')}</Label>
+                  <Input
+                    value={emailSettings.smtpHost}
+                    onChange={(e) => setEmailSettings({ ...emailSettings, smtpHost: e.target.value })}
+                    placeholder="smtp.example.com"
+                    className="border-teal-200 dark:border-teal-900/30 rounded-xl"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-xs text-gray-600 dark:text-gray-400">{t('email.smtp_port')}</Label>
+                  <Input
+                    value={emailSettings.smtpPort}
+                    onChange={(e) => setEmailSettings({ ...emailSettings, smtpPort: e.target.value })}
+                    placeholder="587"
+                    className="border-teal-200 dark:border-teal-900/30 rounded-xl"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-xs text-gray-600 dark:text-gray-400">{t('email.smtp_user')}</Label>
+                  <Input
+                    value={emailSettings.smtpUser}
+                    onChange={(e) => setEmailSettings({ ...emailSettings, smtpUser: e.target.value })}
+                    className="border-teal-200 dark:border-teal-900/30 rounded-xl"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-xs text-gray-600 dark:text-gray-400">{t('email.smtp_from')}</Label>
+                  <Input
+                    value={emailSettings.smtpFrom}
+                    onChange={(e) => setEmailSettings({ ...emailSettings, smtpFrom: e.target.value })}
+                    className="border-teal-200 dark:border-teal-900/30 rounded-xl"
+                  />
+                </div>
+              </div>
+
+              {/* Frequency */}
+              <div className="space-y-2">
+                <Label className="text-xs text-gray-600 dark:text-gray-400">{t('email.frequency')}</Label>
+                <Select value={emailSettings.frequency} onValueChange={(v) => setEmailSettings({ ...emailSettings, frequency: v })}>
+                  <SelectTrigger className="border-teal-200 dark:border-teal-900/30 rounded-xl">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="daily">{t('email.frequency_daily')}</SelectItem>
+                    <SelectItem value="weekly">{t('email.frequency_weekly')}</SelectItem>
+                    <SelectItem value="monthly">{t('email.frequency_monthly')}</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Toggle switches */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between p-3 rounded-xl bg-gray-50 dark:bg-gray-800/50">
+                  <Label className="text-sm">{t('email.auto_reports')}</Label>
+                  <Switch checked={emailSettings.autoReports} onCheckedChange={(v) => setEmailSettings({ ...emailSettings, autoReports: v })} />
+                </div>
+                <div className="flex items-center justify-between p-3 rounded-xl bg-gray-50 dark:bg-gray-800/50">
+                  <Label className="text-sm">{t('email.auto_behavior')}</Label>
+                  <Switch checked={emailSettings.autoBehavior} onCheckedChange={(v) => setEmailSettings({ ...emailSettings, autoBehavior: v })} />
+                </div>
+                <div className="flex items-center justify-between p-3 rounded-xl bg-gray-50 dark:bg-gray-800/50">
+                  <Label className="text-sm">{t('email.auto_attendance')}</Label>
+                  <Switch checked={emailSettings.autoAttendance} onCheckedChange={(v) => setEmailSettings({ ...emailSettings, autoAttendance: v })} />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Email Log */}
+          <Card className="border-0 shadow-sm rounded-xl border-l-3 border-l-emerald-500 overflow-hidden">
+            <CardHeader className="bg-gradient-to-r from-emerald-50/50 to-transparent dark:from-emerald-900/10 dark:to-transparent">
+              <CardTitle className="flex items-center gap-2">
+                <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400">
+                  <Activity className="h-4 w-4" />
+                </div>
+                {t('email.log_title')}
+              </CardTitle>
+              <CardDescription>{t('email.counts')}: {emailLogCounts.sent} {t('email.status_sent')} · {emailLogCounts.failed} {t('email.status_failed')} · {emailLogCounts.pending} {t('email.status_pending')}</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center gap-2">
+                <Select value={emailLogFilter} onValueChange={(v) => { setEmailLogFilter(v); }}>
+                  <SelectTrigger className="border-emerald-200 dark:border-emerald-900/30 rounded-xl w-[160px]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">{t('export.all_classes')}</SelectItem>
+                    <SelectItem value="sent">{t('email.status_sent')}</SelectItem>
+                    <SelectItem value="failed">{t('email.status_failed')}</SelectItem>
+                    <SelectItem value="pending">{t('email.status_pending')}</SelectItem>
+                    <SelectItem value="bounced">{t('email.status_bounced')}</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Button variant="outline" size="sm" onClick={() => loadEmailLogs()} className="rounded-xl min-h-[44px]">
+                  <RefreshCw className="h-4 w-4 mr-1.5" />
+                  {t('action.refresh')}
+                </Button>
+              </div>
+
+              {emailLogsLoading ? (
+                <div className="space-y-2">{Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-12 rounded-xl" />)}</div>
+              ) : emailLogs.length === 0 ? (
+                <div className="text-center py-6">
+                  <Mail className="h-8 w-8 text-gray-300 dark:text-gray-600 mx-auto mb-2" />
+                  <p className="text-gray-500 dark:text-gray-400 text-sm">{t('empty.no_data')}</p>
+                </div>
+              ) : (
+                <div className="max-h-96 overflow-y-auto scrollbar-education space-y-2">
+                  {emailLogs.map((log) => (
+                    <div key={log.id} className="p-3 rounded-xl bg-gray-50 dark:bg-gray-800/50 border border-gray-200/30 dark:border-gray-700/20">
+                      <div className="flex items-center justify-between">
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">{log.subject}</p>
+                          <p className="text-xs text-gray-500 dark:text-gray-400">{log.recipientEmail} · {log.recipientName}</p>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <Badge className={`text-xs ${log.status === 'sent' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300' : log.status === 'failed' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300' : log.status === 'bounced' ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300' : 'bg-gray-100 text-gray-700 dark:bg-gray-700/30 dark:text-gray-300'}`}>
+                            {log.status === 'sent' ? t('email.status_sent') : log.status === 'failed' ? t('email.status_failed') : log.status === 'bounced' ? t('email.status_bounced') : t('email.status_pending')}
+                          </Badge>
+                          <span className="text-xs text-gray-400">{new Date(log.createdAt).toLocaleDateString()}</span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      </TabsContent>
+
+      {/* ── Email Template Create/Edit Dialog ───────────────────────────── */}
+      <Dialog open={showEmailTemplateDialog} onOpenChange={(open) => { if (!open) { setShowEmailTemplateDialog(false); setEditingEmailTemplate(null); } }}>
+        <DialogContent className="rounded-xl max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-bold">
+              {editingEmailTemplate ? t('email.template_edit') : t('email.template_create')}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-5 pt-2">
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">{t('email.template_name')}</Label>
+              <Input
+                value={emailTemplateForm.name}
+                onChange={(e) => setEmailTemplateForm({ ...emailTemplateForm, name: e.target.value })}
+                className="rounded-xl border-amber-200/50 dark:border-amber-900/30"
+                placeholder="weekly_report"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">{t('email.template_subject')}</Label>
+              <Input
+                value={emailTemplateForm.subject}
+                onChange={(e) => setEmailTemplateForm({ ...emailTemplateForm, subject: e.target.value })}
+                className="rounded-xl border-amber-200/50 dark:border-amber-900/30"
+                placeholder="Wochenbericht {{studentName}}"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">{t('email.template_body')}</Label>
+              <textarea
+                value={emailTemplateForm.body}
+                onChange={(e) => setEmailTemplateForm({ ...emailTemplateForm, body: e.target.value })}
+                rows={8}
+                className="w-full border border-amber-200/50 dark:border-amber-900/30 rounded-xl px-3 py-2 text-sm bg-white dark:bg-gray-900 focus:border-amber-500 focus:outline-none resize-y"
+                placeholder="<h1>Willkommen {{studentName}}</h1><p>...</p>"
+              />
+            </div>
+            {/* Variable help */}
+            <div className="p-3 rounded-xl bg-amber-50/50 dark:bg-amber-900/10 border border-amber-200/30 dark:border-amber-900/20">
+              <p className="text-xs font-semibold text-amber-700 dark:text-amber-300 mb-2">{t('email.template_variables')}</p>
+              <div className="flex flex-wrap gap-1.5">
+                {['{{studentName}}', '{{className}}', '{{teacherName}}', '{{date}}', '{{score}}', '{{schoolName}}', '{{subjectName}}', '{{behaviorDescription}}', '{{behaviorCategory}}', '{{attendanceStatus}}', '{{email}}', '{{competencyProgress}}'].map((v) => (
+                  <Badge key={v} variant="outline" className="text-xs cursor-pointer hover:bg-amber-100 dark:hover:bg-amber-900/30" onClick={() => setEmailTemplateForm({ ...emailTemplateForm, body: emailTemplateForm.body + v })}>{v}</Badge>
+                ))}
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setShowEmailTemplateDialog(false); setEditingEmailTemplate(null); }} className="rounded-xl">{t('action.cancel')}</Button>
+            <Button
+              className="bg-gradient-to-r from-amber-500 to-emerald-500 hover:from-amber-600 hover:to-emerald-600 text-white rounded-xl shadow-md min-h-[44px]"
+              onClick={handleSaveEmailTemplate}
+              disabled={emailTemplateSaving || !emailTemplateForm.name || !emailTemplateForm.subject}
+            >
+              {emailTemplateSaving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <CheckCircle2 className="h-4 w-4 mr-2" />}
+              {t('action.save')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Email Preview Dialog ────────────────────────────────────────── */}
+      <Dialog open={showEmailPreview} onOpenChange={(open) => { if (!open) { setShowEmailPreview(false); setEmailPreviewTemplate(null); } }}>
+        <DialogContent className="rounded-xl max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-bold">{t('email.template_preview')}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 pt-2">
+            {emailPreviewTemplate && (
+              <>
+                <div className="p-4 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900">
+                  <p className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">{t('email.template_subject')}: {emailPreviewTemplate.subject}</p>
+                  <div className="mt-3 p-3 rounded-xl bg-gray-50 dark:bg-gray-800/50 text-sm max-h-64 overflow-y-auto scrollbar-education">
+                    {emailPreviewTemplate.body.replace(/\{\{studentName\}\}/g, 'Max Mustermann').replace(/\{\{className\}\}/g, 'Klasse 5a').replace(/\{\{teacherName\}\}/g, 'Frau Muster').replace(/\{\{date\}\}/g, new Date().toLocaleDateString()).replace(/\{\{schoolName\}\}/g, 'CompetenceTrack Schule').replace(/\{\{subjectName\}\}/g, 'Mathematik').replace(/\{\{score\}\}/g, '85%')}
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium">{t('email.test_recipient')}</Label>
+                  <Input
+                    value={testEmailRecipient}
+                    onChange={(e) => setTestEmailRecipient(e.target.value)}
+                    className="rounded-xl border-amber-200/50 dark:border-amber-900/30"
+                    placeholder={currentUser?.email || ''}
+                  />
+                </div>
+              </>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setShowEmailPreview(false); setEmailPreviewTemplate(null); }} className="rounded-xl">{t('action.cancel')}</Button>
+            <Button
+              className="bg-gradient-to-r from-amber-500 to-emerald-500 hover:from-amber-600 hover:to-emerald-600 text-white rounded-xl shadow-md min-h-[44px]"
+              onClick={handleSendTestEmail}
+              disabled={testEmailSending || !testEmailRecipient}
+            >
+              {testEmailSending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Send className="h-4 w-4 mr-2" />}
+              {t('email.send_test')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Email Template Delete Confirmation ──────────────────────────── */}
+      <AlertDialog open={!!deleteEmailTemplateId} onOpenChange={(open) => { if (!open) setDeleteEmailTemplateId(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t('email.template_delete')}</AlertDialogTitle>
+            <AlertDialogDescription>{t('email.template_delete_confirm')}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t('action.cancel')}</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteEmailTemplate} className="bg-rose-600 hover:bg-rose-700 text-white">
+              {t('action.delete')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </motion.div>
   );
 }

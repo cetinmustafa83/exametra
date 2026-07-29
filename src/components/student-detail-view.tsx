@@ -18,6 +18,7 @@ import {
   Rocket, Target, PenLine, Pencil, Home, ClipboardList, Star, BarChart3,
   LucideIcon, Download, FileSpreadsheet, FileDown, Heart, Users as UsersIcon,
   Eye, Plus, Trash2, Clock, CheckCircle2, XCircle, SlidersHorizontal, Lightbulb,
+  Phone, PhoneCall, MapPin, ShieldAlert, UserCheck, AlertCircle, Globe,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -46,6 +47,49 @@ import { Label } from '@/components/ui/label';
 import { Progress } from '@/components/ui/progress';
 
 // ─── Self-Assessment & Learning Goal Types ────────────────────────────────
+interface PeerAssessmentData {
+  id: string;
+  schoolId: string;
+  assessorId: string;
+  assessedId: string;
+  competencyId: string | null;
+  classGroupId: string | null;
+  assessmentType: string;
+  level: number | null;
+  comment: string | null;
+  rubricId: string | null;
+  isAnonymous: boolean;
+  isDemo: boolean;
+  createdAt: string;
+  updatedAt: string;
+  deletedAt: string | null;
+  assessor: { id: string; firstName: string; lastName: string };
+  assessed: { id: string; firstName: string; lastName: string };
+  competency: { id: string; code: string; title: string } | null;
+  classGroup: { id: string; name: string } | null;
+  rubric: { id: string; title: string } | null;
+}
+
+interface EmergencyContactData {
+  id: string;
+  schoolId: string;
+  studentId: string;
+  name: string;
+  relationship: string;
+  phone: string;
+  phoneAlt: string | null;
+  email: string | null;
+  address: string | null;
+  isPrimary: boolean;
+  priority: number;
+  notes: string | null;
+  isDemo: boolean;
+  createdAt: string;
+  updatedAt: string;
+  deletedAt: string | null;
+  student: { id: string; firstName: string; lastName: string };
+}
+
 interface SelfAssessmentData {
   id: string;
   schoolId: string;
@@ -410,6 +454,15 @@ export default function StudentDetailView() {
   const [lgForm, setLgForm] = useState({ title: '', description: '', competencyId: '', targetLevel: 4, currentLevel: 1, deadline: '', status: 'active', progress: 0 });
   const [goalCelebration, setGoalCelebration] = useState<string | null>(null);
 
+  // Peer Assessment & Emergency Contacts state
+  const [peerAssessments, setPeerAssessments] = useState<PeerAssessmentData[]>([]);
+  const [emergencyContacts, setEmergencyContacts] = useState<EmergencyContactData[]>([]);
+  const [paDialogOpen, setPaDialogOpen] = useState(false);
+  const [paForm, setPaForm] = useState({ assessmentType: 'competency', competencyId: '', level: 3, comment: '', isAnonymous: false });
+  const [ecDialogOpen, setEcDialogOpen] = useState(false);
+  const [ecEditId, setEcEditId] = useState<string | null>(null);
+  const [ecForm, setEcForm] = useState({ name: '', relationship: 'mother', phone: '', phoneAlt: '', email: '', address: '', isPrimary: false, priority: 1, notes: '' });
+
   // Load parent links for parent users
   useEffect(() => {
     if (isParent && currentUser?.id) {
@@ -465,6 +518,26 @@ export default function StudentDetailView() {
     }
     loadSA();
     loadLG();
+  }, [currentStudentId, currentUser?.schoolId]);
+
+  // Load peer assessments and emergency contacts
+  useEffect(() => {
+    if (!currentStudentId || !currentUser?.schoolId) return;
+    const schoolId = currentUser.schoolId;
+    async function loadPA() {
+      try {
+        const data = await apiGet<PeerAssessmentData[]>(`/api/peer-assessments?schoolId=${schoolId}&assessedId=${currentStudentId}`);
+        setPeerAssessments(data);
+      } catch { /* ignore */ }
+    }
+    async function loadEC() {
+      try {
+        const data = await apiGet<EmergencyContactData[]>(`/api/emergency-contacts?schoolId=${schoolId}&studentId=${currentStudentId}`);
+        setEmergencyContacts(data);
+      } catch { /* ignore */ }
+    }
+    loadPA();
+    loadEC();
   }, [currentStudentId, currentUser?.schoolId]);
 
   if (loading) {
@@ -1629,6 +1702,328 @@ export default function StudentDetailView() {
         </CardContent>
       </Card>
 
+      {/* ─── Peer Assessment Section ─────────────────────────────────── */}
+      <Card className="border-0 shadow-sm rounded-xl border-l-3 border-l-purple-500 overflow-hidden">
+        <CardHeader className="pb-3 pt-6 bg-gradient-to-r from-purple-50/50 to-transparent dark:from-purple-900/10 dark:to-transparent">
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <CardTitle className="text-lg font-bold flex items-center gap-2">
+              <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400">
+                <UsersIcon className="h-4 w-4" />
+              </div>
+              {t('peer.title')}
+              <Badge className="bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300 text-xs font-medium">
+                {peerAssessments.length}
+              </Badge>
+            </CardTitle>
+            <Button
+              variant="outline"
+              size="sm"
+              className="rounded-xl border-purple-300 dark:border-purple-700 text-purple-700 dark:text-purple-300 min-h-[44px]"
+              onClick={() => {
+                setPaForm({ assessmentType: 'competency', competencyId: '', level: 3, comment: '', isAnonymous: false });
+                setPaDialogOpen(true);
+              }}
+            >
+              <Plus className="h-4 w-4 mr-1" />
+              {t('peer.create')}
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {peerAssessments.length === 0 ? (
+            <div className="text-center py-8">
+              <UsersIcon className="h-8 w-8 text-purple-400 dark:text-purple-500 mx-auto mb-2" />
+              <p className="text-gray-500 dark:text-gray-400">{t('peer.no_assessments')}</p>
+            </div>
+          ) : (
+            <>
+              {/* 3-column radar comparison: Peer / Teacher / Self */}
+              {(() => {
+                const peerByCompetency = peerAssessments.filter((pa) => pa.competencyId && pa.level);
+                const selfByCompetency = selfAssessments.filter((sa) => sa.selfLevel);
+                const teacherByCompetency = data?.progressEntries ?? [];
+
+                const compIds = new Set<string>();
+                peerByCompetency.forEach((pa) => { if (pa.competencyId) compIds.add(pa.competencyId); });
+                selfByCompetency.forEach((sa) => compIds.add(sa.competencyId));
+                teacherByCompetency.forEach((pe) => compIds.add(pe.competencyId));
+
+                const comparisonData = Array.from(compIds).slice(0, 8).map((cId) => {
+                  const peerLevels = peerByCompetency.filter((pa) => pa.competencyId === cId).map((pa) => pa.level!);
+                  const selfEntry = selfByCompetency.find((sa) => sa.competencyId === cId);
+                  const teacherEntry = teacherByCompetency.find((pe) => pe.competencyId === cId);
+                  const code = peerLevels.length > 0
+                    ? (peerByCompetency.find((pa) => pa.competencyId === cId)?.competency?.code ?? cId.slice(0, 8))
+                    : selfEntry?.competency?.code ?? teacherEntry?.competency?.code ?? cId.slice(0, 8);
+                  return {
+                    competency: code.length > 12 ? code.slice(0, 12) : code,
+                    peer: peerLevels.length > 0 ? peerLevels.reduce((a, b) => a + b, 0) / peerLevels.length : 0,
+                    self: selfEntry ? selfEntry.selfLevel : 0,
+                    teacher: teacherEntry ? teacherEntry.masteryLevelValue : 0,
+                  };
+                }).filter((d) => d.peer > 0 || d.self > 0 || d.teacher > 0);
+
+                if (comparisonData.length < 3) return null;
+                return (
+                  <div className="mb-6">
+                    <p className="text-xs font-semibold text-gray-600 dark:text-gray-400 mb-3 uppercase tracking-wider">{t('peer.comparison')}</p>
+                    <div className="h-64">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <RadarChart data={comparisonData}>
+                          <PolarGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                          <PolarAngleAxis dataKey="competency" tick={{ fontSize: 10, fill: '#6b7280' }} />
+                          <PolarRadiusAxis domain={[0, 6]} tick={{ fontSize: 9 }} />
+                          <Radar name={t('peer.title')} dataKey="peer" stroke="#8b5cf6" fill="#8b5cf6" fillOpacity={0.2} />
+                          <Radar name={t('peer.teacher')} dataKey="teacher" stroke="#f59e0b" fill="#f59e0b" fillOpacity={0.2} />
+                          <Radar name={t('peer.self')} dataKey="self" stroke="#06b6d4" fill="#06b6d4" fillOpacity={0.2} />
+                          <Tooltip />
+                        </RadarChart>
+                      </ResponsiveContainer>
+                    </div>
+                    <div className="flex items-center justify-center gap-6 mt-2">
+                      <span className="flex items-center gap-1.5 text-xs text-gray-500"><span className="w-3 h-3 rounded-full bg-purple-400 inline-block" />{t('peer.title')}</span>
+                      <span className="flex items-center gap-1.5 text-xs text-gray-500"><span className="w-3 h-3 rounded-full bg-amber-400 inline-block" />{t('peer.teacher')}</span>
+                      <span className="flex items-center gap-1.5 text-xs text-gray-500"><span className="w-3 h-3 rounded-full bg-cyan-400 inline-block" />{t('peer.self')}</span>
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {/* Average peer rating per competency */}
+              {(() => {
+                const groupedByComp = peerAssessments
+                  .filter((pa) => pa.competencyId && pa.level)
+                  .reduce((acc, pa) => {
+                    const key = pa.competencyId!;
+                    if (!acc[key]) acc[key] = { code: pa.competency?.code ?? '', title: pa.competency?.title ?? '', levels: [] };
+                    acc[key].levels.push(pa.level!);
+                    return acc;
+                  }, {} as Record<string, { code: string; title: string; levels: number[] }>);
+                const averages = Object.entries(groupedByComp);
+                if (averages.length === 0) return null;
+                return (
+                  <div className="mb-4 p-3 rounded-xl bg-purple-50/50 dark:bg-purple-900/10 border border-purple-200/30 dark:border-purple-900/20">
+                    <p className="text-xs font-semibold text-purple-700 dark:text-purple-300 mb-2 uppercase tracking-wider">{t('peer.average')}</p>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                      {averages.map(([cId, data]) => {
+                        const avg = data.levels.reduce((a, b) => a + b, 0) / data.levels.length;
+                        return (
+                          <div key={cId} className="flex items-center gap-2 p-2 rounded-lg bg-white dark:bg-gray-800/50 border border-purple-100/50 dark:border-purple-900/20">
+                            <Badge className={`${masteryBadge(avg)} text-xs`}>{avg.toFixed(1)}</Badge>
+                            <span className="text-xs text-gray-700 dark:text-gray-300 truncate">{data.code || data.title}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {/* Peer assessment list */}
+              <div className="space-y-2 max-h-96 overflow-y-auto scrollbar-education">
+                {peerAssessments.map((pa, i) => {
+                  const typeLabel = t(`peer.type_${pa.assessmentType}`) || pa.assessmentType;
+                  return (
+                    <motion.div
+                      key={pa.id}
+                      initial={{ opacity: 0, y: 6 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: i * 0.04 }}
+                      className="p-3 rounded-xl bg-gradient-to-r from-purple-50/40 to-transparent dark:from-purple-900/10 dark:to-transparent border border-purple-200/30 dark:border-purple-900/20"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <Badge className="bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300 text-xs">{typeLabel}</Badge>
+                            {pa.level && (
+                              <Badge className={`${masteryBadge(pa.level)} text-xs`}>{pa.level}/6</Badge>
+                            )}
+                            {pa.isAnonymous && (
+                              <Badge className="bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400 text-xs">
+                                <ShieldAlert className="h-3 w-3 mr-1" />{t('peer.anonymous')}
+                              </Badge>
+                            )}
+                            {pa.competency && (
+                              <span className="text-xs text-gray-600 dark:text-gray-400">{pa.competency.code} — {pa.competency.title}</span>
+                            )}
+                          </div>
+                          {!pa.isAnonymous && (
+                            <p className="text-[10px] text-gray-500 dark:text-gray-400 mt-1">
+                              {t('peer.from')}: {pa.assessor.firstName} {pa.assessor.lastName}
+                            </p>
+                          )}
+                          {pa.comment && (
+                            <p className="text-xs text-gray-600 dark:text-gray-400 mt-1 italic">&ldquo;{pa.comment}&rdquo;</p>
+                          )}
+                          <p className="text-[10px] text-gray-400 mt-1">{new Date(pa.createdAt).toLocaleDateString()}</p>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="rounded-lg text-red-500 hover:text-red-700 min-h-[44px] min-w-[44px]"
+                          onClick={async () => {
+                            try {
+                              await apiDelete(`/api/peer-assessments/${pa.id}`);
+                              setPeerAssessments((prev) => prev.filter((a) => a.id !== pa.id));
+                              toast.success(t('action.delete'));
+                            } catch { toast.error(t('error.generic')); }
+                          }}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    </motion.div>
+                  );
+                })}
+              </div>
+            </>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* ─── Emergency Contacts Section ─────────────────────────────────── */}
+      <Card className="border-0 shadow-sm rounded-xl border-l-3 border-l-rose-500 overflow-hidden">
+        <CardHeader className="pb-3 pt-6 bg-gradient-to-r from-rose-50/50 to-transparent dark:from-rose-900/10 dark:to-transparent">
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <CardTitle className="text-lg font-bold flex items-center gap-2">
+              <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-rose-100 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400">
+                <AlertCircle className="h-4 w-4" />
+              </div>
+              {t('emergency.title')}
+              <Badge className="bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-300 text-xs font-medium">
+                {emergencyContacts.length}
+              </Badge>
+            </CardTitle>
+            <Button
+              variant="outline"
+              size="sm"
+              className="rounded-xl border-rose-300 dark:border-rose-700 text-rose-700 dark:text-rose-300 min-h-[44px]"
+              onClick={() => {
+                setEcEditId(null);
+                setEcForm({ name: '', relationship: 'mother', phone: '', phoneAlt: '', email: '', address: '', isPrimary: false, priority: 1, notes: '' });
+                setEcDialogOpen(true);
+              }}
+            >
+              <Plus className="h-4 w-4 mr-1" />
+              {t('emergency.add')}
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {emergencyContacts.length === 0 ? (
+            <div className="text-center py-8">
+              <AlertCircle className="h-8 w-8 text-rose-400 dark:text-rose-500 mx-auto mb-2" />
+              <p className="text-gray-500 dark:text-gray-400">{t('emergency.no_contacts')}</p>
+            </div>
+          ) : (
+            <div className="space-y-3 max-h-96 overflow-y-auto scrollbar-education">
+              {emergencyContacts.map((ec, i) => {
+                const relLabel = t(`emergency.${ec.relationship}`) || ec.relationship;
+                return (
+                  <motion.div
+                    key={ec.id}
+                    initial={{ opacity: 0, y: 6 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: i * 0.04 }}
+                    className="p-4 rounded-xl bg-gradient-to-r from-rose-50/40 to-transparent dark:from-rose-900/10 dark:to-transparent border border-rose-200/30 dark:border-rose-900/20"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-sm font-semibold text-gray-900 dark:text-gray-100">{ec.name}</span>
+                          <Badge className="bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-300 text-xs">{relLabel}</Badge>
+                          {ec.isPrimary && (
+                            <Badge className="bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300 text-xs">
+                              <Star className="h-3 w-3 mr-1" />{t('emergency.primary')}
+                            </Badge>
+                          )}
+                          <Badge variant="outline" className="text-xs">{t('emergency.priority')}: {ec.priority}</Badge>
+                        </div>
+                        <div className="flex items-center gap-3 mt-2 flex-wrap">
+                          <span className="flex items-center gap-1.5 text-xs text-gray-600 dark:text-gray-400">
+                            <Phone className="h-3 w-3 text-rose-500" />
+                            {ec.phone}
+                          </span>
+                          {ec.phoneAlt && (
+                            <span className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400">
+                              <Phone className="h-3 w-3 text-gray-400" />
+                              {ec.phoneAlt}
+                            </span>
+                          )}
+                          {ec.email && (
+                            <span className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400">
+                              <Globe className="h-3 w-3" />
+                              {ec.email}
+                            </span>
+                          )}
+                        </div>
+                        {ec.address && (
+                          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 flex items-center gap-1">
+                            <MapPin className="h-3 w-3" />{ec.address}
+                          </p>
+                        )}
+                        {ec.notes && (
+                          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 italic">{ec.notes}</p>
+                        )}
+                      </div>
+                      <div className="flex gap-1 shrink-0">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="rounded-lg text-rose-600 hover:text-rose-700 min-h-[44px] min-w-[44px]"
+                          title={t('emergency.quick_call')}
+                          onClick={() => {
+                            toast.success(`${t('emergency.phone')}: ${ec.phone}`);
+                          }}
+                        >
+                          <PhoneCall className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="rounded-lg min-h-[44px] min-w-[44px]"
+                          onClick={() => {
+                            setEcEditId(ec.id);
+                            setEcForm({
+                              name: ec.name,
+                              relationship: ec.relationship,
+                              phone: ec.phone,
+                              phoneAlt: ec.phoneAlt ?? '',
+                              email: ec.email ?? '',
+                              address: ec.address ?? '',
+                              isPrimary: ec.isPrimary,
+                              priority: ec.priority,
+                              notes: ec.notes ?? '',
+                            });
+                            setEcDialogOpen(true);
+                          }}
+                        >
+                          <Pencil className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="rounded-lg text-red-500 hover:text-red-700 min-h-[44px] min-w-[44px]"
+                          onClick={async () => {
+                            try {
+                              await apiDelete(`/api/emergency-contacts/${ec.id}`);
+                              setEmergencyContacts((prev) => prev.filter((c) => c.id !== ec.id));
+                              toast.success(t('action.delete'));
+                            } catch { toast.error(t('error.generic')); }
+                          }}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    </div>
+                  </motion.div>
+                );
+              })}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
       {/* ─── Self-Assessment Dialog ───────────────────────────────── */}
       <Dialog open={saDialogOpen} onOpenChange={setSaDialogOpen}>
         <DialogContent className="sm:max-w-lg">
@@ -1889,6 +2284,250 @@ export default function StudentDetailView() {
               }}
             >
               {lgEditId ? t('action.save') : t('action.create')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ─── Peer Assessment Dialog ───────────────────────────────── */}
+      <Dialog open={paDialogOpen} onOpenChange={setPaDialogOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>{t('peer.create')}</DialogTitle>
+            <DialogDescription>{t('peer.title')}</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div>
+              <Label className="text-xs font-medium">{t('peer.assessment_type')}</Label>
+              <Select value={paForm.assessmentType} onValueChange={(v) => setPaForm((f) => ({ ...f, assessmentType: v }))}>
+                <SelectTrigger className="h-10 rounded-lg mt-1">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="competency">{t('peer.type_competency')}</SelectItem>
+                  <SelectItem value="project">{t('peer.type_project')}</SelectItem>
+                  <SelectItem value="presentation">{t('peer.type_presentation')}</SelectItem>
+                  <SelectItem value="teamwork">{t('peer.type_teamwork')}</SelectItem>
+                  <SelectItem value="behavior">{t('peer.type_behavior')}</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label className="text-xs font-medium">{t('peer.competency')}</Label>
+              <Select value={paForm.competencyId} onValueChange={(v) => setPaForm((f) => ({ ...f, competencyId: v }))}>
+                <SelectTrigger className="h-10 rounded-lg mt-1">
+                  <SelectValue placeholder={t('peer.competency')} />
+                </SelectTrigger>
+                <SelectContent>
+                  {data?.progressEntries.map((pe) => (
+                    <SelectItem key={pe.competencyId} value={pe.competencyId}>
+                      {pe.competency.code} — {pe.competency.title}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label className="text-xs font-medium">{t('peer.level')} ({paForm.level}/6)</Label>
+              <Slider
+                value={[paForm.level]}
+                onValueChange={([v]) => setPaForm((f) => ({ ...f, level: v }))}
+                min={1}
+                max={6}
+                step={1}
+                className="mt-2"
+              />
+              <div className="flex justify-between text-[10px] text-gray-400 mt-1">
+                <span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span>
+              </div>
+            </div>
+            <div>
+              <Label className="text-xs font-medium">{t('peer.comment')}</Label>
+              <Textarea
+                value={paForm.comment}
+                onChange={(e) => setPaForm((f) => ({ ...f, comment: e.target.value }))}
+                className="mt-1 rounded-lg"
+                rows={3}
+                placeholder={t('peer.comment')}
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={paForm.isAnonymous}
+                onChange={(e) => setPaForm((f) => ({ ...f, isAnonymous: e.target.checked }))}
+                className="rounded border-gray-300"
+              />
+              <Label className="text-xs font-medium">{t('peer.anonymous')}</Label>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" className="rounded-xl min-h-[44px]" onClick={() => setPaDialogOpen(false)}>{t('action.cancel')}</Button>
+            <Button
+              className="rounded-xl bg-purple-600 hover:bg-purple-700 text-white min-h-[44px]"
+              onClick={async () => {
+                if (!paForm.assessmentType) { toast.error(t('peer.assessment_type')); return; }
+                try {
+                  const payload = {
+                    schoolId: currentUser?.schoolId,
+                    assessorId: currentUser?.id,
+                    assessedId: currentStudentId,
+                    assessmentType: paForm.assessmentType,
+                    competencyId: paForm.competencyId || null,
+                    level: paForm.level,
+                    comment: paForm.comment || null,
+                    isAnonymous: paForm.isAnonymous,
+                  };
+                  const created = await apiPost<PeerAssessmentData>('/api/peer-assessments', payload);
+                  setPeerAssessments((prev) => [created, ...prev]);
+                  setPaDialogOpen(false);
+                  toast.success(t('action.create'));
+                } catch { toast.error(t('error.generic')); }
+              }}
+            >
+              {t('action.create')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ─── Emergency Contact Dialog ───────────────────────────────── */}
+      <Dialog open={ecDialogOpen} onOpenChange={setEcDialogOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>{ecEditId ? t('emergency.edit') : t('emergency.add')}</DialogTitle>
+            <DialogDescription>{t('emergency.title')}</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div>
+              <Label className="text-xs font-medium">{t('emergency.name')}</Label>
+              <Input
+                value={ecForm.name}
+                onChange={(e) => setEcForm((f) => ({ ...f, name: e.target.value }))}
+                className="mt-1 rounded-lg"
+                placeholder={t('emergency.name')}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label className="text-xs font-medium">{t('emergency.relationship')}</Label>
+                <Select value={ecForm.relationship} onValueChange={(v) => setEcForm((f) => ({ ...f, relationship: v }))}>
+                  <SelectTrigger className="h-10 rounded-lg mt-1">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="mother">{t('emergency.mother')}</SelectItem>
+                    <SelectItem value="father">{t('emergency.father')}</SelectItem>
+                    <SelectItem value="guardian">{t('emergency.guardian')}</SelectItem>
+                    <SelectItem value="grandparent">{t('emergency.grandparent')}</SelectItem>
+                    <SelectItem value="other">{t('emergency.other')}</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label className="text-xs font-medium">{t('emergency.priority')}</Label>
+                <Input
+                  type="number"
+                  min={1}
+                  max={10}
+                  value={ecForm.priority}
+                  onChange={(e) => setEcForm((f) => ({ ...f, priority: parseInt(e.target.value) || 1 }))}
+                  className="mt-1 rounded-lg"
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label className="text-xs font-medium">{t('emergency.phone')}</Label>
+                <Input
+                  value={ecForm.phone}
+                  onChange={(e) => setEcForm((f) => ({ ...f, phone: e.target.value }))}
+                  className="mt-1 rounded-lg"
+                  placeholder="+49 123 456789"
+                />
+              </div>
+              <div>
+                <Label className="text-xs font-medium">{t('emergency.phone_alt')}</Label>
+                <Input
+                  value={ecForm.phoneAlt}
+                  onChange={(e) => setEcForm((f) => ({ ...f, phoneAlt: e.target.value }))}
+                  className="mt-1 rounded-lg"
+                  placeholder="+49 987 654321"
+                />
+              </div>
+            </div>
+            <div>
+              <Label className="text-xs font-medium">{t('emergency.email')}</Label>
+              <Input
+                type="email"
+                value={ecForm.email}
+                onChange={(e) => setEcForm((f) => ({ ...f, email: e.target.value }))}
+                className="mt-1 rounded-lg"
+                placeholder="name@example.com"
+              />
+            </div>
+            <div>
+              <Label className="text-xs font-medium">{t('emergency.address')}</Label>
+              <Input
+                value={ecForm.address}
+                onChange={(e) => setEcForm((f) => ({ ...f, address: e.target.value }))}
+                className="mt-1 rounded-lg"
+                placeholder={t('emergency.address')}
+              />
+            </div>
+            <div>
+              <Label className="text-xs font-medium">{t('emergency.notes')}</Label>
+              <Textarea
+                value={ecForm.notes}
+                onChange={(e) => setEcForm((f) => ({ ...f, notes: e.target.value }))}
+                className="mt-1 rounded-lg"
+                rows={2}
+                placeholder={t('emergency.notes')}
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={ecForm.isPrimary}
+                onChange={(e) => setEcForm((f) => ({ ...f, isPrimary: e.target.checked }))}
+                className="rounded border-gray-300"
+              />
+              <Label className="text-xs font-medium">{t('emergency.primary')}</Label>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" className="rounded-xl min-h-[44px]" onClick={() => setEcDialogOpen(false)}>{t('action.cancel')}</Button>
+            <Button
+              className="rounded-xl bg-rose-600 hover:bg-rose-700 text-white min-h-[44px]"
+              onClick={async () => {
+                if (!ecForm.name || !ecForm.phone) { toast.error(t('emergency.name') + ' & ' + t('emergency.phone')); return; }
+                try {
+                  const payload = {
+                    schoolId: currentUser?.schoolId,
+                    studentId: currentStudentId,
+                    name: ecForm.name,
+                    relationship: ecForm.relationship,
+                    phone: ecForm.phone,
+                    phoneAlt: ecForm.phoneAlt || null,
+                    email: ecForm.email || null,
+                    address: ecForm.address || null,
+                    isPrimary: ecForm.isPrimary,
+                    priority: ecForm.priority,
+                    notes: ecForm.notes || null,
+                  };
+                  if (ecEditId) {
+                    const updated = await apiPut<EmergencyContactData>(`/api/emergency-contacts/${ecEditId}`, payload);
+                    setEmergencyContacts((prev) => prev.map((c) => c.id === ecEditId ? updated : c));
+                  } else {
+                    const created = await apiPost<EmergencyContactData>('/api/emergency-contacts', payload);
+                    setEmergencyContacts((prev) => [created, ...prev]);
+                  }
+                  setEcDialogOpen(false);
+                  toast.success(ecEditId ? t('action.save') : t('action.create'));
+                } catch { toast.error(t('error.generic')); }
+              }}
+            >
+              {ecEditId ? t('action.save') : t('action.create')}
             </Button>
           </DialogFooter>
         </DialogContent>

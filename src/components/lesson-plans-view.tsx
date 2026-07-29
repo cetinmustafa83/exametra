@@ -494,7 +494,7 @@ export default function LessonPlansView() {
       </div>
 
       {/* ── Filter bar ──────────────────────────────────────────────── */}
-      <Card className="border-emerald-100 dark:border-emerald-900/40">
+      <Card className="card-hover-lift border-emerald-100 dark:border-emerald-900/40">
         <CardContent className="p-4">
           <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-4">
             <div className="space-y-1.5">

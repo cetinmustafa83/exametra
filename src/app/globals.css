@@ -48,6 +48,12 @@
 
 :root {
   --radius: 0.75rem;
+  /* Brand CSS custom properties — applied dynamically via JS */
+  --brand-primary: #10b981;
+  --brand-secondary: #14b8a6;
+  --brand-accent: #059669;
+  --brand-font: "Inter", sans-serif;
+
   --background: oklch(0.99 0.002 155);
   --foreground: oklch(0.17 0.01 260);
   --card: oklch(1 0 0);
@@ -2099,5 +2105,214 @@
     font-variant-numeric: tabular-nums;
     font-weight: 600;
     color: oklch(0.55 0.17 25);
+  }
+
+  /* ─── Performance & Styling Polish Animations ────────── */
+
+  /* Card hover lift effect */
+  .card-hover-lift {
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+  }
+  .card-hover-lift:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px -5px oklch(0.55 0.17 155 / 0.15), 0 4px 10px -4px oklch(0.55 0.17 155 / 0.1);
+  }
+  .dark .card-hover-lift:hover {
+    box-shadow: 0 8px 25px -5px oklch(0.3 0.05 155 / 0.3), 0 4px 10px -4px oklch(0.3 0.05 155 / 0.2);
+  }
+
+  /* Gradient line separator */
+  .gradient-separator {
+    height: 1px;
+    background: linear-gradient(to right, transparent, oklch(0.55 0.17 155 / 0.3), oklch(0.55 0.17 155 / 0.5), oklch(0.55 0.17 155 / 0.3), transparent);
+  }
+  .dark .gradient-separator {
+    background: linear-gradient(to right, transparent, oklch(0.55 0.17 155 / 0.2), oklch(0.55 0.17 155 / 0.4), oklch(0.55 0.17 155 / 0.2), transparent);
+  }
+
+  /* Badge glow animations */
+  @keyframes badge-glow-emerald {
+    0%, 100% { box-shadow: 0 0 0 0 oklch(0.55 0.17 155 / 0.3); }
+    50% { box-shadow: 0 0 8px 2px oklch(0.55 0.17 155 / 0.2); }
+  }
+  @keyframes badge-glow-amber {
+    0%, 100% { box-shadow: 0 0 0 0 oklch(0.75 0.15 85 / 0.3); }
+    50% { box-shadow: 0 0 8px 2px oklch(0.75 0.15 85 / 0.2); }
+  }
+  @keyframes badge-glow-rose {
+    0%, 100% { box-shadow: 0 0 0 0 oklch(0.55 0.2 15 / 0.3); }
+    50% { box-shadow: 0 0 8px 2px oklch(0.55 0.2 15 / 0.2); }
+  }
+
+  .badge-glow-emerald {
+    animation: badge-glow-emerald 2s ease-in-out infinite;
+  }
+  .badge-glow-amber {
+    animation: badge-glow-amber 2s ease-in-out infinite;
+  }
+  .badge-glow-rose {
+    animation: badge-glow-rose 2s ease-in-out infinite;
+  }
+
+  /* Staggered entrance animation */
+  @keyframes stagger-entrance {
+    from {
+      opacity: 0;
+      transform: translateY(16px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  .stagger-entrance {
+    animation: stagger-entrance 0.4s ease-out forwards;
+    opacity: 0;
+  }
+  .stagger-entrance:nth-child(1) { animation-delay: 0ms; }
+  .stagger-entrance:nth-child(2) { animation-delay: 60ms; }
+  .stagger-entrance:nth-child(3) { animation-delay: 120ms; }
+  .stagger-entrance:nth-child(4) { animation-delay: 180ms; }
+  .stagger-entrance:nth-child(5) { animation-delay: 240ms; }
+  .stagger-entrance:nth-child(6) { animation-delay: 300ms; }
+  .stagger-entrance:nth-child(7) { animation-delay: 360ms; }
+  .stagger-entrance:nth-child(8) { animation-delay: 420ms; }
+
+  /* Celebration confetti burst */
+  @keyframes confetti-burst {
+    0% { transform: scale(0); opacity: 1; }
+    50% { transform: scale(1.2); opacity: 0.8; }
+    100% { transform: scale(0); opacity: 0; }
+  }
+
+  /* Success animation for save actions */
+  @keyframes success-bounce {
+    0% { transform: scale(0.8); opacity: 0; }
+    50% { transform: scale(1.1); }
+    100% { transform: scale(1); opacity: 1; }
+  }
+  .success-bounce {
+    animation: success-bounce 0.4s ease-out;
+  }
+
+  /* Animated pill filter */
+  @keyframes pill-highlight {
+    from {
+      background-position: left center;
+    }
+    to {
+      background-position: right center;
+    }
+  }
+
+  /* Onboarding tour animated highlight */
+  @keyframes tour-highlight-ring {
+    0% { transform: scale(0.95); opacity: 0.8; }
+    50% { transform: scale(1.05); opacity: 1; }
+    100% { transform: scale(0.95); opacity: 0.8; }
+  }
+  .tour-highlight-ring {
+    animation: tour-highlight-ring 1.5s ease-in-out infinite;
+  }
+
+  /* Smooth theme transition */
+  .theme-transition * {
+    transition: background-color 0.3s ease, color 0.15s ease, border-color 0.3s ease;
+  }
+
+  /* Custom scrollbar styling for lists */
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: oklch(0.55 0.17 155 / 0.2);
+    border-radius: 3px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: oklch(0.55 0.17 155 / 0.4);
+  }
+  .dark .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: oklch(0.55 0.17 155 / 0.15);
+  }
+  .dark .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: oklch(0.55 0.17 155 / 0.3);
+  }
+
+  /* Attendance grid colored cells */
+  .attendance-present {
+    background: linear-gradient(135deg, oklch(0.6 0.17 155 / 0.15), oklch(0.6 0.17 155 / 0.08));
+    border-left: 3px solid oklch(0.55 0.17 155);
+  }
+  .dark .attendance-present {
+    background: linear-gradient(135deg, oklch(0.55 0.17 155 / 0.2), oklch(0.55 0.17 155 / 0.08));
+  }
+  .attendance-absent {
+    background: linear-gradient(135deg, oklch(0.55 0.2 15 / 0.15), oklch(0.55 0.2 15 / 0.08));
+    border-left: 3px solid oklch(0.55 0.2 15);
+  }
+  .dark .attendance-absent {
+    background: linear-gradient(135deg, oklch(0.55 0.2 15 / 0.2), oklch(0.55 0.2 15 / 0.08));
+  }
+  .attendance-excused {
+    background: linear-gradient(135deg, oklch(0.75 0.15 85 / 0.15), oklch(0.75 0.15 85 / 0.08));
+    border-left: 3px solid oklch(0.75 0.15 85);
+  }
+  .dark .attendance-excused {
+    background: linear-gradient(135deg, oklch(0.75 0.15 85 / 0.2), oklch(0.75 0.15 85 / 0.08));
+  }
+  .attendance-late {
+    background: linear-gradient(135deg, oklch(0.55 0.1 185 / 0.15), oklch(0.55 0.1 185 / 0.08));
+    border-left: 3px solid oklch(0.55 0.1 185);
+  }
+  .dark .attendance-late {
+    background: linear-gradient(135deg, oklch(0.55 0.1 185 / 0.2), oklch(0.55 0.1 185 / 0.08));
+  }
+
+  /* Grade color coding */
+  .grade-excellent {
+    background: linear-gradient(135deg, oklch(0.6 0.17 155 / 0.9), oklch(0.5 0.15 165 / 0.9));
+    color: white;
+  }
+  .grade-good {
+    background: linear-gradient(135deg, oklch(0.65 0.13 155 / 0.85), oklch(0.55 0.12 165 / 0.85));
+    color: white;
+  }
+  .grade-satisfactory {
+    background: linear-gradient(135deg, oklch(0.75 0.15 85 / 0.8), oklch(0.65 0.13 75 / 0.8));
+    color: white;
+  }
+  .grade-sufficient {
+    background: linear-gradient(135deg, oklch(0.75 0.12 55 / 0.8), oklch(0.65 0.1 45 / 0.8));
+    color: white;
+  }
+  .grade-poor {
+    background: linear-gradient(135deg, oklch(0.6 0.18 25 / 0.85), oklch(0.55 0.16 15 / 0.85));
+    color: white;
+  }
+  .grade-failing {
+    background: linear-gradient(135deg, oklch(0.55 0.2 15 / 0.9), oklch(0.5 0.18 25 / 0.9));
+    color: white;
+  }
+
+  /* Glass effect for cards */
+  .glass-card {
+    background: rgba(255, 255, 255, 0.6);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+  }
+  .dark .glass-card {
+    background: rgba(0, 0, 0, 0.4);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+  }
+
+  /* Min touch target size (44px) */
+  .min-touch {
+    min-height: 44px;
+    min-width: 44px;
   }
 }

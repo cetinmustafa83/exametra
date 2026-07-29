@@ -287,7 +287,7 @@ function MonthlyHeatmap({ sessions }: { sessions: AttendanceSession[] }) {
   }
 
   return (
-    <Card className="border-0 shadow-lg rounded-xl bg-gradient-to-br from-white to-emerald-50/30 dark:from-gray-900 dark:to-emerald-950/20 overflow-hidden">
+    <Card className="card-hover-lift border-0 shadow-lg rounded-xl bg-gradient-to-br from-white to-emerald-50/30 dark:from-gray-900 dark:to-emerald-950/20 overflow-hidden">
       <CardHeader className="pb-2 bg-gradient-to-r from-emerald-50/50 to-teal-50/30 dark:from-emerald-900/10 dark:to-teal-900/5">
         <CardTitle className="text-lg flex items-center gap-2">
           <CalendarCheck className="h-5 w-5 text-emerald-500" />
@@ -429,7 +429,7 @@ function StatsCards({ sessions }: { sessions: AttendanceSession[] }) {
           transition={{ duration: 0.3, delay: idx * 0.06 }}
           whileHover={{ y: -2 }}
         >
-          <Card className={`border-2 ${card.border} shadow-md hover:shadow-lg transition-shadow rounded-xl overflow-hidden`}>
+          <Card className={`card-hover-lift border-2 ${card.border} shadow-md hover:shadow-lg transition-shadow rounded-xl overflow-hidden`}>
             <CardContent className="p-4">
               <div className="flex items-center gap-2 mb-2">
                 <card.icon className="w-4 h-4" />

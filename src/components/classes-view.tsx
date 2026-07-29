@@ -608,7 +608,7 @@ export default function ClassesView() {
                   whileTap={{ scale: 0.98 }}
                   transition={{ duration: 0.2 }}
                   onClick={() => handleSelectClass(cls)}
-                  className={`w-full text-left rounded-xl transition-all duration-200 border-l-3 ${schoolTypeAccent[cls.schoolType] ?? 'border-l-emerald-500'} bg-gradient-to-r ${schoolTypeGradient[cls.schoolType] ?? schoolTypeGradient.OTHER} hover:shadow-xl hover:shadow-emerald-500/8 lift-on-hover ${
+                  className={`w-full text-left rounded-xl transition-all duration-200 border-l-3 ${schoolTypeAccent[cls.schoolType] ?? 'border-l-emerald-500'} bg-gradient-to-r ${schoolTypeGradient[cls.schoolType] ?? schoolTypeGradient.OTHER} hover:shadow-xl hover:shadow-emerald-500/8 card-hover-lift ${
                     selectedClass?.id === cls.id
                       ? 'shadow-lg ring-2 ring-emerald-300/60 dark:ring-emerald-700/50'
                       : 'hover:shadow-lg hover:shadow-emerald-200/30 dark:hover:shadow-emerald-900/20'

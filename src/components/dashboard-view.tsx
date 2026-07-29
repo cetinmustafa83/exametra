@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Users,
@@ -53,6 +53,12 @@ import {
   Pin,
   X,
   Send,
+  MapPin,
+  Trophy,
+  Users as UsersIcon,
+  Music,
+  Flag,
+  Tent,
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -89,7 +95,7 @@ import {
 import { useAppStore, type ViewName, type CurrentUser } from '@/lib/store';
 import { t } from '@/lib/i18n';
 import { fetchDashboard, type DashboardData, getStoredNotifications, type AppNotification, addNotification, markNotificationsRead, fetchParentLinks, type ParentStudentLinkData, fetchStudents } from '@/lib/api';
-import { apiGet, apiPost } from '@/lib/api';
+import { apiGet, apiPost, apiPut } from '@/lib/api';
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -100,6 +106,37 @@ const itemVariants = {
   hidden: { opacity: 0, y: 12 },
   visible: { opacity: 1, y: 0 },
 };
+
+// ─── CountUp Animation Component ────────────────────────────────────
+function CountUp({ target, duration = 800 }: { target: number; duration?: number }) {
+  const [count, setCount] = useState(0);
+  const prevTarget = useRef(0);
+
+  useEffect(() => {
+    if (target === prevTarget.current) return;
+    const start = prevTarget.current;
+    const diff = target - start;
+    if (diff === 0) { setCount(target); return; }
+    const startTime = performance.now();
+    let rafId: number;
+    function step(now: number) {
+      const elapsed = now - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+      // Ease out cubic
+      const eased = 1 - Math.pow(1 - progress, 3);
+      setCount(Math.round(start + diff * eased));
+      if (progress < 1) {
+        rafId = requestAnimationFrame(step);
+      } else {
+        prevTarget.current = target;
+      }
+    }
+    rafId = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(rafId);
+  }, [target, duration]);
+
+  return <>{count}</>;
+}
 
 const statCardColors: Record<string, { bg: string; gradient: string; iconBg: string; iconText: string; borderAccent: string; glowColor: string; hoverShadow: string }> = {
   emerald: {
@@ -1000,7 +1037,7 @@ export default function DashboardView() {
               <TooltipProvider delayDuration={200}>
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <Card className={`border-0 shadow-sm rounded-xl border-l-3 ${colors.borderAccent} overflow-hidden transition-all duration-300 ${colors.hoverShadow} ${colors.glowColor} cursor-default ring-1 ring-black/[0.03] dark:ring-white/[0.05] hover:ring-emerald-200/40 dark:hover:ring-emerald-700/30`}>
+                    <Card className={`card-hover-lift border-0 shadow-sm rounded-xl border-l-3 ${colors.borderAccent} overflow-hidden transition-all duration-300 ${colors.hoverShadow} ${colors.glowColor} cursor-default ring-1 ring-black/[0.03] dark:ring-white/[0.05] hover:ring-emerald-200/40 dark:hover:ring-emerald-700/30`}>
                       <CardContent className={`p-5 ${colors.bg}`}>
                         <div className="flex items-start justify-between gap-2">
                           <p className="text-[10px] font-semibold text-gray-500 dark:text-gray-400 leading-tight line-clamp-2 min-h-[28px] break-words min-w-0">
@@ -1011,7 +1048,7 @@ export default function DashboardView() {
                           </div>
                         </div>
                         <div className="mt-2 flex items-baseline gap-1.5">
-                          <p className="text-3xl font-bold text-gray-900 dark:text-gray-100 leading-none">{stat.value}</p>
+                          <p className="text-3xl font-bold text-gray-900 dark:text-gray-100 leading-none"><CountUp target={stat.value} /></p>
                           {stat.value > 0 && stat.trend === 'up' && (
                             <div className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md bg-emerald-100/80 dark:bg-emerald-900/30">
                               <ArrowUpRight className="h-3 w-3 text-emerald-600 dark:text-emerald-400" />
@@ -1762,6 +1799,9 @@ export default function DashboardView() {
         <DashboardHomeworkCard currentUser={currentUser} locale={locale} />
       </div>
 
+      {/* ===== UPCOMING SCHOOL EVENTS ===== */}
+      <DashboardSchoolEventsCard currentUser={currentUser} locale={locale} />
+
       {/* ===== PAPER SAVED & ENVIRONMENTAL SECTION ===== */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Paper Saved Counter */}
@@ -2192,6 +2232,173 @@ function DashboardHomeworkCard({ currentUser, locale }: { currentUser: CurrentUs
                       <Clock className="h-3 w-3 mr-1" />
                       {getDueDateLabel(hw.dueDate)}
                     </Badge>
+                  </motion.div>
+                );
+              })}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </motion.div>
+  );
+}
+
+// ─── School Event Types ──────────────────────────────────────────────
+interface SchoolEventData {
+  id: string;
+  schoolId: string;
+  title: string;
+  description: string | null;
+  eventType: string;
+  startDate: string;
+  endDate: string | null;
+  location: string | null;
+  organizerId: string | null;
+  classGroupId: string | null;
+  isAllSchool: boolean;
+  isPublic: boolean;
+  requiresRegistration: boolean;
+  maxParticipants: number | null;
+  notes: string | null;
+  isDemo: boolean;
+  createdAt: string;
+  updatedAt: string;
+  deletedAt: string | null;
+  organizer: { id: string; firstName: string; lastName: string } | null;
+  classGroup: { id: string; name: string } | null;
+  registrations: { id: string; userId: string; status: string; user: { id: string; firstName: string; lastName: string } }[];
+}
+
+const eventTypeIcon: Record<string, React.ElementType> = {
+  assembly: UsersIcon,
+  field_trip: MapPin,
+  sports_day: Trophy,
+  concert: Music,
+  fair: Tent,
+  parent_meeting: UsersIcon,
+  graduation: GraduationCap,
+  holiday: CalendarDays,
+};
+
+const eventTypeColor: Record<string, string> = {
+  assembly: 'bg-teal-100 dark:bg-teal-900/30 text-teal-600 dark:text-teal-400',
+  field_trip: 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400',
+  sports_day: 'bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400',
+  concert: 'bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400',
+  fair: 'bg-rose-100 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400',
+  parent_meeting: 'bg-cyan-100 dark:bg-cyan-900/30 text-cyan-600 dark:text-cyan-400',
+  graduation: 'bg-violet-100 dark:bg-violet-900/30 text-violet-600 dark:text-violet-400',
+  holiday: 'bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400',
+};
+
+function DashboardSchoolEventsCard({ currentUser, locale }: { currentUser: CurrentUser | null; locale: string }) {
+  const setCurrentView = useAppStore((s) => s.setCurrentView);
+  const [events, setEvents] = useState<SchoolEventData[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!currentUser?.schoolId) return;
+    setLoading(true);
+    apiGet<SchoolEventData[]>(`/api/school-events?schoolId=${currentUser.schoolId}&upcoming=true`)
+      .then((data) => {
+        setEvents(data.slice(0, 6));
+        setLoading(false);
+      })
+      .catch(() => setLoading(false));
+  }, [currentUser?.schoolId]);
+
+  const formatDate = (dateStr: string) => {
+    const d = new Date(dateStr);
+    return d.toLocaleDateString(locale === 'de' ? 'de-DE' : 'en-US', { month: 'short', day: 'numeric' });
+  };
+
+  return (
+    <motion.div variants={itemVariants}>
+      <Card className="border-0 shadow-sm rounded-xl border-l-3 border-l-teal-500 overflow-hidden transition-shadow duration-200 hover:shadow-md ring-1 ring-black/[0.03] dark:ring-white/[0.05]">
+        <CardHeader className="pb-3 pt-6 bg-gradient-to-r from-teal-50/50 to-transparent dark:from-teal-900/10 dark:to-transparent">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-lg flex items-center gap-2">
+              <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-teal-100 dark:bg-teal-900/30 text-teal-600 dark:text-teal-400">
+                <CalendarDays className="h-4 w-4" />
+              </div>
+              {t('events.upcoming')}
+            </CardTitle>
+            <Button
+              size="sm"
+              variant="outline"
+              className="min-h-[44px] text-teal-600 dark:text-teal-400 border-teal-200/50 dark:border-teal-900/30 hover:bg-teal-50 dark:hover:bg-teal-900/20"
+              onClick={() => setCurrentView('calendar')}
+            >
+              {t('events.view_all')} <ArrowUpRight className="h-3 w-3 ml-1" />
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {loading ? (
+            <div className="space-y-3">
+              {[1, 2, 3].map((i) => <Skeleton key={i} className="h-16 w-full" />)}
+            </div>
+          ) : events.length === 0 ? (
+            <div className="text-center py-8">
+              <div className="flex items-center justify-center w-16 h-16 rounded-2xl bg-teal-100 dark:bg-teal-900/20 mx-auto mb-4">
+                <CalendarDays className="h-8 w-8 text-teal-400 dark:text-teal-500" />
+              </div>
+              <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">{t('events.no_events')}</p>
+            </div>
+          ) : (
+            <div className="space-y-2 max-h-96 overflow-y-auto scrollbar-education pr-1">
+              {events.map((event) => {
+                const Icon = eventTypeIcon[event.eventType] ?? CalendarDays;
+                const iconColor = eventTypeColor[event.eventType] ?? 'bg-teal-100 dark:bg-teal-900/30 text-teal-600 dark:text-teal-400';
+                const isRegistered = event.registrations.some((r) => r.userId === currentUser?.id && r.status === 'registered');
+                return (
+                  <motion.div
+                    key={event.id}
+                    whileHover={{ scale: 1.01, x: 2 }}
+                    transition={{ duration: 0.15 }}
+                    className="flex items-center justify-between p-3 rounded-xl bg-gray-50/50 dark:bg-gray-800/30 border border-gray-100/60 dark:border-gray-800/40 hover:border-teal-200/60 dark:hover:border-teal-800/30 transition-colors"
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className={`flex items-center justify-center w-9 h-9 rounded-lg ${iconColor} shrink-0`}>
+                        <Icon className="h-4 w-4" />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold text-gray-900 dark:text-gray-100 truncate">{event.title}</p>
+                        <div className="flex items-center gap-2 text-[11px] text-gray-500 dark:text-gray-400">
+                          <span>{formatDate(event.startDate)}</span>
+                          {event.location && (
+                            <span className="flex items-center gap-0.5"><MapPin className="h-3 w-3" />{event.location}</span>
+                          )}
+                          {event.isAllSchool && (
+                            <Badge className="bg-teal-50 text-teal-700 dark:bg-teal-900/20 dark:text-teal-300 text-[9px] px-1 py-0">{t('events.all_school')}</Badge>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      {event.requiresRegistration && (
+                        isRegistered ? (
+                          <Badge className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300 text-xs">
+                            {t('events.registered')}
+                          </Badge>
+                        ) : (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="min-h-[36px] text-xs rounded-lg border-teal-300 dark:border-teal-700 text-teal-700 dark:text-teal-300 hover:bg-teal-50 dark:hover:bg-teal-900/20"
+                            onClick={async () => {
+                              try {
+                                await apiPost(`/api/school-events/${event.id}/register`, { userId: currentUser?.id });
+                                setEvents((prev) => prev.map((e) => e.id === event.id ? { ...e, registrations: [...e.registrations, { id: 'new', userId: currentUser?.id ?? '', status: 'registered', user: { id: currentUser?.id ?? '', firstName: currentUser?.firstName ?? '', lastName: currentUser?.lastName ?? '' } }] } : e));
+                                toast.success(t('events.register'));
+                              } catch { toast.error(t('error.generic')); }
+                            }}
+                          >
+                            {t('events.register')}
+                          </Button>
+                        )
+                      )}
+                    </div>
                   </motion.div>
                 );
               })}
