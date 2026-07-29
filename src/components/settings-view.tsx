@@ -4199,8 +4199,6 @@ export default function SettingsView() {
               </CardContent>
             </Card>
           </TabsContent>
-        </Tabs>
-      </motion.div>
 
       {/* ── Backup Restore Confirmation ──────────────────────────── */}
       <AlertDialog open={!!restoreBackupId} onOpenChange={(open) => { if (!open) setRestoreBackupId(null); }}>
@@ -5185,6 +5183,8 @@ export default function SettingsView() {
       <TabsContent value="privacy">
         <PrivacyTab currentUser={currentUser} />
       </TabsContent>
+      </Tabs>
+    </motion.div>
     </motion.div>
   );
 }

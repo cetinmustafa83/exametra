@@ -14,6 +14,8 @@ import {
   Clock,
   ChevronDown,
   ChevronUp,
+  ChevronLeft,
+  ChevronRight,
   X,
   Check,
   AlertTriangle,
@@ -27,6 +29,16 @@ import {
   Star,
   ArrowRight,
   MoreHorizontal,
+  CalendarDays,
+  List,
+  LayoutGrid,
+  RefreshCw,
+  AlertCircle,
+  CheckCircle2,
+  Circle,
+  XCircle,
+  Trophy,
+  User,
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -142,6 +154,36 @@ function getDueDateColor(status: 'overdue' | 'today' | 'upcoming'): string {
   }
 }
 
+function getStatusBadge(status: string): string {
+  switch (status) {
+    case 'pending': return 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300';
+    case 'submitted': return 'bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300';
+    case 'graded': return 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300';
+    case 'late': return 'bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300';
+    default: return 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300';
+  }
+}
+
+function getStatusLabel(status: string): string {
+  switch (status) {
+    case 'pending': return t('homework.status_pending');
+    case 'submitted': return t('homework.status_submitted');
+    case 'graded': return t('homework.status_graded');
+    case 'late': return t('homework.status_late');
+    default: return status;
+  }
+}
+
+function getStatusIcon(status: string) {
+  switch (status) {
+    case 'pending': return Circle;
+    case 'submitted': return CheckCircle2;
+    case 'graded': return Trophy;
+    case 'late': return XCircle;
+    default: return Circle;
+  }
+}
+
 function getHomeworkTypeIcon(type: string) {
   switch (type) {
     case 'assignment': return FileText;
@@ -154,43 +196,226 @@ function getHomeworkTypeIcon(type: string) {
 }
 
 function getHomeworkTypeLabel(type: string): string {
-  const key = `homework.type_${type}`;
-  const label = t(key);
-  return label === key ? type : label;
+  switch (type) {
+    case 'assignment': return t('homework.type_assignment');
+    case 'reading': return t('homework.type_reading');
+    case 'project': return t('homework.type_project');
+    case 'practice': return t('homework.type_practice');
+    case 'research': return t('homework.type_research');
+    default: return type;
+  }
 }
 
-function getStatusBadge(status: string) {
-  const colors: Record<string, string> = {
-    pending: 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300',
-    submitted: 'bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300',
-    graded: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300',
-    late: 'bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300',
+function getHomeworkTypeColor(type: string): string {
+  switch (type) {
+    case 'assignment': return 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300';
+    case 'reading': return 'bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300';
+    case 'project': return 'bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300';
+    case 'practice': return 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300';
+    case 'research': return 'bg-teal-100 text-teal-700 dark:bg-teal-900/40 dark:text-teal-300';
+    default: return 'bg-gray-100 text-gray-700 dark:bg-gray-900/40 dark:text-gray-300';
+  }
+}
+
+// ── Calendar Helpers ────────────────────────────────────────────────
+function getCalendarDays(year: number, month: number): (number | null)[] {
+  const firstDay = new Date(year, month, 1).getDay();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const startOffset = firstDay === 0 ? 6 : firstDay - 1; // Mon-based
+  const days: (number | null)[] = [];
+  for (let i = 0; i < startOffset; i++) days.push(null);
+  for (let d = 1; d <= daysInMonth; d++) days.push(d);
+  return days;
+}
+
+const MONTH_NAMES_DE = ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'];
+const MONTH_NAMES_EN = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+
+function getMonthName(month: number, locale: string): string {
+  return locale === 'de' ? MONTH_NAMES_DE[month] : MONTH_NAMES_EN[month];
+}
+
+// ── Loading Skeleton ────────────────────────────────────────────────
+function HomeworkSkeleton() {
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      {[1, 2, 3, 4, 5, 6].map((i) => (
+        <Card key={i}>
+          <CardContent className="p-4 space-y-3">
+            <Skeleton className="h-5 w-3/4" />
+            <Skeleton className="h-4 w-1/2" />
+            <Skeleton className="h-4 w-1/3" />
+          </CardContent>
+        </Card>
+      ))}
+    </div>
+  );
+}
+
+function CalendarSkeleton() {
+  return (
+    <Card>
+      <CardContent className="p-4">
+        <div className="grid grid-cols-7 gap-1">
+          {[...Array(35)].map((_, i) => (
+            <Skeleton key={i} className="h-16 rounded-md" />
+          ))}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+// ── Calendar View Component ─────────────────────────────────────────
+function HomeworkCalendarView({
+  homeworks,
+  onHomeworkClick,
+  locale,
+}: {
+  homeworks: HomeworkItem[];
+  onHomeworkClick: (hw: HomeworkItem) => void;
+  locale: string;
+}) {
+  const now = new Date();
+  const [currentYear, setCurrentYear] = useState(now.getFullYear());
+  const [currentMonth, setCurrentMonth] = useState(now.getMonth());
+
+  const calendarDays = useMemo(() => getCalendarDays(currentYear, currentMonth), [currentYear, currentMonth]);
+
+  // Map homework to dates
+  const homeworkByDate = useMemo(() => {
+    const map: Record<string, HomeworkItem[]> = {};
+    for (const hw of homeworks) {
+      const due = new Date(hw.dueDate);
+      const key = `${due.getFullYear()}-${due.getMonth()}-${due.getDate()}`;
+      if (!map[key]) map[key] = [];
+      map[key].push(hw);
+    }
+    return map;
+  }, [homeworks]);
+
+  const prevMonth = () => {
+    if (currentMonth === 0) { setCurrentMonth(11); setCurrentYear(currentYear - 1); }
+    else setCurrentMonth(currentMonth - 1);
   };
-  return colors[status] || colors.pending;
+
+  const nextMonth = () => {
+    if (currentMonth === 11) { setCurrentMonth(0); setCurrentYear(currentYear + 1); }
+    else setCurrentMonth(currentMonth + 1);
+  };
+
+  const goToToday = () => {
+    setCurrentYear(now.getFullYear());
+    setCurrentMonth(now.getMonth());
+  };
+
+  const isToday = (day: number) => {
+    return day === now.getDate() && currentMonth === now.getMonth() && currentYear === now.getFullYear();
+  };
+
+  return (
+    <Card>
+      <CardHeader className="p-4 pb-2">
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-base flex items-center gap-2">
+            <CalendarDays className="h-5 w-5 text-primary" />
+            {getMonthName(currentMonth, locale)} {currentYear}
+          </CardTitle>
+          <div className="flex items-center gap-1">
+            <Button variant="ghost" size="icon" className="h-8 w-8 min-h-[44px] min-w-[44px]" onClick={goToToday}>
+              <CalendarDays className="h-4 w-4" />
+            </Button>
+            <Button variant="ghost" size="icon" className="h-8 w-8 min-h-[44px] min-w-[44px]" onClick={prevMonth}>
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <Button variant="ghost" size="icon" className="h-8 w-8 min-h-[44px] min-w-[44px]" onClick={nextMonth}>
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent className="p-4 pt-0">
+        {/* Day headers */}
+        <div className="grid grid-cols-7 gap-1 mb-1">
+          {[t('timetable.mon_short'), t('timetable.tue_short'), t('timetable.wed_short'), t('timetable.thu_short'), t('timetable.fri_short'), t('homework.sat_short'), t('homework.sun_short')].map((day) => (
+            <div key={day} className="text-center text-xs font-medium text-muted-foreground py-1">
+              {day}
+            </div>
+          ))}
+        </div>
+        {/* Calendar grid */}
+        <div className="grid grid-cols-7 gap-1">
+          {calendarDays.map((day, i) => {
+            if (day === null) {
+              return <div key={`empty-${i}`} className="h-16 rounded-md" />;
+            }
+            const key = `${currentYear}-${currentMonth}-${day}`;
+            const dayHomeworks = homeworkByDate[key] ?? [];
+            const today = isToday(day);
+
+            return (
+              <div
+                key={`${currentYear}-${currentMonth}-${day}`}
+                className={`h-16 rounded-md p-1 text-xs border transition-colors ${
+                  today
+                    ? 'bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-800'
+                    : 'border-gray-200 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-900/30'
+                }`}
+              >
+                <div className={`font-medium ${today ? 'text-emerald-600 dark:text-emerald-400' : ''}`}>
+                  {day}
+                </div>
+                <div className="space-y-0.5 mt-0.5 overflow-hidden max-h-[32px]">
+                  {dayHomeworks.slice(0, 2).map((hw) => {
+                    const dueStatus = getDueDateStatus(hw.dueDate);
+                    return (
+                      <button
+                        key={hw.id}
+                        className={`w-full text-left px-1 py-0.5 rounded text-[10px] font-medium truncate cursor-pointer ${
+                          dueStatus === 'overdue'
+                            ? 'bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300'
+                            : dueStatus === 'today'
+                            ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300'
+                            : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300'
+                        }`}
+                        onClick={() => onHomeworkClick(hw)}
+                        title={hw.title}
+                      >
+                        {hw.title}
+                      </button>
+                    );
+                  })}
+                  {dayHomeworks.length > 2 && (
+                    <div className="text-[10px] text-muted-foreground pl-1">+{dayHomeworks.length - 2}</div>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </CardContent>
+    </Card>
+  );
 }
 
-function getStatusLabel(status: string): string {
-  const key = `homework.status_${status}`;
-  const label = t(key);
-  return label === key ? status : label;
-}
-
-/* ── Main Component ────────────────────────────────────────────── */
+/* ── Main Component ─────────────────────────────────────────────── */
 
 export default function HomeworkView() {
   const currentUser = useAppStore((s) => s.currentUser);
-  const currentClassId = useAppStore((s) => s.currentClassId);
   const locale = useAppStore((s) => s.locale);
+  const currentClassId = useAppStore((s) => s.currentClassId);
 
   const [homeworks, setHomeworks] = useState<HomeworkItem[]>([]);
   const [classes, setClasses] = useState<ClassGroupSimple[]>([]);
   const [subjects, setSubjects] = useState<SubjectSimple[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const [filterClass, setFilterClass] = useState<string>('all');
-  const [filterSubject, setFilterSubject] = useState<string>('all');
-  const [filterType, setFilterType] = useState<string>('all');
-  const [filterStatus, setFilterStatus] = useState<string>('all');
+  const [filterClass, setFilterClass] = useState('all');
+  const [filterSubject, setFilterSubject] = useState('all');
+  const [filterType, setFilterType] = useState('all');
+  const [filterStatus, setFilterStatus] = useState('all');
+  const [viewMode, setViewMode] = useState<'grid' | 'list' | 'calendar'>('grid');
 
   // Create dialog
   const [createOpen, setCreateOpen] = useState(false);
@@ -247,6 +472,7 @@ export default function HomeworkView() {
   const loadHomework = useCallback(() => {
     if (!currentUser?.schoolId) return;
     setLoading(true);
+    setError(null);
     const params = new URLSearchParams({ schoolId: currentUser.schoolId });
     if (filterClass !== 'all') params.set('classGroupId', filterClass);
     if (filterSubject !== 'all') params.set('subjectId', filterSubject);
@@ -257,7 +483,10 @@ export default function HomeworkView() {
         setHomeworks(data);
         setLoading(false);
       })
-      .catch(() => setLoading(false));
+      .catch((err) => {
+        setError(err instanceof Error ? err.message : t('homework.load_error'));
+        setLoading(false);
+      });
   }, [currentUser?.schoolId, filterClass, filterSubject, filterType, isStudent]);
 
   useEffect(() => {
@@ -454,114 +683,147 @@ export default function HomeworkView() {
         <div>
           <h1 className="text-2xl font-bold flex items-center gap-2">
             <BookCheck className="h-7 w-7 text-primary" />
-            {t('homework.title')}
+            {isStudent ? t('homework.my_homework') : t('homework.title')}
           </h1>
           <p className="text-muted-foreground mt-1">{t('homework.subtitle')}</p>
         </div>
-        {isTeacherOrAdmin && (
-          <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-            <DialogTrigger asChild>
-              <Button className="min-h-[44px]">
-                <Plus className="h-4 w-4 mr-2" />
-                {t('homework.create')}
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
-              <DialogHeader>
-                <DialogTitle>{t('homework.create_title')}</DialogTitle>
-                <DialogDescription>{t('homework.create_description')}</DialogDescription>
-              </DialogHeader>
-              <div className="space-y-4 py-4">
-                <div className="space-y-2">
-                  <Label>{t('homework.field_title')}</Label>
-                  <Input
-                    value={createForm.title}
-                    onChange={(e) => setCreateForm({ ...createForm, title: e.target.value })}
-                    placeholder={t('homework.field_title_placeholder')}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>{t('homework.field_class')}</Label>
-                  <Select value={createForm.classGroupId} onValueChange={(v) => setCreateForm({ ...createForm, classGroupId: v })}>
-                    <SelectTrigger className="min-h-[44px]"><SelectValue placeholder={t('homework.field_class_placeholder')} /></SelectTrigger>
-                    <SelectContent>
-                      {classes.map((c) => (
-                        <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label>{t('homework.field_subject')}</Label>
-                  <Select value={createForm.subjectId || 'none'} onValueChange={(v) => setCreateForm({ ...createForm, subjectId: v === 'none' ? '' : v })}>
-                    <SelectTrigger className="min-h-[44px]"><SelectValue placeholder={t('homework.field_subject_placeholder')} /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">{t('homework.no_subject')}</SelectItem>
-                      {subjects.map((s) => (
-                        <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label>{t('homework.field_type')}</Label>
-                  <Select value={createForm.homeworkType} onValueChange={(v) => setCreateForm({ ...createForm, homeworkType: v })}>
-                    <SelectTrigger className="min-h-[44px]"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      {['assignment', 'reading', 'project', 'practice', 'research'].map((type) => (
-                        <SelectItem key={type} value={type}>{getHomeworkTypeLabel(type)}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label>{t('homework.field_due_date')}</Label>
-                  <Input
-                    type="datetime-local"
-                    value={createForm.dueDate}
-                    onChange={(e) => setCreateForm({ ...createForm, dueDate: e.target.value })}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>{t('homework.field_max_points')}</Label>
-                  <Input
-                    type="number"
-                    min="0"
-                    step="0.5"
-                    value={createForm.maxPoints}
-                    onChange={(e) => setCreateForm({ ...createForm, maxPoints: e.target.value })}
-                    placeholder={t('homework.field_max_points_placeholder')}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>{t('homework.field_description')}</Label>
-                  <Textarea
-                    value={createForm.description}
-                    onChange={(e) => setCreateForm({ ...createForm, description: e.target.value })}
-                    placeholder={t('homework.field_description_placeholder')}
-                    rows={3}
-                  />
-                </div>
-                <div className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    id="create-published"
-                    checked={createForm.isPublished}
-                    onChange={(e) => setCreateForm({ ...createForm, isPublished: e.target.checked })}
-                    className="rounded"
-                  />
-                  <Label htmlFor="create-published">{t('homework.field_published')}</Label>
-                </div>
-              </div>
-              <DialogFooter>
-                <Button variant="outline" onClick={() => setCreateOpen(false)} className="min-h-[44px]">{t('action.cancel')}</Button>
-                <Button onClick={handleCreate} disabled={creating} className="min-h-[44px]">
-                  {creating ? t('homework.creating') : t('action.create')}
+        <div className="flex items-center gap-2">
+          {/* View Mode Toggle */}
+          <div className="flex items-center border rounded-md overflow-hidden">
+            <Button
+              variant={viewMode === 'grid' ? 'default' : 'ghost'}
+              size="sm"
+              className="min-h-[44px] rounded-none"
+              onClick={() => setViewMode('grid')}
+              title={t('homework.view_grid')}
+            >
+              <LayoutGrid className="h-4 w-4" />
+            </Button>
+            <Button
+              variant={viewMode === 'list' ? 'default' : 'ghost'}
+              size="sm"
+              className="min-h-[44px] rounded-none"
+              onClick={() => setViewMode('list')}
+              title={t('homework.view_list')}
+            >
+              <List className="h-4 w-4" />
+            </Button>
+            <Button
+              variant={viewMode === 'calendar' ? 'default' : 'ghost'}
+              size="sm"
+              className="min-h-[44px] rounded-none"
+              onClick={() => setViewMode('calendar')}
+              title={t('homework.view_calendar')}
+            >
+              <CalendarDays className="h-4 w-4" />
+            </Button>
+          </div>
+
+          {isTeacherOrAdmin && (
+            <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+              <DialogTrigger asChild>
+                <Button className="min-h-[44px]">
+                  <Plus className="h-4 w-4 mr-2" />
+                  {t('homework.create')}
                 </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
-        )}
+              </DialogTrigger>
+              <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+                <DialogHeader>
+                  <DialogTitle>{t('homework.create_title')}</DialogTitle>
+                  <DialogDescription>{t('homework.create_description')}</DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4 py-4">
+                  <div className="space-y-2">
+                    <Label>{t('homework.field_title')}</Label>
+                    <Input
+                      value={createForm.title}
+                      onChange={(e) => setCreateForm({ ...createForm, title: e.target.value })}
+                      placeholder={t('homework.field_title_placeholder')}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>{t('homework.field_class')}</Label>
+                    <Select value={createForm.classGroupId} onValueChange={(v) => setCreateForm({ ...createForm, classGroupId: v })}>
+                      <SelectTrigger className="min-h-[44px]"><SelectValue placeholder={t('homework.field_class_placeholder')} /></SelectTrigger>
+                      <SelectContent>
+                        {classes.map((c) => (
+                          <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>{t('homework.field_subject')}</Label>
+                    <Select value={createForm.subjectId || 'none'} onValueChange={(v) => setCreateForm({ ...createForm, subjectId: v === 'none' ? '' : v })}>
+                      <SelectTrigger className="min-h-[44px]"><SelectValue placeholder={t('homework.field_subject_placeholder')} /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">{t('homework.no_subject')}</SelectItem>
+                        {subjects.map((s) => (
+                          <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>{t('homework.field_type')}</Label>
+                    <Select value={createForm.homeworkType} onValueChange={(v) => setCreateForm({ ...createForm, homeworkType: v })}>
+                      <SelectTrigger className="min-h-[44px]"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {['assignment', 'reading', 'project', 'practice', 'research'].map((type) => (
+                          <SelectItem key={type} value={type}>{getHomeworkTypeLabel(type)}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>{t('homework.field_due_date')}</Label>
+                    <Input
+                      type="datetime-local"
+                      value={createForm.dueDate}
+                      onChange={(e) => setCreateForm({ ...createForm, dueDate: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>{t('homework.field_max_points')}</Label>
+                    <Input
+                      type="number"
+                      min="0"
+                      step="0.5"
+                      value={createForm.maxPoints}
+                      onChange={(e) => setCreateForm({ ...createForm, maxPoints: e.target.value })}
+                      placeholder={t('homework.field_max_points_placeholder')}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>{t('homework.field_description')}</Label>
+                    <Textarea
+                      value={createForm.description}
+                      onChange={(e) => setCreateForm({ ...createForm, description: e.target.value })}
+                      placeholder={t('homework.field_description_placeholder')}
+                      rows={3}
+                    />
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      id="create-published"
+                      checked={createForm.isPublished}
+                      onChange={(e) => setCreateForm({ ...createForm, isPublished: e.target.checked })}
+                      className="rounded"
+                    />
+                    <Label htmlFor="create-published">{t('homework.field_published')}</Label>
+                  </div>
+                </div>
+                <DialogFooter>
+                  <Button variant="outline" onClick={() => setCreateOpen(false)} className="min-h-[44px]">{t('action.cancel')}</Button>
+                  <Button onClick={handleCreate} disabled={creating} className="min-h-[44px]">
+                    {creating ? t('homework.creating') : t('action.create')}
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+          )}
+        </div>
       </div>
 
       {/* Stats */}
@@ -664,28 +926,54 @@ export default function HomeworkView() {
         </CardContent>
       </Card>
 
-      {/* Homework List */}
-      {loading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {[1, 2, 3, 4, 5, 6].map((i) => (
-            <Card key={i}>
-              <CardContent className="p-4 space-y-3">
-                <Skeleton className="h-5 w-3/4" />
-                <Skeleton className="h-4 w-1/2" />
-                <Skeleton className="h-4 w-1/3" />
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+      {/* Error State */}
+      {error && (
+        <Card className="border-rose-200 dark:border-rose-800">
+          <CardContent className="py-6 text-center">
+            <AlertCircle className="h-8 w-8 mx-auto mb-2 text-rose-500" />
+            <p className="text-rose-600 dark:text-rose-400 mb-3">{error}</p>
+            <Button variant="outline" size="sm" onClick={loadHomework} className="min-h-[44px]">
+              <RefreshCw className="h-4 w-4 mr-1" />
+              {t('action.refresh')}
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Content based on view mode */}
+      {!error && (viewMode === 'calendar' ? (
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3 }}
+        >
+          {loading ? (
+            <CalendarSkeleton />
+          ) : (
+            <HomeworkCalendarView
+              homeworks={filteredHomeworks}
+              onHomeworkClick={openDetail}
+              locale={locale}
+            />
+          )}
+        </motion.div>
+      ) : loading ? (
+        <HomeworkSkeleton />
       ) : filteredHomeworks.length === 0 ? (
         <Card>
           <CardContent className="p-8 text-center">
             <BookCheck className="h-12 w-12 mx-auto text-muted-foreground mb-3" />
-            <p className="text-muted-foreground">{t('homework.no_homework')}</p>
+            <p className="text-lg font-medium text-muted-foreground mb-1">{t('homework.no_homework')}</p>
+            <p className="text-sm text-muted-foreground">{t('homework.no_homework_hint')}</p>
           </CardContent>
         </Card>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      ) : viewMode === 'grid' ? (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.3 }}
+          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"
+        >
           <AnimatePresence mode="popLayout">
             {filteredHomeworks.map((hw) => {
               const dueStatus = getDueDateStatus(hw.dueDate);
@@ -709,7 +997,7 @@ export default function HomeworkView() {
                           <TypeIcon className="h-5 w-5 text-primary shrink-0" />
                           <CardTitle className="text-base truncate">{hw.title}</CardTitle>
                         </div>
-                        <Badge variant="outline" className="text-xs shrink-0">
+                        <Badge className={`text-xs shrink-0 ${getHomeworkTypeColor(hw.homeworkType)}`}>
                           {getHomeworkTypeLabel(hw.homeworkType)}
                         </Badge>
                       </div>
@@ -738,10 +1026,22 @@ export default function HomeworkView() {
                           </span>
                         )}
                       </div>
+                      {/* Submission status indicators for teacher */}
                       {isTeacherOrAdmin && hw._count && (
-                        <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                          <Send className="h-3 w-3" />
-                          {hw._count.submissions} {t('homework.submissions_count')}
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                          <div className="flex items-center gap-1">
+                            <Send className="h-3 w-3" />
+                            {hw._count.submissions} {t('homework.submissions_count')}
+                          </div>
+                        </div>
+                      )}
+                      {/* Grade display for student */}
+                      {isStudent && hw._count && hw._count.submissions > 0 && (
+                        <div className="flex items-center gap-1">
+                          <Badge className="text-xs bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300">
+                            <Trophy className="h-3 w-3 mr-1" />
+                            {t('homework.status_graded')}
+                          </Badge>
                         </div>
                       )}
                     </CardContent>
@@ -750,8 +1050,82 @@ export default function HomeworkView() {
               );
             })}
           </AnimatePresence>
-        </div>
-      )}
+        </motion.div>
+      ) : (
+        /* ── List View ── */
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.3 }}
+          className="space-y-2"
+        >
+          <AnimatePresence>
+            {filteredHomeworks.map((hw) => {
+              const dueStatus = getDueDateStatus(hw.dueDate);
+              const TypeIcon = getHomeworkTypeIcon(hw.homeworkType);
+              const StatusIcon = dueStatus === 'overdue' ? XCircle : dueStatus === 'today' ? Clock : CheckCircle2;
+              return (
+                <motion.div
+                  key={hw.id}
+                  layout
+                  initial={{ opacity: 0, x: -10 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -10 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <Card
+                    className={`cursor-pointer hover:shadow-md transition-shadow border-l-4 ${dueStatus === 'overdue' ? 'border-l-rose-500' : dueStatus === 'today' ? 'border-l-amber-500' : 'border-l-emerald-500'}`}
+                    onClick={() => openDetail(hw)}
+                  >
+                    <CardContent className="p-4">
+                      <div className="flex items-center gap-3">
+                        <div className={`p-2 rounded-lg ${getHomeworkTypeColor(hw.homeworkType)} shrink-0`}>
+                          <TypeIcon className="h-5 w-5" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium text-sm truncate">{hw.title}</span>
+                            <Badge className={`text-xs shrink-0 ${getDueDateColor(dueStatus)}`}>
+                              <Clock className="h-3 w-3 mr-1" />
+                              {getDueDateLabel(hw.dueDate)}
+                            </Badge>
+                          </div>
+                          <div className="flex items-center gap-2 mt-0.5 text-xs text-muted-foreground">
+                            <span className="font-medium">{hw.classGroup.name}</span>
+                            {hw.subject && (
+                              <>
+                                <span>|</span>
+                                <span>{hw.subject.name}</span>
+                              </>
+                            )}
+                            {hw.maxPoints && (
+                              <>
+                                <span>|</span>
+                                <span>{hw.maxPoints} {t('homework.points')}</span>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          {isTeacherOrAdmin && hw._count && (
+                            <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                              <Send className="h-3 w-3" />
+                              {hw._count.submissions}
+                            </div>
+                          )}
+                          <StatusIcon className={`h-4 w-4 ${
+                            dueStatus === 'overdue' ? 'text-rose-500' : dueStatus === 'today' ? 'text-amber-500' : 'text-emerald-500'
+                          }`} />
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </motion.div>
+              );
+            })}
+          </AnimatePresence>
+        </motion.div>
+      ))}
 
       {/* Detail Dialog */}
       <Dialog open={detailOpen} onOpenChange={setDetailOpen}>
@@ -770,7 +1144,7 @@ export default function HomeworkView() {
                 </DialogDescription>
               </DialogHeader>
               <div className="space-y-4 py-4">
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
                   <Badge className={getDueDateColor(getDueDateStatus(selectedHomework.dueDate))}>
                     <Clock className="h-3 w-3 mr-1" />
                     {getDueDateLabel(selectedHomework.dueDate)}
@@ -811,36 +1185,51 @@ export default function HomeworkView() {
                         ))}
                       </div>
                     ) : submissions.length === 0 ? (
-                      <p className="text-sm text-muted-foreground py-4 text-center">{t('homework.no_submissions')}</p>
+                      <Card>
+                        <CardContent className="py-6 text-center">
+                          <Send className="h-8 w-8 mx-auto mb-2 text-muted-foreground opacity-30" />
+                          <p className="text-sm text-muted-foreground">{t('homework.no_submissions')}</p>
+                        </CardContent>
+                      </Card>
                     ) : (
                       <div className="space-y-2 max-h-96 overflow-y-auto">
-                        {submissions.map((sub) => (
-                          <div
-                            key={sub.id}
-                            className="flex items-center justify-between p-3 rounded-lg border bg-card hover:bg-accent/50 transition-colors"
-                          >
-                            <div className="flex items-center gap-3 min-w-0">
-                              <div className="flex items-center justify-center h-8 w-8 rounded-full bg-primary/10 text-primary text-sm font-medium shrink-0">
-                                {sub.student.firstName[0]}{sub.student.lastName[0]}
-                              </div>
-                              <div className="min-w-0">
-                                <p className="text-sm font-medium truncate">{sub.student.firstName} {sub.student.lastName}</p>
-                                <div className="flex items-center gap-2">
-                                  <Badge className={`text-xs ${getStatusBadge(sub.status)}`}>{getStatusLabel(sub.status)}</Badge>
-                                  {sub.score !== null && (
-                                    <span className="text-xs text-muted-foreground">
-                                      {sub.score}/{selectedHomework.maxPoints ?? '?'}
-                                    </span>
+                        {submissions.map((sub) => {
+                          const SubStatusIcon = getStatusIcon(sub.status);
+                          return (
+                            <div
+                              key={sub.id}
+                              className="flex items-center justify-between p-3 rounded-lg border bg-card hover:bg-accent/50 transition-colors"
+                            >
+                              <div className="flex items-center gap-3 min-w-0">
+                                <div className="flex items-center justify-center h-8 w-8 rounded-full bg-primary/10 text-primary text-sm font-medium shrink-0">
+                                  {sub.student.firstName[0]}{sub.student.lastName[0]}
+                                </div>
+                                <div className="min-w-0">
+                                  <p className="text-sm font-medium truncate">{sub.student.firstName} {sub.student.lastName}</p>
+                                  <div className="flex items-center gap-2">
+                                    <SubStatusIcon className={`h-3 w-3 ${
+                                      sub.status === 'graded' ? 'text-emerald-500' : sub.status === 'late' ? 'text-rose-500' : sub.status === 'submitted' ? 'text-blue-500' : 'text-gray-400'
+                                    }`} />
+                                    <Badge className={`text-xs ${getStatusBadge(sub.status)}`}>{getStatusLabel(sub.status)}</Badge>
+                                    {sub.score !== null && (
+                                      <span className="text-xs font-medium text-emerald-600 dark:text-emerald-400 flex items-center gap-0.5">
+                                        <Trophy className="h-3 w-3" />
+                                        {sub.score}/{selectedHomework.maxPoints ?? '?'}
+                                      </span>
+                                    )}
+                                  </div>
+                                  {sub.feedback && (
+                                    <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{sub.feedback}</p>
                                   )}
                                 </div>
                               </div>
+                              <Button size="sm" variant="outline" onClick={() => openGrading(sub)} className="min-h-[44px] shrink-0">
+                                <GraduationCap className="h-3 w-3 mr-1" />
+                                {sub.status === 'graded' ? t('homework.regrade') : t('homework.grade')}
+                              </Button>
                             </div>
-                            <Button size="sm" variant="outline" onClick={() => openGrading(sub)} className="min-h-[44px] shrink-0">
-                              <GraduationCap className="h-3 w-3 mr-1" />
-                              {sub.status === 'graded' ? t('homework.regrade') : t('homework.grade')}
-                            </Button>
-                          </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     )}
                   </div>

@@ -2345,3 +2345,102 @@ Stage Summary:
 - Database connection confirmed working (the "db bulunamiyor" report was not a database issue)
 - Component-level TypeScript errors reduced from ~30 to 0
 - Total TypeScript errors reduced from 173 to 53 (remaining are all in API routes, not user-facing)
+
+---
+Task ID: 5
+Agent: professional-notebooks-enhancement
+Task: Make Notebooks Even More Professional - Match Real Notebook Capabilities
+Date: 2025-01-28
+
+Work Log:
+- **Page numbering** (`src/components/notebooks-view.tsx`): Added auto page number footer at the bottom of each page in both text-only and split view modes. Displayed as "— {pageNumber} —" in a subtle font-mono style.
+- **German-style margin lines** (`src/components/notebooks-view.tsx` + `src/components/drawing-canvas.tsx`): Added red margin line on the left side of lined pages (like German Schulhefte). The CSS background pattern now includes a red line at 60px from the left edge. Updated the DrawingCanvas to also render the red margin line. Applied to all lined notebook types: lined, deutschheft, englischheft, religionsheft, geschichtsheft, sachkundeheft, calligraphy.
+- **Date stamp** (`src/components/notebooks-view.tsx`): Modified `handleAddPage` to auto-add a date stamp (e.g., "Datum: 28.01.2025") at the top of each new page. The date is prepended to the page content in a subtle gray style.
+- **Sticker/stamp collection** (`src/components/notebooks-view.tsx`): Added a sticker panel with 12 educational stickers (Star, Thumbs up, Checkmark, Heart, Trophy, Lightning, Flame, Medal, Crown, Sun, Rainbow, Flower) using Lucide icons. Stickers are placed on pages as overlays with hover-to-remove functionality. The panel is accessible via a Star icon button in the toolbar.
+- **Page corner fold** (`src/components/notebooks-view.tsx`): Added a visual dog-ear (Eselsohr) effect on bookmarked pages in both the page thumbnail sidebar and the main content area. The corner fold uses a gradient effect matching the bookmark color.
+- **Washi tape** (`src/components/notebooks-view.tsx`): Added a washi tape panel with 8 decorative tape colors (pink, green, blue, yellow, purple, orange, teal, red) and 3 pattern types (stripes, dots, crosshatch). Tapes are placed on pages as horizontal strips with hover-to-remove functionality. The panel is accessible via a Minus icon button in the toolbar.
+- **i18n keys** (`src/lib/i18n.ts`): Added 25+ new translation keys in both German and English sections for all new features (page numbering, date stamp, margin line, stickers, washi tape, corner fold).
+
+Files Modified:
+1. `src/components/notebooks-view.tsx` — Added StickerData/WashiTapeData types, STICKER_TYPES/WASHI_TAPE_COLORS constants, sticker/washi handlers, page number footer, margin line overlay, corner fold, sticker/washi overlay rendering, sticker/washi panel popovers, date stamp in handleAddPage
+2. `src/components/drawing-canvas.tsx` — Updated margin line color to red (German Schulheft style) in drawBackground function
+3. `src/lib/i18n.ts` — Added 25+ new i18n keys in both German and English sections
+
+Summary:
+All 6 professional notebook features have been implemented:
+1. Page numbering — Auto page numbers at bottom of each page
+2. German-style margin lines — Red margin line on left side of lined pages
+3. Date stamp — Auto-added date when creating new pages
+4. Sticker/stamp collection — 12 educational stickers with placement panel
+5. Page corner fold — Dog-ear visual on bookmarked pages
+6. Washi tape — 8 decorative tape colors with 3 pattern types
+
+---
+Task ID: 5b
+Agent: feature-enhancement
+Task: Add More Features and Polish - Continue PRD Development
+Date: 2025-01-28
+
+Work Log:
+
+### 1. Timetable View Enhancement (`src/components/timetable-view.tsx`)
+- **Current period highlight**: Added live detection of the current period based on time of day. Current period row and column are highlighted with emerald styling. A pulsing green dot indicator shows the current period. Auto-refreshes every minute.
+- **Today column highlight**: The current day column in the grid header shows a green background with "Today" label and pulsing indicator.
+- **Room/location display**: Added `MapPin` icon alongside room IDs in slot cells. Added room placeholder text in the dialog.
+- **View mode toggle**: Added Grid/List view toggle buttons. Grid view shows the traditional table layout. List view shows slots grouped by day in card format.
+- **Subject legend**: Added a color-coded legend bar showing all subjects used in the timetable.
+- **Subject accent colors**: Added `SUBJECT_ACCENT_COLORS` map for left-border color coding on slot cards.
+- **Loading skeleton**: Added `TimetableSkeleton` component with proper table structure skeleton.
+- **Error state**: Added error state with retry button when timetable loading fails.
+- **Better empty states**: Added descriptive text hints for empty states (e.g., "Click on a cell to add a slot").
+- **Short day labels**: Added `mon_short`, `tue_short`, etc. for compact display.
+- **Transition animations**: Added `motion.div` wrapper with fade-in/slide-up animations for grid and list views.
+
+### 2. Resource Library Enhancement (`src/components/resource-library-view.tsx`)
+- **Category tabs**: Added horizontal tab bar with categories: All, Worksheets, Presentations, Videos, Links, Favorites. Each tab shows a count badge. Tabs filter resources by type.
+- **Favorites tab**: Dedicated tab showing only favorited resources. Favoriting is done via the star button on each card.
+- **Resource thumbnails**: Added `ResourceThumbnail` component with type-colored background, icon, and gradient overlay.
+- **View mode toggle**: Added Grid/List view toggle. Grid view shows thumbnail cards. List view shows compact rows.
+- **Better empty states**: Different empty state messages for "no favorites" vs "no resources" with descriptive hints.
+- **Loading skeleton**: Added `ResourceGridSkeleton` component with thumbnail card skeletons.
+- **Error state**: Added error state with retry button.
+- **Tags placeholder**: Added placeholder text for tags input field.
+- **Transition animations**: Added `motion.div` wrapper with fade-in animations for grid and list views.
+
+### 3. Homework View Enhancement (`src/components/homework-view.tsx`)
+- **Calendar view**: Added `HomeworkCalendarView` component with full month calendar grid. Shows homework due dates as colored badges on calendar days. Supports month navigation (prev/next/today). Color-coded by due date status (overdue=today=upcoming). Shows up to 2 homework items per day with "+N" overflow indicator.
+- **View mode toggle**: Added Grid/List/Calendar view toggle buttons.
+- **Submission status indicators**: Added status icons (Circle, CheckCircle2, Trophy, XCircle) for pending/submitted/graded/late submissions. Color-coded status badges in submission list.
+- **Grade display**: Added Trophy icon and grade display (score/maxPoints) in the submission list. Shows feedback preview in line-clamp.
+- **"My Homework" view**: Changed header title for students to "My Homework" (t('homework.my_homework')).
+- **Better empty states**: Added descriptive text hints for empty states.
+- **Loading skeletons**: Added `HomeworkSkeleton` and `CalendarSkeleton` components.
+- **Error state**: Added error state with retry button.
+- **List view**: Added compact list view with type-colored icons, status indicators, and due date badges.
+- **Transition animations**: Added `motion.div` wrapper with fade-in animations.
+
+### 4. Global Styling Improvements
+- **Empty state illustrations**: All three views now use Lucide icons (CalendarDays, Heart, Library, BookCheck, Send, AlertCircle, BookOpen) at 12x12 size with opacity-30 for empty states. Added descriptive title and hint text.
+- **Loading skeleton states**: Added `TimetableSkeleton`, `ResourceGridSkeleton`, `HomeworkSkeleton`, `CalendarSkeleton` components with proper structure matching the respective views.
+- **Transition animations**: All view transitions use `motion.div` with `initial={{ opacity: 0, y: 10 }}` and `animate={{ opacity: 1, y: 0 }}` for smooth fade-in/slide-up.
+- **Error states with retry**: All three views now have error states with `AlertCircle` icon, error message, and `RefreshCw` retry button.
+
+### 5. i18n Keys Added (`src/lib/i18n.ts`)
+Added new keys in both German and English sections:
+- **Timetable**: `current_period`, `today`, `legend`, `load_error`, `select_class_hint`, `no_slots_hint`, `room_placeholder`, `mon_short`, `tue_short`, `wed_short`, `thu_short`, `fri_short`
+- **Resources**: `load_error`, `no_favorites`, `no_favorites_hint`, `no_resources_hint`, `create_description`, `tags_placeholder`, `category_all`, `category_worksheets`, `category_presentations`, `category_videos`, `category_links`, `category_favorites`
+- **Homework**: `my_homework`, `load_error`, `no_homework_hint`, `view_grid`, `view_list`, `view_calendar`, `sat_short`, `sun_short`
+
+Files Modified:
+1. `src/components/timetable-view.tsx` — Complete rewrite with enhanced features
+2. `src/components/resource-library-view.tsx` — Complete rewrite with enhanced features
+3. `src/components/homework-view.tsx` — Complete rewrite with enhanced features
+4. `src/lib/i18n.ts` — Added 30+ new i18n keys in both German and English sections
+
+Summary:
+All 4 enhancement areas have been implemented:
+1. Timetable View — Current period highlight, room display, view mode toggle, subject legend, accent colors, loading/error states
+2. Resource Library — Category tabs, favorites, thumbnails, view mode toggle, loading/error states
+3. Homework View — Calendar view, submission status indicators, grade display, "My Homework" view, loading/error states
+4. Global Styling — Empty state illustrations, loading skeletons, transition animations, error states with retry buttons
+

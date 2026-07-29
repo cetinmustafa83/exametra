@@ -218,9 +218,9 @@ function drawBackground(
       ctx.lineTo(w, y);
       ctx.stroke();
     }
-    // Margin line
-    ctx.strokeStyle = '#D1D5DB';
-    ctx.lineWidth = 1.5;
+    // German-style red margin line (like Schulhefte)
+    ctx.strokeStyle = 'rgba(239, 68, 68, 0.35)';
+    ctx.lineWidth = 2;
     ctx.beginPath();
     ctx.moveTo(64, 0);
     ctx.lineTo(64, h);

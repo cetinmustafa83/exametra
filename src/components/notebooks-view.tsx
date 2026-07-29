@@ -129,6 +129,30 @@ interface SectionData {
   pageIds: string[];
 }
 
+// ─── Sticker Data Type ────────────────────────────────────────────────
+
+interface StickerData {
+  id: string;
+  type: string;
+  x: number;
+  y: number;
+  size: number;
+  color: string;
+  pageId: string;
+}
+
+// ─── Washi Tape Data Type ────────────────────────────────────────────
+
+interface WashiTapeData {
+  id: string;
+  x: number;
+  y: number;
+  width: number;
+  color: string;
+  pattern: string;
+  pageId: string;
+}
+
 // ─── Page Template Definitions ───────────────────────────────────────
 
 const PAGE_TEMPLATES: Array<{
@@ -196,6 +220,41 @@ const STICKY_NOTE_COLORS = [
   { key: 'pink', color: '#fbcfe8', border: '#f472b6' },
   { key: 'orange', color: '#fed7aa', border: '#fb923c' },
   { key: 'purple', color: '#ddd6fe', border: '#a78bfa' },
+];
+
+// ─── Sticker Definitions ─────────────────────────────────────────────
+
+const STICKER_TYPES: Array<{
+  key: string;
+  labelKey: string;
+  icon: React.ElementType;
+  color: string;
+}> = [
+  { key: 'star', labelKey: 'notebooks.sticker_star', icon: Star, color: '#f59e0b' },
+  { key: 'thumbs_up', labelKey: 'notebooks.sticker_thumbs_up', icon: Zap, color: '#10b981' },
+  { key: 'checkmark', labelKey: 'notebooks.sticker_checkmark', icon: CheckCircle2, color: '#16a34a' },
+  { key: 'heart', labelKey: 'notebooks.sticker_heart', icon: Heart, color: '#ef4444' },
+  { key: 'trophy', labelKey: 'notebooks.sticker_trophy', icon: Trophy, color: '#f59e0b' },
+  { key: 'lightning', labelKey: 'notebooks.sticker_lightning', icon: Zap, color: '#8b5cf6' },
+  { key: 'flame', labelKey: 'notebooks.sticker_flame', icon: Flame, color: '#ef4444' },
+  { key: 'medal', labelKey: 'notebooks.sticker_medal', icon: Trophy, color: '#ea580c' },
+  { key: 'crown', labelKey: 'notebooks.sticker_crown', icon: Star, color: '#f59e0b' },
+  { key: 'sun', labelKey: 'notebooks.sticker_sun', icon: Sparkles, color: '#f59e0b' },
+  { key: 'rainbow', labelKey: 'notebooks.sticker_rainbow', icon: SparklesIcon, color: '#8b5cf6' },
+  { key: 'flower', labelKey: 'notebooks.sticker_flower', icon: Leaf, color: '#10b981' },
+];
+
+// ─── Washi Tape Definitions ──────────────────────────────────────────
+
+const WASHI_TAPE_COLORS = [
+  { key: 'pink', color: '#fbcfe8', pattern: 'stripes' },
+  { key: 'green', color: '#bbf7d0', pattern: 'dots' },
+  { key: 'blue', color: '#bfdbfe', pattern: 'stripes' },
+  { key: 'yellow', color: '#fef08a', pattern: 'cross' },
+  { key: 'purple', color: '#ddd6fe', pattern: 'dots' },
+  { key: 'orange', color: '#fed7aa', pattern: 'stripes' },
+  { key: 'teal', color: '#99f6e4', pattern: 'cross' },
+  { key: 'red', color: '#fecaca', pattern: 'dots' },
 ];
 
 const SECTION_COLORS = [
@@ -553,19 +612,32 @@ const NOTEBOOK_TEMPLATES: NotebookTemplate[] = [
 function getPageBackgroundCSS(type: string): React.CSSProperties {
   switch (type) {
     case 'lined':
-    case 'deutschheft': // German/Language notebook - lined paper with margin
-    case 'englischheft': // English notebook - lined paper
-    case 'religionsheft': // Religion/Ethics notebook - lined paper
-      return {
-        backgroundImage: `repeating-linear-gradient(0deg, transparent, transparent 31px, #d1d5db 31px, #d1d5db 32px)`,
-        backgroundSize: '100% 32px',
-        backgroundPosition: '0 16px',
-      };
-    case 'deutschheft_margin': // Deutschheft with margin line
       return {
         backgroundImage: `
           repeating-linear-gradient(0deg, transparent, transparent 31px, #d1d5db 31px, #d1d5db 32px),
-          linear-gradient(90deg, transparent 60px, #e5e7eb 60px, #e5e7eb 62px, transparent 62px)
+          linear-gradient(90deg, transparent 60px, #ef4444 60px, #ef4444 62px, transparent 62px)
+        `,
+        backgroundSize: '100% 32px, 100% 100%',
+        backgroundPosition: '0 16px, 0 0',
+      };
+    case 'deutschheft': // German/Language notebook - lined paper with red margin line (Schulheft style)
+    case 'englischheft': // English notebook - lined paper with margin
+    case 'religionsheft': // Religion/Ethics notebook - lined paper with margin
+    case 'geschichtsheft': // History notebook - lined with margin
+    case 'sachkundeheft': // General studies - lined with margin
+      return {
+        backgroundImage: `
+          repeating-linear-gradient(0deg, transparent, transparent 31px, #d1d5db 31px, #d1d5db 32px),
+          linear-gradient(90deg, transparent 60px, #ef4444 60px, #ef4444 62px, transparent 62px)
+        `,
+        backgroundSize: '100% 32px, 100% 100%',
+        backgroundPosition: '0 16px, 0 0',
+      };
+    case 'deutschheft_margin': // Deutschheft with margin line (legacy)
+      return {
+        backgroundImage: `
+          repeating-linear-gradient(0deg, transparent, transparent 31px, #d1d5db 31px, #d1d5db 32px),
+          linear-gradient(90deg, transparent 60px, #ef4444 60px, #ef4444 62px, transparent 62px)
         `,
         backgroundSize: '100% 32px, 100% 100%',
         backgroundPosition: '0 16px, 0 0',
@@ -609,23 +681,6 @@ function getPageBackgroundCSS(type: string): React.CSSProperties {
     case 'blank':
     case 'kunstheft': // Art notebook - blank paper
       return {};
-    case 'geschichtsheft': // History notebook - lined with timeline accent
-      return {
-        backgroundImage: `
-          repeating-linear-gradient(0deg, transparent, transparent 31px, #d1d5db 31px, #d1d5db 32px),
-          linear-gradient(90deg, #f5f3ff 0px, #f5f3ff 40px, transparent 40px)
-        `,
-        backgroundSize: '100% 32px, 100% 100%',
-        backgroundPosition: '0 16px, 0 0',
-      };
-    case 'sachkundeheft': // General studies - lined with drawing space
-      return {
-        backgroundImage: `
-          repeating-linear-gradient(0deg, transparent, transparent 31px, #d1d5db 31px, #d1d5db 32px)
-        `,
-        backgroundSize: '100% 32px',
-        backgroundPosition: '0 16px',
-      };
     default:
       return {};
   }
@@ -1352,10 +1407,24 @@ function PageThumbnail({ page, notebookType }: { page: NotebookPage; notebookTyp
           <span className="text-gray-300 dark:text-gray-600 italic">Leere Seite</span>
         )}
       </div>
-      {/* Bookmark indicator */}
+      {/* Page number badge */}
+      <div className="absolute bottom-0.5 left-1 text-[9px] font-mono text-gray-400 dark:text-gray-500">
+        {page.pageNumber}
+      </div>
+      {/* Bookmark indicator with corner fold */}
       {page.isBookmark && (
         <div className="absolute top-0 right-0">
-          <Bookmark className="w-3 h-3 text-amber-500 fill-amber-500" />
+          <div className="relative">
+            <Bookmark className="w-3 h-3 text-amber-500 fill-amber-500" />
+            {/* Corner fold (dog-ear) effect */}
+            <div
+              className="absolute -top-0 -right-0 w-4 h-4"
+              style={{
+                background: 'linear-gradient(135deg, transparent 50%, #fbbf24 50%)',
+                clipPath: 'polygon(100% 0, 0 0, 100% 100%)',
+              }}
+            />
+          </div>
         </div>
       )}
       {/* Drawing indicator */}
@@ -1420,6 +1489,14 @@ function NotebookDetailView({
   const [showStickyNoteDialog, setShowStickyNoteDialog] = useState(false);
   const [newStickyNoteColor, setNewStickyNoteColor] = useState('#fef08a');
   const [editingStickyNote, setEditingStickyNote] = useState<StickyNoteData | null>(null);
+
+  // Stickers state
+  const [stickers, setStickers] = useState<StickerData[]>([]);
+  const [showStickerPanel, setShowStickerPanel] = useState(false);
+
+  // Washi tape state
+  const [washiTapes, setWashiTapes] = useState<WashiTapeData[]>([]);
+  const [showWashiTapePanel, setShowWashiTapePanel] = useState(false);
 
   // Search within notebook state
   const [searchOpen, setSearchOpen] = useState(false);
@@ -1833,6 +1910,58 @@ function NotebookDetailView({
     [stickyNotes, currentPageId]
   );
 
+  // ─── Sticker Handlers ──────────────────────────────────────────────
+
+  const addSticker = useCallback((stickerType: typeof STICKER_TYPES[0]) => {
+    if (!currentPage) return;
+    const sticker: StickerData = {
+      id: `sticker_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+      type: stickerType.key,
+      x: 70 + Math.random() * 20,
+      y: 5 + Math.random() * 40,
+      size: 48,
+      color: stickerType.color,
+      pageId: currentPage.id,
+    };
+    setStickers(prev => [...prev, sticker]);
+    setShowStickerPanel(false);
+  }, [currentPage]);
+
+  const deleteSticker = useCallback((id: string) => {
+    setStickers(prev => prev.filter(s => s.id !== id));
+  }, []);
+
+  const currentPageStickers = useMemo(
+    () => stickers.filter(s => s.pageId === currentPageId),
+    [stickers, currentPageId]
+  );
+
+  // ─── Washi Tape Handlers ───────────────────────────────────────────
+
+  const addWashiTape = useCallback((tapeDef: typeof WASHI_TAPE_COLORS[0]) => {
+    if (!currentPage) return;
+    const tape: WashiTapeData = {
+      id: `washi_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+      x: 10 + Math.random() * 30,
+      y: 5 + Math.random() * 60,
+      width: 120 + Math.random() * 80,
+      color: tapeDef.color,
+      pattern: tapeDef.pattern,
+      pageId: currentPage.id,
+    };
+    setWashiTapes(prev => [...prev, tape]);
+    setShowWashiTapePanel(false);
+  }, [currentPage]);
+
+  const deleteWashiTape = useCallback((id: string) => {
+    setWashiTapes(prev => prev.filter(t => t.id !== id));
+  }, []);
+
+  const currentPageWashiTapes = useMemo(
+    () => washiTapes.filter(t => t.pageId === currentPageId),
+    [washiTapes, currentPageId]
+  );
+
   // ─── Search Within Notebook ────────────────────────────────────────
 
   const handleSearch = useCallback((query: string) => {
@@ -2156,6 +2285,96 @@ function NotebookDetailView({
               <Plus className="w-4 h-4 mr-1" />
               {t('notebooks.sticky_note_add')}
             </Button>
+          </PopoverContent>
+        </Popover>
+
+        {/* Sticker panel */}
+        <Popover open={showStickerPanel} onOpenChange={setShowStickerPanel}>
+          <TooltipProvider delayDuration={300}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <PopoverTrigger asChild>
+                  <Button variant="ghost" size="sm" className="min-h-[44px] shrink-0">
+                    <Star className="w-4 h-4" />
+                  </Button>
+                </PopoverTrigger>
+              </TooltipTrigger>
+              <TooltipContent side="bottom" className="text-xs">{t('notebooks.stickers')}</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+          <PopoverContent align="end" className="w-72 p-0 rounded-xl">
+            <div className="p-3 border-b border-gray-100 dark:border-gray-800">
+              <h3 className="text-sm font-semibold flex items-center gap-1.5">
+                <Star className="w-4 h-4 text-amber-500" />
+                {t('notebooks.stickers')}
+              </h3>
+            </div>
+            <div className="p-3">
+              <div className="grid grid-cols-4 gap-2">
+                {STICKER_TYPES.map((stickerType) => {
+                  const StickerIcon = stickerType.icon;
+                  return (
+                    <button
+                      key={stickerType.key}
+                      onClick={() => addSticker(stickerType)}
+                      className="flex flex-col items-center gap-1 p-2 rounded-lg border-2 border-gray-200 dark:border-gray-700 hover:border-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/20 transition-all min-h-[64px]"
+                    >
+                      <StickerIcon className="w-6 h-6" style={{ color: stickerType.color }} />
+                      <span className="text-[10px] text-gray-500 dark:text-gray-400 truncate w-full text-center">{t(stickerType.labelKey)}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </PopoverContent>
+        </Popover>
+
+        {/* Washi tape panel */}
+        <Popover open={showWashiTapePanel} onOpenChange={setShowWashiTapePanel}>
+          <TooltipProvider delayDuration={300}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <PopoverTrigger asChild>
+                  <Button variant="ghost" size="sm" className="min-h-[44px] shrink-0">
+                    <Minus className="w-4 h-4" />
+                  </Button>
+                </PopoverTrigger>
+              </TooltipTrigger>
+              <TooltipContent side="bottom" className="text-xs">{t('notebooks.washi_tape')}</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+          <PopoverContent align="end" className="w-72 p-0 rounded-xl">
+            <div className="p-3 border-b border-gray-100 dark:border-gray-800">
+              <h3 className="text-sm font-semibold flex items-center gap-1.5">
+                <Minus className="w-4 h-4 text-pink-500" />
+                {t('notebooks.washi_tape')}
+              </h3>
+            </div>
+            <div className="p-3">
+              <div className="grid grid-cols-4 gap-2">
+                {WASHI_TAPE_COLORS.map((tapeDef) => (
+                  <button
+                    key={tapeDef.key}
+                    onClick={() => addWashiTape(tapeDef)}
+                    className="flex flex-col items-center gap-1 p-2 rounded-lg border-2 border-gray-200 dark:border-gray-700 hover:border-pink-400 hover:bg-pink-50 dark:hover:bg-pink-900/20 transition-all min-h-[48px]"
+                  >
+                    <div
+                      className="w-full h-4 rounded-sm"
+                      style={{
+                        backgroundColor: tapeDef.color,
+                        backgroundImage: tapeDef.pattern === 'stripes'
+                          ? 'repeating-linear-gradient(45deg, transparent, transparent 2px, rgba(0,0,0,0.08) 2px, rgba(0,0,0,0.08) 4px)'
+                          : tapeDef.pattern === 'dots'
+                          ? 'radial-gradient(circle, rgba(0,0,0,0.1) 1px, transparent 1px)'
+                          : 'repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.08) 2px, rgba(0,0,0,0.08) 4px), repeating-linear-gradient(90deg, transparent, transparent 2px, rgba(0,0,0,0.08) 2px, rgba(0,0,0,0.08) 4px)',
+                        backgroundSize: tapeDef.pattern === 'dots' ? '6px 6px' : undefined,
+                      }}
+                    />
+                    <span className="text-[10px] text-gray-500 dark:text-gray-400 capitalize">{tapeDef.key}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
           </PopoverContent>
         </Popover>
 
@@ -2514,15 +2733,22 @@ function NotebookDetailView({
                     <WysiwygToolbar editorRef={editorRef} onFormatChange={handleFormatChange} />
                     <div className="flex-1 overflow-hidden p-3 relative">
                       <div
-                        className="w-full h-full rounded-xl overflow-hidden"
+                        className="w-full h-full rounded-xl overflow-hidden relative"
                         style={{ backgroundColor: '#fff' }}
                       >
                         <ScrollArea className="h-full">
                           <div
-                            className="min-h-full p-6"
+                            className="min-h-full p-6 relative"
                             style={getPageBackgroundCSS(currentPage.background ?? notebook.notebookType)}
                             onMouseMove={handleEditorMouseMove}
                           >
+                            {/* German-style margin line overlay for lined pages */}
+                            {(['lined', 'deutschheft', 'englischheft', 'religionsheft', 'geschichtsheft', 'sachkundeheft', 'calligraphy'].includes(currentPage.background ?? notebook.notebookType)) && (
+                              <div
+                                className="absolute top-0 left-[60px] w-[2px] h-full pointer-events-none z-10"
+                                style={{ backgroundColor: 'rgba(239, 68, 68, 0.35)' }}
+                              />
+                            )}
                             <div
                               ref={editorRef}
                               contentEditable
@@ -2532,8 +2758,26 @@ function NotebookDetailView({
                               className="w-full min-h-[500px] bg-transparent outline-none text-base text-gray-800 dark:text-gray-200 focus:ring-0 prose prose-sm max-w-none [&:empty]:before:content-[attr(data-placeholder)] [&:empty]:before:text-gray-300 [&:empty]:dark:before:text-gray-600 [&_h1]:text-2xl [&_h1]:font-bold [&_h1]:mb-2 [&_h1]:mt-4 [&_h2]:text-xl [&_h2]:font-bold [&_h2]:mb-1.5 [&_h2]:mt-3 [&_h3]:text-lg [&_h3]:font-semibold [&_h3]:mb-1 [&_h3]:mt-2 [&_ul]:list-disc [&_ul]:pl-6 [&_ul]:mb-2 [&_ol]:list-decimal [&_ol]:pl-6 [&_ol]:mb-2 [&_li]:mb-0.5"
                               style={{ lineHeight: notebook.notebookType === 'lined' || notebook.notebookType === 'calligraphy' ? '32px' : '1.5' }}
                             />
+                            {/* Page number footer */}
+                            <div className="flex items-center justify-center pt-8 pb-2">
+                              <span className="text-xs font-mono text-gray-400 dark:text-gray-500">
+                                — {currentPage.pageNumber} —
+                              </span>
+                            </div>
                           </div>
                         </ScrollArea>
+                        {/* Corner fold (dog-ear) for bookmarked pages */}
+                        {currentPage.isBookmark && (
+                          <div className="absolute top-0 right-0 w-6 h-6 pointer-events-none z-10">
+                            <div
+                              className="w-full h-full"
+                              style={{
+                                background: 'linear-gradient(135deg, #fff 50%, #fbbf24 50%)',
+                                boxShadow: '-1px 1px 2px rgba(0,0,0,0.1)',
+                              }}
+                            />
+                          </div>
+                        )}
                       </div>
                       {cursors.filter(c => c.pageId === currentPage?.id).map((cursor) => (
                         <motion.div
@@ -2609,15 +2853,22 @@ function NotebookDetailView({
                   {/* Page content area */}
                   <div className="flex-1 overflow-hidden p-4 relative">
                     <div
-                      className="w-full h-full max-w-3xl mx-auto rounded-xl overflow-hidden"
+                      className="w-full h-full max-w-3xl mx-auto rounded-xl overflow-hidden relative"
                       style={{ backgroundColor: '#fff' }}
                     >
                       <ScrollArea className="h-full">
                         <div
-                          className="min-h-full p-6"
+                          className="min-h-full p-6 relative"
                           style={getPageBackgroundCSS(currentPage.background ?? notebook.notebookType)}
                           onMouseMove={handleEditorMouseMove}
                         >
+                          {/* German-style margin line overlay for lined pages */}
+                          {(['lined', 'deutschheft', 'englischheft', 'religionsheft', 'geschichtsheft', 'sachkundeheft', 'calligraphy'].includes(currentPage.background ?? notebook.notebookType)) && (
+                            <div
+                              className="absolute top-0 left-[60px] w-[2px] h-full pointer-events-none z-10"
+                              style={{ backgroundColor: 'rgba(239, 68, 68, 0.35)' }}
+                            />
+                          )}
                           <div
                             ref={editorRef}
                             contentEditable
@@ -2627,8 +2878,99 @@ function NotebookDetailView({
                             className="w-full min-h-[500px] bg-transparent outline-none text-base text-gray-800 dark:text-gray-200 focus:ring-0 prose prose-sm max-w-none [&:empty]:before:content-[attr(data-placeholder)] [&:empty]:before:text-gray-300 [&:empty]:dark:before:text-gray-600 [&_h1]:text-2xl [&_h1]:font-bold [&_h1]:mb-2 [&_h1]:mt-4 [&_h2]:text-xl [&_h2]:font-bold [&_h2]:mb-1.5 [&_h2]:mt-3 [&_h3]:text-lg [&_h3]:font-semibold [&_h3]:mb-1 [&_h3]:mt-2 [&_ul]:list-disc [&_ul]:pl-6 [&_ul]:mb-2 [&_ol]:list-decimal [&_ol]:pl-6 [&_ol]:mb-2 [&_li]:mb-0.5"
                             style={{ lineHeight: notebook.notebookType === 'lined' || notebook.notebookType === 'calligraphy' ? '32px' : '1.5' }}
                           />
+                          {/* Page number footer */}
+                          <div className="flex items-center justify-center pt-8 pb-2">
+                            <span className="text-xs font-mono text-gray-400 dark:text-gray-500">
+                              — {currentPage.pageNumber} —
+                            </span>
+                          </div>
                         </div>
                       </ScrollArea>
+
+                      {/* Corner fold (dog-ear) for bookmarked pages */}
+                      {currentPage.isBookmark && (
+                        <div className="absolute top-0 right-0 w-8 h-8 pointer-events-none z-10">
+                          <div
+                            className="w-full h-full"
+                            style={{
+                              background: 'linear-gradient(135deg, #fff 50%, #fbbf24 50%)',
+                              boxShadow: '-2px 2px 4px rgba(0,0,0,0.1)',
+                            }}
+                          />
+                        </div>
+                      )}
+
+                      {/* Washi Tape Overlays */}
+                      {currentPageWashiTapes.map((tape) => (
+                        <motion.div
+                          key={tape.id}
+                          initial={{ opacity: 0, scaleX: 0.5 }}
+                          animate={{ opacity: 1, scaleX: 1 }}
+                          className="absolute z-20 group"
+                          style={{
+                            left: `${tape.x}%`,
+                            top: `${tape.y}%`,
+                            width: `${tape.width}px`,
+                            height: '20px',
+                            transform: `rotate(${(Math.random() - 0.5) * 6}deg)`,
+                          }}
+                        >
+                          <div
+                            className="w-full h-full rounded-sm cursor-move"
+                            style={{
+                              backgroundColor: tape.color,
+                              backgroundImage: tape.pattern === 'stripes'
+                                ? 'repeating-linear-gradient(45deg, transparent, transparent 2px, rgba(0,0,0,0.08) 2px, rgba(0,0,0,0.08) 4px)'
+                                : tape.pattern === 'dots'
+                                ? 'radial-gradient(circle, rgba(0,0,0,0.1) 1px, transparent 1px)'
+                                : 'repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.08) 2px, rgba(0,0,0,0.08) 4px), repeating-linear-gradient(90deg, transparent, transparent 2px, rgba(0,0,0,0.08) 2px, rgba(0,0,0,0.08) 4px)',
+                              backgroundSize: tape.pattern === 'dots' ? '6px 6px' : undefined,
+                              opacity: 0.85,
+                            }}
+                          />
+                          <button
+                            onClick={() => deleteWashiTape(tape.id)}
+                            className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-sm"
+                          >
+                            <X className="w-2.5 h-2.5 text-gray-500" />
+                          </button>
+                        </motion.div>
+                      ))}
+
+                      {/* Sticker Overlays */}
+                      {currentPageStickers.map((sticker) => {
+                        const stickerType = STICKER_TYPES.find(s => s.key === sticker.type);
+                        if (!stickerType) return null;
+                        const StickerIcon = stickerType.icon;
+                        return (
+                          <motion.div
+                            key={sticker.id}
+                            initial={{ opacity: 0, scale: 0.3, rotate: -20 }}
+                            animate={{ opacity: 1, scale: 1, rotate: 0 }}
+                            className="absolute z-20 group cursor-move"
+                            style={{
+                              left: `${sticker.x}%`,
+                              top: `${sticker.y}%`,
+                            }}
+                          >
+                            <div
+                              className="rounded-full p-2 shadow-md"
+                              style={{
+                                backgroundColor: `${sticker.color}22`,
+                                border: `2px solid ${sticker.color}44`,
+                              }}
+                            >
+                              <StickerIcon className="w-8 h-8" style={{ color: sticker.color }} />
+                            </div>
+                            <button
+                              onClick={() => deleteSticker(sticker.id)}
+                              className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-sm"
+                            >
+                              <X className="w-2.5 h-2.5 text-gray-500" />
+                            </button>
+                          </motion.div>
+                        );
+                      })}
                     </div>
 
                     {/* Collaboration: Cursor overlays */}
@@ -4097,11 +4439,16 @@ export default function NotebooksView() {
   const handleAddPage = useCallback(async (templateKey?: string, background?: string, content?: string) => {
     if (!selectedNotebook) return;
     const pagesCount = selectedNotebook.pages?.length ?? 0;
+    // Auto-add date stamp to new pages
+    const now = new Date();
+    const dateStr = `${now.getDate().toString().padStart(2, '0')}.${(now.getMonth() + 1).toString().padStart(2, '0')}.${now.getFullYear()}`;
+    const dateStamp = `<div style="font-size:12px;color:#9ca3af;margin-bottom:8px;">${t('notebooks.date_stamp')}: ${dateStr}</div>`;
+    const finalContent = content ? dateStamp + content : dateStamp;
     const newPage = await apiPost<NotebookPage>(`/api/notebooks/${selectedNotebook.id}/pages`, {
       pageNumber: pagesCount + 1,
       background: background ?? selectedNotebook.notebookType,
       title: templateKey && templateKey !== 'blank' ? t(`notebooks.page_template_${templateKey}`) : null,
-      textContent: content ?? null,
+      textContent: finalContent,
     });
     setSelectedNotebook(prev => {
       if (!prev) return prev;
