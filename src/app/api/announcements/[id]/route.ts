@@ -5,11 +5,13 @@ import { getSession } from '@/lib/auth';
 
 const priorityEnum = z.enum(['low', 'normal', 'high', 'urgent']);
 const targetAudienceEnum = z.enum(['all', 'teachers', 'students', 'parents', 'class']);
+const announcementTypeEnum = z.enum(['general', 'urgent', 'event', 'holiday', 'exam', 'deadline']);
 
 const updateAnnouncementSchema = z.object({
   title: z.string().min(1).max(200).optional(),
   content: z.string().min(1).max(10000).optional(),
   priority: priorityEnum.optional(),
+  announcementType: announcementTypeEnum.optional(),
   targetAudience: targetAudienceEnum.optional(),
   classGroupId: z.string().optional().nullable(),
   isPinned: z.boolean().optional(),
@@ -17,7 +19,7 @@ const updateAnnouncementSchema = z.object({
 });
 
 function isTeacherOrAdmin(role: string | undefined): boolean {
-  return role === 'TEACHER' || role === 'SCHOOL_ADMIN' || role === 'SUPER_ADMIN';
+  return role === 'TEACHER' || role === 'SCHOOL_ADMIN' || role === 'SUPER_ADMIN' || role === 'VICE_PRINCIPAL';
 }
 
 export async function GET(
@@ -36,6 +38,12 @@ export async function GET(
       include: {
         author: { select: { id: true, firstName: true, lastName: true } },
         classGroup: { select: { id: true, name: true } },
+        reads: {
+          include: {
+            user: { select: { id: true, firstName: true, lastName: true } },
+          },
+          orderBy: { readAt: 'desc' },
+        },
       },
     });
 
@@ -43,7 +51,21 @@ export async function GET(
       return NextResponse.json({ error: 'Announcement not found' }, { status: 404 });
     }
 
-    return NextResponse.json(announcement);
+    // Check if current user has read it
+    const readReceipt = await db.announcementRead.findUnique({
+      where: {
+        announcementId_userId: {
+          announcementId: id,
+          userId: session.userId,
+        },
+      },
+    });
+
+    return NextResponse.json({
+      ...announcement,
+      isReadByCurrentUser: !!readReceipt,
+      totalReads: announcement.reads.length,
+    });
   } catch (error) {
     console.error('Announcement GET [id] error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
@@ -87,6 +109,7 @@ export async function PUT(
     if (parsed.data.title !== undefined) updateData.title = parsed.data.title;
     if (parsed.data.content !== undefined) updateData.content = parsed.data.content;
     if (parsed.data.priority !== undefined) updateData.priority = parsed.data.priority;
+    if (parsed.data.announcementType !== undefined) updateData.announcementType = parsed.data.announcementType;
     if (parsed.data.targetAudience !== undefined) updateData.targetAudience = parsed.data.targetAudience;
     if (parsed.data.classGroupId !== undefined) updateData.classGroupId = parsed.data.classGroupId || null;
     if (parsed.data.isPinned !== undefined) updateData.isPinned = parsed.data.isPinned;

@@ -59,6 +59,7 @@ model School {
   reportSchedules    ReportSchedule[]
   homeworks          Homework[]
   announcements      Announcement[]
+  notificationPreferences NotificationPreferences[]
   selfAssessments    SelfAssessment[]
   learningGoals      LearningGoal[]
   portfolioEntries   PortfolioEntry[]
@@ -93,7 +94,11 @@ model School {
   communicationRooms CommunicationRoom[]
   aiTestGenerations  AITestGeneration[]
   gradingReviews     TeacherGradingReview[]
+  gradingAnnotations GradingAnnotation[]
   chatMessages       ChatMessage[]
+  examPlans          ExamPlan[]
+  studyPlans         StudyPlan[]
+  studySessions      StudySession[]
 }
 
 model User {
@@ -134,6 +139,7 @@ model User {
   assignedInterventions     BehaviorIntervention[] @relation("InterventionAssignee")
   homeworks                 Homework[]
   announcements             Announcement[]
+  notificationPreferences   NotificationPreferences?
   timetableSlots            TimetableSlot[]
   resources                 Resource[]
   organizedSchoolEvents     SchoolEvent[]
@@ -164,12 +170,15 @@ model User {
   aiTestGenerations         AITestGeneration[]
   gradingReviews            TeacherGradingReview[]
   gradingReviewComments     GradingReviewComment[]
+  gradingAnnotations        GradingAnnotation[]
+  announcementReads         AnnouncementRead[]
   selectedCharacterId       String?
   // Communication room relations
   roomStudent               CommunicationRoom[] @relation("RoomStudent")
   roomTeacher               CommunicationRoom[] @relation("RoomTeacher")
   // Class responsible teacher
   responsibleClasses        ClassGroup[] @relation("ResponsibleTeacher")
+  examPlans                 ExamPlan[]
 }
 
 model SchoolYear {
@@ -226,6 +235,7 @@ model ClassGroup {
   peerAssessments     PeerAssessment[]
   schoolEvents        SchoolEvent[]
   aiTestGenerations   AITestGeneration[]
+  examPlans           ExamPlan[]
 }
 
 model ClassGroupTeacher {
@@ -281,6 +291,9 @@ model Student {
   goals                 StudentGoal[]
   illnessReports        IllnessReport[]
   disciplinaryCases     DisciplinaryCase[]
+  studyPlans            StudyPlan[]
+  studySessions         StudySession[]
+  gradingAnnotations    GradingAnnotation[]
 
   @@index([userId])
 }
@@ -328,6 +341,9 @@ model Subject {
   competitions        Competition[]
   subjectContents     SubjectContent[]
   aiTestGenerations   AITestGeneration[]
+  examPlans           ExamPlan[]
+  studyPlans          StudyPlan[]
+  studySessions       StudySession[]
 }
 
 model CompetencyTemplate {
@@ -447,6 +463,8 @@ model Assessment {
   assessmentResults    AssessmentResult[]
   aiTestGenerations    AITestGeneration[]
   gradingReviews       TeacherGradingReview[]
+  gradingAnnotations   GradingAnnotation[]
+  examPlan             ExamPlan?
 }
 
 model AssessmentCompetencyLink {
@@ -473,6 +491,7 @@ model AssessmentResult {
 
   assessment Assessment @relation(fields: [assessmentId], references: [id])
   student    Student    @relation(fields: [studentId], references: [id])
+  annotations GradingAnnotation[]
 
   @@unique([assessmentId, studentId])
 }
@@ -979,9 +998,12 @@ model Notification {
   schoolId    String
   userId      String   // recipient
   type        String   // ASSESSMENT_DUE, MISSING_OBSERVATION, NOTEBOOK_SHARED, BEHAVIOR_ALERT, GRADE_COMPUTED, etc.
+  category    String   @default("academic") // academic, behavioral, administrative, calendar, communication, system
+  priority    String   @default("normal") // urgent, high, normal, low
   title       String
   message     String
   isRead      Boolean  @default(false)
+  isArchived  Boolean  @default(false)
   actionUrl   String?  // optional deep link
   relatedId   String?  // optional related entity ID
   createdAt   DateTime @default(now())
@@ -993,6 +1015,8 @@ model Notification {
 
   @@index([userId, isRead])
   @@index([schoolId])
+  @@index([category])
+  @@index([priority])
   @@map("notifications")
 }
 
@@ -1024,6 +1048,7 @@ model CalendarEvent {
   classGroup   ClassGroup?    @relation(fields: [classGroupId], references: [id])
   parentEvent  CalendarEvent? @relation("EventRecurrence", fields: [parentEventId], references: [id])
   childEvents  CalendarEvent[] @relation("EventRecurrence")
+  examPlan     ExamPlan?
 
   @@index([schoolId])
   @@index([teacherId])
@@ -1252,6 +1277,7 @@ model Announcement {
   title           String
   content         String
   priority        String   @default("normal") // low, normal, high, urgent
+  announcementType String  @default("general") // general, urgent, event, holiday, exam, deadline
   targetAudience  String   @default("all") // all, teachers, students, parents, class
   classGroupId    String?  // if target is specific class
   isPinned        Boolean  @default(false)
@@ -1264,9 +1290,50 @@ model Announcement {
   school          School   @relation(fields: [schoolId], references: [id])
   author          User     @relation(fields: [authorId], references: [id])
   classGroup      ClassGroup? @relation(fields: [classGroupId], references: [id])
+  reads           AnnouncementRead[]
 
   @@index([schoolId, createdAt])
   @@map("announcements")
+}
+
+model AnnouncementRead {
+  id              String   @id @default(cuid())
+  announcementId  String
+  userId          String
+  readAt          DateTime @default(now())
+
+  announcement    Announcement @relation(fields: [announcementId], references: [id], onDelete: Cascade)
+  user            User @relation(fields: [userId], references: [id])
+
+  @@unique([announcementId, userId])
+  @@index([announcementId])
+  @@index([userId])
+  @@map("announcement_reads")
+}
+
+model NotificationPreferences {
+  id                  String   @id @default(cuid())
+  userId              String   @unique
+  schoolId            String
+  academicEnabled     Boolean  @default(true)
+  behavioralEnabled   Boolean  @default(true)
+  administrativeEnabled Boolean @default(true)
+  calendarEnabled     Boolean  @default(true)
+  communicationEnabled Boolean @default(true)
+  systemEnabled       Boolean  @default(true)
+  quietHoursStart     String?  // HH:mm format, e.g. "22:00"
+  quietHoursEnd       String?  // HH:mm format, e.g. "07:00"
+  quietHoursEnabled   Boolean  @default(false)
+  emailDigestEnabled  Boolean  @default(false)
+  emailDigestFrequency String  @default("daily") // daily, weekly, never
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  user                User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  school              School   @relation(fields: [schoolId], references: [id])
+
+  @@index([userId])
+  @@map("notification_preferences")
 }
 
 // ─── Student Self-Assessment ──────────────────────────────────────────
@@ -2433,4 +2500,145 @@ model GradingReviewComment {
   @@index([reviewId])
   @@index([userId])
   @@map("grading_review_comments")
+}
+
+// ─── Grading Annotations (Tablet Stylus) ────────────────────────────
+
+model GradingAnnotation {
+  id              String   @id @default(cuid())
+  schoolId        String
+  assessmentId    String
+  studentId       String
+  resultId        String?  // AssessmentResult ID
+  teacherId       String
+  type            String   @default("drawing") // drawing, text, highlight, stamp
+  content         String?  // text content or stamp symbol
+  positionX       Float    @default(0)
+  positionY       Float    @default(0)
+  width           Float?
+  height          Float?
+  color           String   @default("#ef4444")
+  strokeWidth     Float    @default(2)
+  page            Int      @default(1)
+  pathData        String?  // JSON: array of {x,y,pressure} points for drawing
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  school          School           @relation(fields: [schoolId], references: [id])
+  assessment      Assessment       @relation(fields: [assessmentId], references: [id])
+  student         Student          @relation(fields: [studentId], references: [id])
+  result          AssessmentResult? @relation(fields: [resultId], references: [id])
+  teacher         User             @relation(fields: [teacherId], references: [id])
+
+  @@index([schoolId])
+  @@index([assessmentId])
+  @@index([studentId])
+  @@index([teacherId])
+  @@index([page])
+  @@map("grading_annotations")
+}
+
+// ─── Exam Planning ─────────────────────────────────────────────────
+
+model ExamPlan {
+  id            String   @id @default(cuid())
+  schoolId      String
+  teacherId     String
+  subjectId     String
+  classGroupId  String
+  title         String
+  date          DateTime
+  startTime     String?   // HH:mm format
+  endTime       String?   // HH:mm format
+  room          String?
+  topics        String?   // JSON array of topic strings
+  weight        Float     @default(1.0)
+  status        String    @default("planned") // planned, confirmed, completed, cancelled
+  notes         String?
+  calendarEventId String? @unique // Link to CalendarEvent
+  assessmentId    String? @unique // Link to Assessment (after exam is created)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  school        School    @relation(fields: [schoolId], references: [id])
+  teacher       User      @relation(fields: [teacherId], references: [id])
+  subject       Subject   @relation(fields: [subjectId], references: [id])
+  classGroup    ClassGroup @relation(fields: [classGroupId], references: [id])
+  calendarEvent CalendarEvent? @relation(fields: [calendarEventId], references: [id])
+  assessment    Assessment?   @relation(fields: [assessmentId], references: [id])
+
+  @@index([schoolId])
+  @@index([teacherId])
+  @@index([subjectId])
+  @@index([classGroupId])
+  @@index([date])
+  @@index([status])
+  @@map("exam_plans")
+}
+
+// ─── Student Study Planner ──────────────────────────────────────────
+
+model StudyPlan {
+  id            String   @id @default(cuid())
+  schoolId      String
+  studentId     String
+  title         String
+  description   String?
+  subjectId     String?
+  subjectName   String?   // Denormalized subject name for display
+  dayOfWeek     Int       // 0=Sunday, 1=Monday, ..., 6=Saturday
+  startTime     String    // HH:mm format
+  duration      Int       // Duration in minutes
+  isRecurring   Boolean   @default(true)
+  specificDate  DateTime? // For one-time study sessions
+  priority      String    @default("medium") // low, medium, high
+  status        String    @default("active") // active, completed, paused, cancelled
+  color         String?   // Custom color for the plan
+  notes         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  school        School   @relation(fields: [schoolId], references: [id])
+  student       Student  @relation(fields: [studentId], references: [id])
+  subject       Subject? @relation(fields: [subjectId], references: [id])
+  sessions      StudySession[]
+
+  @@index([schoolId])
+  @@index([studentId])
+  @@index([dayOfWeek])
+  @@index([status])
+  @@map("study_plans")
+}
+
+model StudySession {
+  id            String   @id @default(cuid())
+  schoolId      String
+  studentId     String
+  studyPlanId   String?  // Optional link to a StudyPlan
+  subjectId     String?
+  subjectName   String?  // Denormalized subject name
+  startTime     DateTime
+  endTime       DateTime?
+  duration      Int      @default(0) // Actual duration in minutes
+  plannedDuration Int?   // Planned duration in minutes
+  type          String   @default("pomodoro") // pomodoro, free, guided
+  pomodorosCompleted Int @default(0)
+  pomodoroLength Int     @default(25) // Minutes per pomodoro
+  breakLength   Int      @default(5) // Minutes per break
+  status        String   @default("in_progress") // in_progress, completed, abandoned
+  focusScore    Int?     // 1-100 self-reported focus score
+  notes         String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  school        School   @relation(fields: [schoolId], references: [id])
+  student       Student  @relation(fields: [studentId], references: [id])
+  studyPlan     StudyPlan? @relation(fields: [studyPlanId], references: [id])
+  subject       Subject? @relation(fields: [subjectId], references: [id])
+
+  @@index([schoolId])
+  @@index([studentId])
+  @@index([startTime])
+  @@index([status])
+  @@map("study_sessions")
 }

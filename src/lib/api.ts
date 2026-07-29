@@ -2702,6 +2702,43 @@ export function deleteNotifications(ids?: string[]): Promise<{ success: boolean 
   return apiDelete<{ success: boolean }>(`/api/notifications${ids ? `?ids=${ids.join(',')}` : ''}`);
 }
 
+/* ── Notification Preferences ──────────────────────────────────── */
+
+export interface NotificationPreferencesData {
+  id: string;
+  userId: string;
+  schoolId: string;
+  academicEnabled: boolean;
+  behavioralEnabled: boolean;
+  administrativeEnabled: boolean;
+  calendarEnabled: boolean;
+  communicationEnabled: boolean;
+  systemEnabled: boolean;
+  quietHoursStart: string | null;
+  quietHoursEnd: string | null;
+  quietHoursEnabled: boolean;
+  emailDigestEnabled: boolean;
+  emailDigestFrequency: string;
+}
+
+export function fetchNotificationPreferences(): Promise<NotificationPreferencesData> {
+  return apiGet<NotificationPreferencesData>('/api/notifications/preferences');
+}
+
+export function updateNotificationPreferences(data: Partial<NotificationPreferencesData>): Promise<NotificationPreferencesData> {
+  return apiPut<NotificationPreferencesData>('/api/notifications/preferences', data);
+}
+
+/* ── Announcement Read Receipts ────────────────────────────────── */
+
+export function markAnnouncementRead(announcementId: string): Promise<{ readReceipt: { id: string; announcementId: string; userId: string; readAt: string } }> {
+  return apiPost('/api/announcements/' + announcementId + '/read', {});
+}
+
+export function getAnnouncementReads(announcementId: string): Promise<{ reads: Array<{ id: string; userId: string; readAt: string; user: { id: string; firstName: string; lastName: string } }>; totalReads: number }> {
+  return apiGet('/api/announcements/' + announcementId + '/read');
+}
+
 /* ── Batch Delete & Reorder ─────────────────────────────────────────── */
 
 export async function deleteBatchProgressEntries(ids: string[]): Promise<void> {

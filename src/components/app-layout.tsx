@@ -63,6 +63,9 @@ import {
   MessageSquare,
   Brain,
   Sparkles,
+  Tablet,
+  CalendarClock,
+  Timer,
 } from 'lucide-react';
 import {
   Sidebar,
@@ -168,6 +171,12 @@ import AITestsView from './ai-tests-view';
 import AIChatWidget from './ai-chat-widget';
 import VirtualCharacter from './virtual-character';
 import ParentPortalView from './parent-portal-view';
+import NotificationCenterView from './notification-center-view';
+import SchoolAnnouncementsView from './school-announcements-view';
+import TabletGradingView from './tablet-grading-view';
+import ExamCalendarView from './exam-calendar-view';
+import StudentAchievementsView from './student-achievements-view';
+import StudentStudyPlannerView from './student-study-planner-view';
 
 // Dynamic imports for heavy components with loading skeletons
 const AnalyticsView = dynamic(() => import('./analytics-view'), {
@@ -232,6 +241,10 @@ const navSections: NavSection[] = [
       { key: 'counseling', icon: Heart, labelKey: 'counseling.title' },
       { key: 'disciplinary', icon: Shield, labelKey: 'disciplinary.title' },
       { key: 'ai-tests', icon: Brain, labelKey: 'ai_tests.title' },
+      { key: 'tablet-grading', icon: Tablet, labelKey: 'nav.tablet_grading' },
+      { key: 'exam-calendar', icon: CalendarClock, labelKey: 'nav.exam_calendar' },
+      { key: 'notification-center', icon: Bell, labelKey: 'nav.notification_center' },
+      { key: 'announcements', icon: Megaphone, labelKey: 'nav.announcements' },
     ],
   },
   {
@@ -266,7 +279,13 @@ const studentNavSections: NavSection[] = [
       { key: 'communication', icon: MessageSquare, labelKey: 'nav.communication' },
       { key: 'counseling', icon: Heart, labelKey: 'counseling.title' },
       { key: 'ai-tests', icon: Brain, labelKey: 'ai_tests.title' },
+      { key: 'tablet-grading', icon: Tablet, labelKey: 'nav.tablet_grading' },
+      { key: 'exam-calendar', icon: CalendarClock, labelKey: 'nav.exam_calendar' },
+      { key: 'student-achievements', icon: Trophy, labelKey: 'achievements.title' },
+      { key: 'student-study-planner', icon: Timer, labelKey: 'study_planner.title' },
       { key: 'resources', icon: FolderOpen, labelKey: 'nav.resources' },
+      { key: 'notification-center', icon: Bell, labelKey: 'nav.notification_center' },
+      { key: 'announcements', icon: Megaphone, labelKey: 'nav.announcements' },
       { key: 'settings', icon: Settings, labelKey: 'nav.settings' },
     ],
   },
@@ -287,6 +306,10 @@ const parentNavSections: NavSection[] = [
       { key: 'competitions', icon: Trophy, labelKey: 'nav.competitions' },
       { key: 'illness', icon: Heart, labelKey: 'nav.illness' },
       { key: 'communication', icon: MessageSquare, labelKey: 'nav.communication' },
+      { key: 'student-achievements', icon: Trophy, labelKey: 'achievements.title' },
+      { key: 'student-study-planner', icon: Timer, labelKey: 'study_planner.title' },
+      { key: 'notification-center', icon: Bell, labelKey: 'nav.notification_center' },
+      { key: 'announcements', icon: Megaphone, labelKey: 'nav.announcements' },
     ],
   },
 ];
@@ -426,6 +449,12 @@ function renderView(view: ViewName) {
     case 'disciplinary': return <DisciplinaryView />;
     case 'ai-tests': return <AITestsView />;
     case 'parent-portal': return <ParentPortalView />;
+    case 'notification-center': return <NotificationCenterView />;
+    case 'announcements': return <SchoolAnnouncementsView />;
+    case 'tablet-grading': return <TabletGradingView />;
+    case 'exam-calendar': return <ExamCalendarView />;
+    case 'student-achievements': return <StudentAchievementsView />;
+    case 'student-study-planner': return <StudentStudyPlannerView />;
     default: return <DashboardView />;
   }
 }
@@ -1246,7 +1275,15 @@ export default function AppLayout() {
                 </ScrollArea>
                 {/* Footer */}
                 {!notifLoading && notifData && notifData.notifications.length > 0 && (
-                  <div className="px-3 py-2 border-t border-emerald-100/30 dark:border-emerald-900/20 flex gap-2">
+                  <div className="px-3 py-2 border-t border-emerald-100/30 dark:border-emerald-900/20 flex gap-2 flex-wrap">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => { setNotifOpen(false); setCurrentView('notification-center'); }}
+                      className="h-7 text-xs text-emerald-600 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-900/20 font-semibold"
+                    >
+                      <Bell className="w-3 h-3 mr-0.5" /> {t('notif_center.title')}
+                    </Button>
                     <Button
                       variant="ghost"
                       size="sm"

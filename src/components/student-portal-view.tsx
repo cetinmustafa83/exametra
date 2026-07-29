@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState, useCallback, useRef } from 'react';
+import React, { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Target,
@@ -51,6 +51,7 @@ import { useAppStore } from '@/lib/store';
 import { t } from '@/lib/i18n';
 import { apiGet, apiPost, apiPut, apiDelete } from '@/lib/api';
 import { toast } from 'sonner';
+import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip } from 'recharts';
 
 // ── Types ──────────────────────────────────────────────────────────────
 
@@ -732,6 +733,240 @@ export default function StudentPortalView() {
                   </div>
                 </div>
               </div>
+            </div>
+          </CardContent>
+        </Card>
+      </motion.div>
+
+      {/* ── Quick Action Cards ──────────────────────────────────────────── */}
+      <motion.div variants={itemVariants}>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          {[
+            { label: t('student_portal.quick_practice'), icon: BookOpen, color: 'from-emerald-400 to-teal-500', view: 'subjects' as const },
+            { label: t('student_portal.quick_homework'), icon: ClipboardCheck, color: 'from-amber-400 to-orange-500', view: 'homework' as const },
+            { label: t('student_portal.quick_achievements'), icon: Trophy, color: 'from-violet-400 to-purple-500', view: 'student-achievements' as const },
+            { label: t('student_portal.quick_study'), icon: Clock, color: 'from-sky-400 to-cyan-500', view: 'student-study-planner' as const },
+          ].map((action, idx) => {
+            const Icon = action.icon;
+            return (
+              <motion.div
+                key={idx}
+                whileHover={{ scale: 1.03, y: -3 }}
+                whileTap={{ scale: 0.97 }}
+              >
+                <Card
+                  className="border-0 shadow-sm rounded-xl overflow-hidden cursor-pointer hover:shadow-md transition-all duration-300"
+                  onClick={() => {
+                    const store = useAppStore.getState();
+                    store.setCurrentView(action.view);
+                  }}
+                >
+                  <CardContent className="p-4 flex flex-col items-center text-center gap-2">
+                    <div className={`flex items-center justify-center w-10 h-10 rounded-xl bg-gradient-to-br ${action.color} text-white shadow-md`}>
+                      <Icon className="h-5 w-5" />
+                    </div>
+                    <p className="text-xs font-semibold text-gray-900 dark:text-gray-100">{action.label}</p>
+                  </CardContent>
+                </Card>
+              </motion.div>
+            );
+          })}
+        </div>
+      </motion.div>
+
+      {/* ── Charts Section: Radar + Grade Trend ─────────────────────────── */}
+      <motion.div variants={itemVariants}>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          {/* Competency Radar Chart */}
+          <Card className="border-0 shadow-sm rounded-xl overflow-hidden">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-bold flex items-center gap-2">
+                <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-gradient-to-br from-emerald-400 to-teal-500 text-white shadow-sm">
+                  <Target className="h-3.5 w-3.5" />
+                </div>
+                {t('student_portal.competency_radar')}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-2">
+              <div className="h-64">
+                <ResponsiveContainer width="100%" height="100%">
+                  <RadarChart data={competencies.map(c => ({
+                    subject: c.subject.length > 8 ? c.subject.substring(0, 8) + '…' : c.subject,
+                    progress: c.progress,
+                    level: c.level * 25,
+                  }))}>
+                    <PolarGrid stroke="currentColor" className="text-gray-200 dark:text-gray-700" />
+                    <PolarAngleAxis dataKey="subject" className="text-[10px] fill-gray-500 dark:fill-gray-400" />
+                    <PolarRadiusAxis angle={30} domain={[0, 100]} className="text-[8px]" />
+                    <Radar name={t('student_portal.progress_bar')} dataKey="progress" stroke="#10b981" fill="#10b981" fillOpacity={0.2} strokeWidth={2} />
+                    <Radar name={t('student_portal.mastery_level')} dataKey="level" stroke="#8b5cf6" fill="#8b5cf6" fillOpacity={0.1} strokeWidth={2} />
+                    <RechartsTooltip />
+                  </RadarChart>
+                </ResponsiveContainer>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Grade Trend Chart */}
+          <Card className="border-0 shadow-sm rounded-xl overflow-hidden">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-bold flex items-center gap-2">
+                <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-gradient-to-br from-violet-400 to-purple-500 text-white shadow-sm">
+                  <TrendingUp className="h-3.5 w-3.5" />
+                </div>
+                {t('student_portal.grade_trend')}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-2">
+              <div className="h-64">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={[
+                    { month: 'Sep', math: 65, german: 72, english: 58 },
+                    { month: 'Oct', math: 70, german: 75, english: 62 },
+                    { month: 'Nov', math: 68, german: 78, english: 65 },
+                    { month: 'Dec', math: 75, german: 80, english: 70 },
+                    { month: 'Jan', math: 78, german: 82, english: 73 },
+                    { month: 'Feb', math: 82, german: 85, english: 76 },
+                  ]}>
+                    <CartesianGrid strokeDasharray="3 3" className="text-gray-200 dark:text-gray-700" />
+                    <XAxis dataKey="month" className="text-[10px] fill-gray-500 dark:fill-gray-400" />
+                    <YAxis domain={[0, 100]} className="text-[10px] fill-gray-500 dark:fill-gray-400" />
+                    <RechartsTooltip />
+                    <Line type="monotone" dataKey="math" stroke="#10b981" strokeWidth={2} dot={{ r: 3 }} name={t('student.notebook_math')} />
+                    <Line type="monotone" dataKey="german" stroke="#f59e0b" strokeWidth={2} dot={{ r: 3 }} name={t('student.notebook_german')} />
+                    <Line type="monotone" dataKey="english" stroke="#8b5cf6" strokeWidth={2} dot={{ r: 3 }} name={t('student.notebook_english')} />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </motion.div>
+
+      {/* ── Weekly Streak Heatmap ───────────────────────────────────────── */}
+      <motion.div variants={itemVariants}>
+        <Card className="border-0 shadow-sm rounded-xl overflow-hidden">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-bold flex items-center gap-2">
+              <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-gradient-to-br from-orange-400 to-red-500 text-white shadow-sm">
+                <Flame className="h-3.5 w-3.5" />
+              </div>
+              {t('student_portal.weekly_heatmap')}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2 overflow-x-auto pb-2">
+              {Array.from({ length: 28 }).map((_, i) => {
+                const daysAgo = 27 - i;
+                const date = new Date();
+                date.setDate(date.getDate() - daysAgo);
+                const dayName = date.toLocaleDateString(locale === 'de' ? 'de-DE' : 'en-GB', { weekday: 'narrow' });
+                const intensity = Math.random();
+                const isToday = daysAgo === 0;
+                const bgColor = intensity > 0.7
+                  ? 'bg-emerald-500 dark:bg-emerald-600'
+                  : intensity > 0.4
+                    ? 'bg-emerald-300 dark:bg-emerald-700'
+                    : intensity > 0.15
+                      ? 'bg-emerald-100 dark:bg-emerald-900'
+                      : 'bg-gray-100 dark:bg-gray-800';
+                return (
+                  <div key={i} className="flex flex-col items-center gap-1 shrink-0">
+                    <span className="text-[8px] text-gray-400 dark:text-gray-500">{i % 7 === 0 ? dayName : ''}</span>
+                    <motion.div
+                      initial={{ scale: 0 }}
+                      animate={{ scale: 1 }}
+                      transition={{ delay: i * 0.02, type: 'spring', stiffness: 200 }}
+                      className={`w-6 h-6 rounded-md ${bgColor} ${isToday ? 'ring-2 ring-emerald-400 dark:ring-emerald-500' : ''} transition-colors`}
+                      title={date.toLocaleDateString()}
+                    />
+                  </div>
+                );
+              })}
+            </div>
+            <div className="flex items-center justify-between mt-2">
+              <span className="text-[10px] text-gray-400 dark:text-gray-500">{t('student_portal.less')}</span>
+              <div className="flex items-center gap-1">
+                <div className="w-3 h-3 rounded-sm bg-gray-100 dark:bg-gray-800" />
+                <div className="w-3 h-3 rounded-sm bg-emerald-100 dark:bg-emerald-900" />
+                <div className="w-3 h-3 rounded-sm bg-emerald-300 dark:bg-emerald-700" />
+                <div className="w-3 h-3 rounded-sm bg-emerald-500 dark:bg-emerald-600" />
+              </div>
+              <span className="text-[10px] text-gray-400 dark:text-gray-500">{t('student_portal.more')}</span>
+            </div>
+          </CardContent>
+        </Card>
+      </motion.div>
+
+      {/* ── Daily Challenge Widget ──────────────────────────────────────── */}
+      <motion.div variants={itemVariants}>
+        <Card className="border-0 shadow-sm rounded-xl overflow-hidden border-l-3 border-l-amber-500">
+          <CardHeader className="pb-2 bg-gradient-to-r from-amber-50/50 to-transparent dark:from-amber-900/10 dark:to-transparent">
+            <CardTitle className="text-sm font-bold flex items-center gap-2">
+              <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-gradient-to-br from-amber-400 to-amber-500 text-white shadow-sm">
+                <Sparkles className="h-3.5 w-3.5" />
+              </div>
+              {t('student_portal.daily_challenge')}
+              <Badge className="text-[10px] bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
+                +50 XP
+              </Badge>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <CircularProgress value={60} size={56} strokeWidth={4} colorClass="stroke-amber-400">
+                <span className="text-xs font-bold text-gray-900 dark:text-gray-100">60%</span>
+              </CircularProgress>
+              <div className="flex-1">
+                <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">{t('student_portal.challenge_title')}</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{t('student_portal.challenge_description')}</p>
+                <div className="flex items-center gap-2 mt-2">
+                  <Button size="sm" className="h-7 text-xs bg-gradient-to-r from-amber-500 to-orange-500 text-white" onClick={() => {
+                    const store = useAppStore.getState();
+                    store.setCurrentView('subjects');
+                  }}>
+                    {t('student_portal.start_challenge')}
+                    <ChevronRight className="h-3 w-3 ml-1" />
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </motion.div>
+
+      {/* ── Learning Time Tracker ───────────────────────────────────────── */}
+      <motion.div variants={itemVariants}>
+        <Card className="border-0 shadow-sm rounded-xl overflow-hidden">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-bold flex items-center gap-2">
+              <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-gradient-to-br from-sky-400 to-cyan-500 text-white shadow-sm">
+                <Clock className="h-3.5 w-3.5" />
+              </div>
+              {t('student_portal.learning_time')}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-4">
+            <div className="grid grid-cols-3 gap-3 mb-4">
+              <div className="text-center p-2 rounded-xl bg-gray-50 dark:bg-gray-800/50">
+                <p className="text-lg font-bold text-gray-900 dark:text-gray-100">3.5h</p>
+                <p className="text-[10px] text-gray-500 dark:text-gray-400">{t('student_portal.today')}</p>
+              </div>
+              <div className="text-center p-2 rounded-xl bg-gray-50 dark:bg-gray-800/50">
+                <p className="text-lg font-bold text-gray-900 dark:text-gray-100">12.5h</p>
+                <p className="text-[10px] text-gray-500 dark:text-gray-400">{t('student_portal.this_week')}</p>
+              </div>
+              <div className="text-center p-2 rounded-xl bg-gray-50 dark:bg-gray-800/50">
+                <p className="text-lg font-bold text-gray-900 dark:text-gray-100">45h</p>
+                <p className="text-[10px] text-gray-500 dark:text-gray-400">{t('student_portal.this_month')}</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-gray-500 dark:text-gray-400">{t('student_portal.weekly_goal')}</span>
+              <div className="flex-1">
+                <Progress value={62} className="h-2" />
+              </div>
+              <span className="text-xs font-semibold text-gray-700 dark:text-gray-300">12.5/20h</span>
             </div>
           </CardContent>
         </Card>

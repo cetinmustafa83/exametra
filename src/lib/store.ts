@@ -38,7 +38,13 @@ export type ViewName =
   | 'counseling'
   | 'disciplinary'
   | 'ai-tests'
-  | 'parent-portal';
+  | 'parent-portal'
+  | 'notification-center'
+  | 'announcements'
+  | 'tablet-grading'
+  | 'exam-calendar'
+  | 'student-achievements'
+  | 'student-study-planner';
 
 export interface CurrentUser {
   id: string;

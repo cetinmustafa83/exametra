@@ -5,12 +5,14 @@ import { getSession } from '@/lib/auth';
 
 const priorityEnum = z.enum(['low', 'normal', 'high', 'urgent']);
 const targetAudienceEnum = z.enum(['all', 'teachers', 'students', 'parents', 'class']);
+const announcementTypeEnum = z.enum(['general', 'urgent', 'event', 'holiday', 'exam', 'deadline']);
 
 const createAnnouncementSchema = z.object({
   schoolId: z.string().min(1),
   title: z.string().min(1).max(200),
   content: z.string().min(1).max(10000),
   priority: priorityEnum.optional().default('normal'),
+  announcementType: announcementTypeEnum.optional().default('general'),
   targetAudience: targetAudienceEnum.optional().default('all'),
   classGroupId: z.string().optional().nullable(),
   isPinned: z.boolean().optional().default(false),
@@ -18,7 +20,7 @@ const createAnnouncementSchema = z.object({
 });
 
 function isTeacherOrAdmin(role: string | undefined): boolean {
-  return role === 'TEACHER' || role === 'SCHOOL_ADMIN' || role === 'SUPER_ADMIN';
+  return role === 'TEACHER' || role === 'SCHOOL_ADMIN' || role === 'SUPER_ADMIN' || role === 'VICE_PRINCIPAL';
 }
 
 export async function GET(request: Request) {
@@ -34,10 +36,12 @@ export async function GET(request: Request) {
     const targetAudience = searchParams.get('targetAudience');
     const classGroupId = searchParams.get('classGroupId');
     const isPinned = searchParams.get('isPinned');
+    const announcementType = searchParams.get('announcementType');
     const limit = parseInt(searchParams.get('limit') || '50', 10);
+    const includeReads = searchParams.get('includeReads') === 'true';
 
     let schoolId: string | undefined;
-    if (session.user?.role === 'SCHOOL_ADMIN') {
+    if (session.user?.role === 'SCHOOL_ADMIN' || session.user?.role === 'VICE_PRINCIPAL') {
       schoolId = session.user.schoolId ?? undefined;
     } else {
       schoolId = schoolIdParam ?? session.user?.schoolId ?? undefined;
@@ -59,6 +63,7 @@ export async function GET(request: Request) {
     if (targetAudience && targetAudience !== 'all') where.targetAudience = targetAudience;
     if (classGroupId && classGroupId !== 'all') where.classGroupId = classGroupId;
     if (isPinned === 'true') where.isPinned = true;
+    if (announcementType && announcementType !== 'all') where.announcementType = announcementType;
 
     // Filter by role-based target audience
     if (session.user?.role === 'STUDENT') {
@@ -83,10 +88,52 @@ export async function GET(request: Request) {
       include: {
         author: { select: { id: true, firstName: true, lastName: true } },
         classGroup: { select: { id: true, name: true } },
+        ...(includeReads ? {
+          reads: {
+            include: {
+              user: { select: { id: true, firstName: true, lastName: true } },
+            },
+            orderBy: { readAt: 'desc' as const },
+          },
+        } : {}),
       },
     });
 
-    return NextResponse.json(announcements);
+    // Add read status for the current user
+    const currentUserId = session.userId;
+    const announcementsWithReadStatus = await Promise.all(
+      announcements.map(async (a) => {
+        if (!includeReads) {
+          const readReceipt = await db.announcementRead.findUnique({
+            where: {
+              announcementId_userId: {
+                announcementId: a.id,
+                userId: currentUserId,
+              },
+            },
+          });
+          return {
+            ...a,
+            isReadByCurrentUser: !!readReceipt,
+          };
+        }
+        const readReceipt = await db.announcementRead.findUnique({
+          where: {
+            announcementId_userId: {
+              announcementId: a.id,
+              userId: currentUserId,
+            },
+          },
+        });
+        return {
+          ...a,
+          isReadByCurrentUser: !!readReceipt,
+          totalReads: a.reads?.length ?? 0,
+        };
+      })
+    );
+
+    return NextResponse.json(announcementsWithReadStatus);
   } catch (error) {
     console.error('Announcements GET error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
@@ -138,6 +185,7 @@ export async function POST(request: Request) {
         title: rest.title,
         content: rest.content,
         priority: rest.priority,
+        announcementType: rest.announcementType,
         targetAudience: rest.targetAudience,
         classGroupId: classGroupId || null,
         isPinned: rest.isPinned,

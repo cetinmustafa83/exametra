@@ -9,6 +9,7 @@ const updateUserSchema = z.object({
   email: z.string().email().optional(),
   role: z.enum(['TEACHER', 'SCHOOL_ADMIN', 'SUPER_ADMIN', 'VICE_PRINCIPAL']).optional(),
   locale: z.string().optional(),
+  schoolId: z.string().optional(),
 });
 
 export async function GET(
