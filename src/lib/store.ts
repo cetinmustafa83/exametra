@@ -29,7 +29,9 @@ export type ViewName =
   | 'portfolio'
   | 'timetable'
   | 'resources'
-  | 'competitions';
+  | 'competitions'
+  | 'districts'
+  | 'student-portal';
 
 export interface CurrentUser {
   id: string;

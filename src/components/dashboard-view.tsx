@@ -234,6 +234,30 @@ const motivationalTips = [
   { text: 'Detailed records make parent conversations productive.', icon: MessageSquare },
 ];
 
+// ─── Time-based Greeting Helper ────────────────────────────────────
+function getTimeGreeting(): string {
+  const hour = new Date().getHours();
+  if (hour < 12) return t('dashboard.greeting_morning');
+  if (hour < 18) return t('dashboard.greeting_afternoon');
+  return t('dashboard.greeting_evening');
+}
+
+// ─── Gradient Border Card Wrapper ──────────────────────────────────
+function GradientBorderCard({ children, className = '', gradientFrom = 'from-emerald-400', gradientTo = 'to-teal-500' }: {
+  children: React.ReactNode;
+  className?: string;
+  gradientFrom?: string;
+  gradientTo?: string;
+}) {
+  return (
+    <div className={`relative rounded-xl p-[1.5px] bg-gradient-to-br ${gradientFrom} ${gradientTo} ${className}`}>
+      <div className="rounded-[10px] bg-white dark:bg-gray-950 h-full">
+        {children}
+      </div>
+    </div>
+  );
+}
+
 // ─── Parent Dashboard Component ────────────────────────────────────────
 function ParentDashboard({ currentUser, setCurrentView, locale }: {
   currentUser: CurrentUser;
@@ -848,7 +872,7 @@ function SchoolAdminDashboard({ currentUser, setCurrentView, locale, data }: {
                     <RechartsTooltip
                       contentStyle={{ borderRadius: '8px', border: '1px solid #e5e7eb', fontSize: '12px' }}
                     />
-                    <Bar dataKey="students" fill="#10b981" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="students" fill="#10b981" radius={[4, 4, 0, 0]} isAnimationActive animationDuration={1000} animationEasing="ease-out" />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
@@ -866,6 +890,9 @@ function SchoolAdminDashboard({ currentUser, setCurrentView, locale, data }: {
                         outerRadius={80}
                         paddingAngle={3}
                         dataKey="value"
+                        isAnimationActive
+                        animationDuration={1200}
+                        animationEasing="ease-out"
                       >
                         {gradeDistribution.map((entry, index) => (
                           <Cell key={`cell-${index}`} fill={entry.color} />
@@ -1579,7 +1606,7 @@ export default function DashboardView() {
                   <XAxis dataKey="subject" tick={{ fontSize: 10 }} stroke="#9ca3af" />
                   <YAxis domain={[1, 6]} reversed tick={{ fontSize: 10 }} stroke="#9ca3af" />
                   <RechartsTooltip contentStyle={{ borderRadius: '8px', border: '1px solid #e5e7eb', fontSize: '12px' }} />
-                  <Bar dataKey="grade" fill="#10b981" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="grade" fill="#10b981" radius={[4, 4, 0, 0]} isAnimationActive animationDuration={1000} animationEasing="ease-out" />
                 </BarChart>
               </ResponsiveContainer>
             </CardContent>
@@ -1658,12 +1685,17 @@ export default function DashboardView() {
           {/* Top row: welcome + date */}
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div className="flex items-center gap-3.5">
-              <div className="flex items-center justify-center w-12 h-12 rounded-2xl bg-gradient-to-br from-emerald-400 to-teal-500 text-white shadow-lg shadow-emerald-300/30 ring-2 ring-emerald-200/30 dark:ring-emerald-800/20">
+              <motion.div
+                initial={{ scale: 0.8, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                transition={{ type: 'spring', stiffness: 150, damping: 12 }}
+                className="flex items-center justify-center w-12 h-12 rounded-2xl bg-gradient-to-br from-emerald-400 to-teal-500 text-white shadow-lg shadow-emerald-300/30 ring-2 ring-emerald-200/30 dark:ring-emerald-800/20"
+              >
                 <Sparkles className="w-6 h-6" />
-              </div>
+              </motion.div>
               <div>
                 <h2 className="text-2xl font-bold bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-500 dark:from-emerald-400 dark:via-teal-400 dark:to-emerald-300 bg-clip-text text-transparent">
-                  {t('dashboard.welcome')}, {currentUser?.firstName}!
+                  {getTimeGreeting()}, {currentUser?.firstName}!
                 </h2>
                 <p className="text-emerald-600/60 dark:text-emerald-400/40 mt-0.5 text-sm">{t('dashboard.overview')}</p>
               </div>
@@ -1698,20 +1730,27 @@ export default function DashboardView() {
             </div>
           </div>
 
-          {/* Tip of the day */}
+          {/* Tip of the day — enhanced with gradient border */}
           <motion.div
             initial={{ opacity: 0, y: 6 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.3, duration: 0.4 }}
-            className="flex items-center gap-3 px-4 py-3 rounded-xl bg-gradient-to-r from-emerald-50/80 via-teal-50/40 to-transparent dark:from-emerald-900/15 dark:via-teal-900/10 dark:to-transparent border border-emerald-200/30 dark:border-emerald-800/20"
+            className="relative"
           >
-            <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-gradient-to-br from-amber-400 to-amber-500 text-white shadow-sm shrink-0">
-              <dailyTip.icon className="h-4 w-4" />
+            <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-amber-400/20 via-emerald-400/20 to-teal-400/20 dark:from-amber-400/10 dark:via-emerald-400/10 dark:to-teal-400/10 blur-sm" />
+            <div className="relative flex items-center gap-3 px-4 py-3 rounded-xl bg-gradient-to-r from-emerald-50/80 via-teal-50/40 to-transparent dark:from-emerald-900/15 dark:via-teal-900/10 dark:to-transparent border border-emerald-200/30 dark:border-emerald-800/20">
+              <motion.div
+                animate={{ rotate: [0, 10, -10, 0] }}
+                transition={{ duration: 2, repeat: Infinity, repeatDelay: 5 }}
+                className="flex items-center justify-center w-8 h-8 rounded-lg bg-gradient-to-br from-amber-400 to-amber-500 text-white shadow-sm shrink-0"
+              >
+                <dailyTip.icon className="h-4 w-4" />
+              </motion.div>
+              <p className="text-sm text-gray-600 dark:text-gray-300 leading-snug">
+                <span className="font-semibold text-emerald-700 dark:text-emerald-300">{t('dashboard.daily_tip')}:</span>{' '}
+                {dailyTip.text}
+              </p>
             </div>
-            <p className="text-sm text-gray-600 dark:text-gray-300 leading-snug">
-              <span className="font-semibold text-emerald-700 dark:text-emerald-300">{locale === 'de' ? 'Tipp des Tages' : 'Tip of the day'}:</span>{' '}
-              {dailyTip.text}
-            </p>
           </motion.div>
         </div>
       </motion.div>
@@ -1815,23 +1854,36 @@ export default function DashboardView() {
               <TooltipProvider delayDuration={200}>
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <Card className={`card-shadow-transition border-0 shadow-sm rounded-xl border-l-3 ${colors.borderAccent} overflow-hidden transition-all duration-300 ${colors.hoverShadow} ${colors.glowColor} cursor-default ring-1 ring-black/[0.03] dark:ring-white/[0.05] hover:ring-emerald-200/40 dark:hover:ring-emerald-700/30`}>
+                    <Card className={`card-shadow-transition border-0 shadow-sm rounded-xl overflow-hidden transition-all duration-300 ${colors.hoverShadow} ${colors.glowColor} cursor-default ring-1 ring-black/[0.03] dark:ring-white/[0.05] hover:ring-2 hover:ring-emerald-200/60 dark:hover:ring-emerald-700/40`}>
+                      {/* Gradient top border */}
+                      <div className={`h-1 bg-gradient-to-r ${colors.gradient}`} />
                       <CardContent className={`p-5 ${colors.bg}`}>
                         <div className="flex items-start justify-between gap-2">
                           <p className="text-[10px] font-semibold text-gray-500 dark:text-gray-400 leading-tight line-clamp-2 min-h-[28px] break-words min-w-0">
                             {stat.label}
                           </p>
-                          <div className={`flex items-center justify-center w-9 h-9 rounded-lg ${colors.iconBg} ${colors.iconText} shadow-md shadow-emerald-200/30 shrink-0`}>
+                          <motion.div
+                            whileHover={{ scale: 1.1, rotate: 5 }}
+                            transition={{ duration: 0.15 }}
+                            className={`flex items-center justify-center w-9 h-9 rounded-lg ${colors.iconBg} ${colors.iconText} shadow-md shadow-emerald-200/30 shrink-0`}
+                          >
                             <stat.icon className="h-4 w-4" />
-                          </div>
+                          </motion.div>
                         </div>
                         <div className="mt-2 flex items-baseline gap-1.5">
-                          <p className="text-3xl font-bold text-gray-900 dark:text-gray-100 leading-none"><CountUp target={stat.value} /></p>
+                          <p className="text-3xl font-bold text-gray-900 dark:text-gray-100 leading-none">
+                            <CountUp target={stat.value} />
+                          </p>
                           {stat.value > 0 && stat.trend === 'up' && (
-                            <div className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md bg-emerald-100/80 dark:bg-emerald-900/30">
+                            <motion.div
+                              initial={{ scale: 0.8, opacity: 0 }}
+                              animate={{ scale: 1, opacity: 1 }}
+                              transition={{ delay: 0.5, type: 'spring', stiffness: 200 }}
+                              className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md bg-emerald-100/80 dark:bg-emerald-900/30"
+                            >
                               <ArrowUpRight className="h-3 w-3 text-emerald-600 dark:text-emerald-400" />
                               <span className="text-[9px] font-bold text-emerald-600 dark:text-emerald-400">{trendPct > 0 ? `+${trendPct}%` : ''}</span>
-                            </div>
+                            </motion.div>
                           )}
                           {stat.value === 0 && (
                             <span className="text-[10px] font-medium text-gray-400 dark:text-gray-500 uppercase tracking-wide">{t('dashboard.start_here')}</span>
@@ -1868,7 +1920,7 @@ export default function DashboardView() {
                       <CardFooter className="px-5 pb-3 pt-0">
                         <div className="flex items-center gap-1 text-[10px] text-gray-400 dark:text-gray-500">
                           <RefreshCw className="h-2.5 w-2.5" />
-                          <span>{locale === 'de' ? 'Aktualisiert' : 'Updated'} {currentTime}</span>
+                          <span>{t('dashboard.updated_at')} {currentTime}</span>
                         </div>
                       </CardFooter>
                     </Card>
@@ -2040,8 +2092,8 @@ export default function DashboardView() {
               <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-gradient-to-br from-teal-400 to-emerald-500 text-white shadow-sm">
                 <Flower2 className="h-4 w-4" />
               </div>
-              {t('teacher.competence_progress')}
-              <span className="text-xs font-normal text-gray-500 dark:text-gray-400 ml-1">{t('teacher.competence_progress_desc')}</span>
+              {t('dashboard.competency_progress')}
+              <span className="text-xs font-normal text-gray-500 dark:text-gray-400 ml-1">{t('dashboard.competency_progress_desc')}</span>
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -2057,12 +2109,41 @@ export default function DashboardView() {
                 <PolarGrid stroke="#e5e7eb" />
                 <PolarAngleAxis dataKey="subject" tick={{ fontSize: 11, fill: '#6b7280' }} />
                 <PolarRadiusAxis angle={30} domain={[0, 4]} tick={{ fontSize: 10 }} />
-                <Radar name={locale === 'de' ? 'Aktuell' : 'Current'} dataKey="current" stroke="#10b981" fill="#10b981" fillOpacity={0.3} />
-                <Radar name={locale === 'de' ? 'Ziel' : 'Target'} dataKey="target" stroke="#14b8a6" fill="#14b8a6" fillOpacity={0.1} strokeDasharray="5 5" />
+                <Radar name={locale === 'de' ? 'Aktuell' : 'Current'} dataKey="current" stroke="#10b981" fill="#10b981" fillOpacity={0.3} isAnimationActive animationDuration={1200} animationEasing="ease-out" />
+                <Radar name={locale === 'de' ? 'Ziel' : 'Target'} dataKey="target" stroke="#14b8a6" fill="#14b8a6" fillOpacity={0.1} strokeDasharray="5 5" isAnimationActive animationDuration={1500} animationEasing="ease-out" />
                 <RechartsTooltip contentStyle={{ borderRadius: '8px', border: '1px solid #e5e7eb', fontSize: '12px' }} />
                 <Legend wrapperStyle={{ fontSize: '12px' }} />
               </RadarChart>
             </ResponsiveContainer>
+
+            {/* Animated progress bars for each subject */}
+            <div className="mt-4 space-y-3 pt-4 border-t border-gray-100 dark:border-gray-800">
+              <h4 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">{t('dashboard.competency_progress')}</h4>
+              {[
+                { subject: t('student.notebook_math'), current: 3.5, target: 4, color: 'from-amber-400 to-orange-500' },
+                { subject: t('student.notebook_german'), current: 3.8, target: 4, color: 'from-emerald-400 to-teal-500' },
+                { subject: t('student.notebook_english'), current: 2.9, target: 4, color: 'from-rose-400 to-pink-500' },
+                { subject: t('student.notebook_science'), current: 3.2, target: 4, color: 'from-violet-400 to-purple-500' },
+              ].map((item) => {
+                const pct = Math.round((item.current / item.target) * 100);
+                return (
+                  <div key={item.subject} className="space-y-1">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-medium text-gray-700 dark:text-gray-300">{item.subject}</span>
+                      <span className="text-xs font-semibold text-gray-500 dark:text-gray-400">{item.current}/{item.target}</span>
+                    </div>
+                    <div className="h-2.5 rounded-full bg-gray-100 dark:bg-gray-800 overflow-hidden">
+                      <motion.div
+                        initial={{ width: 0 }}
+                        animate={{ width: `${pct}%` }}
+                        transition={{ duration: 1, ease: 'easeOut', delay: 0.2 }}
+                        className={`h-full rounded-full bg-gradient-to-r ${item.color}`}
+                      />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </CardContent>
         </Card>
       </motion.div>
@@ -2128,7 +2209,7 @@ export default function DashboardView() {
               <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-gradient-to-br from-amber-400 to-emerald-500 text-white shadow-sm">
                 <CalendarDays className="h-4 w-4" />
               </div>
-              {locale === 'de' ? 'Heutige Aufgaben' : 'Today\'s Schedule'}
+              {t('dashboard.class_overview_grid')}
               <span className="text-xs font-normal text-gray-500 dark:text-gray-400 ml-1 hidden sm:inline">
                 · {new Date().toLocaleDateString(locale === 'de' ? 'de-DE' : 'en-GB', { weekday: 'short', day: 'numeric', month: 'short' })}
               </span>
@@ -2137,8 +2218,8 @@ export default function DashboardView() {
           <CardContent>
             <div className="space-y-2">
               {[
-                { icon: PenLine, label: locale === 'de' ? 'Fortschritte erfassen' : 'Log progress entries', desc: locale === 'de' ? 'Neue Beobachtungen eintragen' : 'Record new observations', view: 'progress', color: 'from-emerald-400 to-teal-500' },
-                { icon: ClipboardCheck, label: locale === 'de' ? 'Uberpruefung erstellen' : 'Create assessment', desc: locale === 'de' ? 'Leistungsueberpruefung planen' : 'Plan performance assessment', view: 'assessments', color: 'from-amber-400 to-rose-500' },
+                { icon: PenLine, label: t('action.log_entry'), desc: t('dashboard.quick_action_assessment_desc'), view: 'progress', color: 'from-emerald-400 to-teal-500' },
+                { icon: ClipboardCheck, label: t('action.create_assessment'), desc: t('dashboard.quick_action_assessment_desc'), view: 'assessments', color: 'from-amber-400 to-rose-500' },
                 { icon: BookOpen, label: locale === 'de' ? 'Kompetenzblume ansehen' : 'View competence flower', desc: locale === 'de' ? 'Radar-Chart pruefen' : 'Check radar chart', view: 'flower', color: 'from-violet-400 to-emerald-500' },
                 { icon: Notebook, label: locale === 'de' ? 'Notizbuch aktualisieren' : 'Update notebook', desc: locale === 'de' ? 'Hefte bearbeiten' : 'Edit notebooks', view: 'notebooks', color: 'from-teal-400 to-emerald-500' },
               ].map((item, i) => (
@@ -2329,6 +2410,99 @@ export default function DashboardView() {
         <div className="flex-1 h-px bg-gradient-to-r from-emerald-200/60 dark:from-emerald-800/30 to-transparent" />
       </motion.div>
 
+      {/* ===== CLASS OVERVIEW MINI CARD GRID ===== */}
+      <motion.div variants={itemVariants}>
+        <Card className="border-0 shadow-sm rounded-xl border-l-3 border-l-emerald-500 overflow-hidden ring-1 ring-black/[0.03] dark:ring-white/[0.05]">
+          <CardHeader className="pb-3 pt-5 bg-gradient-to-r from-emerald-50/50 to-transparent dark:from-emerald-900/10 dark:to-transparent">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-lg font-bold flex items-center gap-2">
+                <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-400 to-teal-500 text-white shadow-sm">
+                  <School className="h-4 w-4" />
+                </div>
+                {t('dashboard.class_overview_grid')}
+                {data.classesOverview.length > 0 && (
+                  <Badge variant="secondary" className="ml-1 text-[10px] bg-emerald-100/80 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300">
+                    {data.classesOverview.length}
+                  </Badge>
+                )}
+              </CardTitle>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setCurrentView('classes')}
+                className="text-xs text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 min-h-[44px] px-2"
+              >
+                {t('dashboard.view_all')}
+                <ChevronRight className="h-3.5 w-3.5 ml-1" />
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {data.classesOverview.length === 0 ? (
+              <div className="text-center py-8">
+                <div className="flex items-center justify-center w-16 h-16 rounded-2xl bg-emerald-100 dark:bg-emerald-900/20 mx-auto mb-4">
+                  <Target className="h-8 w-8 text-emerald-400 dark:text-emerald-500" />
+                </div>
+                <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">{t('dashboard.no_classes')}</p>
+                <p className="text-xs text-emerald-600/60 dark:text-emerald-400/40 mt-1">{t('dashboard.start_here')}</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+                {data.classesOverview.map((cls, idx) => {
+                  const gradientIdx = idx % avatarGradients.length;
+                  const totalStudents = cls.studentCount;
+                  const maxStudents = Math.max(...data.classesOverview.map(c => c.studentCount), 1);
+                  const fillPct = Math.round((totalStudents / maxStudents) * 100);
+
+                  return (
+                    <motion.div
+                      key={cls.id}
+                      whileHover={{ scale: 1.03, y: -2 }}
+                      whileTap={{ scale: 0.98 }}
+                      transition={{ duration: 0.15 }}
+                      className="cursor-pointer"
+                      onClick={() => {
+                        useAppStore.getState().setCurrentClass(cls.id);
+                        setCurrentView('classes');
+                      }}
+                    >
+                      <div className="relative rounded-xl overflow-hidden border border-gray-200/40 dark:border-gray-700/40 bg-white dark:bg-gray-900/50 hover:shadow-md transition-shadow duration-200">
+                        {/* Gradient top strip */}
+                        <div className={`h-1.5 bg-gradient-to-r ${avatarGradients[gradientIdx]}`} />
+                        <div className="p-3">
+                          <div className="flex items-center gap-2 mb-2">
+                            <div className={`flex items-center justify-center w-8 h-8 rounded-lg bg-gradient-to-br ${avatarGradients[gradientIdx]} text-white text-[10px] font-bold shadow-sm shrink-0`}>
+                              {cls.name.substring(0, 2).toUpperCase()}
+                            </div>
+                            <div className="min-w-0">
+                              <p className="text-xs font-semibold text-gray-900 dark:text-gray-100 truncate">{cls.name}</p>
+                              <p className="text-[10px] text-gray-500 dark:text-gray-400">{t('label.grade')} {cls.gradeLevel}</p>
+                            </div>
+                          </div>
+                          {/* Mini student count bar */}
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-[10px] text-gray-500 dark:text-gray-400">{t('dashboard.total_students')}</span>
+                            <span className="text-[10px] font-semibold text-gray-700 dark:text-gray-300">{cls.studentCount}</span>
+                          </div>
+                          <div className="h-1.5 rounded-full bg-gray-100 dark:bg-gray-800 overflow-hidden">
+                            <motion.div
+                              initial={{ width: 0 }}
+                              animate={{ width: `${fillPct}%` }}
+                              transition={{ duration: 0.8, ease: 'easeOut', delay: idx * 0.05 }}
+                              className={`h-full rounded-full bg-gradient-to-r ${avatarGradients[gradientIdx]}`}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    </motion.div>
+                  );
+                })}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </motion.div>
+
       {/* ===== MAIN CONTENT GRID ===== */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Classes overview */}
@@ -2481,16 +2655,19 @@ export default function DashboardView() {
         <div className="flex-1 h-px bg-gradient-to-r from-emerald-200/60 dark:from-emerald-800/30 to-transparent" />
       </motion.div>
 
-      {/* ===== RECENT ACTIVITY ===== */}
+      {/* ===== RECENT ACTIVITY TIMELINE ===== */}
       <motion.div variants={itemVariants}>
         <Card className="border-0 shadow-sm rounded-xl border-l-3 border-l-teal-500 overflow-hidden transition-shadow duration-200 hover:shadow-md ring-1 ring-black/[0.03] dark:ring-white/[0.05]">
           <CardHeader className="pb-3 pt-6 bg-gradient-to-r from-teal-50/50 to-transparent dark:from-teal-900/10 dark:to-transparent">
-            <CardTitle className="text-lg flex items-center gap-2">
-              <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-teal-100 dark:bg-teal-900/30 text-teal-600 dark:text-teal-400">
-                <TrendingUp className="h-4 w-4" />
-              </div>
-              {t('dashboard.recent_activity')}
-            </CardTitle>
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-lg flex items-center gap-2">
+                <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-teal-100 dark:bg-teal-900/30 text-teal-600 dark:text-teal-400">
+                  <TrendingUp className="h-4 w-4" />
+                </div>
+                {t('dashboard.activity_timeline')}
+              </CardTitle>
+              <span className="text-xs text-gray-500 dark:text-gray-400">{t('dashboard.activity_timeline_desc')}</span>
+            </div>
           </CardHeader>
           <CardContent>
             {data.recentEntries.length === 0 ? (
@@ -2502,18 +2679,27 @@ export default function DashboardView() {
                 <p className="text-xs text-emerald-600/60 dark:text-emerald-400/40 mt-1">{t('dashboard.start_here')}</p>
               </div>
             ) : (
-              <div className="activity-timeline max-h-96 overflow-y-auto scrollbar-education pr-1">
-                {data.recentEntries.slice(0, typeof window !== 'undefined' && window.innerWidth < 640 ? 5 : 10).map((entry) => {
+              <div className="relative activity-timeline max-h-96 overflow-y-auto scrollbar-education pr-1">
+                {/* Timeline connector line */}
+                <div className="absolute left-[22px] top-4 bottom-4 w-px bg-gradient-to-b from-teal-200 via-emerald-200 to-transparent dark:from-teal-800 dark:via-emerald-800" />
+                {data.recentEntries.slice(0, typeof window !== 'undefined' && window.innerWidth < 640 ? 5 : 10).map((entry, idx) => {
                   const catColor = entry.competency.category.color ?? '#10b981';
                   const studentName = `${entry.student.firstName} ${entry.student.lastName}`;
                   const gradient = getAvatarGradient(studentName);
                   return (
                     <motion.div
                       key={entry.id}
+                      initial={{ opacity: 0, x: -10 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ duration: 0.3, delay: idx * 0.05 }}
                       whileHover={{ scale: 1.01, x: 2 }}
-                      transition={{ duration: 0.15 }}
-                      className="activity-timeline-item group flex items-center justify-between p-3.5 rounded-xl bg-gradient-to-r from-gray-50/80 to-gray-50/0 dark:from-gray-800/50 dark:to-gray-800/0 border border-gray-100/60 dark:border-gray-800/40 hover:border-emerald-200/60 dark:hover:border-emerald-800/30 transition-colors relative overflow-hidden"
+                      className="activity-timeline-item group flex items-center justify-between p-3.5 rounded-xl bg-gradient-to-r from-gray-50/80 to-gray-50/0 dark:from-gray-800/50 dark:to-gray-800/0 border border-gray-100/60 dark:border-gray-800/40 hover:border-emerald-200/60 dark:hover:border-emerald-800/30 transition-colors relative overflow-hidden mb-2 ml-6"
                     >
+                      {/* Timeline dot */}
+                      <div className="absolute -left-6 top-1/2 -translate-y-1/2 flex items-center justify-center">
+                        <div className="w-3 h-3 rounded-full border-2 border-white dark:border-gray-900 shadow-sm" style={{ backgroundColor: catColor }} />
+                      </div>
+
                       {/* Left border color indicator */}
                       <div className="absolute left-0 top-0 bottom-0 w-1 rounded-l-xl transition-all duration-200 group-hover:w-1.5" style={{ backgroundColor: catColor }} />
 
@@ -2670,9 +2856,11 @@ export default function DashboardView() {
 
       {/* ===== PAPER SAVED & ENVIRONMENTAL SECTION ===== */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Paper Saved Counter */}
+        {/* Paper Saved Counter — enhanced with CountUp */}
         <motion.div variants={itemVariants}>
-          <Card className="border-0 shadow-sm rounded-xl border-l-3 border-l-emerald-500 overflow-hidden bg-white dark:bg-gray-950 ring-1 ring-black/[0.03] dark:ring-white/[0.05] card-hover-lift">
+          <Card className="border-0 shadow-sm rounded-xl overflow-hidden bg-white dark:bg-gray-950 ring-1 ring-black/[0.03] dark:ring-white/[0.05]">
+            {/* Gradient top border */}
+            <div className="h-1.5 bg-gradient-to-r from-emerald-400 via-teal-400 to-emerald-500" />
             <CardContent className="p-6">
               <div className="flex items-center gap-4">
                 <motion.div
@@ -2685,30 +2873,38 @@ export default function DashboardView() {
                 </motion.div>
                 <div className="flex-1 min-w-0">
                   <h3 className="text-sm font-bold text-emerald-700 dark:text-emerald-300 mb-1">
-                    {locale === 'de' ? 'Papier gespart' : 'Paper Saved'}
+                    {t('dashboard.paper_saved')}
                   </h3>
                   <div className="flex items-baseline gap-2">
-                    <span className="text-3xl font-bold text-gray-900 dark:text-gray-100 animate-count-up">
-                      {data.stats.totalProgressEntries * 50}
+                    <span className="text-3xl font-bold text-gray-900 dark:text-gray-100">
+                      <CountUp target={data.stats.totalProgressEntries * 50} />
                     </span>
                     <span className="text-sm text-emerald-600/70 dark:text-emerald-400/60 font-medium">
-                      {locale === 'de' ? 'Seiten' : 'pages'}
+                      {t('dashboard.paper_saved_pages')}
                     </span>
                   </div>
                   <p className="text-xs text-gray-500 dark:text-gray-400 leading-relaxed mt-2">
-                    {locale === 'de'
-                      ? 'Jeder digitale Eintrag spart ca. 50 Seiten Papier. Danke fuer Ihren Beitrag zum Umweltschutz!'
-                      : 'Each digital entry saves ~50 pages of paper. Thank you for contributing to environmental protection!'}
+                    {t('dashboard.env_tip_text')}
                   </p>
                   <div className="flex items-center gap-2 mt-3">
-                    <div className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-emerald-100/60 dark:bg-emerald-900/30 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">
+                    <motion.div
+                      initial={{ scale: 0.9, opacity: 0 }}
+                      animate={{ scale: 1, opacity: 1 }}
+                      transition={{ delay: 0.5, duration: 0.3 }}
+                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-emerald-100/60 dark:bg-emerald-900/30 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400"
+                    >
                       <TreePine className="h-3 w-3" />
-                      {locale === 'de' ? '~0.5 Baume' : '~0.5 trees'}
-                    </div>
-                    <div className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-teal-100/60 dark:bg-teal-900/30 text-[11px] font-semibold text-teal-600 dark:text-teal-400">
+                      ~{(data.stats.totalProgressEntries * 50 / 8000).toFixed(1)} {t('dashboard.paper_saved_trees')}
+                    </motion.div>
+                    <motion.div
+                      initial={{ scale: 0.9, opacity: 0 }}
+                      animate={{ scale: 1, opacity: 1 }}
+                      transition={{ delay: 0.7, duration: 0.3 }}
+                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-teal-100/60 dark:bg-teal-900/30 text-[11px] font-semibold text-teal-600 dark:text-teal-400"
+                    >
                       <Sprout className="h-3 w-3" />
-                      {locale === 'de' ? 'CO2 reduziert' : 'CO2 reduced'}
-                    </div>
+                      {(data.stats.totalProgressEntries * 50 * 0.005).toFixed(1)} {t('dashboard.paper_saved_co2')}
+                    </motion.div>
                   </div>
                 </div>
               </div>
@@ -2750,6 +2946,53 @@ export default function DashboardView() {
           </Card>
         </motion.div>
       </div>
+
+      {/* ===== SCHOOL BRANDING SECTION ===== */}
+      <motion.div variants={itemVariants}>
+        <Card className="border-0 shadow-sm rounded-xl overflow-hidden ring-1 ring-black/[0.03] dark:ring-white/[0.05]">
+          {/* Gradient top border */}
+          <div className="h-1.5 bg-gradient-to-r from-emerald-400 via-teal-400 to-violet-400" />
+          <CardContent className="p-6">
+            <div className="flex items-center gap-4">
+              <motion.div
+                initial={{ scale: 0.9, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                transition={{ delay: 0.3, type: 'spring', stiffness: 120 }}
+                className="flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-br from-emerald-400 to-teal-500 text-white shadow-lg shadow-emerald-300/30 shrink-0"
+              >
+                <School className="h-7 w-7" />
+              </motion.div>
+              <div className="flex-1 min-w-0">
+                <h3 className="text-sm font-bold text-emerald-700 dark:text-emerald-300 mb-1">
+                  {t('dashboard.school_branding')}
+                </h3>
+                <p className="text-xs text-gray-500 dark:text-gray-400 leading-relaxed">
+                  {t('dashboard.school_branding_desc')}
+                </p>
+                <div className="flex items-center gap-2 mt-3">
+                  <div className="flex items-center gap-1">
+                    <div className="w-4 h-4 rounded-full bg-emerald-500 shadow-sm" />
+                    <div className="w-4 h-4 rounded-full bg-teal-500 shadow-sm" />
+                    <div className="w-4 h-4 rounded-full bg-violet-500 shadow-sm" />
+                    <div className="w-4 h-4 rounded-full bg-amber-500 shadow-sm" />
+                    <div className="w-4 h-4 rounded-full bg-rose-500 shadow-sm" />
+                  </div>
+                  <span className="text-[10px] text-gray-400 dark:text-gray-500">{t('app.name')}</span>
+                </div>
+              </div>
+              <div className="hidden sm:flex flex-col items-end gap-1 shrink-0">
+                <Badge className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300 text-xs">
+                  <GraduationCap className="h-3 w-3 mr-1" />
+                  {currentUser?.schoolId ? t('nav.classes') : 'CompetenceTrack'}
+                </Badge>
+                <span className="text-[10px] text-gray-400 dark:text-gray-500">
+                  {t('dashboard.total_students')}: {data.stats.totalStudents} · {t('dashboard.total_classes')}: {data.stats.totalClasses}
+                </span>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </motion.div>
 
       {/* ===== SCHOOL NEWS / NEWSLETTER SECTION ===== */}
       <DashboardNewsletterCard currentUser={currentUser} locale={locale} />

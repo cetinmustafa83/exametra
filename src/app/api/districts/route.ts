@@ -8,7 +8,15 @@ export async function GET() {
       where: { deletedAt: null },
       include: {
         schools: {
-          select: { id: true, name: true, schoolType: true, country: true },
+          select: {
+            id: true,
+            name: true,
+            schoolType: true,
+            country: true,
+            _count: {
+              select: { students: true, classGroups: true, users: true },
+            },
+          },
         },
       },
       orderBy: { name: 'asc' },
@@ -18,7 +26,9 @@ export async function GET() {
     const result = districts.map((d) => ({
       ...d,
       schoolCount: d.schools.length,
-      totalStudents: 0, // Would need aggregation query in production
+      totalStudents: d.schools.reduce((acc, s) => acc + s._count.students, 0),
+      totalTeachers: d.schools.reduce((acc, s) => acc + s._count.users, 0),
+      totalClasses: d.schools.reduce((acc, s) => acc + s._count.classGroups, 0),
     }));
 
     return NextResponse.json(result);

@@ -1,8 +1,8 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { BookOpen, Mail, Lock, User, ArrowRight, GraduationCap, Heart, Sparkles, Flower2, Eye, EyeOff, KeyRound, Info, Shield, Leaf, Users as UsersIcon, HelpCircle } from 'lucide-react';
+import { BookOpen, Mail, Lock, User, ArrowRight, GraduationCap, Heart, Sparkles, Flower2, Eye, EyeOff, KeyRound, Info, Shield, Leaf, Users as UsersIcon, HelpCircle, BarChart3, LockKeyhole, GitBranch } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -23,6 +23,301 @@ const DEMO_ACCOUNTS = [
   { email: 'demo.parent@competencetrack.org', password: 'Demo2025!', role: 'PARENT', labelKey: 'auth.demo_parent', icon: Heart, colorClass: 'from-violet-400 to-violet-600 hover:from-violet-500 hover:to-violet-700 shadow-violet-300/40 dark:shadow-violet-900/40' },
 ];
 
+/* ─── Staggered entrance helpers ────────────────────────────── */
+const containerVariants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: { staggerChildren: 0.07, delayChildren: 0.1 },
+  },
+};
+
+const itemVariants = {
+  hidden: { opacity: 0, y: 14 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.4, ease: 'easeOut' } },
+};
+
+/* ─── Floating particles ────────────────────────────────────── */
+function FloatingParticles() {
+  const particles = useMemo(() => [
+    { id: 'p1', x: 8, y: 12, size: 6, opacity: 0.25, color: 'emerald', delay: 0, duration: 14 },
+    { id: 'p2', x: 85, y: 18, size: 4, opacity: 0.2, color: 'teal', delay: 2, duration: 18 },
+    { id: 'p3', x: 22, y: 65, size: 5, opacity: 0.18, color: 'amber', delay: 4, duration: 16 },
+    { id: 'p4', x: 70, y: 75, size: 3, opacity: 0.22, color: 'violet', delay: 1, duration: 20 },
+    { id: 'p5', x: 45, y: 88, size: 4, opacity: 0.15, color: 'emerald', delay: 3, duration: 12 },
+    { id: 'p6', x: 92, y: 45, size: 5, opacity: 0.2, color: 'teal', delay: 5, duration: 15 },
+    { id: 'p7', x: 15, y: 40, size: 3, opacity: 0.18, color: 'amber', delay: 6, duration: 22 },
+    { id: 'p8', x: 55, y: 10, size: 4, opacity: 0.15, color: 'violet', delay: 2.5, duration: 17 },
+    { id: 'p9', x: 35, y: 50, size: 2, opacity: 0.12, color: 'emerald', delay: 7, duration: 19 },
+    { id: 'p10', x: 78, y: 55, size: 3, opacity: 0.16, color: 'teal', delay: 1.5, duration: 13 },
+    { id: 'p11', x: 60, y: 30, size: 2, opacity: 0.14, color: 'amber', delay: 4.5, duration: 21 },
+    { id: 'p12', x: 5, y: 80, size: 4, opacity: 0.2, color: 'violet', delay: 3.5, duration: 16 },
+  ], []);
+
+  const colorMap: Record<string, string> = {
+    emerald: 'bg-emerald-400 dark:bg-emerald-500',
+    teal: 'bg-teal-400 dark:bg-teal-500',
+    amber: 'bg-amber-400 dark:bg-amber-500',
+    violet: 'bg-violet-400 dark:bg-violet-500',
+  };
+
+  return (
+    <div className="absolute inset-0 overflow-hidden pointer-events-none">
+      {particles.map((p) => (
+        <motion.div
+          key={p.id}
+          className={`absolute rounded-full ${colorMap[p.color]}`}
+          style={{
+            left: `${p.x}%`,
+            top: `${p.y}%`,
+            width: p.size,
+            height: p.size,
+            opacity: p.opacity,
+          }}
+          animate={{
+            y: [0, -20, 10, -15, 0],
+            x: [0, 8, -6, 12, 0],
+            opacity: [p.opacity, p.opacity * 0.6, p.opacity * 1.2, p.opacity * 0.8, p.opacity],
+          }}
+          transition={{
+            duration: p.duration,
+            repeat: Infinity,
+            ease: 'easeInOut',
+            delay: p.delay,
+          }}
+        />
+      ))}
+    </div>
+  );
+}
+
+/* ─── Decorative geometric shapes ───────────────────────────── */
+function FloatingShapes() {
+  return (
+    <div className="absolute inset-0 overflow-hidden pointer-events-none">
+      {/* Large circles */}
+      <div className="absolute top-[10%] left-[8%] w-40 h-40 rounded-full bg-emerald-200/20 dark:bg-emerald-800/8 animate-float-slow" />
+      <div className="absolute top-[55%] right-[15%] w-28 h-28 rounded-full bg-teal-200/18 dark:bg-teal-800/8 animate-float" />
+      <div className="absolute bottom-[15%] left-[20%] w-20 h-20 rounded-full bg-amber-200/15 dark:bg-amber-800/8 animate-float-reverse" />
+
+      {/* Rotated squares / diamonds */}
+      <motion.div
+        className="absolute top-[25%] right-[35%] w-12 h-12 rounded-xl bg-emerald-300/12 dark:bg-emerald-700/8"
+        animate={{ rotate: [0, 90, 180, 270, 360] }}
+        transition={{ duration: 30, repeat: Infinity, ease: 'linear' }}
+      />
+      <motion.div
+        className="absolute top-[70%] left-[45%] w-8 h-8 rounded-lg bg-violet-300/12 dark:bg-violet-700/8"
+        animate={{ rotate: [360, 270, 180, 90, 0] }}
+        transition={{ duration: 25, repeat: Infinity, ease: 'linear' }}
+      />
+      <motion.div
+        className="absolute top-[15%] left-[50%] w-10 h-10 rounded-lg bg-teal-300/10 dark:bg-teal-700/8"
+        animate={{ rotate: [0, -90, -180, -270, -360] }}
+        transition={{ duration: 35, repeat: Infinity, ease: 'linear' }}
+      />
+
+      {/* Hexagonal shapes (approximated with rounded corners) */}
+      <motion.div
+        className="absolute bottom-[30%] right-[25%] w-16 h-16 rounded-2xl bg-amber-200/10 dark:bg-amber-800/8 border border-amber-300/10 dark:border-amber-700/10"
+        animate={{ rotate: [0, 45, 0], scale: [1, 1.05, 1] }}
+        transition={{ duration: 12, repeat: Infinity, ease: 'easeInOut' }}
+      />
+      <motion.div
+        className="absolute top-[45%] left-[5%] w-14 h-14 rounded-2xl bg-emerald-200/10 dark:bg-emerald-800/8 border border-emerald-300/10 dark:border-emerald-700/10"
+        animate={{ rotate: [0, -30, 0], scale: [1, 1.08, 1] }}
+        transition={{ duration: 15, repeat: Infinity, ease: 'easeInOut' }}
+      />
+
+      {/* Dot grid overlay */}
+      <div className="absolute inset-0 bg-dots opacity-20 dark:opacity-8" />
+    </div>
+  );
+}
+
+/* ─── Left-side illustration panel ──────────────────────────── */
+function LeftIllustration({ loginRole }: { loginRole: LoginRole }) {
+  const features = [
+    { icon: Sparkles, labelKey: 'auth.feature_competencies', color: 'emerald' },
+    { icon: Heart, labelKey: 'auth.feature_student_centered', color: 'teal' },
+    { icon: BookOpen, labelKey: 'auth.feature_open_source', color: 'amber' },
+    { icon: GraduationCap, labelKey: 'auth.feature_reports', color: 'violet' },
+    { icon: Flower2, labelKey: 'auth.feature_flower', color: 'rose' },
+  ];
+
+  const colorClasses: Record<string, { bg: string; text: string; ring: string }> = {
+    emerald: { bg: 'bg-emerald-100 dark:bg-emerald-900/30', text: 'text-emerald-600 dark:text-emerald-400', ring: 'ring-emerald-200/50 dark:ring-emerald-800/30' },
+    teal: { bg: 'bg-teal-100 dark:bg-teal-900/30', text: 'text-teal-600 dark:text-teal-400', ring: 'ring-teal-200/50 dark:ring-teal-800/30' },
+    amber: { bg: 'bg-amber-100 dark:bg-amber-900/30', text: 'text-amber-600 dark:text-amber-400', ring: 'ring-amber-200/50 dark:ring-amber-800/30' },
+    violet: { bg: 'bg-violet-100 dark:bg-violet-900/30', text: 'text-violet-600 dark:text-violet-400', ring: 'ring-violet-200/50 dark:ring-violet-800/30' },
+    rose: { bg: 'bg-rose-100 dark:bg-rose-900/30', text: 'text-rose-600 dark:text-rose-400', ring: 'ring-rose-200/50 dark:ring-rose-800/30' },
+  };
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, x: -40 }}
+      animate={{ opacity: 1, x: 0 }}
+      transition={{ duration: 0.7, delay: 0.2, ease: 'easeOut' }}
+      className="hidden lg:flex flex-col items-center justify-center w-1/2 max-w-lg mr-12"
+    >
+      <div className="relative">
+        {/* Decorative orbiting circles */}
+        <motion.div
+          initial={{ scale: 0, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={{ duration: 0.6, delay: 0.3 }}
+          className="absolute -top-8 -left-8 w-20 h-20 rounded-full bg-emerald-200/40 dark:bg-emerald-800/20 ring-4 ring-emerald-100/50 dark:ring-emerald-900/20"
+        />
+        <motion.div
+          initial={{ scale: 0, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={{ duration: 0.6, delay: 0.4 }}
+          className="absolute -bottom-10 -right-10 w-24 h-24 rounded-full bg-teal-200/40 dark:bg-teal-800/20 ring-4 ring-teal-100/50 dark:ring-teal-900/20"
+        />
+        <motion.div
+          initial={{ scale: 0, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={{ duration: 0.6, delay: 0.5 }}
+          className="absolute top-10 -right-6 w-12 h-12 rounded-full bg-amber-200/40 dark:bg-amber-800/20 ring-2 ring-amber-100/50 dark:ring-amber-900/20"
+        />
+        <motion.div
+          initial={{ scale: 0, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={{ duration: 0.6, delay: 0.6 }}
+          className="absolute -bottom-4 -left-6 w-10 h-10 rounded-full bg-violet-200/40 dark:bg-violet-800/20 ring-2 ring-violet-100/50 dark:ring-violet-900/20"
+        />
+
+        {/* Main icon with role-based animation */}
+        <motion.div
+          initial={{ scale: 0.8 }}
+          animate={{ scale: 1 }}
+          transition={{ duration: 0.5, delay: 0.1 }}
+          className="flex items-center justify-center w-32 h-32 rounded-3xl bg-gradient-to-br from-emerald-400 via-teal-500 to-emerald-600 text-white shadow-2xl shadow-emerald-300/50 dark:shadow-emerald-900/50 ring-1 ring-white/20"
+        >
+          <AnimatePresence mode="wait">
+            {loginRole === 'teacher' && (
+              <motion.div key="teacher" initial={{ rotate: -90, opacity: 0, scale: 0.5 }} animate={{ rotate: 0, opacity: 1, scale: 1 }} exit={{ rotate: 90, opacity: 0, scale: 0.5 }} transition={{ duration: 0.35, type: 'spring', stiffness: 200 }}>
+                <GraduationCap className="w-16 h-16" />
+              </motion.div>
+            )}
+            {loginRole === 'student' && (
+              <motion.div key="student" initial={{ rotate: -90, opacity: 0, scale: 0.5 }} animate={{ rotate: 0, opacity: 1, scale: 1 }} exit={{ rotate: 90, opacity: 0, scale: 0.5 }} transition={{ duration: 0.35, type: 'spring', stiffness: 200 }}>
+                <UsersIcon className="w-16 h-16" />
+              </motion.div>
+            )}
+            {loginRole === 'parent' && (
+              <motion.div key="parent" initial={{ rotate: -90, opacity: 0, scale: 0.5 }} animate={{ rotate: 0, opacity: 1, scale: 1 }} exit={{ rotate: 90, opacity: 0, scale: 0.5 }} transition={{ duration: 0.35, type: 'spring', stiffness: 200 }}>
+                <Heart className="w-16 h-16" />
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </motion.div>
+      </div>
+
+      {/* Feature highlights */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, delay: 0.7 }}
+        className="mt-12 space-y-4 text-center"
+      >
+        <h3 className="text-2xl font-bold text-gray-800 dark:text-gray-200 tracking-tight">
+          {t('auth.mission_title')}
+        </h3>
+        <div className="space-y-3">
+          {features.map((f, i) => {
+            const c = colorClasses[f.color];
+            return (
+              <motion.div
+                key={f.labelKey}
+                initial={{ opacity: 0, x: -16 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.4, delay: 0.8 + i * 0.1 }}
+                className="flex items-center gap-3"
+              >
+                <div className={`flex items-center justify-center w-9 h-9 rounded-xl ${c.bg} ${c.text} ring-1 ${c.ring}`}>
+                  <f.icon className="w-4.5 h-4.5" />
+                </div>
+                <p className="text-sm text-gray-600 dark:text-gray-400 font-medium">{t(f.labelKey)}</p>
+              </motion.div>
+            );
+          })}
+        </div>
+
+        {/* Mockup dashboard preview */}
+        <motion.div
+          initial={{ opacity: 0, y: 14 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 1.3 }}
+          className="mt-8 p-5 rounded-2xl bg-white/60 dark:bg-gray-800/40 backdrop-blur-md border border-emerald-200/30 dark:border-emerald-900/20 shadow-xl shadow-emerald-100/20 dark:shadow-emerald-900/10"
+        >
+          <div className="flex items-center gap-2 mb-3">
+            <div className="w-2.5 h-2.5 rounded-full bg-red-400" />
+            <div className="w-2.5 h-2.5 rounded-full bg-amber-400" />
+            <div className="w-2.5 h-2.5 rounded-full bg-emerald-400" />
+            <div className="ml-3 flex-1 h-2.5 rounded-full bg-emerald-100 dark:bg-emerald-900/30" />
+          </div>
+          <div className="grid grid-cols-3 gap-2">
+            {[0, 1, 2, 3, 4, 5].map((i) => (
+              <div key={i} className={`h-10 rounded-lg ${i % 3 === 0 ? 'bg-gradient-to-br from-emerald-100 to-emerald-200/50 dark:from-emerald-900/30 dark:to-emerald-800/20' : i % 3 === 1 ? 'bg-gradient-to-br from-teal-100 to-teal-200/50 dark:from-teal-900/30 dark:to-teal-800/20' : 'bg-gradient-to-br from-amber-100 to-amber-200/50 dark:from-amber-900/30 dark:to-amber-800/20'}`} />
+            ))}
+          </div>
+          <div className="mt-3 space-y-2">
+            <div className="h-2 w-full rounded-full bg-emerald-100 dark:bg-emerald-900/30" />
+            <div className="h-2 w-3/4 rounded-full bg-teal-100 dark:bg-teal-900/30" />
+            <div className="h-2 w-1/2 rounded-full bg-amber-100 dark:bg-amber-900/30" />
+          </div>
+        </motion.div>
+      </motion.div>
+    </motion.div>
+  );
+}
+
+/* ─── Features section below form ───────────────────────────── */
+function FeaturesSection() {
+  const features = [
+    { icon: BarChart3, labelKey: 'auth.feature_competencies', color: 'emerald' },
+    { icon: LockKeyhole, labelKey: 'auth.feature_data_security', color: 'teal' },
+    { icon: GitBranch, labelKey: 'auth.feature_open_source', color: 'amber' },
+    { icon: Flower2, labelKey: 'auth.feature_flower', color: 'violet' },
+  ];
+
+  const colorClasses: Record<string, { bg: string; text: string }> = {
+    emerald: { bg: 'bg-emerald-50 dark:bg-emerald-900/20', text: 'text-emerald-600 dark:text-emerald-400' },
+    teal: { bg: 'bg-teal-50 dark:bg-teal-900/20', text: 'text-teal-600 dark:text-teal-400' },
+    amber: { bg: 'bg-amber-50 dark:bg-amber-900/20', text: 'text-amber-600 dark:text-amber-400' },
+    violet: { bg: 'bg-violet-50 dark:bg-violet-900/20', text: 'text-violet-600 dark:text-violet-400' },
+  };
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 16 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5, delay: 0.6 }}
+      className="mt-6"
+    >
+      <div className="grid grid-cols-2 gap-3">
+        {features.map((f, i) => {
+          const c = colorClasses[f.color];
+          return (
+            <motion.div
+              key={f.labelKey}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3, delay: 0.7 + i * 0.08 }}
+              className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl ${c.bg} border border-white/40 dark:border-gray-800/40`}
+            >
+              <f.icon className={`w-4 h-4 ${c.text} shrink-0`} />
+              <span className="text-xs font-medium text-gray-700 dark:text-gray-300 leading-tight">{t(f.labelKey)}</span>
+            </motion.div>
+          );
+        })}
+      </div>
+    </motion.div>
+  );
+}
+
+/* ─── Main Auth View ────────────────────────────────────────── */
 export default function AuthView() {
   const [mode, setMode] = useState<'login' | 'register'>('login');
   const [loginRole, setLoginRole] = useState<LoginRole>('teacher');
@@ -114,385 +409,462 @@ export default function AuthView() {
     }
   };
 
-  // Role tab config
-  const roleTabs: Array<{ key: LoginRole; icon: React.ElementType; labelKey: string; color: string; activeColor: string; bgGradient: string }> = [
-    { key: 'teacher', icon: GraduationCap, labelKey: 'auth.login', color: 'text-emerald-600 dark:text-emerald-400', activeColor: 'bg-emerald-500 text-white', bgGradient: 'from-emerald-50/50 to-teal-50/50 dark:from-emerald-950/10 dark:to-teal-950/10' },
-    { key: 'student', icon: UsersIcon, labelKey: 'auth.student_login', color: 'text-amber-600 dark:text-amber-400', activeColor: 'bg-amber-500 text-white', bgGradient: 'from-amber-50/50 to-orange-50/50 dark:from-amber-950/10 dark:to-orange-950/10' },
-    { key: 'parent', icon: Heart, labelKey: 'auth.parent_login', color: 'text-violet-600 dark:text-violet-400', activeColor: 'bg-violet-500 text-white', bgGradient: 'from-violet-50/50 to-purple-50/50 dark:from-violet-950/10 dark:to-purple-950/10' },
+  // Role tab config with enhanced visual distinction
+  const roleTabs: Array<{
+    key: LoginRole;
+    icon: React.ElementType;
+    labelKey: string;
+    color: string;
+    activeColor: string;
+    activeBg: string;
+    bgGradient: string;
+    hoverBg: string;
+    indicatorColor: string;
+    glowColor: string;
+  }> = [
+    {
+      key: 'teacher',
+      icon: GraduationCap,
+      labelKey: 'auth.login',
+      color: 'text-emerald-600 dark:text-emerald-400',
+      activeColor: 'text-white',
+      activeBg: 'bg-gradient-to-r from-emerald-500 to-teal-500',
+      bgGradient: 'from-emerald-50/50 to-teal-50/50 dark:from-emerald-950/10 dark:to-teal-950/10',
+      hoverBg: 'hover:bg-emerald-50/60 dark:hover:bg-emerald-950/20',
+      indicatorColor: 'bg-emerald-500',
+      glowColor: 'shadow-emerald-200/50 dark:shadow-emerald-900/30',
+    },
+    {
+      key: 'student',
+      icon: UsersIcon,
+      labelKey: 'auth.student_login',
+      color: 'text-amber-600 dark:text-amber-400',
+      activeColor: 'text-white',
+      activeBg: 'bg-gradient-to-r from-amber-500 to-orange-500',
+      bgGradient: 'from-amber-50/50 to-orange-50/50 dark:from-amber-950/10 dark:to-orange-950/10',
+      hoverBg: 'hover:bg-amber-50/60 dark:hover:bg-amber-950/20',
+      indicatorColor: 'bg-amber-500',
+      glowColor: 'shadow-amber-200/50 dark:shadow-amber-900/30',
+    },
+    {
+      key: 'parent',
+      icon: Heart,
+      labelKey: 'auth.parent_login',
+      color: 'text-violet-600 dark:text-violet-400',
+      activeColor: 'text-white',
+      activeBg: 'bg-gradient-to-r from-violet-500 to-purple-500',
+      bgGradient: 'from-violet-50/50 to-purple-50/50 dark:from-violet-950/10 dark:to-purple-950/10',
+      hoverBg: 'hover:bg-violet-50/60 dark:hover:bg-violet-950/20',
+      indicatorColor: 'bg-violet-500',
+      glowColor: 'shadow-violet-200/50 dark:shadow-violet-900/30',
+    },
   ];
 
   const activeRoleTab = roleTabs.find((r) => r.key === loginRole)!;
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-emerald-50 via-white to-teal-50 dark:from-gray-950 dark:via-gray-900 dark:to-emerald-950 p-4 md:p-8 relative overflow-hidden">
-      {/* Animated floating geometric shapes background */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-[15%] left-[10%] w-32 h-32 rounded-full bg-emerald-200/30 dark:bg-emerald-800/10 animate-float-slow" />
-        <div className="absolute top-[60%] right-[20%] w-20 h-20 rounded-xl bg-teal-200/25 dark:bg-teal-800/10 animate-float" />
-        <div className="absolute bottom-[25%] left-[25%] w-14 h-14 rounded-full bg-amber-200/20 dark:bg-amber-800/10 animate-float-reverse" />
-        <div className="absolute top-[40%] right-[40%] w-8 h-8 rounded-full bg-emerald-300/15 dark:bg-emerald-700/10 animate-float" />
-        <div className="absolute top-[80%] left-[60%] w-16 h-16 rounded-lg bg-violet-200/20 dark:bg-violet-800/10 animate-float-reverse" />
-        <div className="absolute top-[30%] right-[70%] w-12 h-12 rounded-full bg-teal-200/20 dark:bg-teal-800/10 animate-float-slow" />
-        <div className="absolute inset-0 bg-dots opacity-30 dark:opacity-10" />
-      </div>
+    <div className="min-h-screen flex items-center justify-center animated-gradient-bg p-4 md:p-8 relative overflow-hidden">
+      {/* Animated gradient background overlay */}
+      <div className="absolute inset-0 bg-gradient-to-br from-emerald-50/80 via-white/60 to-teal-50/80 dark:from-gray-950/90 dark:via-gray-900/90 dark:to-emerald-950/90 pointer-events-none" />
+
+      {/* Floating geometric shapes */}
+      <FloatingShapes />
+
+      {/* Floating particles */}
+      <FloatingParticles />
 
       {/* Left illustration side (hidden on small screens) */}
-      <motion.div
-        initial={{ opacity: 0, x: -30 }}
-        animate={{ opacity: 1, x: 0 }}
-        transition={{ duration: 0.6, delay: 0.2 }}
-        className="hidden lg:flex flex-col items-center justify-center w-1/2 max-w-md mr-8"
-      >
-        <div className="relative">
-          <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ duration: 0.5, delay: 0.3 }} className="absolute -top-6 -left-6 w-20 h-20 rounded-full bg-emerald-200/50 dark:bg-emerald-800/30" />
-          <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ duration: 0.5, delay: 0.4 }} className="absolute -bottom-8 -right-8 w-24 h-24 rounded-full bg-teal-200/50 dark:bg-teal-800/30" />
-          <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ duration: 0.5, delay: 0.5 }} className="absolute top-12 -right-4 w-12 h-12 rounded-full bg-amber-200/50 dark:bg-amber-800/30" />
-          {/* Main icon changes based on login role */}
-          <motion.div
-            initial={{ scale: 0.8 }}
-            animate={{ scale: 1 }}
-            transition={{ duration: 0.5, delay: 0.1 }}
-            className="flex items-center justify-center w-28 h-28 rounded-3xl bg-gradient-to-br from-emerald-400 to-teal-500 text-white shadow-2xl shadow-emerald-300/40 dark:shadow-emerald-900/40"
-          >
-            <AnimatePresence mode="wait">
-              {loginRole === 'teacher' && <motion.div key="teacher" initial={{ rotate: -90, opacity: 0 }} animate={{ rotate: 0, opacity: 1 }} exit={{ rotate: 90, opacity: 0 }} transition={{ duration: 0.3 }}><GraduationCap className="w-14 h-14" /></motion.div>}
-              {loginRole === 'student' && <motion.div key="student" initial={{ rotate: -90, opacity: 0 }} animate={{ rotate: 0, opacity: 1 }} exit={{ rotate: 90, opacity: 0 }} transition={{ duration: 0.3 }}><UsersIcon className="w-14 h-14" /></motion.div>}
-              {loginRole === 'parent' && <motion.div key="parent" initial={{ rotate: -90, opacity: 0 }} animate={{ rotate: 0, opacity: 1 }} exit={{ rotate: 90, opacity: 0 }} transition={{ duration: 0.3 }}><Heart className="w-14 h-14" /></motion.div>}
-            </AnimatePresence>
-          </motion.div>
-        </div>
-
-        {/* Feature highlights */}
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.6 }} className="mt-10 space-y-4 text-center">
-          <h3 className="text-xl font-bold text-gray-800 dark:text-gray-200">{t('auth.mission_title')}</h3>
-          <div className="space-y-3">
-            <div className="flex items-center gap-3">
-              <div className="flex items-center justify-center w-8 h-8 rounded-full bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400"><Sparkles className="w-4 h-4" /></div>
-              <p className="text-sm text-gray-600 dark:text-gray-400">{t('auth.feature_competencies')}</p>
-            </div>
-            <div className="flex items-center gap-3">
-              <div className="flex items-center justify-center w-8 h-8 rounded-full bg-teal-100 dark:bg-teal-900/30 text-teal-600 dark:text-teal-400"><Heart className="w-4 h-4" /></div>
-              <p className="text-sm text-gray-600 dark:text-gray-400">{t('auth.feature_student_centered')}</p>
-            </div>
-            <div className="flex items-center gap-3">
-              <div className="flex items-center justify-center w-8 h-8 rounded-full bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400"><BookOpen className="w-4 h-4" /></div>
-              <p className="text-sm text-gray-600 dark:text-gray-400">{t('auth.feature_open_source')}</p>
-            </div>
-            <div className="flex items-center gap-3">
-              <div className="flex items-center justify-center w-8 h-8 rounded-full bg-violet-100 dark:bg-violet-900/30 text-violet-600 dark:text-violet-400"><GraduationCap className="w-4 h-4" /></div>
-              <p className="text-sm text-gray-600 dark:text-gray-400">{t('auth.feature_reports')}</p>
-            </div>
-            <div className="flex items-center gap-3">
-              <div className="flex items-center justify-center w-8 h-8 rounded-full bg-rose-100 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400"><Flower2 className="w-4 h-4" /></div>
-              <p className="text-sm text-gray-600 dark:text-gray-400">{t('auth.feature_flower')}</p>
-            </div>
-          </div>
-
-          {/* Mockup dashboard preview */}
-          <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.8 }} className="mt-6 p-4 rounded-2xl bg-white/70 dark:bg-gray-800/50 backdrop-blur-sm border border-emerald-200/40 dark:border-emerald-900/30 shadow-lg shadow-emerald-100/30 dark:shadow-emerald-900/10">
-            <div className="flex items-center gap-2 mb-3">
-              <div className="w-2 h-2 rounded-full bg-red-400" />
-              <div className="w-2 h-2 rounded-full bg-amber-400" />
-              <div className="w-2 h-2 rounded-full bg-emerald-400" />
-              <div className="ml-2 flex-1 h-2 rounded-full bg-emerald-100 dark:bg-emerald-900/30" />
-            </div>
-            <div className="grid grid-cols-3 gap-1.5">
-              {[0, 1, 2, 3, 4, 5].map((i) => (
-                <div key={i} className={`h-8 rounded-md ${i % 3 === 0 ? 'bg-gradient-to-br from-emerald-100 to-emerald-200/50 dark:from-emerald-900/30 dark:to-emerald-800/20' : i % 3 === 1 ? 'bg-gradient-to-br from-teal-100 to-teal-200/50 dark:from-teal-900/30 dark:to-teal-800/20' : 'bg-gradient-to-br from-amber-100 to-amber-200/50 dark:from-amber-900/30 dark:to-amber-800/20'}`} />
-              ))}
-            </div>
-            <div className="mt-3 space-y-1.5">
-              <div className="h-1.5 w-full rounded-full bg-emerald-100 dark:bg-emerald-900/30" />
-              <div className="h-1.5 w-3/4 rounded-full bg-teal-100 dark:bg-teal-900/30" />
-              <div className="h-1.5 w-1/2 rounded-full bg-amber-100 dark:bg-amber-900/30" />
-            </div>
-          </motion.div>
-        </motion.div>
-      </motion.div>
+      <LeftIllustration loginRole={loginRole} />
 
       {/* Auth form */}
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }} className="w-full max-w-md md:max-w-lg">
-        {/* Branding */}
+      <motion.div
+        initial={{ opacity: 0, y: 24 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6, ease: 'easeOut' }}
+        className="w-full max-w-md md:max-w-lg relative z-10"
+      >
+        {/* Branding (mobile only) */}
         <div className="text-center mb-8 lg:hidden">
-          <motion.div initial={{ scale: 0.8 }} animate={{ scale: 1 }} transition={{ duration: 0.5, delay: 0.1 }} className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-emerald-400 to-teal-500 text-white mb-4 shadow-lg shadow-emerald-200 dark:shadow-emerald-900">
+          <motion.div
+            initial={{ scale: 0.8, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ duration: 0.5, delay: 0.1, type: 'spring', stiffness: 180 }}
+            className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-emerald-400 to-teal-500 text-white mb-4 shadow-lg shadow-emerald-200/50 dark:shadow-emerald-900/50 ring-1 ring-white/20"
+          >
             <BookOpen className="w-8 h-8" />
           </motion.div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">{t('app.name')}</h1>
-          <p className="mt-2 text-sm text-emerald-600/70 dark:text-emerald-400/50">{t('app.subtitle')}</p>
+          <motion.h1
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, delay: 0.2 }}
+            className="text-3xl font-bold text-gray-900 dark:text-gray-100 tracking-tight"
+          >
+            {t('app.name')}
+          </motion.h1>
+          <motion.p
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, delay: 0.3 }}
+            className="mt-2 text-sm text-emerald-600/70 dark:text-emerald-400/50"
+          >
+            {t('app.subtitle')}
+          </motion.p>
         </div>
 
-        {/* Auth Card */}
-        <Card className="shadow-xl border-0 shadow-emerald-100/50 dark:shadow-emerald-900/20 rounded-2xl overflow-hidden bg-white dark:bg-gray-950">
-          {/* Role tabs */}
-          <div className="flex border-b border-gray-100 dark:border-gray-800">
-            {roleTabs.map((tab) => (
-              <button
-                key={tab.key}
-                type="button"
-                onClick={() => { setLoginRole(tab.key); setShowForgotInfo(false); }}
-                className={`flex-1 min-h-[44px] flex items-center justify-center gap-2 px-3 py-3 text-sm font-semibold transition-all duration-200 ${
-                  loginRole === tab.key
-                    ? `${tab.activeColor} shadow-sm`
-                    : `${tab.color} bg-transparent hover:bg-gray-50 dark:hover:bg-gray-900/30`
-                }`}
-              >
-                <tab.icon className="h-4 w-4" />
-                <span>{t(tab.labelKey)}</span>
-              </button>
-            ))}
-          </div>
-
-          <CardHeader className={`text-center pb-2 pt-6 bg-gradient-to-r ${activeRoleTab.bgGradient}`}>
-            <AnimatePresence mode="wait">
-              <motion.div key={loginRole} initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 8 }} transition={{ duration: 0.2 }}>
-                <CardTitle className="text-xl font-bold text-gray-900 dark:text-gray-100">
-                  {loginRole === 'teacher' ? (mode === 'login' ? t('auth.login') : t('auth.register_title'))
-                    : loginRole === 'student' ? t('auth.student_login')
-                    : t('auth.parent_login')}
-                </CardTitle>
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                  {loginRole === 'teacher' ? (mode === 'login' ? t('auth.login_subtitle') : t('auth.register_subtitle'))
-                    : loginRole === 'student' ? t('auth.student_login_desc')
-                    : t('auth.parent_login_desc')}
-                </p>
-              </motion.div>
-            </AnimatePresence>
-          </CardHeader>
-
-          <CardContent className="pt-6 pb-6">
-            <form onSubmit={handleSubmit} className="space-y-5">
-              <AnimatePresence mode="wait">
-                {/* Name fields for register (teacher only) */}
-                {mode === 'register' && loginRole === 'teacher' && (
-                  <motion.div key="name-fields" initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} transition={{ duration: 0.2 }} className="space-y-4">
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="space-y-2">
-                        <Label htmlFor="firstName" className="text-sm font-medium">{t('auth.firstName')}</Label>
-                        <div className="relative">
-                          <User className="absolute left-3.5 top-1/2 -translate-y-1/2 h-5 w-5 text-emerald-400" />
-                          <Input id="firstName" value={firstName} onChange={(e) => setFirstName(e.target.value)} className="pl-10 h-12 min-h-[44px] border-emerald-200/50 dark:border-emerald-900/30 focus:border-emerald-400 focus:ring-emerald-400/20 text-base" placeholder={t('auth.firstName')} required />
-                        </div>
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="lastName" className="text-sm font-medium">{t('auth.lastName')}</Label>
-                        <Input id="lastName" value={lastName} onChange={(e) => setLastName(e.target.value)} className="h-12 min-h-[44px] border-emerald-200/50 dark:border-emerald-900/30 focus:border-emerald-400 focus:ring-emerald-400/20 text-base" placeholder={t('auth.lastName')} required />
-                      </div>
-                    </div>
-                  </motion.div>
-                )}
-
-                {/* Student-specific: School ID field */}
-                {loginRole === 'student' && (
-                  <motion.div key="school-id" initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} transition={{ duration: 0.2 }} className="space-y-2">
-                    <Label htmlFor="schoolId" className="text-sm font-medium">{t('auth.school_id')}</Label>
-                    <div className="relative">
-                      <Info className="absolute left-3.5 top-1/2 -translate-y-1/2 h-5 w-5 text-amber-400" />
-                      <Input id="schoolId" value={schoolIdInput} onChange={(e) => setSchoolIdInput(e.target.value)} className="pl-10 h-12 min-h-[44px] border-amber-200/50 dark:border-amber-900/30 focus:border-amber-400 focus:ring-amber-400/20 text-base" placeholder={t('auth.school_id')} />
-                    </div>
-                  </motion.div>
-                )}
-
-                {/* Parent-specific: name fields on login */}
-                {loginRole === 'parent' && mode === 'login' && (
-                  <motion.div key="parent-name" initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} transition={{ duration: 0.2 }}>
-                    <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-violet-50/50 dark:bg-violet-900/10 border border-violet-100/50 dark:border-violet-900/20 mb-4">
-                      <Heart className="h-4 w-4 text-violet-500" />
-                      <p className="text-xs text-violet-700 dark:text-violet-300 font-medium">{t('auth.parent_login_desc')}</p>
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-
-              {/* Email field (always shown) */}
-              <div className="space-y-2">
-                <Label htmlFor="email" className="text-sm font-medium">{t('auth.email')}</Label>
-                <div className="relative">
-                  <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 h-5 w-5 text-emerald-400" />
-                  <Input
-                    id="email"
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className={`pl-10 h-12 min-h-[44px] border-emerald-200/50 dark:border-emerald-900/30 focus:border-emerald-400 focus:ring-emerald-400/20 text-base ${
-                      loginRole === 'student' ? 'focus:border-amber-400 focus:ring-amber-400/20'
-                        : loginRole === 'parent' ? 'focus:border-violet-400 focus:ring-violet-400/20'
-                        : ''
-                    }`}
-                    placeholder={loginRole === 'student' ? 'name@schule.de' : loginRole === 'parent' ? 'parent@email.de' : 'name@schule.de'}
-                    required
-                  />
-                </div>
-              </div>
-
-              {/* Password field */}
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <Label htmlFor="password" className="text-sm font-medium">{t('auth.password')}</Label>
-                  {mode === 'login' && (
-                    <button
-                      type="button"
-                      onClick={() => setShowForgotInfo(!showForgotInfo)}
-                      className="text-xs text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 dark:hover:text-emerald-300 font-medium transition-colors"
-                    >
-                      {t('auth.forgot_password')}
-                    </button>
+        {/* Auth Card - Glassmorphism */}
+        <motion.div
+          initial={{ opacity: 0, scale: 0.97 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.5, delay: 0.15 }}
+        >
+          <Card className="shadow-2xl border-0 shadow-emerald-100/60 dark:shadow-emerald-900/30 rounded-2xl overflow-hidden bg-white/80 dark:bg-gray-950/80 backdrop-blur-xl ring-1 ring-white/40 dark:ring-gray-800/40">
+            {/* Role tabs with enhanced visual distinction */}
+            <div className="flex border-b border-gray-100/80 dark:border-gray-800/80 bg-gray-50/50 dark:bg-gray-900/30">
+              {roleTabs.map((tab, i) => (
+                <motion.button
+                  key={tab.key}
+                  type="button"
+                  onClick={() => { setLoginRole(tab.key); setShowForgotInfo(false); }}
+                  className={`relative flex-1 min-h-[48px] flex items-center justify-center gap-2 px-3 py-3.5 text-sm font-semibold transition-all duration-300 ${
+                    loginRole === tab.key
+                      ? `${tab.activeBg} ${tab.activeColor} shadow-sm ${tab.glowColor}`
+                      : `${tab.color} bg-transparent ${tab.hoverBg}`
+                  }`}
+                  initial={{ opacity: 0, y: -8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.3, delay: 0.2 + i * 0.05 }}
+                  whileHover={{ scale: loginRole === tab.key ? 1 : 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                >
+                  <tab.icon className="h-4.5 w-4.5" />
+                  <span>{t(tab.labelKey)}</span>
+                  {/* Active indicator */}
+                  {loginRole === tab.key && (
+                    <motion.div
+                      layoutId="activeTabIndicator"
+                      className="absolute bottom-0 left-2 right-2 h-0.5 rounded-full bg-white/60"
+                      transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+                    />
                   )}
-                </div>
-                <div className="relative">
-                  <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 h-5 w-5 text-emerald-400" />
-                  <Input
-                    id="password"
-                    type={showPassword ? 'text' : 'password'}
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="pl-9 pr-10 border-emerald-200/50 dark:border-emerald-900/30 focus:border-emerald-400 focus:ring-emerald-400/20"
-                    placeholder="••••••"
-                    minLength={6}
-                    required
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-emerald-400 hover:text-emerald-600 dark:hover:text-emerald-300 transition-colors w-10 h-10 flex items-center justify-center"
-                    tabIndex={-1}
-                    aria-label={showPassword ? t('polish.hide_password') : t('polish.show_password')}
-                  >
-                    {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
-                  </button>
-                </div>
+                </motion.button>
+              ))}
+            </div>
 
-                {/* Forgot Password info */}
-                <AnimatePresence>
-                  {showForgotInfo && (
-                    <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} transition={{ duration: 0.2 }} className="mt-2">
-                      <div className="flex items-start gap-2 px-3 py-3 rounded-lg bg-emerald-50/50 dark:bg-emerald-900/10 border border-emerald-200/30 dark:border-emerald-900/20">
-                        <HelpCircle className="h-4 w-4 text-emerald-500 shrink-0 mt-0.5" />
-                        <p className="text-xs text-emerald-700 dark:text-emerald-300">
-                          {loginRole === 'student'
-                            ? (t('polish.demo_email') + ': demo.student@competencetrack.org / ' + t('polish.demo_password') + ': Demo2025!')
-                            : loginRole === 'parent'
-                            ? (t('polish.demo_email') + ': demo.parent@competencetrack.org / ' + t('polish.demo_password') + ': Demo2025!')
-                            : (t('polish.demo_email') + ': demo@competencetrack.org / ' + t('polish.demo_password') + ': Demo2025!')
-                          }
-                        </p>
+            <CardHeader className={`text-center pb-2 pt-6 bg-gradient-to-r ${activeRoleTab.bgGradient} transition-all duration-300`}>
+              <AnimatePresence mode="wait">
+                <motion.div key={loginRole} initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 8 }} transition={{ duration: 0.25 }}>
+                  <CardTitle className="text-xl font-bold text-gray-900 dark:text-gray-100">
+                    {loginRole === 'teacher' ? (mode === 'login' ? t('auth.login') : t('auth.register_title'))
+                      : loginRole === 'student' ? t('auth.student_login')
+                      : t('auth.parent_login')}
+                  </CardTitle>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1.5">
+                    {loginRole === 'teacher' ? (mode === 'login' ? t('auth.login_subtitle') : t('auth.register_subtitle'))
+                      : loginRole === 'student' ? t('auth.student_login_desc')
+                      : t('auth.parent_login_desc')}
+                  </p>
+                </motion.div>
+              </AnimatePresence>
+            </CardHeader>
+
+            <CardContent className="pt-6 pb-6">
+              <motion.form
+                onSubmit={handleSubmit}
+                className="space-y-5"
+                variants={containerVariants}
+                initial="hidden"
+                animate="visible"
+              >
+                <AnimatePresence mode="wait">
+                  {/* Name fields for register (teacher only) */}
+                  {mode === 'register' && loginRole === 'teacher' && (
+                    <motion.div key="name-fields" initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} transition={{ duration: 0.25 }} className="space-y-4">
+                      <motion.div variants={itemVariants} className="grid grid-cols-2 gap-3">
+                        <div className="space-y-2">
+                          <Label htmlFor="firstName" className="text-sm font-medium">{t('auth.firstName')}</Label>
+                          <div className="relative">
+                            <User className="absolute left-3.5 top-1/2 -translate-y-1/2 h-5 w-5 text-emerald-400" />
+                            <Input id="firstName" value={firstName} onChange={(e) => setFirstName(e.target.value)} className="pl-10 h-12 min-h-[44px] border-emerald-200/50 dark:border-emerald-900/30 focus:border-emerald-400 focus:ring-emerald-400/20 text-base bg-white/60 dark:bg-gray-900/40 backdrop-blur-sm" placeholder={t('auth.firstName')} required />
+                          </div>
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="lastName" className="text-sm font-medium">{t('auth.lastName')}</Label>
+                          <Input id="lastName" value={lastName} onChange={(e) => setLastName(e.target.value)} className="h-12 min-h-[44px] border-emerald-200/50 dark:border-emerald-900/30 focus:border-emerald-400 focus:ring-emerald-400/20 text-base bg-white/60 dark:bg-gray-900/40 backdrop-blur-sm" placeholder={t('auth.lastName')} required />
+                        </div>
+                      </motion.div>
+                    </motion.div>
+                  )}
+
+                  {/* Student-specific: School ID field */}
+                  {loginRole === 'student' && (
+                    <motion.div key="school-id" initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} transition={{ duration: 0.25 }} className="space-y-2">
+                      <Label htmlFor="schoolId" className="text-sm font-medium">{t('auth.school_id')}</Label>
+                      <div className="relative">
+                        <Info className="absolute left-3.5 top-1/2 -translate-y-1/2 h-5 w-5 text-amber-400" />
+                        <Input id="schoolId" value={schoolIdInput} onChange={(e) => setSchoolIdInput(e.target.value)} className="pl-10 h-12 min-h-[44px] border-amber-200/50 dark:border-amber-900/30 focus:border-amber-400 focus:ring-amber-400/20 text-base bg-white/60 dark:bg-gray-900/40 backdrop-blur-sm" placeholder={t('auth.school_id')} />
+                      </div>
+                    </motion.div>
+                  )}
+
+                  {/* Parent-specific: name fields on login */}
+                  {loginRole === 'parent' && mode === 'login' && (
+                    <motion.div key="parent-name" initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} transition={{ duration: 0.25 }}>
+                      <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-violet-50/50 dark:bg-violet-900/10 border border-violet-100/50 dark:border-violet-900/20 backdrop-blur-sm">
+                        <Heart className="h-4 w-4 text-violet-500" />
+                        <p className="text-xs text-violet-700 dark:text-violet-300 font-medium">{t('auth.parent_login_desc')}</p>
                       </div>
                     </motion.div>
                   )}
                 </AnimatePresence>
-              </div>
 
-              {/* Remember me (login mode only) */}
+                {/* Email field (always shown) */}
+                <motion.div variants={itemVariants} className="space-y-2">
+                  <Label htmlFor="email" className="text-sm font-medium">{t('auth.email')}</Label>
+                  <div className="relative">
+                    <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 h-5 w-5 text-emerald-400" />
+                    <Input
+                      id="email"
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      className={`pl-10 h-12 min-h-[44px] border-emerald-200/50 dark:border-emerald-900/30 focus:border-emerald-400 focus:ring-emerald-400/20 text-base bg-white/60 dark:bg-gray-900/40 backdrop-blur-sm transition-all duration-200 ${
+                        loginRole === 'student' ? 'focus:border-amber-400 focus:ring-amber-400/20'
+                          : loginRole === 'parent' ? 'focus:border-violet-400 focus:ring-violet-400/20'
+                          : ''
+                      }`}
+                      placeholder={loginRole === 'student' ? 'name@schule.de' : loginRole === 'parent' ? 'parent@email.de' : 'name@schule.de'}
+                      required
+                    />
+                  </div>
+                </motion.div>
+
+                {/* Password field */}
+                <motion.div variants={itemVariants} className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="password" className="text-sm font-medium">{t('auth.password')}</Label>
+                    {mode === 'login' && (
+                      <motion.button
+                        type="button"
+                        onClick={() => setShowForgotInfo(!showForgotInfo)}
+                        className="text-xs text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 dark:hover:text-emerald-300 font-medium transition-colors"
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                      >
+                        {t('auth.forgot_password')}
+                      </motion.button>
+                    )}
+                  </div>
+                  <div className="relative">
+                    <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 h-5 w-5 text-emerald-400" />
+                    <Input
+                      id="password"
+                      type={showPassword ? 'text' : 'password'}
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      className="pl-9 pr-10 h-12 min-h-[44px] border-emerald-200/50 dark:border-emerald-900/30 focus:border-emerald-400 focus:ring-emerald-400/20 bg-white/60 dark:bg-gray-900/40 backdrop-blur-sm transition-all duration-200"
+                      placeholder="••••••"
+                      minLength={6}
+                      required
+                    />
+                    <motion.button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3.5 top-1/2 -translate-y-1/2 text-emerald-400 hover:text-emerald-600 dark:hover:text-emerald-300 transition-colors w-10 h-10 flex items-center justify-center"
+                      tabIndex={-1}
+                      aria-label={showPassword ? t('polish.hide_password') : t('polish.show_password')}
+                      whileHover={{ scale: 1.1 }}
+                      whileTap={{ scale: 0.9 }}
+                    >
+                      {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                    </motion.button>
+                  </div>
+
+                  {/* Forgot Password info */}
+                  <AnimatePresence>
+                    {showForgotInfo && (
+                      <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} transition={{ duration: 0.25 }} className="mt-2">
+                        <div className="flex items-start gap-2 px-3 py-3 rounded-xl bg-emerald-50/50 dark:bg-emerald-900/10 border border-emerald-200/30 dark:border-emerald-900/20 backdrop-blur-sm">
+                          <HelpCircle className="h-4 w-4 text-emerald-500 shrink-0 mt-0.5" />
+                          <p className="text-xs text-emerald-700 dark:text-emerald-300">
+                            {loginRole === 'student'
+                              ? (t('polish.demo_email') + ': demo.student@competencetrack.org / ' + t('polish.demo_password') + ': Demo2025!')
+                              : loginRole === 'parent'
+                              ? (t('polish.demo_email') + ': demo.parent@competencetrack.org / ' + t('polish.demo_password') + ': Demo2025!')
+                              : (t('polish.demo_email') + ': demo@competencetrack.org / ' + t('polish.demo_password') + ': Demo2025!')
+                            }
+                          </p>
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </motion.div>
+
+                {/* Remember me (login mode only) */}
+                {mode === 'login' && (
+                  <motion.div variants={itemVariants} className="flex items-center gap-2">
+                    <Checkbox id="remember" checked={rememberMe} onCheckedChange={(v) => setRememberMe(v === true)} className="border-emerald-300 dark:border-emerald-700 data-[state=checked]:bg-emerald-500 data-[state=checked]:border-emerald-500" />
+                    <Label htmlFor="remember" className="text-xs text-gray-600 dark:text-gray-400 cursor-pointer">{t('polish.remember_me')}</Label>
+                  </motion.div>
+                )}
+
+                {/* Submit button with glow effect */}
+                <motion.div variants={itemVariants}>
+                  <Button
+                    type="submit"
+                    className={`group relative w-full h-12 min-h-[44px] text-white shadow-lg rounded-xl text-base font-semibold overflow-hidden transition-all duration-300 ${
+                      loginRole === 'teacher' ? 'bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 shadow-emerald-300/30 dark:shadow-emerald-900/30 hover:shadow-emerald-300/50 dark:hover:shadow-emerald-900/50'
+                        : loginRole === 'student' ? 'bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 shadow-amber-300/30 dark:shadow-amber-900/30 hover:shadow-amber-300/50 dark:hover:shadow-amber-900/50'
+                        : 'bg-gradient-to-r from-violet-500 to-purple-500 hover:from-violet-600 hover:to-purple-600 shadow-violet-300/30 dark:shadow-violet-900/30 hover:shadow-violet-300/50 dark:hover:shadow-violet-900/50'
+                    }`}
+                    disabled={loading || demoLoading}
+                  >
+                    {/* Glow effect layer */}
+                    <div className="absolute inset-0 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 bg-white/10" />
+                    <motion.div
+                      className="absolute inset-0 rounded-xl"
+                      animate={{
+                        boxShadow: loginRole === 'teacher'
+                          ? ['0 0 0px rgba(16,185,129,0)', '0 0 20px rgba(16,185,129,0.15)', '0 0 0px rgba(16,185,129,0)']
+                          : loginRole === 'student'
+                          ? ['0 0 0px rgba(245,158,11,0)', '0 0 20px rgba(245,158,11,0.15)', '0 0 0px rgba(245,158,11,0)']
+                          : ['0 0 0px rgba(139,92,246,0)', '0 0 20px rgba(139,92,246,0.15)', '0 0 0px rgba(139,92,246,0)'],
+                      }}
+                      transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
+                    />
+                    <span className="relative z-10 flex items-center justify-center gap-2">
+                      {loading || demoLoading ? (
+                        <>
+                          <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                          {demoLoading ? t('auth.demo_logging_in') : t('empty.loading')}
+                        </>
+                      ) : (
+                        <>
+                          {mode === 'login' ? t('auth.login') : t('auth.register')}
+                          <ArrowRight className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-1" />
+                        </>
+                      )}
+                    </span>
+                  </Button>
+                </motion.div>
+              </motion.form>
+
+              {/* Role-specific demo login buttons */}
               {mode === 'login' && (
-                <div className="flex items-center gap-2">
-                  <Checkbox id="remember" checked={rememberMe} onCheckedChange={(v) => setRememberMe(v === true)} className="border-emerald-300 dark:border-emerald-700 data-[state=checked]:bg-emerald-500 data-[state=checked]:border-emerald-500" />
-                  <Label htmlFor="remember" className="text-xs text-gray-600 dark:text-gray-400 cursor-pointer">{t('polish.remember_me')}</Label>
-                </div>
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.3, duration: 0.4 }}
+                  className="mt-6"
+                >
+                  <div className="text-center mb-3">
+                    <div className="flex items-center justify-center gap-1.5">
+                      <KeyRound className="h-3.5 w-3.5 text-amber-500" />
+                      <p className="text-sm font-semibold text-gray-700 dark:text-gray-300">{t('auth.demo_section_title')}</p>
+                      <Badge className="bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 border-amber-200/50 dark:border-amber-900/30 text-[10px] px-1.5 py-0">{t('badge.demo')}</Badge>
+                    </div>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{t('auth.demo_section_subtitle')}</p>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    {DEMO_ACCOUNTS.map((demo, i) => (
+                      <motion.div
+                        key={demo.email}
+                        initial={{ opacity: 0, scale: 0.9 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        transition={{ delay: 0.35 + i * 0.06, duration: 0.3 }}
+                      >
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => handleDemoLogin(demo.email, demo.password)}
+                          disabled={loading || demoLoading}
+                          className={`group h-auto min-h-[44px] py-3 px-3 rounded-xl border-0 bg-gradient-to-br ${demo.colorClass} text-white font-semibold text-xs shadow-lg flex flex-col items-center gap-1.5 hover:shadow-xl hover:scale-[1.03] active:scale-[0.97] transition-all duration-200`}
+                        >
+                          <demo.icon className="h-5 w-5 transition-transform duration-200 group-hover:scale-110" />
+                          <span>{t(demo.labelKey)}</span>
+                        </Button>
+                      </motion.div>
+                    ))}
+                  </div>
+                </motion.div>
               )}
 
-              {/* Submit button */}
-              <Button
-                type="submit"
-                className={`w-full h-12 min-h-[44px] text-white shadow-lg rounded-xl text-base ${
-                  loginRole === 'teacher' ? 'bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 shadow-emerald-300/30 dark:shadow-emerald-900/30'
-                    : loginRole === 'student' ? 'bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 shadow-amber-300/30 dark:shadow-amber-900/30'
-                    : 'bg-gradient-to-r from-violet-500 to-purple-500 hover:from-violet-600 hover:to-purple-600 shadow-violet-300/30 dark:shadow-violet-900/30'
-                }`}
-                disabled={loading || demoLoading}
-              >
-                {loading || demoLoading ? (
-                  <span className="flex items-center gap-2">
-                    <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                    {demoLoading ? t('auth.demo_logging_in') : t('empty.loading')}
-                  </span>
-                ) : (
-                  <span className="flex items-center gap-2">
-                    {mode === 'login' ? t('auth.login') : t('auth.register')}
-                    <ArrowRight className="h-4 w-4" />
-                  </span>
-                )}
-              </Button>
-            </form>
-
-            {/* Role-specific demo login buttons */}
-            {mode === 'login' && (
-              <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }} className="mt-5">
-                <div className="text-center mb-3">
-                  <div className="flex items-center justify-center gap-1.5">
-                    <KeyRound className="h-3.5 w-3.5 text-amber-500" />
-                    <p className="text-sm font-semibold text-gray-700 dark:text-gray-300">{t('auth.demo_section_title')}</p>
-                    <Badge className="bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 border-amber-200/50 dark:border-amber-900/30 text-[10px] px-1.5 py-0">{t('badge.demo')}</Badge>
-                  </div>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{t('auth.demo_section_subtitle')}</p>
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  {DEMO_ACCOUNTS.map((demo) => (
-                    <Button
-                      key={demo.email}
-                      type="button"
-                      variant="outline"
-                      onClick={() => handleDemoLogin(demo.email, demo.password)}
-                      disabled={loading || demoLoading}
-                      className={`h-auto min-h-[44px] py-3 px-3 rounded-xl border-0 bg-gradient-to-br ${demo.colorClass} text-white font-semibold text-xs shadow-lg flex flex-col items-center gap-1.5 hover:shadow-xl transition-all`}
-                    >
-                      <demo.icon className="h-5 w-5" />
-                      <span>{t(demo.labelKey)}</span>
-                    </Button>
-                  ))}
-                </div>
-              </motion.div>
-            )}
-
-            {/* Toggle register/login (only for teacher role) */}
-            {loginRole === 'teacher' && (
-              <div className="mt-6 text-center">
-                <button
-                  type="button"
-                  onClick={toggleMode}
-                  className="text-sm text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 dark:hover:text-emerald-300 font-medium transition-colors"
+              {/* Toggle register/login (only for teacher role) */}
+              {loginRole === 'teacher' && (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: 0.4 }}
+                  className="mt-6 text-center"
                 >
-                  {mode === 'login' ? t('auth.no_account') : t('auth.has_account')}
-                </button>
-              </div>
-            )}
+                  <motion.button
+                    type="button"
+                    onClick={toggleMode}
+                    className="text-sm text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 dark:hover:text-emerald-300 font-medium transition-colors"
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                  >
+                    {mode === 'login' ? t('auth.no_account') : t('auth.has_account')}
+                  </motion.button>
+                </motion.div>
+              )}
 
-            {/* Student info: accounts created by teachers */}
-            {loginRole === 'student' && mode === 'login' && (
-              <div className="mt-5 text-center">
-                <div className="flex items-center justify-center gap-2 px-4 py-3 rounded-lg bg-amber-50/50 dark:bg-amber-900/10 border border-amber-200/30 dark:border-amber-900/20">
-                  <Info className="h-4 w-4 text-amber-500" />
-                  <p className="text-xs text-amber-700 dark:text-amber-300 font-medium">
-                    {t('auth.create_student_account')} — {t('auth.student_login_desc')}
-                  </p>
-                </div>
-                {/* Jugendschutz notice for students */}
-                <div className="flex items-center justify-center gap-2 px-4 py-3 rounded-lg bg-emerald-50/50 dark:bg-emerald-900/10 border border-emerald-200/30 dark:border-emerald-900/20 mt-2">
-                  <Shield className="h-4 w-4 text-emerald-500" />
-                  <p className="text-xs text-emerald-700 dark:text-emerald-300 font-medium">
-                    {t('dsgvo.jugendschutz_login_notice')}
-                  </p>
-                </div>
-              </div>
-            )}
+              {/* Student info: accounts created by teachers */}
+              {loginRole === 'student' && mode === 'login' && (
+                <motion.div
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.4 }}
+                  className="mt-5 text-center space-y-2"
+                >
+                  <div className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-amber-50/50 dark:bg-amber-900/10 border border-amber-200/30 dark:border-amber-900/20 backdrop-blur-sm">
+                    <Info className="h-4 w-4 text-amber-500" />
+                    <p className="text-xs text-amber-700 dark:text-amber-300 font-medium">
+                      {t('auth.create_student_account')} — {t('auth.student_login_desc')}
+                    </p>
+                  </div>
+                  {/* Jugendschutz notice for students */}
+                  <div className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-emerald-50/50 dark:bg-emerald-900/10 border border-emerald-200/30 dark:border-emerald-900/20 backdrop-blur-sm">
+                    <Shield className="h-4 w-4 text-emerald-500" />
+                    <p className="text-xs text-emerald-700 dark:text-emerald-300 font-medium">
+                      {t('dsgvo.jugendschutz_login_notice')}
+                    </p>
+                  </div>
+                </motion.div>
+              )}
 
-            {/* Parent info */}
-            {loginRole === 'parent' && mode === 'login' && (
-              <div className="mt-5 text-center">
-                <div className="flex items-center justify-center gap-2 px-4 py-3 rounded-lg bg-violet-50/50 dark:bg-violet-900/10 border border-violet-200/30 dark:border-violet-900/20">
-                  <Heart className="h-4 w-4 text-violet-500" />
-                  <p className="text-xs text-violet-700 dark:text-violet-300 font-medium">
-                    {t('parent.my_children')} — {t('auth.parent_login_desc')}
-                  </p>
-                </div>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+              {/* Parent info */}
+              {loginRole === 'parent' && mode === 'login' && (
+                <motion.div
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.4 }}
+                  className="mt-5 text-center"
+                >
+                  <div className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-violet-50/50 dark:bg-violet-900/10 border border-violet-200/30 dark:border-violet-900/20 backdrop-blur-sm">
+                    <Heart className="h-4 w-4 text-violet-500" />
+                    <p className="text-xs text-violet-700 dark:text-violet-300 font-medium">
+                      {t('parent.my_children')} — {t('auth.parent_login_desc')}
+                    </p>
+                  </div>
+                </motion.div>
+              )}
+            </CardContent>
+          </Card>
+        </motion.div>
+
+        {/* Features section below form */}
+        <FeaturesSection />
 
         {/* Footer */}
-        <div className="mt-8 text-center flex items-center justify-center gap-1.5">
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.8, duration: 0.5 }}
+          className="mt-8 text-center flex items-center justify-center gap-1.5"
+        >
           <Leaf className="h-3.5 w-3.5 text-emerald-500/40 dark:text-emerald-400/30" />
           <p className="text-xs text-emerald-600/40 dark:text-emerald-400/30">{t('app.tagline')}</p>
-        </div>
+        </motion.div>
       </motion.div>
     </div>
   );

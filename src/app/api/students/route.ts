@@ -25,10 +25,30 @@ export async function GET(request: Request) {
     const schoolId = searchParams.get('schoolId');
     const classGroupId = searchParams.get('classGroupId');
     const search = searchParams.get('search');
+    const userId = searchParams.get('userId');
 
     const where: Record<string, unknown> = { deletedAt: null };
 
     if (schoolId) where.schoolId = schoolId;
+
+    // Filter by userId (direct link to User account)
+    let userIdFilter: Record<string, unknown>[] | null = null;
+    if (userId) {
+      // For STUDENT role, also match by name + school as fallback for legacy data
+      if (session.user?.role === 'STUDENT' && session.user.id === userId) {
+        userIdFilter = [
+          { userId },
+          {
+            userId: null,
+            firstName: session.user.firstName,
+            lastName: session.user.lastName,
+            schoolId: session.user.schoolId,
+          },
+        ];
+      } else {
+        where.userId = userId;
+      }
+    }
 
     if (classGroupId) {
       where.enrollments = {
@@ -37,11 +57,22 @@ export async function GET(request: Request) {
     }
 
     if (search) {
-      where.OR = [
+      const searchOr = [
         { firstName: { contains: search } },
         { lastName: { contains: search } },
         { externalId: { contains: search } },
       ];
+      // If userId filter also uses OR, combine with AND
+      if (userIdFilter) {
+        where.AND = [
+          { OR: userIdFilter },
+          { OR: searchOr },
+        ];
+      } else {
+        where.OR = searchOr;
+      }
+    } else if (userIdFilter) {
+      where.OR = userIdFilter;
     }
 
     const students = await db.student.findMany({

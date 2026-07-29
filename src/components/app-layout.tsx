@@ -59,6 +59,7 @@ import {
   Library as LibraryIcon,
   Trophy,
   FolderOpen,
+  Building2,
 } from 'lucide-react';
 import {
   Sidebar,
@@ -131,6 +132,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 
 // Static imports for lightweight views
 import DashboardView from './dashboard-view';
+import StudentPortalView from './student-portal-view';
 import ClassesView from './classes-view';
 import CompetencyGridView from './competency-grid-view';
 import ProgressEntriesView from './progress-entries-view';
@@ -153,6 +155,7 @@ import PortfolioView from './portfolio-view';
 import TimetableView from './timetable-view';
 import ResourceLibraryView from './resource-library-view';
 import CompetitionsView from './competitions-view';
+import DistrictManagementView from './district-management-view';
 
 // Dynamic imports for heavy components with loading skeletons
 const AnalyticsView = dynamic(() => import('./analytics-view'), {
@@ -218,6 +221,7 @@ const navSections: NavSection[] = [
     labelKey: 'polish.nav_setup',
     items: [
       { key: 'competencies', icon: BookOpen, labelKey: 'nav.competencies' },
+      { key: 'districts', icon: Building2, labelKey: 'nav.districts' },
       { key: 'settings', icon: Settings, labelKey: 'nav.settings' },
     ],
   },
@@ -230,6 +234,7 @@ const studentNavSections: NavSection[] = [
     labelKey: 'student.dashboard_title',
     items: [
       { key: 'dashboard', icon: LayoutDashboard, labelKey: 'nav.dashboard' },
+      { key: 'student-portal', icon: GraduationCap, labelKey: 'student_portal.title' },
       { key: 'notebooks', icon: BookOpen, labelKey: 'nav.student_notebooks' },
       { key: 'flower', icon: Flower2, labelKey: 'nav.student_competencies' },
       { key: 'grading', icon: Calculator, labelKey: 'nav.student_grades' },
@@ -361,6 +366,7 @@ function AnnouncementBanner({ schoolId }: { schoolId: string | null }) {
 function renderView(view: ViewName) {
   switch (view) {
     case 'dashboard': return <DashboardView />;
+    case 'student-portal': return <StudentPortalView />;
     case 'classes': return <ClassesView />;
     case 'competencies': return <CompetencyGridView />;
     case 'progress': return <ProgressEntriesView />;
@@ -387,6 +393,7 @@ function renderView(view: ViewName) {
     case 'timetable': return <TimetableView />;
     case 'resources': return <ResourceLibraryView />;
     case 'competitions': return <CompetitionsView />;
+    case 'districts': return <DistrictManagementView />;
     default: return <DashboardView />;
   }
 }

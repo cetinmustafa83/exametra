@@ -133,6 +133,7 @@ model User {
   rewardRedemptions         RewardRedemption[]
   rewardPoints              RewardPoints[]
   studentAnswers            StudentAnswer[]
+  student                   Student?
 }
 
 model SchoolYear {
@@ -209,10 +210,12 @@ model Student {
   externalId      String?   // for import matching
   avatarUrl       String?   // student photo/avatar URL
   avatarInitials  String?   // computed from firstName + lastName first chars
+  userId          String?   @unique // optional link to User account (for student self-service)
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
   deletedAt       DateTime?
 
+  user                  User?                 @relation(fields: [userId], references: [id])
   school                School                @relation(fields: [schoolId], references: [id])
   enrollments           Enrollment[]
   learningProgressEntries LearningProgressEntry[]
@@ -236,6 +239,9 @@ model Student {
   transports            StudentTransport[]
   healthRecords         HealthRecord[]
   studentBadges         StudentBadge[]
+  goals                 StudentGoal[]
+
+  @@index([userId])
 }
 
 model Enrollment {
@@ -1911,4 +1917,23 @@ model RewardPoints {
   @@index([schoolId])
   @@index([source])
   @@map("reward_points")
+}
+
+// ─── Student Goals (Student Portal) ─────────────────────────────────
+
+model StudentGoal {
+  id          String   @id @default(cuid())
+  studentId   String
+  title       String
+  description String?
+  targetDate  DateTime?
+  progress    Int      @default(0)
+  status      String   @default("active") // active, completed, abandoned
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  student     Student  @relation(fields: [studentId], references: [id])
+
+  @@index([studentId])
+  @@index([status])
 }
