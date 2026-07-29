@@ -464,6 +464,13 @@ export default function AuthView() {
                     {t('auth.create_student_account')} — {t('auth.student_login_desc')}
                   </p>
                 </div>
+                {/* Jugendschutz notice for students */}
+                <div className="flex items-center justify-center gap-2 px-4 py-3 rounded-lg bg-emerald-50/50 dark:bg-emerald-900/10 border border-emerald-200/30 dark:border-emerald-900/20 mt-2">
+                  <Shield className="h-4 w-4 text-emerald-500" />
+                  <p className="text-xs text-emerald-700 dark:text-emerald-300 font-medium">
+                    {t('dsgvo.jugendschutz_login_notice')}
+                  </p>
+                </div>
               </div>
             )}
 

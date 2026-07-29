@@ -695,6 +695,485 @@ function BadgeManagementTab() {
   );
 }
 
+// ─── Privacy / DSGVO Tab Component ─────────────────────────────────────
+function PrivacyTab({ currentUser }: { currentUser: { id: string; role: string; email: string; firstName: string; lastName: string } | null }) {
+  const [exporting, setExporting] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deletePassword, setDeletePassword] = useState('');
+  const [deleting, setDeleting] = useState(false);
+  const [deletionStatus, setDeletionStatus] = useState<{ scheduledForDeletion: boolean; scheduledDeletionDate?: string; canCancel?: boolean } | null>(null);
+  const [cancelling, setCancelling] = useState(false);
+
+  const loadDeletionStatus = useCallback(async () => {
+    try {
+      const res = await fetch('/api/account-deletion');
+      if (res.ok) {
+        const data = await res.json();
+        setDeletionStatus(data);
+      }
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  useEffect(() => {
+    loadDeletionStatus();
+  }, [loadDeletionStatus]);
+
+  const handleExportData = async () => {
+    setExporting(true);
+    try {
+      const res = await fetch('/api/gdpr-export');
+      if (!res.ok) throw new Error('Export failed');
+      const data = await res.json();
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `competencetrack-data-export-${new Date().toISOString().split('T')[0]}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      toast.success(t('dsgvo.export_data_success'));
+    } catch {
+      toast.error(t('dsgvo.export_data_error'));
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    if (!deletePassword) return;
+    setDeleting(true);
+    try {
+      const res = await fetch('/api/account-deletion', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: deletePassword }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        if (data.error === 'Wrong password') {
+          toast.error(t('dsgvo.delete_wrong_password'));
+        } else {
+          toast.error(data.error || t('dsgvo.delete_error'));
+        }
+        return;
+      }
+      toast.success(t('dsgvo.delete_success'));
+      setDeleteDialogOpen(false);
+      setDeletePassword('');
+      loadDeletionStatus();
+    } catch {
+      toast.error(t('dsgvo.delete_error'));
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const handleCancelDeletion = async () => {
+    setCancelling(true);
+    try {
+      const res = await fetch('/api/account-deletion', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        toast.error(data.error || t('dsgvo.delete_error'));
+        return;
+      }
+      toast.success(t('dsgvo.delete_cancel_success'));
+      loadDeletionStatus();
+    } catch {
+      toast.error(t('dsgvo.delete_error'));
+    } finally {
+      setCancelling(false);
+    }
+  };
+
+  const isAdmin = currentUser?.role === 'SCHOOL_ADMIN' || currentUser?.role === 'SUPER_ADMIN';
+
+  const userRights = [
+    { key: 'right_access', icon: Eye, color: 'emerald' },
+    { key: 'right_rectification', icon: Pencil, color: 'teal' },
+    { key: 'right_erasure', icon: Trash2, color: 'rose' },
+    { key: 'right_portability', icon: Download, color: 'amber' },
+    { key: 'right_restriction', icon: Shield, color: 'violet' },
+    { key: 'right_objection', icon: AlertTriangle, color: 'orange' },
+  ];
+
+  return (
+    <div className="space-y-6">
+      {/* ── Privacy Policy Card ─────────────────────────────── */}
+      <Card className="card-hover-lift border-0 shadow-sm rounded-xl border-l-3 border-l-emerald-500 overflow-hidden">
+        <CardHeader className="bg-gradient-to-r from-emerald-50/50 to-transparent dark:from-emerald-900/10 dark:to-transparent">
+          <CardTitle className="flex items-center gap-2">
+            <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400">
+              <Shield className="h-4 w-4" />
+            </div>
+            {t('dsgvo.privacy_policy')}
+          </CardTitle>
+          <CardDescription>{t('dsgvo.data_processing')}</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">
+            {t('dsgvo.privacy_policy_text')}
+          </p>
+
+          {/* Data collected */}
+          <div className="p-4 rounded-xl bg-emerald-50/50 dark:bg-emerald-900/10 border border-emerald-200/30 dark:border-emerald-900/20">
+            <div className="flex items-center gap-2 mb-2">
+              <Database className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+              <h4 className="text-sm font-semibold text-emerald-700 dark:text-emerald-300">{t('dsgvo.data_collected')}</h4>
+            </div>
+            <p className="text-sm text-gray-600 dark:text-gray-400">{t('dsgvo.data_collected_list')}</p>
+          </div>
+
+          {/* Purpose */}
+          <div className="p-4 rounded-xl bg-teal-50/50 dark:bg-teal-900/10 border border-teal-200/30 dark:border-teal-900/20">
+            <div className="flex items-center gap-2 mb-2">
+              <Target className="h-4 w-4 text-teal-600 dark:text-teal-400" />
+              <h4 className="text-sm font-semibold text-teal-700 dark:text-teal-300">{t('dsgvo.data_purpose')}</h4>
+            </div>
+            <p className="text-sm text-gray-600 dark:text-gray-400">{t('dsgvo.data_purpose_list')}</p>
+          </div>
+
+          {/* Retention */}
+          <div className="p-4 rounded-xl bg-amber-50/50 dark:bg-amber-900/10 border border-amber-200/30 dark:border-amber-900/20">
+            <div className="flex items-center gap-2 mb-2">
+              <Clock className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+              <h4 className="text-sm font-semibold text-amber-700 dark:text-amber-300">{t('dsgvo.data_retention')}</h4>
+            </div>
+            <p className="text-sm text-gray-600 dark:text-gray-400">{t('dsgvo.data_retention_list')}</p>
+          </div>
+
+          {/* Third party */}
+          <div className="p-4 rounded-xl bg-violet-50/50 dark:bg-violet-900/10 border border-violet-200/30 dark:border-violet-900/20">
+            <div className="flex items-center gap-2 mb-2">
+              <Users className="h-4 w-4 text-violet-600 dark:text-violet-400" />
+              <h4 className="text-sm font-semibold text-violet-700 dark:text-violet-300">{t('dsgvo.data_third_party')}</h4>
+            </div>
+            <p className="text-sm text-gray-600 dark:text-gray-400">{t('dsgvo.data_third_party_list')}</p>
+          </div>
+
+          {/* DPO Contact */}
+          <div className="p-4 rounded-xl bg-gray-50/50 dark:bg-gray-800/50 border border-gray-200/30 dark:border-gray-700/20">
+            <div className="flex items-center gap-2 mb-2">
+              <Mail className="h-4 w-4 text-gray-600 dark:text-gray-400" />
+              <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300">{t('dsgvo.contact_dpo')}</h4>
+            </div>
+            <p className="text-sm text-gray-600 dark:text-gray-400">datenschutz@competencetrack.org</p>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* ── User Rights Card ─────────────────────────────── */}
+      <Card className="card-hover-lift border-0 shadow-sm rounded-xl border-l-3 border-l-teal-500 overflow-hidden">
+        <CardHeader className="bg-gradient-to-r from-teal-50/50 to-transparent dark:from-teal-900/10 dark:to-transparent">
+          <CardTitle className="flex items-center gap-2">
+            <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-teal-100 dark:bg-teal-900/30 text-teal-600 dark:text-teal-400">
+              <CheckCircle2 className="h-4 w-4" />
+            </div>
+            {t('dsgvo.rights_title')}
+          </CardTitle>
+          <CardDescription>{t('dsgvo.rights_desc')}</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {userRights.map((right) => {
+              const Icon = right.icon;
+              const colorMap: Record<string, { bg: string; text: string; border: string }> = {
+                emerald: { bg: 'bg-emerald-100 dark:bg-emerald-900/30', text: 'text-emerald-600 dark:text-emerald-400', border: 'border-emerald-200/30 dark:border-emerald-900/20' },
+                teal: { bg: 'bg-teal-100 dark:bg-teal-900/30', text: 'text-teal-600 dark:text-teal-400', border: 'border-teal-200/30 dark:border-teal-900/20' },
+                rose: { bg: 'bg-rose-100 dark:bg-rose-900/30', text: 'text-rose-600 dark:text-rose-400', border: 'border-rose-200/30 dark:border-rose-900/20' },
+                amber: { bg: 'bg-amber-100 dark:bg-amber-900/30', text: 'text-amber-600 dark:text-amber-400', border: 'border-amber-200/30 dark:border-amber-900/20' },
+                violet: { bg: 'bg-violet-100 dark:bg-violet-900/30', text: 'text-violet-600 dark:text-violet-400', border: 'border-violet-200/30 dark:border-violet-900/20' },
+                orange: { bg: 'bg-orange-100 dark:bg-orange-900/30', text: 'text-orange-600 dark:text-orange-400', border: 'border-orange-200/30 dark:border-orange-900/20' },
+              };
+              const c = colorMap[right.color] || colorMap.emerald;
+              return (
+                <div key={right.key} className={`p-3 rounded-xl ${c.bg} border ${c.border}`}>
+                  <div className="flex items-center gap-2 mb-1">
+                    <Icon className={`h-4 w-4 ${c.text}`} />
+                    <h5 className={`text-sm font-semibold ${c.text}`}>{t(`dsgvo.${right.key}`)}</h5>
+                  </div>
+                  <p className="text-xs text-gray-600 dark:text-gray-400">{t(`dsgvo.${right.key}_desc`)}</p>
+                </div>
+              );
+            })}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* ── Data Export Card ─────────────────────────────── */}
+      <Card className="card-hover-lift border-0 shadow-sm rounded-xl border-l-3 border-l-amber-500 overflow-hidden">
+        <CardHeader className="bg-gradient-to-r from-amber-50/50 to-transparent dark:from-amber-900/10 dark:to-transparent">
+          <CardTitle className="flex items-center gap-2">
+            <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400">
+              <Download className="h-4 w-4" />
+            </div>
+            {t('dsgvo.data_portability')}
+          </CardTitle>
+          <CardDescription>DSGVO Art. 20</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <p className="text-sm text-gray-600 dark:text-gray-400">{t('dsgvo.export_data_desc')}</p>
+          <Button
+            onClick={handleExportData}
+            disabled={exporting}
+            className="min-h-[44px] bg-gradient-to-r from-amber-500 to-emerald-500 hover:from-amber-600 hover:to-emerald-600 text-white rounded-xl shadow-md font-semibold"
+          >
+            {exporting ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <FileJson className="h-4 w-4 mr-2" />}
+            {t('dsgvo.export_data')}
+          </Button>
+        </CardContent>
+      </Card>
+
+      {/* ── Account Deletion Card ─────────────────────────────── */}
+      <Card className="card-hover-lift border-0 shadow-sm rounded-xl border-l-3 border-l-rose-500 overflow-hidden">
+        <CardHeader className="bg-gradient-to-r from-rose-50/50 to-transparent dark:from-rose-900/10 dark:to-transparent">
+          <CardTitle className="flex items-center gap-2">
+            <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-rose-100 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400">
+              <Trash2 className="h-4 w-4" />
+            </div>
+            {t('dsgvo.delete_account')}
+          </CardTitle>
+          <CardDescription>DSGVO Art. 17</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <p className="text-sm text-gray-600 dark:text-gray-400">{t('dsgvo.delete_account_desc')}</p>
+
+          {/* Deletion status */}
+          {deletionStatus?.scheduledForDeletion && (
+            <div className="p-4 rounded-xl bg-rose-50/50 dark:bg-rose-900/10 border border-rose-200/30 dark:border-rose-900/20">
+              <div className="flex items-center gap-2 mb-2">
+                <AlertTriangle className="h-4 w-4 text-rose-600 dark:text-rose-400" />
+                <span className="text-sm font-semibold text-rose-700 dark:text-rose-300">
+                  {t('dsgvo.delete_scheduled')} {new Date(deletionStatus.scheduledDeletionDate!).toLocaleDateString()}
+                </span>
+              </div>
+              {deletionStatus.canCancel && (
+                <Button
+                  onClick={handleCancelDeletion}
+                  disabled={cancelling}
+                  variant="outline"
+                  className="min-h-[44px] rounded-xl border-emerald-200 dark:border-emerald-900/30 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 mt-2"
+                >
+                  {cancelling ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <RotateCcw className="h-4 w-4 mr-2" />}
+                  {t('dsgvo.delete_cancel')}
+                </Button>
+              )}
+            </div>
+          )}
+
+          {/* Warning */}
+          <div className="flex items-start gap-2 p-3 rounded-xl bg-rose-50/50 dark:bg-rose-900/10 border border-rose-200/30 dark:border-rose-900/20">
+            <AlertTriangle className="h-4 w-4 text-rose-600 dark:text-rose-400 shrink-0 mt-0.5" />
+            <p className="text-xs text-rose-700 dark:text-rose-300">{t('dsgvo.delete_warning')}</p>
+          </div>
+
+          {!deletionStatus?.scheduledForDeletion && (
+            <Button
+              onClick={() => setDeleteDialogOpen(true)}
+              variant="outline"
+              className="min-h-[44px] rounded-xl border-rose-200 dark:border-rose-900/30 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-900/20 font-semibold"
+            >
+              <Trash2 className="h-4 w-4 mr-2" />
+              {t('dsgvo.delete_account')}
+            </Button>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* ── Jugendschutz Card ─────────────────────────────── */}
+      <Card className="card-hover-lift border-0 shadow-sm rounded-xl border-l-3 border-l-amber-400 overflow-hidden">
+        <CardHeader className="bg-gradient-to-r from-amber-50/50 to-transparent dark:from-amber-900/10 dark:to-transparent">
+          <CardTitle className="flex items-center gap-2">
+            <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400">
+              <GraduationCap className="h-4 w-4" />
+            </div>
+            {t('dsgvo.jugendschutz')}
+          </CardTitle>
+          <CardDescription>Jugendschutzgesetz</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="p-4 rounded-xl bg-amber-50/50 dark:bg-amber-900/10 border border-amber-200/30 dark:border-amber-900/20">
+            <p className="text-sm text-amber-700 dark:text-amber-300 font-medium">{t('dsgvo.jugendschutz_notice')}</p>
+          </div>
+          <div className="space-y-3">
+            <div className="flex items-center gap-3 p-3 rounded-xl bg-gray-50 dark:bg-gray-800/50 border border-gray-200/30 dark:border-gray-700/20">
+              <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 shrink-0">
+                <CheckCircle2 className="h-4 w-4" />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-gray-900 dark:text-gray-100">{t('dsgvo.parental_consent')}</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">{t('dsgvo.jugendschutz_notice')}</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3 p-3 rounded-xl bg-gray-50 dark:bg-gray-800/50 border border-gray-200/30 dark:border-gray-700/20">
+              <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-teal-100 dark:bg-teal-900/30 text-teal-600 dark:text-teal-400 shrink-0">
+                <Eye className="h-4 w-4" />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-gray-900 dark:text-gray-100">{t('dsgvo.no_advertising')}</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3 p-3 rounded-xl bg-gray-50 dark:bg-gray-800/50 border border-gray-200/30 dark:border-gray-700/20">
+              <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-violet-100 dark:bg-violet-900/30 text-violet-600 dark:text-violet-400 shrink-0">
+                <Shield className="h-4 w-4" />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-gray-900 dark:text-gray-100">{t('dsgvo.no_tracking')}</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3 p-3 rounded-xl bg-gray-50 dark:bg-gray-800/50 border border-gray-200/30 dark:border-gray-700/20">
+              <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 shrink-0">
+                <Trophy className="h-4 w-4" />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-gray-900 dark:text-gray-100">{t('dsgvo.jugendschutz_rewards')}</p>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* ── DPA / AVV Card (Admin only) ─────────────────────── */}
+      {isAdmin && (
+        <Card className="card-hover-lift border-0 shadow-sm rounded-xl border-l-3 border-l-violet-500 overflow-hidden">
+          <CardHeader className="bg-gradient-to-r from-violet-50/50 to-transparent dark:from-violet-900/10 dark:to-transparent">
+            <CardTitle className="flex items-center gap-2">
+              <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-violet-100 dark:bg-violet-900/30 text-violet-600 dark:text-violet-400">
+                <FileText className="h-4 w-4" />
+              </div>
+              {t('dsgvo.dpa')}
+            </CardTitle>
+            <CardDescription>Art. 28 DSGVO</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-sm text-gray-600 dark:text-gray-400">{t('dsgvo.dpa_template_text')}</p>
+
+            {/* DPA Status */}
+            <div className="p-4 rounded-xl bg-violet-50/50 dark:bg-violet-900/10 border border-violet-200/30 dark:border-violet-900/20">
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-sm font-semibold text-violet-700 dark:text-violet-300">{t('dsgvo.dpa')}</span>
+                <Badge className="bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 border-amber-200/50 dark:border-amber-900/30">
+                  {t('dsgvo.dpa_status_pending')}
+                </Badge>
+              </div>
+              <Button
+                variant="outline"
+                className="min-h-[44px] rounded-xl border-violet-200 dark:border-violet-900/30 text-violet-700 dark:text-violet-300 hover:bg-violet-50 dark:hover:bg-violet-900/20 font-semibold"
+                onClick={() => {
+                  // Generate a simple DPA template as a downloadable text file
+                  const dpaTemplate = `Auftragsverarbeitungsvertrag (AVV)\ngemäß Art. 28 DSGVO\n\nVerantwortliche Stelle (Schule):\n[Name der Schule]\n[Adresse]\n\nAuftragsverarbeiter:\nCompetenceTrack\n[Adresse]\n\n1. Gegenstand und Dauer der Verarbeitung\nDer Auftragsverarbeiter verarbeitet personenbezogene Daten im Auftrag der verantwortlichen Stelle gemäß den Bestimmungen dieses Vertrages.\n\n2. Art und Zweck der Verarbeitung\n- Bereitstellung und Betrieb der CompetenceTrack-Plattform\n- Verwaltung von Schüler- und Klassendaten\n- Dokumentation von Lernfortschritten\n- Erstellung von Zeugnissen und Berichten\n\n3. Art der personenbezogenen Daten\n- Name, E-Mail-Adresse\n- Schülereinschreibungsdaten\n- Lernfortschrittsdaten\n- Bewertungsdaten\n- Anwesenheitsdaten\n\n4. Betroffene Personenkreise\n- Schülerinnen und Schüler\n- Lehrkräfte\n- Eltern / Erziehungsberechtigte\n\n5. Technisch-organisatorische Maßnahmen\nDer Auftragsverarbeiter implementiert angemessene technisch-organisatorische Maßnahmen gemäß Art. 32 DSGVO.\n\n6. Löschung und Rückgabe von Daten\nNach Beendigung des Auftragsverhältnisses werden alle personenbezogenen Daten gelöscht.\n\n7. Kontrolle durch die verantwortliche Stelle\nDie verantwortliche Stelle hat das Recht, die Einhaltung der Maßnahmen zu kontrollieren.\n\n8. Unterauftragsverhältnisse\nEine Weitergabe an Unterauftragnehmer bedarf der vorherigen Zustimmung der verantwortlichen Stelle.\n\nOrt, Datum: _______________\n\nUnterschrift Verantwortliche Stelle: _______________\nUnterschrift Auftragsverarbeiter: _______________`;
+                  const blob = new Blob([dpaTemplate], { type: 'text/plain;charset=utf-8' });
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement('a');
+                  a.href = url;
+                  a.download = 'AVV_CompetenceTrack_Vorlage.txt';
+                  document.body.appendChild(a);
+                  a.click();
+                  document.body.removeChild(a);
+                  URL.revokeObjectURL(url);
+                }}
+              >
+                <Download className="h-4 w-4 mr-2" />
+                {t('dsgvo.dpa_download')}
+              </Button>
+            </div>
+
+            {/* Data Processing Register */}
+            <div className="p-4 rounded-xl bg-gray-50/50 dark:bg-gray-800/50 border border-gray-200/30 dark:border-gray-700/20">
+              <div className="flex items-center gap-2 mb-2">
+                <Database className="h-4 w-4 text-gray-600 dark:text-gray-400" />
+                <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300">{t('dsgvo.data_register')}</h4>
+              </div>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">{t('dsgvo.data_register_desc')}</p>
+              <Button
+                variant="outline"
+                className="min-h-[44px] rounded-xl border-gray-200 dark:border-gray-700/30 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800/50 font-semibold"
+                onClick={() => {
+                  const registerData = {
+                    title: 'Verzeichnis von Verarbeitungstätigkeiten',
+                    legalBasis: 'Art. 30 DSGVO',
+                    controller: '[Name der Schule]',
+                    processor: 'CompetenceTrack',
+                    processingActivities: [
+                      { name: 'Benutzerverwaltung', purpose: 'Bereitstellung der Plattform', dataCategories: 'Name, E-Mail, Rolle', retention: 'Dauer der Nutzung + 30 Tage', legalBasis: 'Art. 6 Abs. 1 lit. b DSGVO' },
+                      { name: 'Schülerverwaltung', purpose: 'Verwaltung von Klassen und Schülern', dataCategories: 'Name, Geburtsdatum, Geschlecht', retention: 'Dauer der Nutzung + 30 Tage', legalBasis: 'Art. 6 Abs. 1 lit. b DSGVO' },
+                      { name: 'Lernfortschrittsdokumentation', purpose: 'Dokumentation des Lernfortschritts', dataCategories: 'Kompetenzlevel, Kommentare', retention: 'Dauer der Nutzung + 30 Tage', legalBasis: 'Art. 6 Abs. 1 lit. b DSGVO' },
+                      { name: 'Bewertung', purpose: 'Leistungsüberprüfung und Benotung', dataCategories: 'Bewertungsergebnisse, Noten', retention: 'Dauer der Nutzung + 30 Tage', legalBasis: 'Art. 6 Abs. 1 lit. b DSGVO' },
+                      { name: 'Anwesenheitserfassung', purpose: 'Dokumentation der Anwesenheit', dataCategories: 'Anwesenheitsstatus, Datum', retention: 'Dauer der Nutzung + 30 Tage', legalBasis: 'Art. 6 Abs. 1 lit. b DSGVO' },
+                      { name: 'Berichtserstellung', purpose: 'Erstellung von Zeugnissen und Berichten', dataCategories: 'Berichtsinhalte, Noten', retention: 'Dauer der Nutzung + 30 Tage', legalBasis: 'Art. 6 Abs. 1 lit. b DSGVO' },
+                      { name: 'Kommunikation mit Eltern', purpose: 'Elterninformation und Kommunikation', dataCategories: 'Nachrichten, Kontaktdaten', retention: 'Dauer der Nutzung + 30 Tage', legalBasis: 'Art. 6 Abs. 1 lit. b DSGVO' },
+                    ],
+                  };
+                  const blob = new Blob([JSON.stringify(registerData, null, 2)], { type: 'application/json' });
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement('a');
+                  a.href = url;
+                  a.download = 'Verzeichnis_Verarbeitungstaetigkeiten.json';
+                  document.body.appendChild(a);
+                  a.click();
+                  document.body.removeChild(a);
+                  URL.revokeObjectURL(url);
+                }}
+              >
+                <Download className="h-4 w-4 mr-2" />
+                {t('dsgvo.data_register_download')}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* ── Delete Account Confirmation Dialog ─────────────────────── */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={(open) => { if (!open) { setDeleteDialogOpen(false); setDeletePassword(''); } }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-rose-500" />
+              {t('dsgvo.delete_confirm_title')}
+            </AlertDialogTitle>
+            <AlertDialogDescription>{t('dsgvo.delete_confirm_desc')}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="flex items-start gap-2 p-3 rounded-xl bg-rose-50/50 dark:bg-rose-900/10 border border-rose-200/30 dark:border-rose-900/20">
+              <AlertTriangle className="h-4 w-4 text-rose-600 dark:text-rose-400 shrink-0 mt-0.5" />
+              <p className="text-xs text-rose-700 dark:text-rose-300">{t('dsgvo.delete_warning')}</p>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="delete-password" className="text-sm font-medium">{t('dsgvo.delete_password_label')}</Label>
+              <Input
+                id="delete-password"
+                type="password"
+                value={deletePassword}
+                onChange={(e) => setDeletePassword(e.target.value)}
+                className="rounded-xl border-rose-200 dark:border-rose-900/30"
+                placeholder="••••••"
+              />
+            </div>
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>{t('action.cancel')}</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteAccount}
+              disabled={deleting || !deletePassword}
+              className="bg-rose-600 hover:bg-rose-700 text-white"
+            >
+              {deleting ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Trash2 className="h-4 w-4 mr-2" />}
+              {t('dsgvo.delete_account')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
+  );
+}
+
 export default function SettingsView() {
   const currentUser = useAppStore((s) => s.currentUser);
   const [activeTab, setActiveTab] = useState('school');
@@ -1858,6 +2337,10 @@ export default function SettingsView() {
             <TabsTrigger value="badges" className="rounded-lg min-h-[44px] data-[state=active]:bg-amber-500 data-[state=active]:text-white">
               <Trophy className="h-4 w-4 mr-1.5" />
               <span className="hidden sm:inline">{t('badges.manage')}</span>
+            </TabsTrigger>
+            <TabsTrigger value="privacy" className="rounded-lg min-h-[44px] data-[state=active]:bg-emerald-600 data-[state=active]:text-white">
+              <Shield className="h-4 w-4 mr-1.5" />
+              <span className="hidden sm:inline">{t('dsgvo.tab_privacy')}</span>
             </TabsTrigger>
           </TabsList>
 
@@ -4567,6 +5050,11 @@ export default function SettingsView() {
       {/* ── Badge Management Tab ─────────────────────────────────── */}
       <TabsContent value="badges">
         <BadgeManagementTab />
+      </TabsContent>
+
+      {/* ── Datenschutz / Privacy Tab ─────────────────────────────── */}
+      <TabsContent value="privacy">
+        <PrivacyTab currentUser={currentUser} />
       </TabsContent>
     </motion.div>
   );

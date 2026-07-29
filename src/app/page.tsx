@@ -5,6 +5,7 @@ import { useAppStore } from '@/lib/store';
 import { fetchCurrentUser } from '@/lib/api';
 import AuthView from '@/components/auth-view';
 import AppLayout from '@/components/app-layout';
+import CookieConsent from '@/components/cookie-consent';
 
 export default function Home() {
   const currentUser = useAppStore((s) => s.currentUser);
@@ -48,8 +49,18 @@ export default function Home() {
   }
 
   if (!currentUser) {
-    return <AuthView />;
+    return (
+      <>
+        <AuthView />
+        <CookieConsent />
+      </>
+    );
   }
 
-  return <AppLayout />;
+  return (
+    <>
+      <AppLayout />
+      <CookieConsent />
+    </>
+  );
 }

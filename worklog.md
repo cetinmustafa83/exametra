@@ -1504,3 +1504,61 @@ Work Log:
   - `Trophy` is already imported in `app-layout.tsx`
 
 - **Lint**: All checks pass (`bun run lint` — no errors)
+
+---
+Task ID: 5
+Agent: dsgvo-compliance
+Task: Add DSGVO (German GDPR) Compliance Features to CompetenceTrack
+Date: 2025-01-28
+
+Work Log:
+- **i18n keys** (`src/lib/i18n.ts`):
+  - Added 65+ DSGVO/privacy translation keys in both German (DE) and English (EN)
+  - Covers: privacy policy, data processing, user rights (Auskunftsrecht, Berichtigungsrecht, Löschrecht, etc.), cookie consent, Jugendschutz, DPA/AVV, data export, account deletion
+  - All German legal terms are accurate (DSGVO, Jugendschutzgesetz, TTDSG, AVV, Art. 28/30 DSGVO)
+
+- **Cookie Consent Component** (`src/components/cookie-consent.tsx`):
+  - Bottom-fixed banner with emerald accent that appears on first visit
+  - Essential cookies (always on) and Analytics cookies (optional) with toggle
+  - "Alle akzeptieren" and "Nur essenzielle" buttons
+  - "Cookie-Einstellungen" expandable details panel
+  - Stores consent in localStorage with key `ct_cookie_consent`
+  - Exports `hasAnalyticsConsent()` and `hasCookieConsent()` helper functions
+  - Animated with framer-motion, professional design with emerald/amber accents
+
+- **GDPR Data Export API** (`src/app/api/gdpr-export/route.ts`):
+  - GET endpoint that exports all user data as JSON (DSGVO Art. 20)
+  - Uses `getSession()` for authentication
+  - Exports: user profile, school info, class associations, learning progress, assessments, reports, audit logs, data export requests, teacher notes, attendance sessions, notifications, notebooks, homework
+  - For students: also exports student data, enrollments, progress entries, assessment results
+  - For parents: also exports parent-student links
+  - Returns JSON with Content-Disposition header for download
+  - Includes export metadata with legal basis reference
+
+- **Account Deletion API** (`src/app/api/account-deletion/route.ts`):
+  - POST: Soft delete (sets `deletedAt`) with 30-day grace period (DSGVO Art. 17)
+  - Requires password confirmation via body `{ password: string }`
+  - PUT: Cancel deletion within grace period (clears `deletedAt`)
+  - GET: Check deletion status (scheduled date, canCancel flag)
+  - Creates audit log entries for both request and cancellation
+  - Uses `verifyPassword()` for secure confirmation
+
+- **Privacy Tab in Settings** (`src/components/settings-view.tsx`):
+  - Added "Datenschutz" (Privacy) tab with Shield icon
+  - Privacy Policy Card: data processing notice, data collected, purpose, retention, third-party sharing, DPO contact
+  - User Rights Card: 6 DSGVO rights in a 2-column grid with colored icons (Auskunftsrecht, Berichtigungsrecht, Löschrecht, Datenübertragbarkeit, Einschränkung, Widerspruchsrecht)
+  - Data Export Card: "Meine Daten exportieren" button with JSON download (DSGVO Art. 20)
+  - Account Deletion Card: "Konto löschen" button with confirmation dialog requiring password, 30-day grace period display, cancel option (DSGVO Art. 17)
+  - Jugendschutz Card: parental consent notice, no advertising, no tracking under 16, Jugendschutzgesetz-compliant rewards
+  - DPA/AVV Card (admin only): Auftragsverarbeitungsvertrag template download, Verzeichnis von Verarbeitungstätigkeiten (Art. 30 DSGVO) download, DPA status badge
+
+- **Cookie Consent on Main Page** (`src/app/page.tsx`):
+  - Imported and rendered `CookieConsent` component
+  - Shows on both authenticated and unauthenticated views
+
+- **Jugendschutz Notice in Auth** (`src/components/auth-view.tsx`):
+  - Added youth protection notice for student login: "Für Schüler unter 16 Jahren ist die Nutzung nur mit Zustimmung der Erziehungsberechtigten erlaubt."
+  - Displays with Shield icon and emerald styling below the existing student info section
+
+- **Lint**: All checks pass (`npx eslint` — no errors on any modified file)
+- **Dev Server**: Compiles successfully, no errors in dev.log
