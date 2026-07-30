@@ -1153,6 +1153,132 @@
     from { opacity: 0; transform: translateY(8px); }
     to { opacity: 1; transform: translateY(0); }
   }
+
+  /* ─── Round 25 Utility Classes ──────────────────────────────────── */
+
+  /* .gradient-border-left — Left border with gradient accent */
+  .gradient-border-left {
+    position: relative;
+    border-left: none;
+  }
+  .gradient-border-left::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 3px;
+    border-radius: 0 3px 3px 0;
+    background: linear-gradient(180deg, oklch(0.55 0.17 155), oklch(0.55 0.14 175), oklch(0.72 0.19 85));
+  }
+  .dark .gradient-border-left::before {
+    background: linear-gradient(180deg, oklch(0.65 0.17 155), oklch(0.65 0.14 175), oklch(0.77 0.19 85));
+  }
+
+  /* @keyframes slideInLeft — Slide in from left */
+  @keyframes slideInLeft {
+    from { opacity: 0; transform: translateX(-24px); }
+    to { opacity: 1; transform: translateX(0); }
+  }
+  .animate-slide-in-left {
+    animation: slideInLeft 0.4s ease-out;
+  }
+
+  /* @keyframes fadeUp — Fade and move up */
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(16px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .animate-fade-up {
+    animation: fadeUp 0.45s ease-out;
+  }
+
+  /* .status-dot — Small status indicator dot */
+  .status-dot {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: oklch(0.55 0.17 155);
+    box-shadow: 0 0 0 2px oklch(0.55 0.17 155 / 0.2);
+  }
+  .dark .status-dot {
+    background: oklch(0.65 0.17 155);
+    box-shadow: 0 0 0 2px oklch(0.65 0.17 155 / 0.3);
+  }
+  .status-dot-amber {
+    background: oklch(0.72 0.19 85);
+    box-shadow: 0 0 0 2px oklch(0.72 0.19 85 / 0.2);
+  }
+  .status-dot-rose {
+    background: oklch(0.65 0.22 15);
+    box-shadow: 0 0 0 2px oklch(0.65 0.22 15 / 0.2);
+  }
+  .status-dot-violet {
+    background: oklch(0.60 0.20 320);
+    box-shadow: 0 0 0 2px oklch(0.60 0.20 320 / 0.2);
+  }
+
+  /* .progress-animated — Progress bar with fill animation */
+  @keyframes progressFill {
+    from { width: 0%; }
+  }
+  .progress-animated {
+    animation: progressFill 1s ease-out;
+    transition: width 0.6s ease-out;
+  }
+
+  /* @keyframes pulseGlow — Pulsing glow effect */
+  @keyframes pulseGlow {
+    0%, 100% { box-shadow: 0 0 0 0 oklch(0.55 0.17 155 / 0.4); }
+    50% { box-shadow: 0 0 12px 4px oklch(0.55 0.17 155 / 0.15); }
+  }
+  .animate-pulse-glow {
+    animation: pulseGlow 2.5s ease-in-out infinite;
+  }
+  .dark .animate-pulse-glow {
+    animation-name: pulseGlowDark;
+  }
+  @keyframes pulseGlowDark {
+    0%, 100% { box-shadow: 0 0 0 0 oklch(0.65 0.17 155 / 0.5); }
+    50% { box-shadow: 0 0 12px 4px oklch(0.65 0.17 155 / 0.2); }
+  }
+
+  /* .glassmorphism-card — Frosted glass card with blur */
+  .glassmorphism-card {
+    background: oklch(1 0 0 / 0.6);
+    backdrop-filter: blur(16px) saturate(180%);
+    -webkit-backdrop-filter: blur(16px) saturate(180%);
+    border: 1px solid oklch(1 0 0 / 0.35);
+    box-shadow: 0 8px 32px -8px oklch(0 0 0 / 0.08), inset 0 0 0 1px oklch(1 0 0 / 0.2);
+  }
+  .dark .glassmorphism-card {
+    background: oklch(0.18 0.015 260 / 0.55);
+    backdrop-filter: blur(16px) saturate(140%);
+    -webkit-backdrop-filter: blur(16px) saturate(140%);
+    border: 1px solid oklch(1 0 0 / 0.08);
+    box-shadow: 0 8px 32px -8px oklch(0 0 0 / 0.4), inset 0 0 0 1px oklch(1 0 0 / 0.04);
+  }
+
+  /* .gradient-border-card — Card with gradient border on all sides */
+  .gradient-border-card {
+    position: relative;
+    border: none;
+    background-clip: padding-box;
+    border-radius: 12px;
+  }
+  .gradient-border-card::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    margin: -1.5px;
+    border-radius: inherit;
+    background: linear-gradient(135deg, oklch(0.55 0.17 155), oklch(0.55 0.14 175), oklch(0.72 0.19 85));
+  }
+  .dark .gradient-border-card::before {
+    background: linear-gradient(135deg, oklch(0.65 0.17 155), oklch(0.65 0.14 175), oklch(0.77 0.19 85));
+  }
 }
 
 /* Print-specific styling — expands to all reports when printing */

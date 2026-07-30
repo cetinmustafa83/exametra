@@ -26,7 +26,7 @@ export async function GET(
   }
 }
 
-// PUT /api/newsletters/[id] — update newsletter
+// PUT /api/newsletters/[id] — update newsletter with extended fields
 export async function PUT(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -42,11 +42,21 @@ export async function PUT(
 
     const data: Record<string, unknown> = {};
     if (body.title !== undefined) data.title = body.title;
+    if (body.subject !== undefined) data.subject = body.subject;
     if (body.content !== undefined) data.content = body.content;
     if (body.summary !== undefined) data.summary = body.summary;
     if (body.imageUrl !== undefined) data.imageUrl = body.imageUrl;
+    if (body.bannerImageUrl !== undefined) data.bannerImageUrl = body.bannerImageUrl;
     if (body.category !== undefined) data.category = body.category;
+    if (body.templateType !== undefined) data.templateType = body.templateType;
+    if (body.targetAudience !== undefined) data.targetAudience = JSON.stringify(body.targetAudience);
+    if (body.status !== undefined) data.status = body.status;
     if (body.tags !== undefined) data.tags = JSON.stringify(body.tags);
+    if (body.scheduledAt !== undefined) data.scheduledAt = body.scheduledAt ? new Date(body.scheduledAt) : null;
+    if (body.openCount !== undefined) data.openCount = body.openCount;
+    if (body.clickCount !== undefined) data.clickCount = body.clickCount;
+    if (body.bounceCount !== undefined) data.bounceCount = body.bounceCount;
+    if (body.totalRecipients !== undefined) data.totalRecipients = body.totalRecipients;
 
     const newsletter = await db.newsletter.update({
       where: { id },
@@ -63,7 +73,7 @@ export async function PUT(
   }
 }
 
-// POST /api/newsletters/[id] — publish/unpublish newsletter
+// POST /api/newsletters/[id] — publish/unpublish/archive/duplicate newsletter
 export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -77,6 +87,45 @@ export async function POST(
       return NextResponse.json({ error: 'Newsletter not found' }, { status: 404 });
     }
 
+    // Duplicate action
+    if (body.action === 'duplicate') {
+      const duplicated = await db.newsletter.create({
+        data: {
+          schoolId: existing.schoolId,
+          authorId: body.authorId || existing.authorId,
+          title: existing.title + ' (Kopie)',
+          subject: existing.subject,
+          content: existing.content,
+          summary: existing.summary,
+          imageUrl: existing.imageUrl,
+          bannerImageUrl: existing.bannerImageUrl,
+          category: existing.category,
+          templateType: existing.templateType,
+          targetAudience: existing.targetAudience,
+          status: 'draft',
+          tags: existing.tags,
+          isDemo: existing.isDemo,
+        },
+        include: {
+          author: { select: { id: true, firstName: true, lastName: true } },
+        },
+      });
+      return NextResponse.json(duplicated, { status: 201 });
+    }
+
+    // Archive action
+    if (body.action === 'archive') {
+      const newsletter = await db.newsletter.update({
+        where: { id },
+        data: { status: 'archived' },
+        include: {
+          author: { select: { id: true, firstName: true, lastName: true } },
+        },
+      });
+      return NextResponse.json(newsletter);
+    }
+
+    // Publish/unpublish
     const isPublished = body.action === 'publish' ? true : body.action === 'unpublish' ? false : !existing.isPublished;
 
     const newsletter = await db.newsletter.update({
@@ -84,6 +133,7 @@ export async function POST(
       data: {
         isPublished,
         publishedAt: isPublished ? new Date() : null,
+        status: isPublished ? 'sent' : 'draft',
       },
       include: {
         author: { select: { id: true, firstName: true, lastName: true } },

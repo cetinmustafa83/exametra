@@ -70,6 +70,8 @@ import {
   BookOpen as BookOpenIconNav,
   Database,
   PartyPopper,
+  Newspaper,
+  Compass,
 } from 'lucide-react';
 import {
   Sidebar,
@@ -187,6 +189,9 @@ import SeatingChartView from './seating-chart-view';
 import StudentWellnessView from './student-wellness-view';
 import DataImportExportView from './data-import-export-view';
 import SchoolEventsView from './school-events-view';
+import StudentCareerView from './student-career-view';
+import SubstituteTeacherView from './substitute-teacher-view';
+import SchoolNewsletterView from './school-newsletter-view';
 
 // Dynamic imports for heavy components with loading skeletons
 const AnalyticsView = dynamic(() => import('./analytics-view'), {
@@ -257,9 +262,12 @@ const navSections: NavSection[] = [
       { key: 'seating-chart', icon: LayoutGridIcon, labelKey: 'nav.seating_chart' },
       { key: 'school-library', icon: LibraryIcon, labelKey: 'nav.school_library' },
       { key: 'student-wellness', icon: Heart, labelKey: 'nav.student-wellness' },
+      { key: 'student-career', icon: Compass, labelKey: 'nav.student-career' },
       { key: 'notification-center', icon: Bell, labelKey: 'nav.notification_center' },
       { key: 'announcements', icon: Megaphone, labelKey: 'nav.announcements' },
       { key: 'school-events', icon: PartyPopper, labelKey: 'nav.school-events' },
+      { key: 'school-newsletter', icon: Newspaper, labelKey: 'nav.school-newsletter' },
+      { key: 'substitute-teacher', icon: UserCheck, labelKey: 'nav.substitute-teacher' },
       { key: 'data-import-export', icon: Database, labelKey: 'nav.data-import-export' },
     ],
   },
@@ -302,9 +310,12 @@ const studentNavSections: NavSection[] = [
       { key: 'student-achievements', icon: Trophy, labelKey: 'achievements.title' },
       { key: 'student-study-planner', icon: Timer, labelKey: 'study_planner.title' },
       { key: 'student-wellness', icon: Heart, labelKey: 'nav.student-wellness' },
+      { key: 'student-career', icon: Compass, labelKey: 'nav.student-career' },
       { key: 'resources', icon: FolderOpen, labelKey: 'nav.resources' },
       { key: 'school-library', icon: LibraryIcon, labelKey: 'nav.school_library' },
       { key: 'school-events', icon: PartyPopper, labelKey: 'nav.school-events' },
+      { key: 'school-newsletter', icon: Newspaper, labelKey: 'nav.school-newsletter' },
+      { key: 'substitute-teacher', icon: UserCheck, labelKey: 'nav.substitute-teacher' },
       { key: 'notification-center', icon: Bell, labelKey: 'nav.notification_center' },
       { key: 'announcements', icon: Megaphone, labelKey: 'nav.announcements' },
       { key: 'settings', icon: Settings, labelKey: 'nav.settings' },
@@ -329,9 +340,12 @@ const parentNavSections: NavSection[] = [
       { key: 'communication', icon: MessageSquare, labelKey: 'nav.communication' },
       { key: 'student-achievements', icon: Trophy, labelKey: 'achievements.title' },
       { key: 'student-study-planner', icon: Timer, labelKey: 'study_planner.title' },
+      { key: 'student-career', icon: Compass, labelKey: 'nav.student-career' },
       { key: 'report-cards', icon: FileText, labelKey: 'nav.report_cards' },
       { key: 'school-library', icon: LibraryIcon, labelKey: 'nav.school_library' },
       { key: 'school-events', icon: PartyPopper, labelKey: 'nav.school-events' },
+      { key: 'school-newsletter', icon: Newspaper, labelKey: 'nav.school-newsletter' },
+      { key: 'substitute-teacher', icon: UserCheck, labelKey: 'nav.substitute-teacher' },
       { key: 'notification-center', icon: Bell, labelKey: 'nav.notification_center' },
       { key: 'announcements', icon: Megaphone, labelKey: 'nav.announcements' },
     ],
@@ -483,8 +497,11 @@ function renderView(view: ViewName) {
     case 'school-library': return <SchoolLibraryView />;
     case 'report-cards': return <ReportCardView />;
     case 'student-wellness': return <StudentWellnessView />;
+    case 'student-career': return <StudentCareerView />;
     case 'data-import-export': return <DataImportExportView />;
     case 'school-events': return <SchoolEventsView />;
+    case 'substitute-teacher': return <SubstituteTeacherView />;
+    case 'school-newsletter': return <SchoolNewsletterView />;
     default: return <DashboardView />;
   }
 }

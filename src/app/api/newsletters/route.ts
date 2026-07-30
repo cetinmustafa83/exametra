@@ -1,13 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 
-// GET /api/newsletters — list newsletters
+// GET /api/newsletters — list newsletters with extended filtering
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
     const schoolId = searchParams.get('schoolId');
     const published = searchParams.get('published');
     const category = searchParams.get('category');
+    const status = searchParams.get('status');
+    const templateType = searchParams.get('templateType');
+    const authorId = searchParams.get('authorId');
+    const search = searchParams.get('search');
     const limit = parseInt(searchParams.get('limit') || '20');
     const offset = parseInt(searchParams.get('offset') || '0');
 
@@ -30,6 +34,26 @@ export async function GET(req: NextRequest) {
       where.category = category;
     }
 
+    if (status) {
+      where.status = status;
+    }
+
+    if (templateType) {
+      where.templateType = templateType;
+    }
+
+    if (authorId) {
+      where.authorId = authorId;
+    }
+
+    if (search) {
+      where.OR = [
+        { title: { contains: search } },
+        { summary: { contains: search } },
+        { subject: { contains: search } },
+      ];
+    }
+
     const [newsletters, total] = await Promise.all([
       db.newsletter.findMany({
         where,
@@ -50,14 +74,21 @@ export async function GET(req: NextRequest) {
   }
 }
 
-// POST /api/newsletters — create newsletter
+// POST /api/newsletters — create newsletter with extended fields
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { schoolId, authorId, title, content, summary, imageUrl, category, tags, isDemo } = body;
+    const {
+      schoolId, authorId, title, subject, content, summary, imageUrl,
+      bannerImageUrl, category, templateType, targetAudience, status,
+      tags, scheduledAt, isDemo,
+    } = body;
 
     if (!schoolId || !authorId || !title || !content) {
-      return NextResponse.json({ error: 'schoolId, authorId, title, content required' }, { status: 400 });
+      return NextResponse.json(
+        { error: 'schoolId, authorId, title, content required' },
+        { status: 400 }
+      );
     }
 
     const newsletter = await db.newsletter.create({
@@ -65,11 +96,17 @@ export async function POST(req: NextRequest) {
         schoolId,
         authorId,
         title,
+        subject: subject || null,
         content,
         summary: summary || null,
         imageUrl: imageUrl || null,
+        bannerImageUrl: bannerImageUrl || null,
         category: category || 'general',
+        templateType: templateType || 'monthly',
+        targetAudience: targetAudience ? JSON.stringify(targetAudience) : null,
+        status: status || 'draft',
         tags: tags ? JSON.stringify(tags) : null,
+        scheduledAt: scheduledAt ? new Date(scheduledAt) : null,
         isDemo: isDemo || false,
       },
       include: {

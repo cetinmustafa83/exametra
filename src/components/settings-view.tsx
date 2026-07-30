@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState, useCallback } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   Settings as SettingsIcon,
   School,
@@ -105,6 +105,7 @@ import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Progress } from '@/components/ui/progress';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { useAppStore } from '@/lib/store';
 import { t } from '@/lib/i18n';
 import { apiGet, apiPost, apiPut, apiDelete } from '@/lib/api';
@@ -2576,20 +2577,54 @@ export default function SettingsView() {
       animate="visible"
       className="space-y-6"
     >
-      {/* Header */}
+      {/* Header — Gradient Banner with School Branding */}
       <motion.div variants={itemVariants}>
-        <div className="flex items-center gap-3">
-          <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-400 to-teal-500 text-white shadow-md shadow-emerald-300/30">
-            <SettingsIcon className="w-5 h-5" />
+        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-emerald-500 via-teal-500 to-cyan-500 dark:from-emerald-700 dark:via-teal-700 dark:to-cyan-700 p-6 sm:p-8 text-white shadow-xl shadow-emerald-200/30 dark:shadow-emerald-900/30">
+          {/* Decorative elements */}
+          <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/3" />
+          <div className="absolute bottom-0 left-0 w-48 h-48 bg-white/5 rounded-full translate-y-1/2 -translate-x-1/4" />
+          <div className="absolute top-4 right-4 sm:top-6 sm:right-6">
+            <motion.div
+              animate={{ rotate: [0, 10, -10, 0] }}
+              transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
+            >
+              <SettingsIcon className="h-8 w-8 text-white/30" />
+            </motion.div>
           </div>
-          <div>
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">{t('settings.title')}</h2>
-            <p className="text-emerald-600/60 dark:text-emerald-400/40 mt-0.5">{t('app.subtitle')}</p>
+
+          <div className="relative z-10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div className="flex items-center gap-4">
+              <div className="flex items-center justify-center w-14 h-14 rounded-2xl bg-white/20 backdrop-blur-sm ring-2 ring-white/20 shadow-lg">
+                <SettingsIcon className="w-7 h-7" />
+              </div>
+              <div>
+                <h2 className="text-2xl sm:text-3xl font-bold">{t('settings.title')}</h2>
+                <p className="text-emerald-100/80 mt-0.5 text-sm sm:text-base">{selectedSchool?.name || t('app.subtitle')}</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              {/* User Profile Avatar */}
+              <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/15 backdrop-blur-sm border border-white/20">
+                <div className="flex items-center justify-center w-8 h-8 rounded-full bg-white/25 text-white text-xs font-bold">
+                  {currentUser?.firstName?.[0] || ''}{currentUser?.lastName?.[0] || ''}
+                </div>
+                <div className="hidden sm:block">
+                  <p className="text-xs font-medium text-white">{currentUser?.firstName} {currentUser?.lastName}</p>
+                  <p className="text-[10px] text-white/70">{currentUser?.role === 'SUPER_ADMIN' ? 'Super Admin' : currentUser?.role === 'SCHOOL_ADMIN' ? 'School Admin' : 'Admin'}</p>
+                </div>
+              </div>
+              <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/15 backdrop-blur-sm border border-white/20 text-sm font-medium">
+                <CalendarDays className="h-3.5 w-3.5" />
+                <span className="font-semibold">
+                  {new Date().toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' })}
+                </span>
+              </div>
+            </div>
           </div>
         </div>
       </motion.div>
 
-      {/* Quick stats banner */}
+      {/* Quick stats banner — with hover lift and gradient borders */}
       <motion.div variants={itemVariants}>
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
           {[
@@ -2598,8 +2633,14 @@ export default function SettingsView() {
             { icon: BookOpen, label: t('polish.total_subjects'), value: subjects.length, color: 'from-amber-50 to-amber-100/50 dark:from-amber-900/20 dark:to-amber-800/10', text: 'text-amber-700 dark:text-amber-300', iconBg: 'bg-gradient-to-br from-amber-400 to-amber-500', border: 'border-amber-200/40 dark:border-amber-900/30', tab: 'subjects' },
             { icon: Calendar, label: t('polish.total_years'), value: schoolYears.length, color: 'from-teal-50 to-teal-100/50 dark:from-teal-900/20 dark:to-teal-800/10', text: 'text-teal-700 dark:text-teal-300', iconBg: 'bg-gradient-to-br from-teal-400 to-emerald-500', border: 'border-teal-200/40 dark:border-teal-900/30', tab: 'years' },
             { icon: Activity, label: t('settings.tab_audit'), value: auditEntries.length, color: 'from-slate-50 to-slate-100/50 dark:from-slate-800/40 dark:to-slate-700/10', text: 'text-slate-700 dark:text-slate-300', iconBg: 'bg-gradient-to-br from-slate-400 to-slate-500', border: 'border-slate-200/40 dark:border-slate-700/30', tab: 'audit' },
-          ].map((stat) => (
-            <div key={stat.label} className={`p-3 rounded-xl bg-gradient-to-br ${stat.color} border ${stat.border} flex items-center gap-2.5 cursor-pointer hover:shadow-md transition-shadow`} onClick={() => setActiveTab(stat.tab)}>
+          ].map((stat, idx) => (
+            <motion.div
+              key={stat.label}
+              whileHover={{ y: -2, boxShadow: '0 8px 24px -6px rgba(16, 185, 129, 0.18)' }}
+              transition={{ duration: 0.2 }}
+              className={`p-3 rounded-xl bg-gradient-to-br ${stat.color} border ${stat.border} flex items-center gap-2.5 cursor-pointer transition-shadow`}
+              onClick={() => setActiveTab(stat.tab)}
+            >
               <div className={`flex items-center justify-center w-9 h-9 rounded-lg ${stat.iconBg} text-white shadow-sm shrink-0`}>
                 <stat.icon className="h-4 w-4" />
               </div>
@@ -2607,15 +2648,15 @@ export default function SettingsView() {
                 <p className="text-[10px] uppercase tracking-wide font-semibold text-gray-500 dark:text-gray-400 truncate">{stat.label}</p>
                 <p className={`text-xl font-bold ${stat.text}`}>{stat.value}</p>
               </div>
-            </div>
+            </motion.div>
           ))}
         </div>
       </motion.div>
 
-      {/* Tabs */}
+      {/* Tabs — with smooth framer-motion transitions */}
       <motion.div variants={itemVariants}>
         <Tabs value={activeTab} onValueChange={handleTabChange}>
-          <TabsList className="bg-emerald-50 dark:bg-emerald-900/20 rounded-xl flex flex-wrap gap-1 h-auto p-1">
+          <TabsList className="bg-emerald-50/80 dark:bg-emerald-900/20 backdrop-blur-sm rounded-xl flex flex-wrap gap-1 h-auto p-1 ring-1 ring-emerald-200/30 dark:ring-emerald-800/20">
             <TabsTrigger value="school" className="rounded-lg data-[state=active]:bg-emerald-500 data-[state=active]:text-white">
               <School className="h-4 w-4 mr-1.5" />
               <span className="hidden sm:inline">{t('settings.tab_school')}</span>
@@ -2688,7 +2729,15 @@ export default function SettingsView() {
 
           {/* ── School Info Tab ─────────────────────────────────── */}
           <TabsContent value="school">
-            <Card className="card-hover-lift border-0 shadow-sm rounded-xl border-l-3 border-l-emerald-500 overflow-hidden">
+            <AnimatePresence mode="wait">
+              <motion.div
+                key="school"
+                initial={{ opacity: 0, x: 12 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -12 }}
+                transition={{ duration: 0.25, ease: 'easeOut' }}
+              >
+            <Card className="glassmorphism-card border-0 shadow-sm rounded-xl border-l-3 border-l-emerald-500 overflow-hidden">
               <CardHeader className="bg-gradient-to-r from-emerald-50/50 to-transparent dark:from-emerald-900/10 dark:to-transparent">
                 <CardTitle className="flex items-center gap-2">
                   <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400">
@@ -2778,11 +2827,21 @@ export default function SettingsView() {
                 <NotificationSoundSetting />
               </div>
             </Card>
+              </motion.div>
+            </AnimatePresence>
           </TabsContent>
 
           {/* ── School Years Tab ────────────────────────────────── */}
           <TabsContent value="years">
-            <Card className="card-hover-lift border-0 shadow-sm rounded-xl border-l-3 border-l-teal-500 overflow-hidden">
+            <AnimatePresence mode="wait">
+              <motion.div
+                key="years"
+                initial={{ opacity: 0, x: 12 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -12 }}
+                transition={{ duration: 0.25, ease: 'easeOut' }}
+              >
+            <Card className="glassmorphism-card border-0 shadow-sm rounded-xl border-l-3 border-l-teal-500 overflow-hidden">
               <CardHeader className="bg-gradient-to-r from-teal-50/50 to-transparent dark:from-teal-900/10 dark:to-transparent">
                 <CardTitle className="flex items-center gap-2">
                   <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-teal-100 dark:bg-teal-900/30 text-teal-600 dark:text-teal-400">
@@ -2890,6 +2949,8 @@ export default function SettingsView() {
                 </Dialog>
               </CardContent>
             </Card>
+              </motion.div>
+            </AnimatePresence>
           </TabsContent>
 
           {/* ── Subjects Tab ────────────────────────────────────── */}
@@ -3752,9 +3813,17 @@ export default function SettingsView() {
 
           {/* ── Data Management Tab ─────────────────────────────── */}
           <TabsContent value="data">
-            <div className="space-y-6">
+            <AnimatePresence mode="wait">
+              <motion.div
+                key="data"
+                initial={{ opacity: 0, x: 12 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -12 }}
+                transition={{ duration: 0.25, ease: 'easeOut' }}
+                className="space-y-6"
+              >
               {/* Data Import */}
-              <Card className="card-hover-lift border-0 shadow-sm rounded-xl border-l-3 border-l-amber-500 overflow-hidden">
+              <Card className="glassmorphism-card border-0 shadow-sm rounded-xl border-l-3 border-l-amber-500 overflow-hidden">
                 <CardHeader className="bg-gradient-to-r from-amber-50/50 to-transparent dark:from-amber-900/10 dark:to-transparent">
                   <CardTitle className="flex items-center gap-2">
                     <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400">
@@ -3885,7 +3954,7 @@ export default function SettingsView() {
               </Card>
 
               {/* Enhanced Data Export */}
-              <Card className="card-hover-lift border-0 shadow-sm rounded-xl border-l-3 border-l-emerald-500 overflow-hidden">
+              <Card className="glassmorphism-card border-0 shadow-sm rounded-xl border-l-3 border-l-emerald-500 overflow-hidden">
                 <CardHeader className="bg-gradient-to-r from-emerald-50/50 to-transparent dark:from-emerald-900/10 dark:to-transparent">
                   <CardTitle className="flex items-center gap-2">
                     <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400">
@@ -3988,7 +4057,7 @@ export default function SettingsView() {
               </Card>
 
               {/* GDPR Data Erasure — Danger Zone */}
-              <div className="danger-zone">
+              <div className="danger-zone animate-pulse-glow">
                 <div className="flex items-center gap-2 mb-3">
                   <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-rose-100 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400">
                     <AlertTriangle className="h-4 w-4" />
@@ -4047,7 +4116,8 @@ export default function SettingsView() {
                   </AlertDialogFooter>
                 </AlertDialogContent>
               </AlertDialog>
-            </div>
+              </motion.div>
+            </AnimatePresence>
           </TabsContent>
 
           {/* ── Demo Accounts Tab ───────────────────────────────── */}
@@ -4806,7 +4876,15 @@ export default function SettingsView() {
 
       {/* ── Branding Tab ───────────────────────────────────────────── */}
       <TabsContent value="branding">
-        <Card className="border-0 shadow-sm rounded-xl border-l-3 border-l-teal-500 overflow-hidden">
+        <AnimatePresence mode="wait">
+          <motion.div
+            key="branding"
+            initial={{ opacity: 0, x: 12 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -12 }}
+            transition={{ duration: 0.25, ease: 'easeOut' }}
+          >
+        <Card className="glassmorphism-card border-0 shadow-sm rounded-xl border-l-3 border-l-teal-500 overflow-hidden">
           <CardHeader className="bg-gradient-to-r from-teal-50/50 to-transparent dark:from-teal-900/10 dark:to-transparent">
             <CardTitle className="flex items-center gap-2">
               <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-teal-100 dark:bg-teal-900/30 text-teal-600 dark:text-teal-400">
@@ -4817,7 +4895,7 @@ export default function SettingsView() {
             <CardDescription>{t('branding.colors')} · {t('branding.typography')} · {t('branding.contact')}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
-            {/* Logo */}
+            {/* Logo Preview Section */}
             <div className="space-y-2">
               <Label className="text-sm font-medium text-teal-700 dark:text-teal-400">{t('branding.logo_url')}</Label>
               <Input
@@ -4826,15 +4904,28 @@ export default function SettingsView() {
                 placeholder={t('branding.logo_placeholder')}
                 className="border-teal-200 dark:border-teal-900/30 rounded-xl"
               />
-              {brandingForm.logoUrl && (
-                <div className="mt-2 flex items-center gap-3">
+              {brandingForm.logoUrl ? (
+                <div className="mt-2 flex items-center gap-3 p-3 rounded-xl bg-gradient-to-r from-teal-50/50 to-emerald-50/30 dark:from-teal-900/10 dark:to-emerald-900/5 border border-teal-200/30 dark:border-teal-900/20">
                   <img src={brandingForm.logoUrl} alt="Logo preview" className="w-12 h-12 rounded-xl object-contain border border-teal-200 dark:border-teal-900/30" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
-                  <span className="text-xs text-gray-500 dark:text-gray-400">{t('branding.preview')}</span>
+                  <div>
+                    <p className="text-xs font-semibold text-teal-700 dark:text-teal-300">{t('branding.preview')}</p>
+                    <p className="text-[10px] text-gray-500 dark:text-gray-400">{selectedSchool?.name}</p>
+                  </div>
+                </div>
+              ) : (
+                <div className="mt-2 flex items-center gap-3 p-3 rounded-xl bg-gradient-to-r from-teal-50/50 to-emerald-50/30 dark:from-teal-900/10 dark:to-emerald-900/5 border border-teal-200/30 dark:border-teal-900/20">
+                  <div className="flex items-center justify-center w-12 h-12 rounded-xl bg-gradient-to-br from-teal-400 to-emerald-500 text-white shadow-sm">
+                    <School className="h-6 w-6" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-semibold text-teal-700 dark:text-teal-300">{selectedSchool?.name || 'School'}</p>
+                    <p className="text-[10px] text-gray-500 dark:text-gray-400">{t('branding.logo_placeholder')}</p>
+                  </div>
                 </div>
               )}
             </div>
 
-            {/* Colors */}
+            {/* Colors — with visual color picker */}
             <div className="space-y-4">
               <p className="text-sm font-semibold text-teal-700 dark:text-teal-400">{t('branding.colors')}</p>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -4885,6 +4976,15 @@ export default function SettingsView() {
                       className="border-teal-200 dark:border-teal-900/30 rounded-xl text-sm"
                     />
                   </div>
+                </div>
+              </div>
+              {/* Color preview strip */}
+              <div className="flex items-center gap-2 p-3 rounded-xl bg-gray-50/50 dark:bg-gray-800/50 border border-gray-200/30 dark:border-gray-700/20">
+                <span className="text-xs text-gray-500 dark:text-gray-400 shrink-0">Preview:</span>
+                <div className="flex items-center gap-1.5 flex-1">
+                  <div className="h-8 flex-1 rounded-lg" style={{ backgroundColor: brandingForm.primaryColor }} />
+                  <div className="h-8 flex-1 rounded-lg" style={{ backgroundColor: brandingForm.secondaryColor }} />
+                  <div className="h-8 flex-1 rounded-lg" style={{ backgroundColor: brandingForm.accentColor }} />
                 </div>
               </div>
             </div>
@@ -5038,6 +5138,8 @@ export default function SettingsView() {
             </div>
           </CardContent>
         </Card>
+          </motion.div>
+        </AnimatePresence>
       </TabsContent>
 
       {/* ── Email Tab ───────────────────────────────────────────────── */}

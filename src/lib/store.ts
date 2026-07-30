@@ -50,7 +50,10 @@ export type ViewName =
   | 'report-cards'
   | 'data-import-export'
   | 'student-wellness'
-  | 'school-events';
+  | 'school-events'
+  | 'substitute-teacher'
+  | 'student-career'
+  | 'school-newsletter';
 
 export interface CurrentUser {
   id: string;

@@ -594,7 +594,7 @@ export default function StudentPortalView() {
     >
       {/* ── Hero Section ──────────────────────────────────────────────── */}
       <motion.div variants={itemVariants}>
-        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-emerald-500 via-teal-500 to-cyan-500 dark:from-emerald-700 dark:via-teal-700 dark:to-cyan-700 p-6 sm:p-8 text-white shadow-xl shadow-emerald-200/30 dark:shadow-emerald-900/30">
+        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-emerald-500 via-teal-500 to-cyan-500 dark:from-emerald-700 dark:via-teal-700 dark:to-cyan-700 p-6 sm:p-8 text-white shadow-xl shadow-emerald-200/30 dark:shadow-emerald-900/30 animate-pulse-glow">
           {/* Decorative elements */}
           <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/3" />
           <div className="absolute bottom-0 left-0 w-48 h-48 bg-white/5 rounded-full translate-y-1/2 -translate-x-1/4" />
@@ -636,7 +636,7 @@ export default function StudentPortalView() {
             </div>
           </div>
 
-          {/* Quick Stats Bar inside hero */}
+          {/* Quick Stats Bar inside hero — with gradient borders */}
           <div className="relative z-10 mt-6 grid grid-cols-2 sm:grid-cols-4 gap-3">
             {[
               { label: t('student_portal.points_earned'), value: totalPoints, icon: Zap, color: 'bg-white/15' },
@@ -647,7 +647,7 @@ export default function StudentPortalView() {
               <motion.div
                 key={stat.label}
                 whileHover={{ scale: 1.04, backgroundColor: 'rgba(255,255,255,0.25)' }}
-                className={`flex items-center gap-3 ${stat.color} backdrop-blur-sm rounded-xl px-3 py-2.5 border border-white/10 transition-colors cursor-default`}
+                className={`flex items-center gap-3 ${stat.color} backdrop-blur-sm rounded-xl px-3 py-2.5 border border-white/10 transition-colors cursor-default gradient-border-card`}
               >
                 <stat.icon className="h-5 w-5 text-white/80 shrink-0" />
                 <div className="min-w-0">
@@ -664,7 +664,7 @@ export default function StudentPortalView() {
 
       {/* ── Level Up Progress Bar ──────────────────────────────────────── */}
       <motion.div variants={itemVariants}>
-        <Card className="border-0 shadow-sm rounded-xl overflow-hidden ring-1 ring-black/[0.03] dark:ring-white/[0.05]">
+        <Card className="glassmorphism-card border-0 shadow-sm rounded-xl overflow-hidden ring-1 ring-black/[0.03] dark:ring-white/[0.05]">
           <CardContent className="p-4">
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-2">
@@ -696,7 +696,7 @@ export default function StudentPortalView() {
 
       {/* ── Streak Counter ──────────────────────────────────────────────── */}
       <motion.div variants={itemVariants}>
-        <Card className="border-0 shadow-sm rounded-xl overflow-hidden ring-1 ring-black/[0.03] dark:ring-white/[0.05]">
+        <Card className="glassmorphism-card border-0 shadow-sm rounded-xl overflow-hidden ring-1 ring-black/[0.03] dark:ring-white/[0.05]">
           <CardContent className="p-4">
             <div className="flex items-center gap-4">
               <div className="relative">
@@ -738,7 +738,7 @@ export default function StudentPortalView() {
         </Card>
       </motion.div>
 
-      {/* ── Quick Action Cards ──────────────────────────────────────────── */}
+      {/* ── Quick Action Cards — with hover lift effects ──────────────────── */}
       <motion.div variants={itemVariants}>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           {[
@@ -751,11 +751,12 @@ export default function StudentPortalView() {
             return (
               <motion.div
                 key={idx}
-                whileHover={{ scale: 1.03, y: -3 }}
+                whileHover={{ scale: 1.03, y: -4 }}
                 whileTap={{ scale: 0.97 }}
+                className="card-hover-lift"
               >
                 <Card
-                  className="border-0 shadow-sm rounded-xl overflow-hidden cursor-pointer hover:shadow-md transition-all duration-300"
+                  className="glassmorphism-card border-0 shadow-sm rounded-xl overflow-hidden cursor-pointer hover:shadow-lg transition-all duration-300"
                   onClick={() => {
                     const store = useAppStore.getState();
                     store.setCurrentView(action.view);
@@ -774,11 +775,139 @@ export default function StudentPortalView() {
         </div>
       </motion.div>
 
+      {/* ── Today's Schedule Mini-Timeline & Motivational Quote ─────────── */}
+      <motion.div variants={itemVariants}>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          {/* Today's Schedule Mini-Timeline */}
+          <Card className="glassmorphism-card border-0 shadow-sm rounded-xl overflow-hidden border-l-3 border-l-emerald-500">
+            <CardHeader className="pb-2 bg-gradient-to-r from-emerald-50/50 to-transparent dark:from-emerald-900/10 dark:to-transparent">
+              <CardTitle className="text-sm font-bold flex items-center gap-2">
+                <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-gradient-to-br from-emerald-400 to-teal-500 text-white shadow-sm">
+                  <CalendarDays className="h-3.5 w-3.5" />
+                </div>
+                {t('student_portal.my_schedule')}
+                <div className="h-0.5 w-12 rounded-full bg-gradient-to-r from-emerald-400 to-transparent" />
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-4">
+              {schedule.length > 0 ? (
+                <div className="space-y-2">
+                  {schedule.slice(0, 4).map((period, idx) => {
+                    const isCurrent = currentPeriodIndex === idx;
+                    const isPast = currentPeriodIndex !== -1 && idx < currentPeriodIndex;
+                    return (
+                      <motion.div
+                        key={idx}
+                        initial={{ opacity: 0, x: -10 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: idx * 0.05, duration: 0.3 }}
+                        className={`flex items-center gap-3 p-2.5 rounded-lg transition-all ${
+                          isCurrent
+                            ? 'bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200/50 dark:border-emerald-800/30'
+                            : isPast
+                              ? 'opacity-50'
+                              : 'bg-gray-50/50 dark:bg-gray-800/30'
+                        }`}
+                      >
+                        <div className={`flex items-center justify-center w-8 h-8 rounded-lg text-xs font-bold shrink-0 ${
+                          isCurrent
+                            ? 'bg-gradient-to-br from-emerald-400 to-teal-500 text-white shadow-sm'
+                            : 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400'
+                        }`}>
+                          {period.period}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <p className="text-sm font-semibold text-gray-900 dark:text-gray-100 truncate">{period.subject}</p>
+                            {isCurrent && (
+                              <span className="status-dot animate-pulse-glow" />
+                            )}
+                          </div>
+                          <p className="text-[10px] text-gray-500 dark:text-gray-400">
+                            {period.startTime} - {period.endTime}
+                            {period.room ? ` · ${period.room}` : ''}
+                          </p>
+                        </div>
+                        {isCurrent && (
+                          <Badge className="text-[10px] bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+                            Now
+                          </Badge>
+                        )}
+                      </motion.div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="text-center py-4">
+                  <p className="text-xs text-gray-500 dark:text-gray-400">{t('student_portal.no_schedule')}</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Motivational Quote Section with fade animation */}
+          <Card className="glassmorphism-card border-0 shadow-sm rounded-xl overflow-hidden border-l-3 border-l-violet-500">
+            <CardHeader className="pb-2 bg-gradient-to-r from-violet-50/50 to-transparent dark:from-violet-900/10 dark:to-transparent">
+              <CardTitle className="text-sm font-bold flex items-center gap-2">
+                <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-gradient-to-br from-violet-400 to-purple-500 text-white shadow-sm">
+                  <Sparkles className="h-3.5 w-3.5" />
+                </div>
+                {t('student_portal.daily_inspiration')}
+                <div className="h-0.5 w-12 rounded-full bg-gradient-to-r from-violet-400 to-transparent" />
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-4">
+              <motion.div
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6, ease: 'easeOut' }}
+                className="space-y-4"
+              >
+                <div className="p-4 rounded-xl bg-gradient-to-br from-violet-50/50 to-purple-50/30 dark:from-violet-900/10 dark:to-purple-900/5 border border-violet-100/40 dark:border-violet-900/20">
+                  <p className="text-sm font-medium text-gray-800 dark:text-gray-200 italic leading-relaxed">
+                    &ldquo;{locale === 'de'
+                      ? 'Bildung ist nicht das Befuellen eines Fasses, sondern das Entzuenden einer Flamme.'
+                      : 'Education is not the filling of a pail, but the lighting of a fire.'
+                    }&rdquo;
+                  </p>
+                  <p className="text-xs text-violet-600 dark:text-violet-400 mt-2 font-semibold">
+                    — {locale === 'de' ? 'Heraklit' : 'William Butler Yeats'}
+                  </p>
+                </div>
+                {/* My Progress section with animated progress bars */}
+                <div className="space-y-3">
+                  <p className="text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">{t('student_portal.my_competencies')}</p>
+                  {competencies.slice(0, 4).map((comp, idx) => {
+                    const colors = masteryColors[comp.level] || masteryColors[1];
+                    return (
+                      <div key={idx} className="space-y-1">
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="text-gray-700 dark:text-gray-300 font-medium truncate">{comp.subject}</span>
+                          <span className="text-gray-500 dark:text-gray-400 font-semibold">{comp.progress}%</span>
+                        </div>
+                        <div className="relative h-2 bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden">
+                          <motion.div
+                            className={`absolute inset-y-0 left-0 rounded-full bg-gradient-to-r ${colors.gradient} progress-animated`}
+                            initial={{ width: 0 }}
+                            animate={{ width: `${comp.progress}%` }}
+                            transition={{ duration: 0.8, ease: 'easeOut', delay: 0.2 + idx * 0.1 }}
+                          />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </motion.div>
+            </CardContent>
+          </Card>
+        </div>
+      </motion.div>
+
       {/* ── Charts Section: Radar + Grade Trend ─────────────────────────── */}
       <motion.div variants={itemVariants}>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           {/* Competency Radar Chart */}
-          <Card className="border-0 shadow-sm rounded-xl overflow-hidden">
+          <Card className="glassmorphism-card border-0 shadow-sm rounded-xl overflow-hidden">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-bold flex items-center gap-2">
                 <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-gradient-to-br from-emerald-400 to-teal-500 text-white shadow-sm">
@@ -808,7 +937,7 @@ export default function StudentPortalView() {
           </Card>
 
           {/* Grade Trend Chart */}
-          <Card className="border-0 shadow-sm rounded-xl overflow-hidden">
+          <Card className="glassmorphism-card border-0 shadow-sm rounded-xl overflow-hidden">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-bold flex items-center gap-2">
                 <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-gradient-to-br from-violet-400 to-purple-500 text-white shadow-sm">
@@ -845,7 +974,7 @@ export default function StudentPortalView() {
 
       {/* ── Weekly Streak Heatmap ───────────────────────────────────────── */}
       <motion.div variants={itemVariants}>
-        <Card className="border-0 shadow-sm rounded-xl overflow-hidden">
+        <Card className="glassmorphism-card border-0 shadow-sm rounded-xl overflow-hidden">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-bold flex items-center gap-2">
               <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-gradient-to-br from-orange-400 to-red-500 text-white shadow-sm">
@@ -900,7 +1029,7 @@ export default function StudentPortalView() {
 
       {/* ── Daily Challenge Widget ──────────────────────────────────────── */}
       <motion.div variants={itemVariants}>
-        <Card className="border-0 shadow-sm rounded-xl overflow-hidden border-l-3 border-l-amber-500">
+        <Card className="glassmorphism-card border-0 shadow-sm rounded-xl overflow-hidden border-l-3 border-l-amber-500">
           <CardHeader className="pb-2 bg-gradient-to-r from-amber-50/50 to-transparent dark:from-amber-900/10 dark:to-transparent">
             <CardTitle className="text-sm font-bold flex items-center gap-2">
               <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-gradient-to-br from-amber-400 to-amber-500 text-white shadow-sm">
@@ -937,7 +1066,7 @@ export default function StudentPortalView() {
 
       {/* ── Learning Time Tracker ───────────────────────────────────────── */}
       <motion.div variants={itemVariants}>
-        <Card className="border-0 shadow-sm rounded-xl overflow-hidden">
+        <Card className="glassmorphism-card border-0 shadow-sm rounded-xl overflow-hidden">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-bold flex items-center gap-2">
               <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-gradient-to-br from-sky-400 to-cyan-500 text-white shadow-sm">
@@ -975,7 +1104,7 @@ export default function StudentPortalView() {
       {/* ── Main Tabs ──────────────────────────────────────────────────── */}
       <motion.div variants={itemVariants}>
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-          <TabsList className="grid w-full grid-cols-3 sm:grid-cols-6 h-auto gap-1 bg-gray-100/50 dark:bg-gray-800/50 p-1 rounded-xl">
+          <TabsList className="grid w-full grid-cols-3 sm:grid-cols-6 h-auto gap-1 bg-gray-100/50 dark:bg-gray-800/50 backdrop-blur-sm p-1 rounded-xl ring-1 ring-gray-200/30 dark:ring-gray-700/20">
             <TabsTrigger value="competencies" className="text-xs sm:text-sm gap-1.5 min-h-[40px] data-[state=active]:bg-white dark:data-[state=active]:bg-gray-900 data-[state=active]:shadow-sm rounded-lg">
               <BookOpen className="h-3.5 w-3.5" />
               <span className="hidden sm:inline">{t('student_portal.my_competencies')}</span>
