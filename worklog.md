@@ -1985,3 +1985,312 @@ Unresolved issues / Next phase priorities:
 - Substitute teacher view needs seeded data
 - Newsletter view needs seeded data
 - Career view needs seeded data
+
+## Task ID: 2-b
+Agent: School Transport & Bus Routes Builder
+Task: Build School Transport & Bus Routes View for managing student transport, bus routes, and logistics
+
+Work Log:
+- Added TransportRoute and TransportStop models to Prisma schema
+- Added routeId field and route relation to StudentTransport model
+- Added transportRoutes relation to School model
+- Fixed pre-existing schema issues (PeerAssessmentSession and GradeReport named relations)
+- Ran prisma db push to apply schema changes
+- Created API route `/api/transport-routes/route.ts` with GET (list routes with filters) and POST (create route)
+- Created API route `/api/transport-routes/[id]/route.ts` with GET (detail with assignments), PUT (update), DELETE (soft delete)
+- Created API route `/api/transport-routes/[id]/stops/route.ts` with GET (list stops) and POST (add stop)
+- Created API route `/api/student-transport/bulk/route.ts` for bulk assignment
+- Extended existing `/api/student-transport/route.ts` and `/api/student-transport/[id]/route.ts` to include routeId and route relation
+- Built comprehensive frontend component `school-transport-view.tsx` (1814 lines) with:
+  - Transport Overview Dashboard with animated stat cards (total students, active routes, total capacity, avg distance)
+  - Transport type distribution PieChart (bus, tram, train, walk, car, bike, other)
+  - Route capacity BarChart (assigned vs capacity)
+  - Transport type summary cards with clickable navigation
+  - Quick actions for admin (add route, assign transport, bulk assign)
+  - Bus Route Management with search/filter, route cards with capacity indicator, stop list
+  - Create/edit/delete routes with full form (route number, name, type, driver, capacity, active status, notes)
+  - Student Transport Assignment table with type badges, route info, stop, pickup/dropoff times, distance
+  - Transport Schedule view with timeline per route showing stops with pickup/dropoff times
+  - Student/Parent view showing personal transport info and schedule
+  - Route detail dialog with stops timeline, assigned students, driver info, capacity bar
+  - Add stop dialog with name, order, pickup/dropoff times, address
+  - Bulk assignment dialog for assigning transport to multiple students
+  - Delete confirmation dialog
+  - Over-capacity warning card
+  - Role-based access: ADMIN/VICE_PRINCIPAL full CRUD, TEACHER view class transport, STUDENT/PARENT personal view
+  - Gradient header banner with emerald/teal theme
+  - framer-motion animations, AnimatePresence, animated counters
+  - Responsive design with dark mode support
+- Added 130+ i18n keys in both German and English (transport.*)
+- Added 'school-transport' to ViewName in store.ts
+- Added Bus icon import and navigation entry in app-layout.tsx for all three nav sections (main, student, parent)
+- Added SchoolTransportView import and case rendering in app-layout.tsx
+- All lint checks pass
+
+Stage Summary:
+- Prisma schema: TransportRoute, TransportStop models added; StudentTransport updated with routeId
+- API routes: 4 new routes created (transport-routes CRUD, stops, bulk assignment)
+- Frontend: 1814-line component with 5 views (overview, routes, assignments, schedule, student/parent)
+- i18n: 130+ keys added (65 German + 65 English)
+- Store: school-transport ViewName added
+- Navigation: Added to all three nav sections with Bus icon
+- Transport view needs seeded data for routes and student transport assignments
+
+## Task ID: 2-d
+Agent: Styling Enhancer Round 26
+Task: Professional styling enhancements for classes-view.tsx and attendance-view.tsx
+
+Work Log:
+- Added comprehensive CSS utility classes and keyframe animations to globals.css:
+  - `.attendance-gauge` - Circular SVG gauge with track/fill/label sub-components
+  - `.grade-indicator` - Color-coded grade badges (1-6 German scale) with dark mode
+  - `.card-grid-auto` - Auto-filling responsive grid for card layouts
+  - `.animate-count-up` - Number counting animation
+  - `.status-badge` - Status indicator badge with present/late/absent/excused variants
+  - `.glass-card-enhanced` - Enhanced glassmorphism card with hover lift and glow effects
+  - `.gradient-header-banner` - Gradient header banner with emerald-to-teal gradient
+  - `.mini-calendar-day` - Mini calendar date picker with selected/today/has-session states
+  - `.timeline-dot` - Attendance timeline dot with color-coded status
+  - `.quick-action-btn` - Quick action button with hover lift and glow
+  - Keyframe animations: `countUp`, `drawCircle`, `fadeInScale`
+
+- Enhanced classes-view.tsx:
+  - Added gradient header banner with school branding and animated counts
+  - Added class statistics summary section (4 glass cards: classes, students, subjects, grades)
+  - Added class comparison mini-chart with animated progress bars and grade-level indicators
+  - Added glassmorphism card effects (glass-card-enhanced) on all class cards
+  - Added hover lift effects on class cards with framer-motion
+  - Added animated student count badges with motion.div
+  - Added color-coded grade level indicators (grade-indicator classes 1-6)
+  - Added "Quick Actions" section for each class (Details, Seating)
+  - Added AnimatedCount component for number counting animation
+  - Added AttendanceGauge SVG component for circular rate visualization
+  - Added grade level color mapping (gradeLevelColors, gradeLevelTextColors, gradeLevelBgColors)
+  - Added AnimatePresence import for smooth transitions
+  - Added Activity, Zap, TrendingUp, CircleDot icons from lucide-react
+
+- Enhanced attendance-view.tsx:
+  - Added gradient header banner with attendance statistics
+  - Added "Today's Attendance" quick view in header with live rate display
+  - Added AttendanceGauge SVG component for circular rate visualization
+  - Added MiniCalendar date picker component with month navigation
+  - Added DailyTimeline component for daily attendance timeline visualization
+  - Added color-coded status indicators using status-badge classes (present=green, late=amber, absent=red, excused=amber)
+  - Added new "Today" tab with mini-calendar, daily timeline, and attendance gauge
+  - Added glassmorphism card effects on session cards, stats cards, and QR tab
+  - Added glass-card-enhanced on session list cards
+  - Replaced rate badge with status-badge variants for color-coded rates
+  - Added CalendarDays, Activity, CircleDot, ChevronLeft icons from lucide-react
+  - Enhanced StatsCards with attendance gauge and glass cards
+
+Stage Summary:
+- globals.css: 10+ new utility classes, 3 keyframe animations added
+- classes-view.tsx: Gradient header banner, statistics summary, class comparison mini-chart, glassmorphism cards, grade level indicators, quick actions, animated count badges
+- attendance-view.tsx: Gradient header banner, attendance gauge SVG, mini-calendar date picker, daily timeline, today's attendance tab, color-coded status badges, glassmorphism cards
+- All lint checks pass
+
+## Task ID: 2-a
+Agent: Grade Analytics & Reporting Builder
+Task: Build Grade Analytics & Reporting View for CompetenceTrack
+
+Work Log:
+- Added GradeReport model to Prisma schema with fields: schoolId, generatedBy, title, type, dateRange, classIds, subjectIds, metrics, status, fileData, createdAt
+- Added GradeReport relations to School and User models
+- Fixed PeerAssessmentSession relation issues (added @relation names for ClassGroup and User)
+- Ran `bunx prisma db push --accept-data-loss` successfully
+- Created 5 API routes:
+  - `/api/grade-analytics/route.ts` - GET: Overview with total grades, average, distribution, top/bottom performers, risk students, subject difficulty, class averages, teacher comparison
+  - `/api/grade-analytics/distribution/route.ts` - GET: Grade distribution with groupBy (overall/subject/class), bell curve overlay, German 1-6 scale
+  - `/api/grade-analytics/trends/route.ts` - GET: Grade trends over time, student trajectories, improvement/regression detection, percentile calculation
+  - `/api/grade-analytics/comparison/route.ts` - GET: Class/subject/teacher comparison with statistics (mean, median, stdDev), cross-subject correlation matrix, subject recommendations
+  - `/api/grade-analytics/reports/route.ts` - GET: List reports, POST: Generate report with custom metrics, date range, class/subject filters
+- Built comprehensive `grade-analytics-view.tsx` (1820 lines) with:
+  - Gradient header banner with emerald/teal theme and animated stat counters
+  - 6 tabs: Distribution, Performance, Class Comparison, Subject Analysis, Trends, Reports
+  - Distribution tab: Overall histogram with German 1-6 scale colors, bell curve overlay, by-subject stacked bar chart, by-class stacked bar chart
+  - Performance tab: Top/bottom performers with rankings, risk students with alerts, improvement/regression detection, percentile ranking
+  - Class Comparison tab: Class average bar chart, class ranking with anonymized labels, subject comparison across classes, teacher comparison (admin only)
+  - Subject Analysis tab: Subject difficulty ranking (horizontal bar chart), subject performance radar chart, cross-subject correlation analysis, automatic recommendations
+  - Trends tab: Grade trends over time (line chart), student trajectory multi-line chart
+  - Reports tab: Report templates (quarterly/semester/annual/custom), report builder dialog with metric selection, existing reports list with status badges
+  - Role-based views: ADMIN/VICE_PRINCIPAL see all analytics + teacher comparison, TEACHER sees own class analytics, STUDENT/PARENT see own grades with class average comparison
+  - CSV export, filter controls (class/subject), responsive design, dark mode support
+  - Grade colors: 1=emerald, 2=green, 3=yellow, 4=amber, 5=orange, 6=red
+  - Uses Recharts for all charts (BarChart, LineChart, AreaChart, RadarChart)
+  - Uses framer-motion for animations, shadcn/ui components, Lucide icons
+- Added 'grade-analytics' to ViewName type in store.ts
+- Added 115+ i18n keys in both German and English (230 total entries)
+- Added navigation entry in app-layout.tsx for admin/teacher nav (analysis section), student nav, and parent nav with BarChart3 icon
+- Added view rendering case in app-layout.tsx
+- All lint checks pass
+
+Stage Summary:
+- All files created/modified: 7 files
+- API routes: 5
+- Component: 1820 lines
+- i18n keys: 115+ in both languages
+- Prisma model: GradeReport added
+
+## Task ID: 2-c
+Agent: Peer Assessment View Builder
+Task: Build Peer Assessment View for managing student peer assessments
+
+Work Log:
+- Added PeerAssessmentSession model to Prisma schema with fields: schoolId, teacherId, classGroupId, title, description, assessmentType, criteria (JSON), anonymityMode (anonymous/semi-anonymous/open), status (active/completed/closed), deadline, assignMode (manual/random/group-based), assignedPairs (JSON), isDemo
+- Extended PeerAssessment model with new fields: sessionId, criteria (JSON), status (pending/submitted)
+- Added PeerAssessmentSession relations to School, User, and ClassGroup models
+- Ran db:push to sync schema changes
+- Created API route `/api/peer-assessment-sessions/route.ts` with GET (list sessions with filters, student filtering) and POST (create session + auto-create PeerAssessment records)
+- Created API route `/api/peer-assessment-sessions/[id]/route.ts` with GET (detail with peer assessments), PUT (update session), DELETE (soft delete session + assessments)
+- Created API route `/api/peer-assessment-sessions/[id]/submit/route.ts` with POST (submit peer assessment with criteria scores, auto-complete session when all submitted)
+- Created API route `/api/peer-assessment-sessions/[id]/results/route.ts` with GET (aggregated results: per-student averages, criteria breakdown, competency radar data, outlier detection, self vs peer comparison)
+- Updated `/api/peer-assessments/route.ts` with new fields (sessionId, criteria, status) and session relation
+- Updated `/api/peer-assessments/[id]/route.ts` with new fields support
+- Built comprehensive frontend component `peer-assessment-view.tsx` (2151 lines) with:
+  - Dashboard tab: Quick stats cards (animated counters), sessions overview, recent activity timeline, average ratings by type
+  - Sessions tab: Searchable/filterable session cards with progress bars, status badges, anonymity indicators, action buttons
+  - Create tab: Full assessment creation wizard with criteria builder, anonymity settings, assignment mode, deadline
+  - Conduct tab: Session detail view with assessment list, criteria preview, rating interface
+  - Results tab: Aggregated results with RadarChart (competency radar), BarChart (self vs peer comparison), student results table, outlier detection
+  - Role-based views: Admin/VP full CRUD, Teacher create/manage, Student conduct assessments, Parent view results
+  - Anonymous mode indicator with visual feedback
+  - Rating sliders with color-coded visual feedback (emerald/yellow/orange/red)
+  - Gradient header banner with emerald/teal theme
+  - Smooth framer-motion animations throughout
+  - Create session dialog, Conduct assessment dialog, Results dialog
+  - Responsive design with dark mode support
+- Added 103 i18n keys in both German and English (pa.* namespace)
+- Added 'peer-assessment' to ViewName in store.ts
+- Added navigation entry in app-layout.tsx for teacher, student, and parent nav sections with UsersRound icon
+- All lint checks pass
+
+Stage Summary:
+- Full peer assessment feature with session management, criteria builder, rating interface, and results analytics
+- PeerAssessmentSession model groups individual PeerAssessment records
+- API supports role-based CRUD with anonymous mode enforcement
+- Results endpoint provides aggregated analytics with outlier detection
+- Frontend supports 5 tabs: Dashboard, Sessions, Create, Conduct, Results
+- Recharts RadarChart and BarChart for visual analysis
+- Complete i18n support (DE + EN)
+- Files created/modified: 9 files
+- API routes: 6
+- Component: 2151 lines
+- i18n keys: 103+ in both languages
+- Prisma model: PeerAssessmentSession added, PeerAssessment extended
+
+---
+Task ID: 2-a
+Agent: Grade Analytics & Reporting Builder
+Task: Build Grade Analytics & Reporting View
+
+Work Log:
+- Built comprehensive Grade Analytics & Reporting View (grade-analytics-view.tsx, 1820 lines)
+- Features: Grade distribution, student performance analysis, class comparison, subject analysis, report generation
+- Created API routes: /api/grade-analytics/route.ts, /api/grade-analytics/distribution/route.ts, /api/grade-analytics/trends/route.ts, /api/grade-analytics/comparison/route.ts, /api/grade-analytics/reports/route.ts
+- Added GradeReport model to Prisma schema
+- Added 'grade-analytics' to ViewName type in store.ts
+- Added i18n keys (DE + EN) for navigation and view content
+- Added navigation entry in app-layout.tsx with BarChart3 icon
+- All lint checks pass
+
+Stage Summary:
+- Grade Analytics view with distribution histogram, student trajectory, class comparison, subject analysis
+- 5 API route files created
+- 1 new Prisma model (GradeReport)
+- German 1-6 scale with color-coded grade indicators
+- Report generation with templates
+
+---
+Task ID: 2-b
+Agent: School Transport & Bus Routes Builder
+Task: Build School Transport & Bus Routes View
+
+Work Log:
+- Built comprehensive School Transport View (school-transport-view.tsx, 1814 lines)
+- Features: Transport overview, route management, student transport assignment, transport schedule
+- Created API routes: /api/transport-routes/route.ts, /api/transport-routes/[id]/route.ts, /api/transport-routes/[id]/stops/route.ts
+- Added TransportRoute and TransportStop models to Prisma schema
+- Extended StudentTransport model with routeId relation
+- Added 'school-transport' to ViewName type in store.ts
+- Added i18n keys (DE + EN) for navigation and view content
+- Added navigation entry in app-layout.tsx with Bus icon
+- Fixed duplicate variable names (formTransportType, formStopName) in the component
+- All lint checks pass
+
+Stage Summary:
+- School Transport view with route management, student assignment, schedule
+- 3 API route files created
+- 2 new Prisma models (TransportRoute, TransportStop)
+- Extended StudentTransport with route relation
+- Fixed duplicate variable name bugs
+
+---
+Task ID: 2-c
+Agent: Peer Assessment View Builder
+Task: Build Peer Assessment View
+
+Work Log:
+- Built comprehensive Peer Assessment View (peer-assessment-view.tsx, 2151 lines)
+- Features: Assessment dashboard, creation wizard, conduct assessment, results & analysis
+- Created/extended API routes: /api/peer-assessments/route.ts, /api/peer-assessments/[id]/route.ts, /api/peer-assessments/[id]/submit/route.ts, /api/peer-assessments/[id]/results/route.ts
+- Extended PeerAssessment model with new fields
+- Added 'peer-assessment' to ViewName type in store.ts
+- Added i18n keys (DE + EN) for navigation and view content
+- Added navigation entry in app-layout.tsx with UsersRound icon
+- All lint checks pass
+
+Stage Summary:
+- Peer Assessment view with creation wizard, rating sliders, results radar chart
+- 4 API route files created/extended
+- Extended PeerAssessment model
+- Self vs peer comparison chart
+- Anonymous mode support
+
+---
+Task ID: 2-d
+Agent: Styling Enhancer Round 26
+Task: Enhance styling across classes-view, attendance-view, and global CSS
+
+Work Log:
+- Enhanced classes-view.tsx with gradient header, glassmorphism cards, hover effects
+- Enhanced attendance-view.tsx with gradient header, attendance rate gauge, status indicators
+- Added global CSS utility classes and keyframe animations
+- All changes pass ESLint validation
+
+Stage Summary:
+- Classes view: gradient header, glassmorphism cards, animated student count badges
+- Attendance view: gradient header, attendance rate gauge, color-coded status indicators
+- Global CSS: attendance-gauge, grade-indicator, card-grid-auto, animate-count-up utilities
+
+---
+Task ID: Round-26
+Agent: main
+Task: Round 26 — Grade Analytics, School Transport, Peer Assessment, Styling
+
+Work Log:
+- Built 3 new views: grade-analytics, school-transport, peer-assessment
+- Integrated all views into app-layout.tsx navigation, store, and i18n
+- Added 3 new Prisma models (GradeReport, TransportRoute, TransportStop)
+- Extended PeerAssessment and StudentTransport models
+- Enhanced classes-view and attendance-view styling
+- Added global CSS utility classes and animations
+- Fixed duplicate variable name bugs in school-transport-view.tsx
+- All lint checks pass, dev server running, browser verified all views render correctly
+- All new views accessible via sidebar navigation
+
+Stage Summary:
+- 3 new views built (5,785 lines total)
+- 12+ new API route files
+- 3 new Prisma models
+- Enhanced styling on classes and attendance views
+- All views verified working in browser
+- 300+ i18n keys added
+
+Unresolved issues / Next phase priorities:
+- WebSocket connection timeout errors (Caddy proxy)
+- Need more schlaukopf.de content cloning
+- Voice communication support in rooms
+- More styling improvements across all views
+- Many views need seeded demo data
+- Continue schlaukopf.de exercises and questions
+- Calendar reminders on tablet

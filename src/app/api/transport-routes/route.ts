@@ -11,7 +11,7 @@ export async function GET(request: Request) {
 
     const { searchParams } = new URL(request.url);
     const schoolId = searchParams.get('schoolId');
-    const studentId = searchParams.get('studentId');
+    const isActive = searchParams.get('isActive');
 
     if (!schoolId) {
       return NextResponse.json({ error: 'schoolId is required' }, { status: 400 });
@@ -26,24 +26,26 @@ export async function GET(request: Request) {
       deletedAt: null,
     };
 
-    if (studentId) where.studentId = studentId;
+    if (isActive !== null && isActive !== undefined) {
+      where.isActive = isActive === 'true';
+    }
 
-    const transports = await db.studentTransport.findMany({
+    const routes = await db.transportRoute.findMany({
       where,
-      orderBy: [{ createdAt: 'desc' }],
+      orderBy: [{ routeNumber: 'asc' }],
       include: {
-        student: {
-          select: { id: true, firstName: true, lastName: true },
+        stops: {
+          orderBy: { stopOrder: 'asc' },
         },
-        route: {
-          select: { id: true, routeNumber: true, routeName: true, transportType: true },
+        _count: {
+          select: { assignments: { where: { deletedAt: null } } },
         },
       },
     });
 
-    return NextResponse.json(transports);
+    return NextResponse.json(routes);
   } catch (error) {
-    console.error('StudentTransport GET error:', error);
+    console.error('TransportRoute GET error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
@@ -58,60 +60,49 @@ export async function POST(request: Request) {
     const body = await request.json();
     const {
       schoolId,
-      studentId,
-      transportType,
       routeNumber,
-      stopName,
-      pickupTime,
-      dropoffTime,
+      routeName,
+      transportType,
       driverName,
       driverPhone,
-      distanceKm,
-      routeId,
+      capacity,
+      isActive,
       notes,
-      isDemo,
     } = body;
 
-    if (!schoolId || !studentId || !transportType) {
+    if (!schoolId || !routeNumber || !routeName || !transportType) {
       return NextResponse.json(
-        { error: 'schoolId, studentId, and transportType are required' },
+        { error: 'schoolId, routeNumber, routeName, and transportType are required' },
         { status: 400 }
       );
     }
 
-    if (session.user?.role !== 'SUPER_ADMIN' && session.user?.schoolId !== schoolId) {
+    const adminRoles = ['SUPER_ADMIN', 'SCHOOL_ADMIN', 'VICE_PRINCIPAL'];
+    if (!adminRoles.includes(session.user?.role ?? '') && session.user?.schoolId !== schoolId) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    const transport = await db.studentTransport.create({
+    const route = await db.transportRoute.create({
       data: {
         schoolId,
-        studentId,
+        routeNumber,
+        routeName,
         transportType,
-        routeNumber: routeNumber || null,
-        stopName: stopName || null,
-        pickupTime: pickupTime || null,
-        dropoffTime: dropoffTime || null,
         driverName: driverName || null,
         driverPhone: driverPhone || null,
-        distanceKm: distanceKm != null ? distanceKm : null,
-        routeId: routeId || null,
+        capacity: capacity ?? 40,
+        isActive: isActive ?? true,
         notes: notes || null,
-        isDemo: isDemo ?? false,
       },
       include: {
-        student: {
-          select: { id: true, firstName: true, lastName: true },
-        },
-        route: {
-          select: { id: true, routeNumber: true, routeName: true, transportType: true },
-        },
+        stops: { orderBy: { stopOrder: 'asc' } },
+        _count: { select: { assignments: { where: { deletedAt: null } } } },
       },
     });
 
-    return NextResponse.json(transport, { status: 201 });
+    return NextResponse.json(route, { status: 201 });
   } catch (error) {
-    console.error('StudentTransport POST error:', error);
+    console.error('TransportRoute POST error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

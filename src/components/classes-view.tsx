@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState, useMemo, useCallback, useRef } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   Users, Plus, Search, BookOpen, UserPlus, Grid3X3, School,
   Download, Upload, FileText, CheckCircle2, AlertTriangle, FileUp,
@@ -13,6 +13,7 @@ import {
   Shuffle, Printer, Eraser, Columns3, Rows3, Move,
   Camera,
   UserCheck, Shield, Eye, MessageSquare, CalendarDays, AlertCircle,
+  Activity, Zap, TrendingUp, CircleDot,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -142,6 +143,86 @@ const masteryBadgeClass = (level: number) => {
   if (level <= 3.5) return 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300';
   return 'bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-300';
 };
+
+// Grade level color mapping (German school system 1-13)
+const gradeLevelColors: Record<string, string> = {
+  '1': 'bg-emerald-500', '2': 'bg-emerald-400', '3': 'bg-teal-500',
+  '4': 'bg-teal-400', '5': 'bg-cyan-500', '6': 'bg-cyan-400',
+  '7': 'bg-blue-500', '8': 'bg-blue-400', '9': 'bg-violet-500',
+  '10': 'bg-violet-400', '11': 'bg-purple-500', '12': 'bg-purple-400',
+  '13': 'bg-rose-500',
+};
+const gradeLevelTextColors: Record<string, string> = {
+  '1': 'text-emerald-700 dark:text-emerald-300', '2': 'text-emerald-600 dark:text-emerald-400',
+  '3': 'text-teal-700 dark:text-teal-300', '4': 'text-teal-600 dark:text-teal-400',
+  '5': 'text-cyan-700 dark:text-cyan-300', '6': 'text-cyan-600 dark:text-cyan-400',
+  '7': 'text-blue-700 dark:text-blue-300', '8': 'text-blue-600 dark:text-blue-400',
+  '9': 'text-violet-700 dark:text-violet-300', '10': 'text-violet-600 dark:text-violet-400',
+  '11': 'text-purple-700 dark:text-purple-300', '12': 'text-purple-600 dark:text-purple-400',
+  '13': 'text-rose-700 dark:text-rose-300',
+};
+const gradeLevelBgColors: Record<string, string> = {
+  '1': 'bg-emerald-100 dark:bg-emerald-900/30', '2': 'bg-emerald-50 dark:bg-emerald-900/20',
+  '3': 'bg-teal-100 dark:bg-teal-900/30', '4': 'bg-teal-50 dark:bg-teal-900/20',
+  '5': 'bg-cyan-100 dark:bg-cyan-900/30', '6': 'bg-cyan-50 dark:bg-cyan-900/20',
+  '7': 'bg-blue-100 dark:bg-blue-900/30', '8': 'bg-blue-50 dark:bg-blue-900/20',
+  '9': 'bg-violet-100 dark:bg-violet-900/30', '10': 'bg-violet-50 dark:bg-violet-900/20',
+  '11': 'bg-purple-100 dark:bg-purple-900/30', '12': 'bg-purple-50 dark:bg-purple-900/20',
+  '13': 'bg-rose-100 dark:bg-rose-900/30',
+};
+
+// Animated count-up component
+function AnimatedCount({ value, duration = 800 }: { value: number; duration?: number }) {
+  const [display, setDisplay] = useState(0);
+  useEffect(() => {
+    let start = 0;
+    const end = value;
+    if (end === 0) { setDisplay(0); return; }
+    const stepTime = Math.max(Math.floor(duration / end), 16);
+    const timer = setInterval(() => {
+      start += 1;
+      setDisplay(start);
+      if (start >= end) clearInterval(timer);
+    }, stepTime);
+    return () => clearInterval(timer);
+  }, [value, duration]);
+  return <span className="animate-count-up">{display}</span>;
+}
+
+// Attendance gauge SVG component
+function AttendanceGauge({ rate, size = 80 }: { rate: number; size?: number }) {
+  const strokeWidth = 6;
+  const radius = (size - strokeWidth) / 2;
+  const circumference = 2 * Math.PI * radius;
+  const offset = circumference - (rate / 100) * circumference;
+  const rateClass = rate >= 90 ? 'rate-high' : rate >= 70 ? 'rate-medium' : 'rate-low';
+
+  return (
+    <div className="attendance-gauge" style={{ width: size, height: size }}>
+      <svg width={size} height={size}>
+        <circle
+          className="attendance-gauge-track"
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+        />
+        <circle
+          className={`attendance-gauge-fill ${rateClass}`}
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          strokeDasharray={circumference}
+          strokeDashoffset={offset}
+          style={{ '--circumference': circumference, '--offset': offset } as React.CSSProperties}
+        />
+      </svg>
+      <div className="attendance-gauge-label">
+        <span className="text-lg font-bold text-gray-900 dark:text-gray-100">{rate}%</span>
+        <span className="text-[9px] text-muted-foreground uppercase tracking-wider">{t('attendance.rate')}</span>
+      </div>
+    </div>
+  );
+}
 
 export default function ClassesView() {
   const currentUser = useAppStore((s) => s.currentUser);
@@ -844,9 +925,134 @@ export default function ClassesView() {
   }
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+    <div className="space-y-6">
+      {/* Gradient Header Banner */}
+      <motion.div
+        initial={{ opacity: 0, y: -12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4 }}
+        className="gradient-header-banner rounded-xl px-6 py-5"
+      >
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="flex items-center justify-center w-12 h-12 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white shadow-lg shadow-emerald-300/30">
+              <School className="h-6 w-6" />
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold bg-gradient-to-r from-emerald-600 to-teal-600 dark:from-emerald-400 dark:to-teal-400 bg-clip-text text-transparent">
+                {t('classes.title')}
+              </h1>
+              <p className="text-sm text-emerald-600/60 dark:text-emerald-400/40 mt-0.5">
+                {locale === 'de' ? 'Klassen und Schueler verwalten' : 'Manage classes and students'}
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-white/60 dark:bg-gray-800/40 border border-emerald-200/30 dark:border-emerald-900/30">
+              <Users className="h-4 w-4 text-emerald-500" />
+              <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+                <AnimatedCount value={filteredClasses.length} /> {locale === 'de' ? 'Klassen' : 'Classes'}
+              </span>
+            </div>
+            <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-white/60 dark:bg-gray-800/40 border border-emerald-200/30 dark:border-emerald-900/30">
+              <Activity className="h-4 w-4 text-teal-500" />
+              <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+                <AnimatedCount value={filteredClasses.reduce((s, c) => s + (c.studentCount ?? 0), 0)} /> {locale === 'de' ? 'Schueler' : 'Students'}
+              </span>
+            </div>
+          </div>
+        </div>
+      </motion.div>
+
+      {/* Class Statistics Summary */}
+      {filteredClasses.length > 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3, delay: 0.1 }}
+          className="grid grid-cols-2 sm:grid-cols-4 gap-3"
+        >
+          <div className="glass-card-enhanced rounded-xl p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-gradient-to-br from-emerald-400 to-teal-500 text-white shadow-sm">
+                <School className="h-3.5 w-3.5" />
+              </div>
+              <span className="text-[10px] uppercase tracking-wider font-semibold text-emerald-600/70 dark:text-emerald-400/60">{locale === 'de' ? 'Klassen' : 'Classes'}</span>
+            </div>
+            <p className="text-2xl font-bold text-gray-900 dark:text-gray-100 animate-count-up">{filteredClasses.length}</p>
+          </div>
+          <div className="glass-card-enhanced rounded-xl p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-gradient-to-br from-teal-400 to-emerald-500 text-white shadow-sm">
+                <Users className="h-3.5 w-3.5" />
+              </div>
+              <span className="text-[10px] uppercase tracking-wider font-semibold text-teal-600/70 dark:text-teal-400/60">{locale === 'de' ? 'Schueler' : 'Students'}</span>
+            </div>
+            <p className="text-2xl font-bold text-gray-900 dark:text-gray-100 animate-count-up">{filteredClasses.reduce((s, c) => s + (c.studentCount ?? 0), 0)}</p>
+          </div>
+          <div className="glass-card-enhanced rounded-xl p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-gradient-to-br from-amber-400 to-amber-500 text-white shadow-sm">
+                <BookOpen className="h-3.5 w-3.5" />
+              </div>
+              <span className="text-[10px] uppercase tracking-wider font-semibold text-amber-600/70 dark:text-amber-400/60">{locale === 'de' ? 'Faecher' : 'Subjects'}</span>
+            </div>
+            <p className="text-2xl font-bold text-gray-900 dark:text-gray-100 animate-count-up">{filteredClasses.reduce((s, c) => s + (c._count?.competencyAssignments ?? 0), 0)}</p>
+          </div>
+          <div className="glass-card-enhanced rounded-xl p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-gradient-to-br from-violet-400 to-violet-500 text-white shadow-sm">
+                <BarChart3 className="h-3.5 w-3.5" />
+              </div>
+              <span className="text-[10px] uppercase tracking-wider font-semibold text-violet-600/70 dark:text-violet-400/60">{locale === 'de' ? 'Jahrgaenge' : 'Grades'}</span>
+            </div>
+            <p className="text-2xl font-bold text-gray-900 dark:text-gray-100 animate-count-up">{new Set(filteredClasses.map((c) => c.gradeLevel)).size}</p>
+          </div>
+        </motion.div>
+      )}
+
+      {/* Class Comparison Mini-Chart */}
+      {filteredClasses.length > 1 && (
+        <motion.div
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3, delay: 0.15 }}
+          className="glass-card-enhanced rounded-xl p-4"
+        >
+          <div className="flex items-center gap-2 mb-3">
+            <TrendingUp className="h-4 w-4 text-emerald-500" />
+            <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">{locale === 'de' ? 'Klassenvergleich' : 'Class Comparison'}</span>
+            <span className="text-[10px] text-muted-foreground">{locale === 'de' ? 'Schueler pro Klasse' : 'Students per class'}</span>
+          </div>
+          <div className="space-y-2">
+            {filteredClasses.slice(0, 6).map((cls) => {
+              const count = cls.studentCount ?? 0;
+              const maxStudents = Math.max(...filteredClasses.map((c) => c.studentCount ?? 0), 1);
+              const pct = (count / maxStudents) * 100;
+              const gradeKey = String(cls.gradeLevel ?? 1);
+              return (
+                <div key={cls.id} className="flex items-center gap-2">
+                  <span className="grade-indicator grade-{gradeKey}">{cls.gradeLevel}</span>
+                  <span className="text-xs font-medium text-gray-700 dark:text-gray-300 w-20 truncate">{cls.name}</span>
+                  <div className="flex-1 h-5 rounded-full bg-gray-100 dark:bg-gray-800 overflow-hidden">
+                    <motion.div
+                      initial={{ width: 0 }}
+                      animate={{ width: `${Math.max(pct, 3)}%` }}
+                      transition={{ duration: 0.6, ease: 'easeOut' }}
+                      className={`h-full rounded-full ${gradeLevelColors[gradeKey] ?? 'bg-emerald-500'}`}
+                    />
+                  </div>
+                  <span className="text-xs font-bold text-gray-600 dark:text-gray-400 w-8 text-right">{count}</span>
+                </div>
+              );
+            })}
+          </div>
+        </motion.div>
+      )}
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
       {/* Class list */}
-      <Card className="border-0 shadow-sm rounded-xl overflow-hidden">
+      <Card className="glass-card-enhanced rounded-xl overflow-hidden">
         <CardHeader className="pb-3 pt-6 bg-gradient-to-r from-emerald-50/50 to-transparent dark:from-emerald-900/10 dark:to-transparent">
           <CardTitle className="text-lg font-bold flex items-center gap-2">
             <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-400 to-teal-500 text-white shadow-sm shadow-emerald-300/20">
@@ -897,68 +1103,93 @@ export default function ClassesView() {
             </div>
           ) : (
             <div className="space-y-2">
-              {filteredClasses.map((cls) => (
-                <motion.button
-                  key={cls.id}
-                  whileHover={{ scale: 1.02, y: -3 }}
-                  whileTap={{ scale: 0.98 }}
-                  transition={{ duration: 0.2 }}
-                  onClick={() => handleSelectClass(cls)}
-                  className={`w-full text-left rounded-xl transition-all duration-200 border-l-3 ${schoolTypeAccent[cls.schoolType] ?? 'border-l-emerald-500'} bg-gradient-to-r ${schoolTypeGradient[cls.schoolType] ?? schoolTypeGradient.OTHER} hover:shadow-xl hover:shadow-emerald-500/8 card-shadow-transition ${
-                    selectedClass?.id === cls.id
-                      ? 'shadow-lg ring-2 ring-emerald-300/60 dark:ring-emerald-700/50'
-                      : 'hover:shadow-lg hover:shadow-emerald-200/30 dark:hover:shadow-emerald-900/20'
-                  }`}
-                >
-                  {/* Gradient overlay strip at top */}
-                  <div className={`h-1.5 rounded-t-xl ${schoolTypeAccentBg[cls.schoolType] ?? 'bg-emerald-500'} opacity-60`} />
-                  <div className="p-4">
-                    <div className="flex items-center justify-between">
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-2 mb-1 flex-wrap">
-                          <p className="font-semibold text-gray-900 dark:text-gray-100">{cls.name}</p>
-                          <Badge className={`${schoolTypeBadgeBg[cls.schoolType] ?? schoolTypeBadgeBg.OTHER} text-[10px] font-semibold rounded-md px-1.5 py-0.5 flex items-center gap-1`}>
-                            {schoolTypeIcon[cls.schoolType] ?? <Backpack className="w-3 h-3" />}
-                            {t(`school_type.${cls.schoolType.toLowerCase()}`)}
-                          </Badge>
-                          {cls.responsibleTeacher && (
-                            <Badge className="bg-gradient-to-r from-emerald-500 to-teal-500 text-white text-[10px] font-semibold rounded-md px-1.5 py-0.5 flex items-center gap-1 shadow-sm">
-                              <UserCheck className="w-3 h-3" />
-                              {cls.responsibleTeacher.firstName} {cls.responsibleTeacher.lastName}
+              {filteredClasses.map((cls) => {
+                const gradeKey = String(cls.gradeLevel ?? 1);
+                return (
+                  <motion.button
+                    key={cls.id}
+                    whileHover={{ scale: 1.02, y: -3 }}
+                    whileTap={{ scale: 0.98 }}
+                    transition={{ duration: 0.2 }}
+                    onClick={() => handleSelectClass(cls)}
+                    className={`w-full text-left glass-card-enhanced rounded-xl transition-all duration-200 border-l-3 ${schoolTypeAccent[cls.schoolType] ?? 'border-l-emerald-500'} ${
+                      selectedClass?.id === cls.id
+                        ? 'shadow-lg ring-2 ring-emerald-300/60 dark:ring-emerald-700/50'
+                        : ''
+                    }`}
+                  >
+                    {/* Gradient overlay strip at top */}
+                    <div className={`h-1.5 rounded-t-xl ${schoolTypeAccentBg[cls.schoolType] ?? 'bg-emerald-500'} opacity-60`} />
+                    <div className="p-4">
+                      <div className="flex items-center justify-between">
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2 mb-1 flex-wrap">
+                            <p className="font-semibold text-gray-900 dark:text-gray-100">{cls.name}</p>
+                            {/* Grade level indicator */}
+                            <span className={`grade-indicator grade-${Math.min(Math.max(cls.gradeLevel ?? 1, 1), 6)}`}>
+                              {cls.gradeLevel}
+                            </span>
+                            <Badge className={`${schoolTypeBadgeBg[cls.schoolType] ?? schoolTypeBadgeBg.OTHER} text-[10px] font-semibold rounded-md px-1.5 py-0.5 flex items-center gap-1`}>
+                              {schoolTypeIcon[cls.schoolType] ?? <Backpack className="w-3 h-3" />}
+                              {t(`school_type.${cls.schoolType.toLowerCase()}`)}
                             </Badge>
-                          )}
+                            {cls.responsibleTeacher && (
+                              <Badge className="bg-gradient-to-r from-emerald-500 to-teal-500 text-white text-[10px] font-semibold rounded-md px-1.5 py-0.5 flex items-center gap-1 shadow-sm">
+                                <UserCheck className="w-3 h-3" />
+                                {cls.responsibleTeacher.firstName} {cls.responsibleTeacher.lastName}
+                              </Badge>
+                            )}
+                          </div>
+                          <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                            {t('label.grade')} {cls.gradeLevel} · {cls.schoolYear?.label}
+                          </p>
+                          {/* Student count + subject count with icons */}
+                          <div className="flex items-center gap-3 mt-2">
+                            <span className="inline-flex items-center gap-1 text-[11px] text-emerald-600/70 dark:text-emerald-400/60">
+                              <Users className="h-3 w-3" />
+                              <AnimatedCount value={cls.studentCount ?? 0} duration={400} /> {t('label.student_count').toLowerCase()}
+                            </span>
+                            <span className="inline-flex items-center gap-1 text-[11px] text-teal-600/70 dark:text-teal-400/60">
+                              <BookOpen className="h-3 w-3" />
+                              {cls._count?.competencyAssignments ?? 0} {locale === 'de' ? 'Faecher' : 'subjects'}
+                            </span>
+                          </div>
+                          {/* Quick Actions */}
+                          <div className="flex items-center gap-1.5 mt-2">
+                            <button className="quick-action-btn" onClick={(e) => { e.stopPropagation(); handleSelectClass(cls); }}>
+                              <Zap className="h-3 w-3" />
+                              {locale === 'de' ? 'Details' : 'Details'}
+                            </button>
+                            <button className="quick-action-btn" onClick={(e) => { e.stopPropagation(); if (selectedClass?.id === cls.id) { setSeatingChartOpen(true); } else { handleSelectClass(cls); } }}>
+                              <Grid3X3 className="h-3 w-3" />
+                              {locale === 'de' ? 'Sitzplan' : 'Seating'}
+                            </button>
+                          </div>
                         </div>
-                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                          {t('label.grade')} {cls.gradeLevel} · {cls.schoolYear?.label}
-                        </p>
-                        {/* Student count + subject count with icons */}
-                        <div className="flex items-center gap-3 mt-2">
-                          <span className="inline-flex items-center gap-1 text-[11px] text-emerald-600/70 dark:text-emerald-400/60">
-                            <Users className="h-3 w-3" />
-                            {cls.studentCount ?? 0} {t('label.student_count').toLowerCase()}
-                          </span>
-                          <span className="inline-flex items-center gap-1 text-[11px] text-teal-600/70 dark:text-teal-400/60">
-                            <BookOpen className="h-3 w-3" />
-                            {cls._count?.competencyAssignments ?? 0} {locale === 'de' ? 'Faecher' : 'subjects'}
-                          </span>
+                        <div className="flex items-center gap-2 shrink-0">
+                          {/* Small progress indicator */}
+                          <div className="w-16 h-2 rounded-full bg-gray-200 dark:bg-gray-700 overflow-hidden">
+                            <div
+                              className="progress-bar-animated-fill h-full rounded-full bg-gradient-to-r from-emerald-400 to-teal-400 transition-all"
+                              style={{ width: `${progressPercent(cls)}%` }}
+                            />
+                          </div>
+                          {/* Animated student count badge */}
+                          <motion.div
+                            initial={{ scale: 0.8 }}
+                            animate={{ scale: 1 }}
+                            whileHover={{ scale: 1.1 }}
+                            className="flex items-center gap-1 px-2 py-1 rounded-lg bg-gradient-to-r from-emerald-100 to-teal-100 dark:from-emerald-900/30 dark:to-teal-900/30 border border-emerald-200/30 dark:border-emerald-800/30"
+                          >
+                            <Users className="h-3 w-3 text-emerald-600 dark:text-emerald-400" />
+                            <span className="text-xs font-bold text-emerald-700 dark:text-emerald-300">{cls.studentCount ?? 0}</span>
+                          </motion.div>
                         </div>
-                      </div>
-                      <div className="flex items-center gap-2 shrink-0">
-                        {/* Small progress indicator */}
-                        <div className="w-16 h-2 rounded-full bg-gray-200 dark:bg-gray-700 overflow-hidden">
-                          <div
-                            className="progress-bar-animated-fill h-full rounded-full bg-gradient-to-r from-emerald-400 to-teal-400 transition-all"
-                            style={{ width: `${progressPercent(cls)}%` }}
-                          />
-                        </div>
-                        <Badge className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300 text-xs font-medium">
-                          {cls.studentCount ?? 0} <Users className="h-3 w-3 ml-1" />
-                        </Badge>
                       </div>
                     </div>
-                  </div>
-                </motion.button>
-              ))}
+                  </motion.button>
+                );
+              })}
             </div>
           )}
         </CardContent>
@@ -968,7 +1199,7 @@ export default function ClassesView() {
       <div className="md:col-span-1 lg:col-span-2 space-y-6">
         {!selectedClass ? (
           <div className="space-y-4">
-            <Card className="border-0 shadow-sm rounded-xl overflow-hidden">
+            <Card className="glass-card-enhanced rounded-xl overflow-hidden">
               <CardContent className="py-16 text-center">
                 <div className="relative flex items-center justify-center w-24 h-24 rounded-3xl bg-gradient-to-br from-emerald-100 to-teal-100 dark:from-emerald-900/30 dark:to-teal-900/30 mx-auto mb-6 shadow-lg shadow-emerald-200/50 dark:shadow-emerald-900/20 ring-4 ring-emerald-50 dark:ring-emerald-900/30">
                   <Users className="h-12 w-12 text-emerald-500 dark:text-emerald-400" />
@@ -985,7 +1216,7 @@ export default function ClassesView() {
             </Card>
 
             {/* Recent Activity widget — fills the empty space with useful info */}
-            <Card className="border-0 shadow-sm rounded-xl border-l-3 border-l-teal-400 overflow-hidden">
+            <Card className="glass-card-enhanced rounded-xl border-l-3 border-l-teal-400 overflow-hidden">
               <CardHeader className="pb-3 pt-6 bg-gradient-to-r from-teal-50/50 to-transparent dark:from-teal-900/10 dark:to-transparent">
                 <CardTitle className="text-base font-bold flex items-center gap-2">
                   <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-gradient-to-br from-teal-400 to-emerald-500 text-white shadow-sm shadow-teal-300/20">
@@ -1061,7 +1292,7 @@ export default function ClassesView() {
         ) : (
           <>
             {/* Class details */}
-            <Card className="border-0 shadow-sm rounded-xl border-l-3 border-l-emerald-500 overflow-hidden">
+            <Card className="glass-card-enhanced rounded-xl border-l-3 border-l-emerald-500 overflow-hidden">
               <CardHeader className="pb-3 pt-6 bg-gradient-to-r from-emerald-50/50 to-transparent dark:from-emerald-900/10 dark:to-transparent">
                 <div className="flex items-center justify-between">
                   <div>
@@ -1282,7 +1513,7 @@ export default function ClassesView() {
             </div>
 
             {/* Student roster */}
-            <Card className="border-0 shadow-sm rounded-xl border-l-3 border-l-teal-500 overflow-hidden">
+            <Card className="glass-card-enhanced rounded-xl border-l-3 border-l-teal-500 overflow-hidden">
               <CardHeader className="pb-3 pt-6 bg-gradient-to-r from-teal-50/50 to-transparent dark:from-teal-900/10 dark:to-transparent">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <CardTitle className="text-lg font-bold flex items-center gap-2">
@@ -1872,6 +2103,7 @@ export default function ClassesView() {
             )}
           </>
         )}
+      </div>
       </div>
 
       {/* Add student dialog */}

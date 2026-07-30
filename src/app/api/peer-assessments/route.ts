@@ -16,6 +16,8 @@ export async function GET(request: Request) {
     const competencyId = searchParams.get('competencyId');
     const classGroupId = searchParams.get('classGroupId');
     const assessmentType = searchParams.get('assessmentType');
+    const sessionId = searchParams.get('sessionId');
+    const status = searchParams.get('status');
 
     if (!schoolId) {
       return NextResponse.json({ error: 'schoolId is required' }, { status: 400 });
@@ -35,6 +37,8 @@ export async function GET(request: Request) {
     if (competencyId) where.competencyId = competencyId;
     if (classGroupId) where.classGroupId = classGroupId;
     if (assessmentType) where.assessmentType = assessmentType;
+    if (sessionId) where.sessionId = sessionId;
+    if (status) where.status = status;
 
     const assessments = await db.peerAssessment.findMany({
       where,
@@ -54,6 +58,9 @@ export async function GET(request: Request) {
         },
         rubric: {
           select: { id: true, title: true },
+        },
+        session: {
+          select: { id: true, title: true, anonymityMode: true },
         },
       },
     });
@@ -80,10 +87,12 @@ export async function POST(request: Request) {
       competencyId,
       classGroupId,
       assessmentType,
+      criteria,
       level,
       comment,
       rubricId,
       isAnonymous,
+      sessionId,
       isDemo,
     } = body;
 
@@ -113,10 +122,13 @@ export async function POST(request: Request) {
         competencyId: competencyId || null,
         classGroupId: classGroupId || null,
         assessmentType,
+        criteria: criteria ? JSON.stringify(criteria) : null,
         level: level ?? null,
         comment: comment || null,
         rubricId: rubricId || null,
         isAnonymous: isAnonymous ?? false,
+        sessionId: sessionId || null,
+        status: 'pending',
         isDemo: isDemo ?? false,
       },
       include: {

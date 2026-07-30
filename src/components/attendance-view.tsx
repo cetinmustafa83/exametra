@@ -13,6 +13,7 @@ import {
   Save,
   ChevronDown,
   ChevronRight,
+  ChevronLeft,
   Loader2,
   Users,
   TrendingUp,
@@ -31,6 +32,9 @@ import {
   FileDown,
   RefreshCw,
   Heart,
+  Activity,
+  CalendarDays,
+  CircleDot,
 } from 'lucide-react';
 import {
   LineChart,
@@ -362,6 +366,197 @@ function MonthlyHeatmap({ sessions }: { sessions: AttendanceSession[] }) {
   );
 }
 
+/* ── Attendance Gauge SVG Component ─────────────────────────────────── */
+
+function AttendanceGauge({ rate, size = 100 }: { rate: number; size?: number }) {
+  const strokeWidth = 8;
+  const radius = (size - strokeWidth) / 2;
+  const circumference = 2 * Math.PI * radius;
+  const offset = circumference - (rate / 100) * circumference;
+  const rateClass = rate >= 90 ? 'rate-high' : rate >= 70 ? 'rate-medium' : 'rate-low';
+
+  return (
+    <div className="attendance-gauge" style={{ width: size, height: size }}>
+      <svg width={size} height={size}>
+        <circle
+          className="attendance-gauge-track"
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+        />
+        <circle
+          className={`attendance-gauge-fill ${rateClass}`}
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          strokeDasharray={circumference}
+          strokeDashoffset={offset}
+          style={{ '--circumference': circumference, '--offset': offset } as React.CSSProperties}
+        />
+      </svg>
+      <div className="attendance-gauge-label">
+        <span className="text-xl font-bold text-gray-900 dark:text-gray-100">{rate}%</span>
+        <span className="text-[9px] text-muted-foreground uppercase tracking-wider">{t('attendance.rate')}</span>
+      </div>
+    </div>
+  );
+}
+
+/* ── Mini Calendar Date Picker ──────────────────────────────────────── */
+
+function MiniCalendar({
+  selectedDate,
+  onDateSelect,
+  sessionDates,
+}: {
+  selectedDate: string;
+  onDateSelect: (date: string) => void;
+  sessionDates: Set<string>;
+}) {
+  const [viewMonth, setViewMonth] = useState(() => {
+    const d = new Date(selectedDate);
+    return { year: d.getFullYear(), month: d.getMonth() };
+  });
+
+  const daysInMonth = new Date(viewMonth.year, viewMonth.month + 1, 0).getDate();
+  const firstDayOfWeek = new Date(viewMonth.year, viewMonth.month, 1).getDay();
+  const adjustedFirstDay = firstDayOfWeek === 0 ? 6 : firstDayOfWeek - 1;
+  const dayLabels = ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'];
+  const today = new Date();
+  const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+
+  const cells: Array<{ day: number | null; dateKey: string | null }> = [];
+  for (let i = 0; i < adjustedFirstDay; i++) {
+    cells.push({ day: null, dateKey: null });
+  }
+  for (let d = 1; d <= daysInMonth; d++) {
+    const dateKey = `${viewMonth.year}-${String(viewMonth.month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+    cells.push({ day: d, dateKey });
+  }
+
+  const monthNames = [
+    t('date.jan') ?? 'Jan', t('date.feb') ?? 'Feb', t('date.mar') ?? 'Mar',
+    t('date.apr') ?? 'Apr', t('date.may') ?? 'May', t('date.jun') ?? 'Jun',
+    t('date.jul') ?? 'Jul', t('date.aug') ?? 'Aug', t('date.sep') ?? 'Sep',
+    t('date.oct') ?? 'Oct', t('date.nov') ?? 'Nov', t('date.dec') ?? 'Dec',
+  ];
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between">
+        <button
+          onClick={() => setViewMonth((v) => {
+            const d = new Date(v.year, v.month - 1, 1);
+            return { year: d.getFullYear(), month: d.getMonth() };
+          })}
+          className="p-1 rounded-md hover:bg-emerald-100 dark:hover:bg-emerald-900/30 transition-colors"
+        >
+          <ChevronLeft className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+        </button>
+        <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+          {monthNames[viewMonth.month]} {viewMonth.year}
+        </span>
+        <button
+          onClick={() => setViewMonth((v) => {
+            const d = new Date(v.year, v.month + 1, 1);
+            return { year: d.getFullYear(), month: d.getMonth() };
+          })}
+          className="p-1 rounded-md hover:bg-emerald-100 dark:hover:bg-emerald-900/30 transition-colors"
+        >
+          <ChevronRight className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+        </button>
+      </div>
+      <div className="grid grid-cols-7 gap-0.5">
+        {dayLabels.map((d) => (
+          <div key={d} className="text-center text-[10px] font-medium text-muted-foreground py-1">{d}</div>
+        ))}
+        {cells.map((cell, i) => {
+          const isToday = cell.dateKey === todayStr;
+          const isSelected = cell.dateKey === selectedDate;
+          const hasSession = cell.dateKey ? sessionDates.has(cell.dateKey) : false;
+          return (
+            <button
+              key={i}
+              disabled={!cell.day}
+              onClick={() => cell.dateKey && onDateSelect(cell.dateKey)}
+              className={`mini-calendar-day ${isSelected ? 'selected' : ''} ${isToday ? 'today' : ''} ${hasSession ? 'has-session' : ''} ${!cell.day ? 'opacity-0 cursor-default' : ''}`}
+            >
+              {cell.day}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+/* ── Daily Attendance Timeline ──────────────────────────────────────── */
+
+function DailyTimeline({ sessions, selectedDate }: { sessions: AttendanceSession[]; selectedDate: string }) {
+  const daySessions = useMemo(() => {
+    return sessions.filter((s) => {
+      const d = new Date(s.date);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      return key === selectedDate;
+    });
+  }, [sessions, selectedDate]);
+
+  if (daySessions.length === 0) {
+    return (
+      <div className="text-center py-8 text-sm text-muted-foreground">
+        {t('attendance.no_sessions')}
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      {daySessions.map((session) => {
+        const presentCount = session.records.filter((r) => r.status === 'PRESENT').length;
+        const lateCount = session.records.filter((r) => r.status === 'LATE').length;
+        const absentCount = session.records.filter((r) => r.status === 'ABSENT').length;
+        const excusedCount = session.records.filter((r) => r.status === 'EXCUSED').length;
+        const total = session.records.length;
+        const rate = total > 0 ? Math.round(((presentCount + lateCount) / total) * 100) : 0;
+
+        return (
+          <div key={session.id} className="flex items-center gap-3">
+            <div className="flex flex-col items-center">
+              <div className={`timeline-dot ${rate >= 90 ? 'bg-emerald-500' : rate >= 70 ? 'bg-amber-500' : 'bg-rose-500'}`} />
+              <div className="w-px h-8 bg-gray-200 dark:bg-gray-700" />
+            </div>
+            <div className="flex-1 p-3 rounded-lg bg-gradient-to-r from-white to-gray-50/50 dark:from-gray-900 dark:to-gray-800/50 border border-gray-100 dark:border-gray-800">
+              <div className="flex items-center justify-between">
+                <div>
+                  <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                    {session.period ?? t('attendance.status')}
+                  </span>
+                  {session.subject && (
+                    <span className="text-xs text-muted-foreground ml-2">{session.subject.name}</span>
+                  )}
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="status-badge status-badge-present"><CheckCircle2 className="w-3 h-3" />{presentCount}</span>
+                  <span className="status-badge status-badge-late"><Timer className="w-3 h-3" />{lateCount}</span>
+                  <span className="status-badge status-badge-absent"><XCircle className="w-3 h-3" />{absentCount}</span>
+                  {excusedCount > 0 && <span className="status-badge status-badge-excused"><ClipboardList className="w-3 h-3" />{excusedCount}</span>}
+                </div>
+              </div>
+              <div className="mt-2 w-full h-1.5 rounded-full bg-gray-100 dark:bg-gray-800 overflow-hidden">
+                <div className="flex h-full">
+                  <div className="bg-emerald-500 h-full" style={{ width: `${total > 0 ? (presentCount / total) * 100 : 0}%` }} />
+                  <div className="bg-amber-500 h-full" style={{ width: `${total > 0 ? (lateCount / total) * 100 : 0}%` }} />
+                  <div className="bg-rose-500 h-full" style={{ width: `${total > 0 ? (absentCount / total) * 100 : 0}%` }} />
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 /* ── Stats Cards ───────────────────────────────────────────────────── */
 
 function StatsCards({ sessions }: { sessions: AttendanceSession[] }) {
@@ -426,28 +621,41 @@ function StatsCards({ sessions }: { sessions: AttendanceSession[] }) {
   ];
 
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-      {cards.map((card, idx) => (
-        <motion.div
-          key={card.label}
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.3, delay: idx * 0.06 }}
-          whileHover={{ y: -2 }}
-        >
-          <Card className={`card-hover-lift border-2 ${card.border} shadow-md hover:shadow-lg transition-shadow rounded-xl overflow-hidden`}>
-            <CardContent className="p-4">
-              <div className="flex items-center gap-2 mb-2">
-                <card.icon className="w-4 h-4" />
-                <span className="text-xs font-medium text-muted-foreground">{card.label}</span>
-              </div>
-              <div className={`text-2xl font-bold bg-gradient-to-r ${card.gradient} bg-clip-text text-transparent`}>
-                {card.value}
-              </div>
-            </CardContent>
-          </Card>
-        </motion.div>
-      ))}
+    <div className="space-y-4">
+      {/* Attendance Gauge + Summary */}
+      <div className="flex flex-col sm:flex-row items-center gap-4">
+        <AttendanceGauge rate={stats.rate} size={100} />
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 flex-1">
+          <div className="glass-card-enhanced rounded-xl p-3 text-center">
+            <div className="flex items-center justify-center gap-1 mb-1">
+              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
+              <span className="text-[10px] uppercase tracking-wider font-semibold text-emerald-600/70 dark:text-emerald-400/60">{t('attendance.present')}</span>
+            </div>
+            <span className="text-xl font-bold text-emerald-600 dark:text-emerald-400">{stats.present}</span>
+          </div>
+          <div className="glass-card-enhanced rounded-xl p-3 text-center">
+            <div className="flex items-center justify-center gap-1 mb-1">
+              <XCircle className="w-3.5 h-3.5 text-rose-500" />
+              <span className="text-[10px] uppercase tracking-wider font-semibold text-rose-600/70 dark:text-rose-400/60">{t('attendance.absent')}</span>
+            </div>
+            <span className="text-xl font-bold text-rose-600 dark:text-rose-400">{stats.absent}</span>
+          </div>
+          <div className="glass-card-enhanced rounded-xl p-3 text-center">
+            <div className="flex items-center justify-center gap-1 mb-1">
+              <ClipboardList className="w-3.5 h-3.5 text-amber-500" />
+              <span className="text-[10px] uppercase tracking-wider font-semibold text-amber-600/70 dark:text-amber-400/60">{t('attendance.excused')}</span>
+            </div>
+            <span className="text-xl font-bold text-amber-600 dark:text-amber-400">{stats.excused}</span>
+          </div>
+          <div className="glass-card-enhanced rounded-xl p-3 text-center">
+            <div className="flex items-center justify-center gap-1 mb-1">
+              <Timer className="w-3.5 h-3.5 text-orange-500" />
+              <span className="text-[10px] uppercase tracking-wider font-semibold text-orange-600/70 dark:text-orange-400/60">{t('attendance.late')}</span>
+            </div>
+            <span className="text-xl font-bold text-orange-600 dark:text-orange-400">{stats.late}</span>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
@@ -1300,19 +1508,48 @@ export default function AttendanceView() {
 
   return (
     <div className="p-4 sm:p-6 max-w-7xl mx-auto space-y-6">
-      {/* Header */}
+      {/* Gradient Header Banner */}
       <motion.div
-        initial={{ opacity: 0, y: -10 }}
+        initial={{ opacity: 0, y: -12 }}
         animate={{ opacity: 1, y: 0 }}
-        className="flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+        transition={{ duration: 0.4 }}
+        className="gradient-header-banner rounded-xl px-6 py-5"
       >
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-emerald-500 to-teal-600 bg-clip-text text-transparent flex items-center gap-2">
-            <CalendarCheck className="h-8 w-8 text-emerald-500" />
-            {t('attendance.title')}
-          </h1>
-          <p className="text-emerald-600/60 dark:text-emerald-400/40 mt-1">{t('attendance.subtitle')}</p>
-        </div>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="flex items-center justify-center w-12 h-12 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white shadow-lg shadow-emerald-300/30">
+              <CalendarCheck className="h-6 w-6" />
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold bg-gradient-to-r from-emerald-600 to-teal-600 dark:from-emerald-400 dark:to-teal-400 bg-clip-text text-transparent">
+                {t('attendance.title')}
+              </h1>
+              <p className="text-sm text-emerald-600/60 dark:text-emerald-400/40 mt-0.5">{t('attendance.subtitle')}</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            {/* Today's Attendance Quick View */}
+            {sessions.length > 0 && (() => {
+              const today = new Date();
+              const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+              const todaySessions = sessions.filter((s) => {
+                const d = new Date(s.date);
+                const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+                return key === todayStr;
+              });
+              const todayPresent = todaySessions.reduce((sum, s) => sum + s.records.filter((r) => r.status === 'PRESENT').length, 0);
+              const todayTotal = todaySessions.reduce((sum, s) => sum + s.records.length, 0);
+              const todayRate = todayTotal > 0 ? Math.round((todayPresent / todayTotal) * 100) : 0;
+              if (todayTotal === 0) return null;
+              return (
+                <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-white/60 dark:bg-gray-800/40 border border-emerald-200/30 dark:border-emerald-900/30">
+                  <Activity className="h-4 w-4 text-emerald-500" />
+                  <span className="text-xs font-medium text-gray-600 dark:text-gray-400">{t('date.today')}:</span>
+                  <span className={`text-sm font-bold ${todayRate >= 90 ? 'text-emerald-600 dark:text-emerald-400' : todayRate >= 70 ? 'text-amber-600 dark:text-amber-400' : 'text-rose-600 dark:text-rose-400'}`}>{todayRate}%</span>
+                </div>
+              );
+            })()}
+          </div>
 
         <div className="flex items-center gap-3">
           {/* Class selector */}
@@ -1412,6 +1649,7 @@ export default function AttendanceView() {
             </DialogContent>
           </Dialog>
         </div>
+        </div>
       </motion.div>
 
       {/* No class selected */}
@@ -1430,7 +1668,7 @@ export default function AttendanceView() {
           </div>
 
           {/* Quick Stats card — fills the empty space with school-wide attendance stats */}
-          <Card className="border-0 shadow-sm rounded-xl border-l-3 border-l-emerald-400 overflow-hidden">
+          <Card className="glass-card-enhanced rounded-xl border-l-3 border-l-emerald-400 overflow-hidden">
             <CardHeader className="pb-3 pt-6 bg-gradient-to-r from-emerald-50/50 to-transparent dark:from-emerald-900/10 dark:to-transparent">
               <CardTitle className="text-base font-bold flex items-center gap-2">
                 <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400">
@@ -1531,6 +1769,10 @@ export default function AttendanceView() {
             <TabsTrigger value="calendar" className="rounded-lg data-[state=active]:bg-emerald-500 data-[state=active]:text-white">
               {t('attendance.calendar')}
             </TabsTrigger>
+            <TabsTrigger value="today" className="rounded-lg data-[state=active]:bg-emerald-500 data-[state=active]:text-white">
+              <CalendarDays className="h-4 w-4 mr-1" />
+              {t('date.today')}
+            </TabsTrigger>
             <TabsTrigger value="qr" className="rounded-lg data-[state=active]:bg-emerald-500 data-[state=active]:text-white">
               <QrCode className="h-4 w-4 mr-1" />
               {t('qr.attendance')}
@@ -1571,16 +1813,14 @@ export default function AttendanceView() {
                         exit={{ opacity: 0, x: 20 }}
                         transition={{ delay: idx * 0.05 }}
                       >
-                        <Card
-                          className="cursor-pointer hover:shadow-lg transition-all border-0 shadow-md
-                            bg-gradient-to-r from-white to-gray-50/50 dark:from-gray-900 dark:to-gray-800/50
+                        <Card className="cursor-pointer glass-card-enhanced transition-all
                             hover:from-emerald-50/30 hover:to-teal-50/20 dark:hover:from-emerald-950/20 dark:hover:to-teal-950/10"
                           onClick={() => setSelectedSessionId(session.id)}
                         >
                           <CardContent className="p-4">
                             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                               <div className="flex items-center gap-3">
-                                <div className="flex flex-col items-center justify-center w-12 h-12 rounded-lg bg-emerald-100 dark:bg-emerald-900/50">
+                                <div className="flex flex-col items-center justify-center w-12 h-12 rounded-lg glass-card-enhanced">
                                   <span className="text-lg font-bold text-emerald-700 dark:text-emerald-300">
                                     {sessionDate.getDate()}
                                   </span>
@@ -1614,7 +1854,7 @@ export default function AttendanceView() {
                                   <TooltipProvider>
                                     <Tooltip>
                                       <TooltipTrigger asChild>
-                                        <div className="flex items-center gap-1 bg-emerald-50 dark:bg-emerald-900/30 px-2 py-1 rounded-md">
+                                        <div className="flex items-center gap-1 bg-emerald-50/60 dark:bg-emerald-900/30 px-2 py-1 rounded-md">
                                           <CheckCircle2 className="w-3.5 h-3.5" />
                                           <span className="text-xs font-medium text-emerald-700 dark:text-emerald-300">{presentCount}</span>
                                         </div>
@@ -1625,7 +1865,7 @@ export default function AttendanceView() {
                                   <TooltipProvider>
                                     <Tooltip>
                                       <TooltipTrigger asChild>
-                                        <div className="flex items-center gap-1 bg-rose-50 dark:bg-rose-900/30 px-2 py-1 rounded-md">
+                                        <div className="flex items-center gap-1 bg-rose-50/60 dark:bg-rose-900/30 px-2 py-1 rounded-md">
                                           <XCircle className="w-3.5 h-3.5" />
                                           <span className="text-xs font-medium text-rose-700 dark:text-rose-300">{absentCount}</span>
                                         </div>
@@ -1636,7 +1876,7 @@ export default function AttendanceView() {
                                   <TooltipProvider>
                                     <Tooltip>
                                       <TooltipTrigger asChild>
-                                        <div className="flex items-center gap-1 bg-amber-50 dark:bg-amber-900/30 px-2 py-1 rounded-md">
+                                        <div className="flex items-center gap-1 bg-amber-50/60 dark:bg-amber-900/30 px-2 py-1 rounded-md">
                                           <ClipboardList className="w-3.5 h-3.5" />
                                           <span className="text-xs font-medium text-amber-700 dark:text-amber-300">{excusedCount}</span>
                                         </div>
@@ -1647,7 +1887,7 @@ export default function AttendanceView() {
                                   <TooltipProvider>
                                     <Tooltip>
                                       <TooltipTrigger asChild>
-                                        <div className="flex items-center gap-1 bg-orange-50 dark:bg-orange-900/30 px-2 py-1 rounded-md">
+                                        <div className="flex items-center gap-1 bg-orange-50/60 dark:bg-orange-900/30 px-2 py-1 rounded-md">
                                           <Timer className="w-3.5 h-3.5" />
                                           <span className="text-xs font-medium text-orange-700 dark:text-orange-300">{lateCount}</span>
                                         </div>
@@ -1659,13 +1899,7 @@ export default function AttendanceView() {
 
                                 {/* Rate badge */}
                                 <div
-                                  className={`text-sm font-bold px-2 py-1 rounded-lg ${
-                                    rate >= 90
-                                      ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-300'
-                                      : rate >= 70
-                                        ? 'bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300'
-                                        : 'bg-rose-100 text-rose-700 dark:bg-rose-900 dark:text-rose-300'
-                                  }`}
+                                  className={`status-badge ${rate >= 90 ? 'status-badge-present' : rate >= 70 ? 'status-badge-late' : 'status-badge-absent'}`}
                                 >
                                   {rate}%
                                 </div>
@@ -1710,9 +1944,100 @@ export default function AttendanceView() {
             <MonthlyHeatmap sessions={sessions} />
           </TabsContent>
 
+          {/* Today's Attendance Tab */}
+          <TabsContent value="today" className="space-y-4">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+              {/* Mini Calendar */}
+              <Card className="glass-card-enhanced rounded-xl overflow-hidden">
+                <CardHeader className="pb-3 pt-5">
+                  <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                    <CalendarDays className="h-4 w-4 text-emerald-500" />
+                    {t('attendance.calendar')}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <MiniCalendar
+                    selectedDate={newDate}
+                    onDateSelect={setNewDate}
+                    sessionDates={(() => {
+                      const dates = new Set<string>();
+                      for (const session of sessions) {
+                        const d = new Date(session.date);
+                        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+                        dates.add(key);
+                      }
+                      return dates;
+                    })()}
+                  />
+                </CardContent>
+              </Card>
+              {/* Daily Timeline */}
+              <div className="lg:col-span-2 space-y-4">
+                <Card className="glass-card-enhanced rounded-xl overflow-hidden">
+                  <CardHeader className="pb-3 pt-5">
+                    <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                      <Activity className="h-4 w-4 text-teal-500" />
+                      {t('attendance.daily_timeline') ?? (t('date.today') === 'Heute' ? 'Tagesverlauf' : 'Daily Timeline')}
+                      <span className="text-xs font-normal text-muted-foreground">{newDate}</span>
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <DailyTimeline sessions={sessions} selectedDate={newDate} />
+                  </CardContent>
+                </Card>
+                {/* Attendance Gauge for selected date */}
+                <Card className="glass-card-enhanced rounded-xl overflow-hidden">
+                  <CardHeader className="pb-3 pt-5">
+                    <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                      <CircleDot className="h-4 w-4 text-emerald-500" />
+                      {t('attendance.rate') ?? 'Rate'}
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="flex items-center justify-center gap-6">
+                      {(() => {
+                        const daySessions = sessions.filter((s) => {
+                          const d = new Date(s.date);
+                          const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+                          return key === newDate;
+                        });
+                        const present = daySessions.reduce((sum, s) => sum + s.records.filter((r) => r.status === 'PRESENT').length, 0);
+                        const total = daySessions.reduce((sum, s) => sum + s.records.length, 0);
+                        const rate = total > 0 ? Math.round((present / total) * 100) : 0;
+                        return (
+                          <>
+                            <AttendanceGauge rate={rate} size={120} />
+                            <div className="space-y-2">
+                              <div className="flex items-center gap-2">
+                                <div className="w-3 h-3 rounded-full bg-emerald-500" />
+                                <span className="text-sm text-gray-700 dark:text-gray-300">{t('attendance.present')}: {present}</span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <div className="w-3 h-3 rounded-full bg-rose-500" />
+                                <span className="text-sm text-gray-700 dark:text-gray-300">{t('attendance.absent')}: {daySessions.reduce((sum, s) => sum + s.records.filter((r) => r.status === 'ABSENT').length, 0)}</span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <div className="w-3 h-3 rounded-full bg-amber-500" />
+                                <span className="text-sm text-gray-700 dark:text-gray-300">{t('attendance.late')}: {daySessions.reduce((sum, s) => sum + s.records.filter((r) => r.status === 'LATE').length, 0)}</span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <div className="w-3 h-3 rounded-full bg-gray-400" />
+                                <span className="text-sm text-gray-700 dark:text-gray-300">{t('attendance.total_records') ?? 'Total'}: {total}</span>
+                              </div>
+                            </div>
+                          </>
+                        );
+                      })()}
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            </div>
+          </TabsContent>
+
           {/* QR Attendance Tab */}
           <TabsContent value="qr" className="space-y-4">
-            <Card className="border-0 shadow-sm rounded-xl overflow-hidden">
+            <Card className="glass-card-enhanced rounded-xl overflow-hidden">
               <CardHeader className="pb-3 pt-6 bg-gradient-to-r from-emerald-50/50 to-transparent dark:from-emerald-900/10 dark:to-transparent">
                 <div className="flex items-center justify-between flex-wrap gap-2">
                   <CardTitle className="text-lg font-bold flex items-center gap-2">

@@ -13,29 +13,35 @@ export async function GET(
     }
 
     const { id } = await params;
-    const transport = await db.studentTransport.findFirst({
+    const route = await db.transportRoute.findFirst({
       where: { id, deletedAt: null },
       include: {
-        student: {
-          select: { id: true, firstName: true, lastName: true },
+        stops: { orderBy: { stopOrder: 'asc' } },
+        assignments: {
+          where: { deletedAt: null },
+          include: {
+            student: {
+              select: { id: true, firstName: true, lastName: true },
+            },
+          },
         },
-        route: {
-          select: { id: true, routeNumber: true, routeName: true, transportType: true },
+        _count: {
+          select: { assignments: { where: { deletedAt: null } } },
         },
       },
     });
 
-    if (!transport) {
+    if (!route) {
       return NextResponse.json({ error: 'Not found' }, { status: 404 });
     }
 
-    if (session.user?.role !== 'SUPER_ADMIN' && session.user?.schoolId !== transport.schoolId) {
+    if (session.user?.role !== 'SUPER_ADMIN' && session.user?.schoolId !== route.schoolId) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    return NextResponse.json(transport);
+    return NextResponse.json(route);
   } catch (error) {
-    console.error('StudentTransport GET [id] error:', error);
+    console.error('TransportRoute GET [id] error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
@@ -51,7 +57,7 @@ export async function PUT(
     }
 
     const { id } = await params;
-    const existing = await db.studentTransport.findFirst({
+    const existing = await db.transportRoute.findFirst({
       where: { id, deletedAt: null },
     });
 
@@ -59,51 +65,44 @@ export async function PUT(
       return NextResponse.json({ error: 'Not found' }, { status: 404 });
     }
 
-    if (session.user?.role !== 'SUPER_ADMIN' && session.user?.schoolId !== existing.schoolId) {
+    const adminRoles = ['SUPER_ADMIN', 'SCHOOL_ADMIN', 'VICE_PRINCIPAL'];
+    if (!adminRoles.includes(session.user?.role ?? '') && session.user?.schoolId !== existing.schoolId) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
     const body = await request.json();
     const {
-      transportType,
       routeNumber,
-      stopName,
-      pickupTime,
-      dropoffTime,
+      routeName,
+      transportType,
       driverName,
       driverPhone,
-      distanceKm,
-      routeId,
+      capacity,
+      isActive,
       notes,
     } = body;
 
-    const updated = await db.studentTransport.update({
+    const updated = await db.transportRoute.update({
       where: { id },
       data: {
+        ...(routeNumber !== undefined && { routeNumber }),
+        ...(routeName !== undefined && { routeName }),
         ...(transportType !== undefined && { transportType }),
-        ...(routeNumber !== undefined && { routeNumber: routeNumber || null }),
-        ...(stopName !== undefined && { stopName: stopName || null }),
-        ...(pickupTime !== undefined && { pickupTime: pickupTime || null }),
-        ...(dropoffTime !== undefined && { dropoffTime: dropoffTime || null }),
         ...(driverName !== undefined && { driverName: driverName || null }),
         ...(driverPhone !== undefined && { driverPhone: driverPhone || null }),
-        ...(distanceKm !== undefined && { distanceKm: distanceKm != null ? distanceKm : null }),
-        ...(routeId !== undefined && { routeId: routeId || null }),
+        ...(capacity !== undefined && { capacity }),
+        ...(isActive !== undefined && { isActive }),
         ...(notes !== undefined && { notes }),
       },
       include: {
-        student: {
-          select: { id: true, firstName: true, lastName: true },
-        },
-        route: {
-          select: { id: true, routeNumber: true, routeName: true, transportType: true },
-        },
+        stops: { orderBy: { stopOrder: 'asc' } },
+        _count: { select: { assignments: { where: { deletedAt: null } } } },
       },
     });
 
     return NextResponse.json(updated);
   } catch (error) {
-    console.error('StudentTransport PUT [id] error:', error);
+    console.error('TransportRoute PUT [id] error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
@@ -119,7 +118,7 @@ export async function DELETE(
     }
 
     const { id } = await params;
-    const existing = await db.studentTransport.findFirst({
+    const existing = await db.transportRoute.findFirst({
       where: { id, deletedAt: null },
     });
 
@@ -127,19 +126,20 @@ export async function DELETE(
       return NextResponse.json({ error: 'Not found' }, { status: 404 });
     }
 
-    if (session.user?.role !== 'SUPER_ADMIN' && session.user?.schoolId !== existing.schoolId) {
+    const adminRoles = ['SUPER_ADMIN', 'SCHOOL_ADMIN', 'VICE_PRINCIPAL'];
+    if (!adminRoles.includes(session.user?.role ?? '') && session.user?.schoolId !== existing.schoolId) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
     // Soft delete
-    await db.studentTransport.update({
+    await db.transportRoute.update({
       where: { id },
       data: { deletedAt: new Date() },
     });
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error('StudentTransport DELETE [id] error:', error);
+    console.error('TransportRoute DELETE [id] error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

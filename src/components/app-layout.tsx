@@ -72,6 +72,8 @@ import {
   PartyPopper,
   Newspaper,
   Compass,
+  UsersRound,
+  Bus,
 } from 'lucide-react';
 import {
   Sidebar,
@@ -192,6 +194,9 @@ import SchoolEventsView from './school-events-view';
 import StudentCareerView from './student-career-view';
 import SubstituteTeacherView from './substitute-teacher-view';
 import SchoolNewsletterView from './school-newsletter-view';
+import SchoolTransportView from './school-transport-view';
+import PeerAssessmentView from './peer-assessment-view';
+import GradeAnalyticsView from './grade-analytics-view';
 
 // Dynamic imports for heavy components with loading skeletons
 const AnalyticsView = dynamic(() => import('./analytics-view'), {
@@ -223,6 +228,7 @@ const navSections: NavSection[] = [
       { key: 'dashboard', icon: LayoutDashboard, labelKey: 'nav.dashboard' },
       { key: 'calendar', icon: CalendarIconNav, labelKey: 'nav.calendar' },
       { key: 'analytics', icon: TrendingUp, labelKey: 'nav.analytics' },
+      { key: 'grade-analytics', icon: BarChart3, labelKey: 'nav.grade-analytics' },
       { key: 'reports', icon: FileText, labelKey: 'nav.reports' },
       { key: 'coverage', icon: Target, labelKey: 'nav.coverage' },
     ],
@@ -258,6 +264,7 @@ const navSections: NavSection[] = [
       { key: 'ai-tests', icon: Brain, labelKey: 'ai_tests.title' },
       { key: 'tablet-grading', icon: Tablet, labelKey: 'nav.tablet_grading' },
       { key: 'exam-calendar', icon: CalendarClock, labelKey: 'nav.exam_calendar' },
+      { key: 'peer-assessment', icon: UsersRound, labelKey: 'nav.peer-assessment' },
       { key: 'report-cards', icon: FileText, labelKey: 'nav.report_cards' },
       { key: 'seating-chart', icon: LayoutGridIcon, labelKey: 'nav.seating_chart' },
       { key: 'school-library', icon: LibraryIcon, labelKey: 'nav.school_library' },
@@ -267,6 +274,7 @@ const navSections: NavSection[] = [
       { key: 'announcements', icon: Megaphone, labelKey: 'nav.announcements' },
       { key: 'school-events', icon: PartyPopper, labelKey: 'nav.school-events' },
       { key: 'school-newsletter', icon: Newspaper, labelKey: 'nav.school-newsletter' },
+      { key: 'school-transport', icon: Bus, labelKey: 'nav.school-transport' },
       { key: 'substitute-teacher', icon: UserCheck, labelKey: 'nav.substitute-teacher' },
       { key: 'data-import-export', icon: Database, labelKey: 'nav.data-import-export' },
     ],
@@ -293,6 +301,7 @@ const studentNavSections: NavSection[] = [
       { key: 'notebooks', icon: BookOpen, labelKey: 'nav.student_notebooks' },
       { key: 'flower', icon: Flower2, labelKey: 'nav.student_competencies' },
       { key: 'grading', icon: Calculator, labelKey: 'nav.student_grades' },
+      { key: 'grade-analytics', icon: BarChart3, labelKey: 'nav.grade-analytics' },
       { key: 'homework', icon: BookCheck, labelKey: 'nav.homework' },
       { key: 'attendance', icon: CalendarCheck, labelKey: 'nav.student_attendance' },
       { key: 'portfolio', icon: Briefcase, labelKey: 'nav.portfolio' },
@@ -305,6 +314,7 @@ const studentNavSections: NavSection[] = [
       { key: 'ai-tests', icon: Brain, labelKey: 'ai_tests.title' },
       { key: 'tablet-grading', icon: Tablet, labelKey: 'nav.tablet_grading' },
       { key: 'exam-calendar', icon: CalendarClock, labelKey: 'nav.exam_calendar' },
+      { key: 'peer-assessment', icon: UsersRound, labelKey: 'nav.peer-assessment' },
       { key: 'report-cards', icon: FileText, labelKey: 'nav.report_cards' },
       { key: 'seating-chart', icon: LayoutGridIcon, labelKey: 'nav.seating_chart' },
       { key: 'student-achievements', icon: Trophy, labelKey: 'achievements.title' },
@@ -315,6 +325,7 @@ const studentNavSections: NavSection[] = [
       { key: 'school-library', icon: LibraryIcon, labelKey: 'nav.school_library' },
       { key: 'school-events', icon: PartyPopper, labelKey: 'nav.school-events' },
       { key: 'school-newsletter', icon: Newspaper, labelKey: 'nav.school-newsletter' },
+      { key: 'school-transport', icon: Bus, labelKey: 'nav.school-transport' },
       { key: 'substitute-teacher', icon: UserCheck, labelKey: 'nav.substitute-teacher' },
       { key: 'notification-center', icon: Bell, labelKey: 'nav.notification_center' },
       { key: 'announcements', icon: Megaphone, labelKey: 'nav.announcements' },
@@ -333,6 +344,7 @@ const parentNavSections: NavSection[] = [
       { key: 'parent-portal', icon: Heart, labelKey: 'parent_portal.title' },
       { key: 'parents', icon: Mail, labelKey: 'parent.messages' },
       { key: 'grading', icon: Calculator, labelKey: 'nav.student_grades' },
+      { key: 'grade-analytics', icon: BarChart3, labelKey: 'nav.grade-analytics' },
       { key: 'attendance', icon: CalendarCheck, labelKey: 'nav.student_attendance' },
       { key: 'calendar', icon: CalendarIconNav, labelKey: 'nav.calendar' },
       { key: 'competitions', icon: Trophy, labelKey: 'nav.competitions' },
@@ -341,10 +353,12 @@ const parentNavSections: NavSection[] = [
       { key: 'student-achievements', icon: Trophy, labelKey: 'achievements.title' },
       { key: 'student-study-planner', icon: Timer, labelKey: 'study_planner.title' },
       { key: 'student-career', icon: Compass, labelKey: 'nav.student-career' },
+      { key: 'peer-assessment', icon: UsersRound, labelKey: 'nav.peer-assessment' },
       { key: 'report-cards', icon: FileText, labelKey: 'nav.report_cards' },
       { key: 'school-library', icon: LibraryIcon, labelKey: 'nav.school_library' },
       { key: 'school-events', icon: PartyPopper, labelKey: 'nav.school-events' },
       { key: 'school-newsletter', icon: Newspaper, labelKey: 'nav.school-newsletter' },
+      { key: 'school-transport', icon: Bus, labelKey: 'nav.school-transport' },
       { key: 'substitute-teacher', icon: UserCheck, labelKey: 'nav.substitute-teacher' },
       { key: 'notification-center', icon: Bell, labelKey: 'nav.notification_center' },
       { key: 'announcements', icon: Megaphone, labelKey: 'nav.announcements' },
@@ -491,6 +505,8 @@ function renderView(view: ViewName) {
     case 'announcements': return <SchoolAnnouncementsView />;
     case 'tablet-grading': return <TabletGradingView />;
     case 'exam-calendar': return <ExamCalendarView />;
+    case 'peer-assessment': return <PeerAssessmentView />;
+    case 'grade-analytics': return <GradeAnalyticsView />;
     case 'student-achievements': return <StudentAchievementsView />;
     case 'student-study-planner': return <StudentStudyPlannerView />;
     case 'seating-chart': return <SeatingChartView />;
@@ -502,6 +518,7 @@ function renderView(view: ViewName) {
     case 'school-events': return <SchoolEventsView />;
     case 'substitute-teacher': return <SubstituteTeacherView />;
     case 'school-newsletter': return <SchoolNewsletterView />;
+    case 'school-transport': return <SchoolTransportView />;
     default: return <DashboardView />;
   }
 }

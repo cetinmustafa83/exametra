@@ -53,7 +53,10 @@ export type ViewName =
   | 'school-events'
   | 'substitute-teacher'
   | 'student-career'
-  | 'school-newsletter';
+  | 'school-newsletter'
+  | 'school-transport'
+  | 'peer-assessment'
+  | 'grade-analytics';
 
 export interface CurrentUser {
   id: string;
