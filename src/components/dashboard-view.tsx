@@ -1868,78 +1868,84 @@ export default function DashboardView() {
     >
       {/* ===== WELCOME HEADER ===== */}
       <motion.div variants={itemVariants}>
-        <div className="flex flex-col gap-4">
-          {/* Top row: welcome + date */}
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div className="flex items-center gap-3.5">
-              <motion.div
-                initial={{ scale: 0.8, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                transition={{ type: 'spring', stiffness: 150, damping: 12 }}
-                className="flex items-center justify-center w-12 h-12 rounded-2xl bg-gradient-to-br from-emerald-400 to-teal-500 text-white shadow-lg shadow-emerald-300/30 ring-2 ring-emerald-200/30 dark:ring-emerald-800/20"
-              >
-                <Sparkles className="w-6 h-6" />
-              </motion.div>
-              <div>
-                <h2 className="text-2xl font-bold bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-500 dark:from-emerald-400 dark:via-teal-400 dark:to-emerald-300 bg-clip-text text-transparent">
-                  {getTimeGreeting()}, {currentUser?.firstName}!
-                </h2>
-                <p className="text-emerald-600/60 dark:text-emerald-400/40 mt-0.5 text-sm">{t('dashboard.overview')}</p>
+        {/* Animated gradient header banner */}
+        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-emerald-500 via-teal-500 to-emerald-600 dark:from-emerald-700 dark:via-teal-700 dark:to-emerald-800 shadow-lg shadow-emerald-300/30 dark:shadow-emerald-900/40 animate-header-gradient">
+          {/* Decorative pattern overlay */}
+          <div className="absolute inset-0 pattern-dots opacity-10 pointer-events-none" />
+          {/* Decorative floating shapes */}
+          <div className="absolute top-2 right-12 w-24 h-24 rounded-full bg-white/5 animate-float-slow pointer-events-none" />
+          <div className="absolute bottom-0 right-40 w-16 h-16 rounded-full bg-white/5 animate-float pointer-events-none" />
+          <div className="absolute top-4 right-72 w-10 h-10 rounded-full bg-white/5 animate-float-reverse pointer-events-none" />
+
+          <div className="relative p-5 sm:p-6 flex flex-col sm:flex-row items-start sm:items-center gap-4">
+            <motion.div
+              initial={{ scale: 0.8, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ type: 'spring', stiffness: 150, damping: 12 }}
+              className="flex items-center justify-center w-14 h-14 rounded-2xl bg-white/20 backdrop-blur-sm text-white shadow-lg shrink-0 ring-1 ring-white/20"
+            >
+              <Sparkles className="w-7 h-7" />
+            </motion.div>
+            <div className="min-w-0 flex-1">
+              <h2 className="text-2xl font-bold text-white leading-tight">
+                {getTimeGreeting()}, {currentUser?.firstName}!
+              </h2>
+              <p className="text-emerald-100/90 mt-0.5 text-sm">{t('dashboard.overview')}</p>
+              <div className="flex flex-wrap items-center gap-3 mt-2">
+                <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-white/15 backdrop-blur-sm text-xs font-medium text-white/90 ring-1 ring-white/10">
+                  <CalendarDays className="h-3.5 w-3.5" />
+                  <span className="font-semibold">
+                    {new Date().toLocaleDateString(locale === 'de' ? 'de-DE' : 'en-GB', {
+                      weekday: 'long',
+                      day: 'numeric',
+                      month: 'long',
+                      year: 'numeric',
+                    })}
+                  </span>
+                </div>
+                <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-white/10 backdrop-blur-sm text-xs text-white/80 ring-1 ring-white/10">
+                  <Clock className="h-3 w-3" />
+                  <span>{currentTime}</span>
+                </div>
               </div>
             </div>
-            <div className="flex flex-col items-end gap-1.5">
-              <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gradient-to-r from-emerald-50 to-teal-50/50 dark:from-emerald-900/20 dark:to-teal-900/10 border border-emerald-200/40 dark:border-emerald-900/30 text-xs font-medium text-emerald-700 dark:text-emerald-300 shadow-sm">
-                <CalendarDays className="h-3.5 w-3.5" />
-                <span className="hidden sm:inline">{t('polish.today_date')}: </span>
-                <span className="font-semibold">
-                  {new Date().toLocaleDateString(locale === 'de' ? 'de-DE' : 'en-GB', {
-                    weekday: 'long',
-                    day: 'numeric',
-                    month: 'long',
-                    year: 'numeric',
-                  })}
-                </span>
-              </div>
-              <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-white/60 dark:bg-gray-800/40 border border-emerald-100/50 dark:border-emerald-900/20 text-[11px] text-gray-500 dark:text-gray-400">
-                <Clock className="h-3 w-3 text-emerald-500/70" />
-                <span>{t('polish.last_login')}: </span>
-                <span className="font-medium text-gray-700 dark:text-gray-300">
-                  {new Date().toLocaleDateString(locale === 'de' ? 'de-DE' : 'en-GB', {
-                    day: '2-digit',
-                    month: 'short',
-                  })}{' '}
-                  {new Date().toLocaleTimeString(locale === 'de' ? 'de-DE' : 'en-GB', {
-                    hour: '2-digit',
-                    minute: '2-digit',
-                  })}
-                </span>
-              </div>
+            <div className="hidden sm:flex flex-col items-end gap-1.5 shrink-0">
+              <Button
+                onClick={() => setCurrentView('progress')}
+                className="bg-white/20 hover:bg-white/30 text-white border-white/30 backdrop-blur-sm min-h-[44px] px-5 font-semibold transition-all duration-200 hover:shadow-lg"
+                variant="outline"
+              >
+                <PenLine className="h-4 w-4 mr-2" />
+                {t('action.log_entry')}
+              </Button>
             </div>
           </div>
-
-          {/* Tip of the day — enhanced with gradient border */}
-          <motion.div
-            initial={{ opacity: 0, y: 6 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3, duration: 0.4 }}
-            className="relative"
-          >
-            <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-amber-400/20 via-emerald-400/20 to-teal-400/20 dark:from-amber-400/10 dark:via-emerald-400/10 dark:to-teal-400/10 blur-sm" />
-            <div className="relative flex items-center gap-3 px-4 py-3 rounded-xl bg-gradient-to-r from-emerald-50/80 via-teal-50/40 to-transparent dark:from-emerald-900/15 dark:via-teal-900/10 dark:to-transparent border border-emerald-200/30 dark:border-emerald-800/20">
-              <motion.div
-                animate={{ rotate: [0, 10, -10, 0] }}
-                transition={{ duration: 2, repeat: Infinity, repeatDelay: 5 }}
-                className="flex items-center justify-center w-8 h-8 rounded-lg bg-gradient-to-br from-amber-400 to-amber-500 text-white shadow-sm shrink-0"
-              >
-                <dailyTip.icon className="h-4 w-4" />
-              </motion.div>
-              <p className="text-sm text-gray-600 dark:text-gray-300 leading-snug">
-                <span className="font-semibold text-emerald-700 dark:text-emerald-300">{t('dashboard.daily_tip')}:</span>{' '}
-                {dailyTip.text}
-              </p>
-            </div>
-          </motion.div>
         </div>
+      </motion.div>
+
+      {/* Tip of the day — enhanced with gradient border */}
+      <motion.div variants={itemVariants}>
+        <motion.div
+          initial={{ opacity: 0, y: 6 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3, duration: 0.4 }}
+          className="relative"
+        >
+          <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-amber-400/20 via-emerald-400/20 to-teal-400/20 dark:from-amber-400/10 dark:via-emerald-400/10 dark:to-teal-400/10 blur-sm" />
+          <div className="relative flex items-center gap-3 px-4 py-3 rounded-xl bg-gradient-to-r from-emerald-50/80 via-teal-50/40 to-transparent dark:from-emerald-900/15 dark:via-teal-900/10 dark:to-transparent border border-emerald-200/30 dark:border-emerald-800/20">
+            <motion.div
+              animate={{ rotate: [0, 10, -10, 0] }}
+              transition={{ duration: 2, repeat: Infinity, repeatDelay: 5 }}
+              className="flex items-center justify-center w-8 h-8 rounded-lg bg-gradient-to-br from-amber-400 to-amber-500 text-white shadow-sm shrink-0"
+            >
+              <dailyTip.icon className="h-4 w-4" />
+            </motion.div>
+            <p className="text-sm text-gray-600 dark:text-gray-300 leading-snug">
+              <span className="font-semibold text-emerald-700 dark:text-emerald-300">{t('dashboard.daily_tip')}:</span>{' '}
+              {dailyTip.text}
+            </p>
+          </div>
+        </motion.div>
       </motion.div>
 
       {/* ===== QUICK STATS SUMMARY ===== */}
@@ -2041,7 +2047,7 @@ export default function DashboardView() {
               <TooltipProvider delayDuration={200}>
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <Card className={`card-shadow-transition border-0 shadow-sm rounded-xl overflow-hidden transition-all duration-300 ${colors.hoverShadow} ${colors.glowColor} cursor-default ring-1 ring-black/[0.03] dark:ring-white/[0.05] hover:ring-2 hover:ring-emerald-200/60 dark:hover:ring-emerald-700/40`}>
+                    <Card className={`card-shadow-transition border-0 shadow-sm rounded-xl overflow-hidden transition-all duration-300 ${colors.hoverShadow} ${colors.glowColor} cursor-default glass-card hover-lift`}>
                       {/* Gradient top border */}
                       <div className={`h-1 bg-gradient-to-r ${colors.gradient}`} />
                       <CardContent className={`p-5 ${colors.bg}`}>
@@ -2617,6 +2623,105 @@ export default function DashboardView() {
         <div className="flex-1 h-px bg-gradient-to-r from-emerald-200/60 dark:from-emerald-800/30 to-transparent" />
       </motion.div>
 
+      {/* ===== QUICK LINKS SECTION ===== */}
+      <motion.div variants={itemVariants}>
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+          {[
+            { icon: BookOpen, label: t('nav.classes'), view: 'classes' as ViewName, color: 'from-emerald-400 to-teal-500', bg: 'bg-emerald-50 dark:bg-emerald-900/20', border: 'border-emerald-200/40 dark:border-emerald-900/30' },
+            { icon: Flower2, label: t('nav.flower'), view: 'flower' as ViewName, color: 'from-teal-400 to-emerald-500', bg: 'bg-teal-50 dark:bg-teal-900/20', border: 'border-teal-200/40 dark:border-teal-900/30' },
+            { icon: ClipboardCheck, label: t('nav.assessments'), view: 'assessments' as ViewName, color: 'from-amber-400 to-orange-500', bg: 'bg-amber-50 dark:bg-amber-900/20', border: 'border-amber-200/40 dark:border-amber-900/30' },
+            { icon: BarChart3, label: t('nav.grading'), view: 'grading' as ViewName, color: 'from-violet-400 to-purple-500', bg: 'bg-violet-50 dark:bg-violet-900/20', border: 'border-violet-200/40 dark:border-violet-900/30' },
+            { icon: FileText, label: t('nav.reports'), view: 'reports' as ViewName, color: 'from-rose-400 to-pink-500', bg: 'bg-rose-50 dark:bg-rose-900/20', border: 'border-rose-200/40 dark:border-rose-900/30' },
+            { icon: UserCheck, label: t('nav.attendance'), view: 'attendance' as ViewName, color: 'from-teal-400 to-cyan-500', bg: 'bg-teal-50 dark:bg-teal-900/20', border: 'border-teal-200/40 dark:border-teal-900/30' },
+          ].map((link, i) => (
+            <motion.button
+              key={link.label}
+              onClick={() => setCurrentView(link.view)}
+              whileHover={{ scale: 1.05, y: -3 }}
+              whileTap={{ scale: 0.97 }}
+              transition={{ duration: 0.18, ease: 'easeOut' }}
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              className={`group flex flex-col items-center gap-2.5 p-4 rounded-xl ${link.bg} border ${link.border} hover-lift transition-shadow duration-200 hover:shadow-md`}
+            >
+              <div className={`flex items-center justify-center w-10 h-10 rounded-xl bg-gradient-to-br ${link.color} text-white shadow-sm transition-transform duration-200 group-hover:scale-110 group-hover:rotate-3`}>
+                <link.icon className="h-5 w-5" />
+              </div>
+              <span className="text-xs font-semibold text-gray-700 dark:text-gray-300 text-center leading-tight">{link.label}</span>
+            </motion.button>
+          ))}
+        </div>
+      </motion.div>
+
+      {/* ===== TODAY'S SCHEDULE MINI-CALENDAR ===== */}
+      <motion.div variants={itemVariants}>
+        <Card className="border-0 shadow-sm rounded-xl overflow-hidden ring-1 ring-black/[0.03] dark:ring-white/[0.05] glass-card">
+          <CardHeader className="pb-2 pt-5">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-sm font-bold flex items-center gap-2">
+                <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-gradient-to-br from-amber-400 to-orange-500 text-white shadow-sm">
+                  <CalendarDays className="h-3.5 w-3.5" />
+                </div>
+                {locale === 'de' ? 'Heutiger Stundenplan' : "Today's Schedule"}
+              </CardTitle>
+              <Badge variant="outline" className="text-[10px] px-1.5 py-0">
+                {new Date().toLocaleDateString(locale === 'de' ? 'de-DE' : 'en-GB', { weekday: 'short', day: 'numeric', month: 'short' })}
+              </Badge>
+            </div>
+          </CardHeader>
+          <CardContent className="pb-4">
+            <div className="space-y-1.5">
+              {[
+                { time: '08:00', subject: t('student.notebook_math'), room: 'R-101', status: 'completed', color: 'from-amber-400 to-orange-500' },
+                { time: '09:00', subject: t('student.notebook_german'), room: 'R-203', status: 'completed', color: 'from-emerald-400 to-teal-500' },
+                { time: '10:00', subject: t('student.notebook_english'), room: 'R-105', status: 'current', color: 'from-violet-400 to-purple-500' },
+                { time: '11:00', subject: t('student.notebook_science'), room: 'Lab-1', status: 'upcoming', color: 'from-teal-400 to-cyan-500' },
+                { time: '12:00', subject: locale === 'de' ? 'Sport' : 'PE', room: 'Gym', status: 'upcoming', color: 'from-rose-400 to-pink-500' },
+              ].map((slot, i) => (
+                <motion.div
+                  key={slot.time}
+                  initial={{ opacity: 0, x: -8 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: i * 0.05, duration: 0.25 }}
+                  className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 ${
+                    slot.status === 'current'
+                      ? 'bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200/40 dark:border-emerald-800/30 shadow-sm'
+                      : slot.status === 'completed'
+                      ? 'bg-gray-50/50 dark:bg-gray-800/20 border border-transparent'
+                      : 'bg-white/50 dark:bg-gray-900/20 border border-transparent hover:bg-gray-50 dark:hover:bg-gray-800/30'
+                  }`}
+                >
+                  <span className={`text-xs font-mono font-semibold w-12 shrink-0 ${
+                    slot.status === 'current' ? 'text-emerald-600 dark:text-emerald-400' : 'text-gray-400 dark:text-gray-500'
+                  }`}>
+                    {slot.time}
+                  </span>
+                  <div className={`flex items-center justify-center w-7 h-7 rounded-lg bg-gradient-to-br ${slot.color} text-white shadow-sm shrink-0 ${slot.status === 'completed' ? 'opacity-60' : ''}`}>
+                    <BookOpen className="h-3.5 w-3.5" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className={`text-xs font-semibold truncate ${slot.status === 'completed' ? 'text-gray-400 dark:text-gray-500' : 'text-gray-800 dark:text-gray-200'}`}>
+                      {slot.subject}
+                    </p>
+                    <p className="text-[10px] text-gray-400 dark:text-gray-500">{slot.room}</p>
+                  </div>
+                  {slot.status === 'current' && (
+                    <motion.div
+                      animate={{ scale: [1, 1.2, 1] }}
+                      transition={{ duration: 1.5, repeat: Infinity }}
+                      className="w-2 h-2 rounded-full bg-emerald-500 shrink-0"
+                    />
+                  )}
+                  {slot.status === 'completed' && (
+                    <CheckCircle2 className="h-4 w-4 text-gray-300 dark:text-gray-600 shrink-0" />
+                  )}
+                </motion.div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      </motion.div>
+
       {/* ===== CLASS OVERVIEW MINI CARD GRID ===== */}
       <motion.div variants={itemVariants}>
         <Card className="border-0 shadow-sm rounded-xl border-l-3 border-l-emerald-500 overflow-hidden ring-1 ring-black/[0.03] dark:ring-white/[0.05]">
@@ -3036,7 +3141,7 @@ export default function DashboardView() {
                         </p>
                       </div>
                       {!n.read && (
-                        <Badge className="bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300 text-xs shrink-0 shadow-sm">
+                        <Badge className="bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300 text-xs shrink-0 shadow-sm animate-badge-pulse">
                           {locale === 'de' ? 'Neu' : 'New'}
                         </Badge>
                       )}

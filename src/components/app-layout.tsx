@@ -68,6 +68,8 @@ import {
   Timer,
   LayoutGrid as LayoutGridIcon,
   BookOpen as BookOpenIconNav,
+  Database,
+  PartyPopper,
 } from 'lucide-react';
 import {
   Sidebar,
@@ -182,6 +184,9 @@ import StudentStudyPlannerView from './student-study-planner-view';
 import ReportCardView from './report-card-view';
 import SchoolLibraryView from './school-library-view';
 import SeatingChartView from './seating-chart-view';
+import StudentWellnessView from './student-wellness-view';
+import DataImportExportView from './data-import-export-view';
+import SchoolEventsView from './school-events-view';
 
 // Dynamic imports for heavy components with loading skeletons
 const AnalyticsView = dynamic(() => import('./analytics-view'), {
@@ -251,8 +256,11 @@ const navSections: NavSection[] = [
       { key: 'report-cards', icon: FileText, labelKey: 'nav.report_cards' },
       { key: 'seating-chart', icon: LayoutGridIcon, labelKey: 'nav.seating_chart' },
       { key: 'school-library', icon: LibraryIcon, labelKey: 'nav.school_library' },
+      { key: 'student-wellness', icon: Heart, labelKey: 'nav.student-wellness' },
       { key: 'notification-center', icon: Bell, labelKey: 'nav.notification_center' },
       { key: 'announcements', icon: Megaphone, labelKey: 'nav.announcements' },
+      { key: 'school-events', icon: PartyPopper, labelKey: 'nav.school-events' },
+      { key: 'data-import-export', icon: Database, labelKey: 'nav.data-import-export' },
     ],
   },
   {
@@ -293,8 +301,10 @@ const studentNavSections: NavSection[] = [
       { key: 'seating-chart', icon: LayoutGridIcon, labelKey: 'nav.seating_chart' },
       { key: 'student-achievements', icon: Trophy, labelKey: 'achievements.title' },
       { key: 'student-study-planner', icon: Timer, labelKey: 'study_planner.title' },
+      { key: 'student-wellness', icon: Heart, labelKey: 'nav.student-wellness' },
       { key: 'resources', icon: FolderOpen, labelKey: 'nav.resources' },
       { key: 'school-library', icon: LibraryIcon, labelKey: 'nav.school_library' },
+      { key: 'school-events', icon: PartyPopper, labelKey: 'nav.school-events' },
       { key: 'notification-center', icon: Bell, labelKey: 'nav.notification_center' },
       { key: 'announcements', icon: Megaphone, labelKey: 'nav.announcements' },
       { key: 'settings', icon: Settings, labelKey: 'nav.settings' },
@@ -321,6 +331,7 @@ const parentNavSections: NavSection[] = [
       { key: 'student-study-planner', icon: Timer, labelKey: 'study_planner.title' },
       { key: 'report-cards', icon: FileText, labelKey: 'nav.report_cards' },
       { key: 'school-library', icon: LibraryIcon, labelKey: 'nav.school_library' },
+      { key: 'school-events', icon: PartyPopper, labelKey: 'nav.school-events' },
       { key: 'notification-center', icon: Bell, labelKey: 'nav.notification_center' },
       { key: 'announcements', icon: Megaphone, labelKey: 'nav.announcements' },
     ],
@@ -471,6 +482,9 @@ function renderView(view: ViewName) {
     case 'seating-chart': return <SeatingChartView />;
     case 'school-library': return <SchoolLibraryView />;
     case 'report-cards': return <ReportCardView />;
+    case 'student-wellness': return <StudentWellnessView />;
+    case 'data-import-export': return <DataImportExportView />;
+    case 'school-events': return <SchoolEventsView />;
     default: return <DashboardView />;
   }
 }

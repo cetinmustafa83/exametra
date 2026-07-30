@@ -14,6 +14,11 @@ export async function GET(request: Request) {
     const eventType = searchParams.get('eventType');
     const classGroupId = searchParams.get('classGroupId');
     const upcoming = searchParams.get('upcoming');
+    const search = searchParams.get('search');
+    const status = searchParams.get('status');
+    const startDateFrom = searchParams.get('startDateFrom');
+    const startDateTo = searchParams.get('startDateTo');
+    const requiresRegistration = searchParams.get('requiresRegistration');
 
     if (!schoolId) {
       return NextResponse.json({ error: 'schoolId is required' }, { status: 400 });
@@ -30,9 +35,22 @@ export async function GET(request: Request) {
 
     if (eventType) where.eventType = eventType;
     if (classGroupId) where.classGroupId = classGroupId;
+    if (status) where.status = status;
+    if (requiresRegistration === 'true') where.requiresRegistration = true;
+
+    if (search) {
+      where.title = { contains: search };
+    }
 
     if (upcoming === 'true') {
       where.startDate = { gte: new Date() };
+    }
+
+    if (startDateFrom || startDateTo) {
+      const dateFilter: Record<string, Date> = {};
+      if (startDateFrom) dateFilter.gte = new Date(startDateFrom);
+      if (startDateTo) dateFilter.lte = new Date(startDateTo);
+      where.startDate = dateFilter;
     }
 
     const events = await db.schoolEvent.findMany({
@@ -46,6 +64,13 @@ export async function GET(request: Request) {
           select: { id: true, name: true },
         },
         registrations: {
+          include: {
+            user: {
+              select: { id: true, firstName: true, lastName: true },
+            },
+          },
+        },
+        feedbacks: {
           include: {
             user: {
               select: { id: true, firstName: true, lastName: true },
@@ -86,6 +111,14 @@ export async function POST(request: Request) {
       maxParticipants,
       notes,
       isDemo,
+      budget,
+      registrationDeadline,
+      capacity,
+      isRecurring,
+      recurrenceRule,
+      bannerImageUrl,
+      status,
+      feedbackForm,
     } = body;
 
     if (!schoolId || !title || !eventType || !startDate) {
@@ -116,6 +149,14 @@ export async function POST(request: Request) {
         maxParticipants: maxParticipants || null,
         notes: notes || null,
         isDemo: isDemo ?? false,
+        budget: budget ?? null,
+        registrationDeadline: registrationDeadline ? new Date(registrationDeadline) : null,
+        capacity: capacity ?? null,
+        isRecurring: isRecurring ?? false,
+        recurrenceRule: recurrenceRule || null,
+        bannerImageUrl: bannerImageUrl || null,
+        status: status || 'draft',
+        feedbackForm: feedbackForm || null,
       },
       include: {
         organizer: {
@@ -125,6 +166,13 @@ export async function POST(request: Request) {
           select: { id: true, name: true },
         },
         registrations: {
+          include: {
+            user: {
+              select: { id: true, firstName: true, lastName: true },
+            },
+          },
+        },
+        feedbacks: {
           include: {
             user: {
               select: { id: true, firstName: true, lastName: true },

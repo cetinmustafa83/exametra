@@ -47,7 +47,10 @@ export type ViewName =
   | 'student-study-planner'
   | 'seating-chart'
   | 'school-library'
-  | 'report-cards';
+  | 'report-cards'
+  | 'data-import-export'
+  | 'student-wellness'
+  | 'school-events';
 
 export interface CurrentUser {
   id: string;

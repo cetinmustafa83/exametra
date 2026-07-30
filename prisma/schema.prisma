@@ -104,6 +104,10 @@ model School {
   bookCheckouts      BookCheckout[]
   bookReservations   BookReservation[]
   seatingCharts      SeatingChart[]
+  dataImportJobs     DataImportJob[]
+  dataExportJobs     DataExportJob[]
+  wellnessCheckins   WellnessCheckin[]
+  wellnessScores     WellnessScore[]
 }
 
 model User {
@@ -149,6 +153,7 @@ model User {
   resources                 Resource[]
   organizedSchoolEvents     SchoolEvent[]
   eventRegistrations        EventRegistration[]
+  eventFeedbacks            EventFeedback[]
   awardedBadges             StudentBadge[]
   newsletters               Newsletter[]
   competitionsCreated       Competition[]
@@ -187,6 +192,8 @@ model User {
   seatingCharts             SeatingChart[]
   bookCheckouts             BookCheckout[]
   bookReservations          BookReservation[]
+  dataImportJobs            DataImportJob[]
+  dataExportJobs            DataExportJob[]
 }
 
 model SchoolYear {
@@ -305,6 +312,8 @@ model Student {
   gradingAnnotations    GradingAnnotation[]
   bookCheckouts         BookCheckout[]
   bookReservations      BookReservation[]
+  wellnessCheckins      WellnessCheckin[]
+  wellnessScores        WellnessScore[]
 
   @@index([userId])
 }
@@ -1622,7 +1631,7 @@ model SchoolEvent {
   schoolId        String
   title           String
   description     String?
-  eventType       String   // "assembly", "field_trip", "sports_day", "concert", "fair", "parent_meeting", "graduation", "holiday"
+  eventType       String   // "assembly", "field_trip", "sports_day", "concert", "fair", "parent_meeting", "graduation", "holiday", "cultural", "academic", "social"
   startDate       DateTime
   endDate         DateTime?
   location        String?
@@ -1637,11 +1646,20 @@ model SchoolEvent {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
   deletedAt       DateTime?
+  budget          Float?
+  registrationDeadline DateTime?
+  capacity        Int?
+  isRecurring     Boolean  @default(false)
+  recurrenceRule  String?  // JSON: { type: "weekly", interval: 1, days: ["mon","wed"] }
+  bannerImageUrl  String?
+  status          String   @default("draft") // draft, published, cancelled, completed
+  feedbackForm    String?  // JSON: feedback questions
 
   school          School       @relation(fields: [schoolId], references: [id])
   organizer       User?        @relation(fields: [organizerId], references: [id])
   classGroup      ClassGroup?  @relation(fields: [classGroupId], references: [id])
   registrations   EventRegistration[]
+  feedbacks       EventFeedback[]
 
   @@index([schoolId, startDate])
   @@map("school_events")
@@ -1661,6 +1679,21 @@ model EventRegistration {
 
   @@unique([eventId, userId])
   @@map("event_registrations")
+}
+
+model EventFeedback {
+  id          String   @id @default(cuid())
+  eventId     String
+  userId      String
+  rating      Int      // 1-5
+  comment     String?
+  createdAt   DateTime @default(now())
+
+  event       SchoolEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user        User        @relation(fields: [userId], references: [id])
+
+  @@unique([eventId, userId])
+  @@map("event_feedbacks")
 }
 
 // ─── Student Transportation ──────────────────────────────────────
@@ -2802,4 +2835,97 @@ model SeatingChart {
   @@index([classGroupId])
   @@index([teacherId])
   @@map("seating_charts")
+}
+
+model DataImportJob {
+  id          String   @id @default(cuid())
+  schoolId    String
+  userId      String
+  type        String   // STUDENT, TEACHER, GRADE, ATTENDANCE, COMPETENCY
+  fileName    String
+  fileSize    Int
+  status      String   @default("pending") // pending, processing, completed, failed
+  totalRows   Int      @default(0)
+  successRows Int      @default(0)
+  errorRows   Int      @default(0)
+  errors      String?  // JSON string of error details
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  school      School   @relation(fields: [schoolId], references: [id])
+  user        User     @relation(fields: [userId], references: [id])
+
+  @@index([schoolId])
+  @@index([userId])
+  @@map("data_import_jobs")
+}
+
+model DataExportJob {
+  id          String   @id @default(cuid())
+  schoolId    String
+  userId      String
+  type        String   // STUDENT, GRADE, ATTENDANCE, COMPETENCY, REPORT
+  format      String   // CSV, JSON
+  filters     String?  // JSON string of filter parameters
+  fileName    String?
+  fileSize    Int      @default(0)
+  status      String   @default("pending") // pending, processing, completed, failed
+  fileData    String?  // Base64 encoded file data
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  school      School   @relation(fields: [schoolId], references: [id])
+  user        User     @relation(fields: [userId], references: [id])
+
+  @@index([schoolId])
+  @@index([userId])
+  @@map("data_export_jobs")
+}
+
+model WellnessCheckin {
+  id              String   @id @default(cuid())
+  schoolId        String
+  studentId       String
+  date            DateTime
+  mood            Int      // 1-5
+  sleepHours      Float?
+  sleepQuality    Int?     // 1-5
+  stressLevel     Int?     // 1-10
+  activityType    String?
+  activityMinutes Int?
+  mealsCount      Int?
+  waterGlasses    Int?
+  gratitudeEntry  String?
+  notes           String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  school          School   @relation(fields: [schoolId], references: [id])
+  student         Student  @relation(fields: [studentId], references: [id])
+
+  @@index([schoolId])
+  @@index([studentId])
+  @@index([date])
+  @@map("wellness_checkins")
+}
+
+model WellnessScore {
+  id              String   @id @default(cuid())
+  schoolId        String
+  studentId       String
+  date            DateTime
+  overallScore    Float    // 0-100
+  physicalScore   Float?   // 0-100
+  mentalScore     Float?   // 0-100
+  socialScore     Float?   // 0-100
+  academicScore   Float?   // 0-100
+  createdAt       DateTime @default(now())
+
+  school          School   @relation(fields: [schoolId], references: [id])
+  student         Student  @relation(fields: [studentId], references: [id])
+
+  @@index([schoolId])
+  @@index([studentId])
+  @@index([date])
+  @@map("wellness_scores")
 }

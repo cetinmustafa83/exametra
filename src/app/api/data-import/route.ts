@@ -3,19 +3,6 @@ import { db } from '@/lib/db';
 import { getSession } from '@/lib/auth';
 import { withRateLimit } from '@/lib/rate-limit';
 
-function escapeCsvField(field: string | number | null | undefined): string {
-  if (field === null || field === undefined) return '';
-  const str = String(field);
-  if (str.includes(',') || str.includes('"') || str.includes('\n') || str.includes('\r')) {
-    return `"${str.replace(/"/g, '""')}"`;
-  }
-  return str;
-}
-
-function toCsvRow(fields: (string | number | null | undefined)[]): string {
-  return fields.map(escapeCsvField).join(',');
-}
-
 interface ImportRow {
   [key: string]: string;
 }
@@ -60,6 +47,21 @@ function parseCsv(text: string): { headers: string[]; rows: ImportRow[] } {
   return { headers, rows };
 }
 
+function parseJson(text: string): { headers: string[]; rows: ImportRow[] } {
+  const data = JSON.parse(text);
+  const arr = Array.isArray(data) ? data : data.records || data.data || [];
+  if (arr.length === 0) return { headers: [], rows: [] };
+  const headers = Object.keys(arr[0]);
+  const rows = arr.map((item: Record<string, unknown>) => {
+    const row: ImportRow = {};
+    headers.forEach((h) => {
+      row[h] = item[h] !== undefined && item[h] !== null ? String(item[h]) : '';
+    });
+    return row;
+  });
+  return { headers, rows };
+}
+
 export const POST = withRateLimit(async function POST(request: Request) {
   try {
     const session = await getSession();
@@ -70,6 +72,7 @@ export const POST = withRateLimit(async function POST(request: Request) {
     if (
       session.user?.role !== 'SUPER_ADMIN' &&
       session.user?.role !== 'SCHOOL_ADMIN' &&
+      session.user?.role !== 'VICE_PRINCIPAL' &&
       session.user?.role !== 'TEACHER'
     ) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
@@ -77,8 +80,9 @@ export const POST = withRateLimit(async function POST(request: Request) {
 
     const formData = await request.formData();
     const file = formData.get('file') as File | null;
-    const type = formData.get('type') as string || 'students';
-    const schoolId = formData.get('schoolId') as string || session.user?.schoolId;
+    const type = (formData.get('type') as string) || 'STUDENT';
+    const schoolId = (formData.get('schoolId') as string) || session.user?.schoolId;
+    const columnMapping = formData.get('columnMapping') as string | null;
 
     if (!file) {
       return NextResponse.json({ error: 'No file provided' }, { status: 400 });
@@ -88,22 +92,84 @@ export const POST = withRateLimit(async function POST(request: Request) {
       return NextResponse.json({ error: 'schoolId is required' }, { status: 400 });
     }
 
+    // Create import job record
+    const importJob = await db.dataImportJob.create({
+      data: {
+        schoolId,
+        userId: session.userId,
+        type,
+        fileName: file.name,
+        fileSize: file.size,
+        status: 'processing',
+      },
+    });
+
     const text = await file.text();
-    const { headers, rows } = parseCsv(text);
+    let parsed: { headers: string[]; rows: ImportRow[] };
+
+    // Parse based on file type
+    if (file.name.endsWith('.json')) {
+      try {
+        parsed = parseJson(text);
+      } catch {
+        await db.dataImportJob.update({
+          where: { id: importJob.id },
+          data: { status: 'failed', errors: JSON.stringify([{ error: 'Invalid JSON format' }]) },
+        });
+        return NextResponse.json({ error: 'Invalid JSON format' }, { status: 400 });
+      }
+    } else {
+      try {
+        parsed = parseCsv(text);
+      } catch {
+        await db.dataImportJob.update({
+          where: { id: importJob.id },
+          data: { status: 'failed', errors: JSON.stringify([{ error: 'Invalid CSV format' }]) },
+        });
+        return NextResponse.json({ error: 'Invalid CSV format' }, { status: 400 });
+      }
+    }
+
+    const { headers, rows } = parsed;
 
     if (rows.length === 0) {
-      return NextResponse.json({ error: 'No data rows found in CSV' }, { status: 400 });
+      await db.dataImportJob.update({
+        where: { id: importJob.id },
+        data: { status: 'failed', totalRows: 0, errors: JSON.stringify([{ error: 'No data rows found' }]) },
+      });
+      return NextResponse.json({ error: 'No data rows found in file' }, { status: 400 });
+    }
+
+    // Apply column mapping if provided
+    let mappedRows = rows;
+    if (columnMapping) {
+      try {
+        const mapping: Record<string, string> = JSON.parse(columnMapping);
+        mappedRows = rows.map((row) => {
+          const mapped: ImportRow = {};
+          for (const [csvCol, dbField] of Object.entries(mapping)) {
+            if (dbField && row[csvCol] !== undefined) {
+              mapped[dbField] = row[csvCol];
+            }
+          }
+          return mapped;
+        });
+      } catch {
+        // If mapping fails, use original rows
+      }
     }
 
     const result: ImportResult = { created: 0, skipped: 0, errors: [] };
 
-    if (type === 'students') {
-      for (const row of rows) {
+    // Import based on type
+    if (type === 'STUDENT') {
+      for (const row of mappedRows) {
         try {
-          const firstName = row['First Name'] || row['firstName'] || row['Vorname'] || '';
-          const lastName = row['Last Name'] || row['lastName'] || row['Nachname'] || '';
-          const externalId = row['External ID'] || row['externalId'] || row['ID'] || '';
-          const dateOfBirth = row['Date of Birth'] || row['dateOfBirth'] || row['Geburtsdatum'] || '';
+          const firstName = row['firstName'] || row['First Name'] || row['Vorname'] || '';
+          const lastName = row['lastName'] || row['Last Name'] || row['Nachname'] || '';
+          const externalId = row['externalId'] || row['External ID'] || row['ID'] || '';
+          const dateOfBirth = row['dateOfBirth'] || row['Date of Birth'] || row['Geburtsdatum'] || '';
+          const email = row['email'] || row['Email'] || '';
 
           if (!firstName || !lastName) {
             result.skipped++;
@@ -134,31 +200,34 @@ export const POST = withRateLimit(async function POST(request: Request) {
           result.errors.push(`Row error: ${err instanceof Error ? err.message : 'Unknown error'}`);
         }
       }
-    } else if (type === 'assessments') {
-      for (const row of rows) {
+    } else if (type === 'TEACHER') {
+      for (const row of mappedRows) {
         try {
-          const title = row['Title'] || row['title'] || row['Titel'] || '';
-          const classGroupId = row['Class ID'] || row['classGroupId'] || '';
-          const subjectId = row['Subject ID'] || row['subjectId'] || '';
-          const date = row['Date'] || row['date'] || row['Datum'] || '';
-          const assessmentType = row['Type'] || row['type'] || 'WRITTEN';
+          const firstName = row['firstName'] || row['First Name'] || row['Vorname'] || '';
+          const lastName = row['lastName'] || row['Last Name'] || row['Nachname'] || '';
+          const email = row['email'] || row['Email'] || '';
+          const role = row['role'] || row['Role'] || 'TEACHER';
 
-          if (!title || !classGroupId) {
+          if (!firstName || !lastName || !email) {
             result.skipped++;
-            result.errors.push(`Row skipped: missing title or class ID`);
+            result.errors.push(`Row skipped: missing required fields`);
             continue;
           }
 
-          await db.assessment.create({
+          const existing = await db.user.findUnique({ where: { email } });
+          if (existing) {
+            result.skipped++;
+            continue;
+          }
+
+          await db.user.create({
             data: {
-              title,
-              classGroupId,
-              subjectId: subjectId || null,
-              teacherId: session.userId,
-              date: date ? new Date(date) : new Date(),
-              type: assessmentType,
-              maxScore: row['Max Score'] || row['maxScore'] ? parseFloat(row['Max Score'] || row['maxScore']) : null,
-              weight: row['Weight'] || row['weight'] ? parseFloat(row['Weight'] || row['weight']) : 1.0,
+              schoolId,
+              firstName,
+              lastName,
+              email,
+              role,
+              passwordHash: '$2a$10$default.placeholder.hash.value',
             },
           });
           result.created++;
@@ -166,12 +235,12 @@ export const POST = withRateLimit(async function POST(request: Request) {
           result.errors.push(`Row error: ${err instanceof Error ? err.message : 'Unknown error'}`);
         }
       }
-    } else if (type === 'grades') {
-      for (const row of rows) {
+    } else if (type === 'GRADE') {
+      for (const row of mappedRows) {
         try {
-          const studentId = row['Student ID'] || row['studentId'] || '';
-          const assessmentId = row['Assessment ID'] || row['assessmentId'] || '';
-          const score = row['Score'] || row['score'] || '';
+          const studentId = row['studentId'] || row['Student ID'] || '';
+          const assessmentId = row['assessmentId'] || row['Assessment ID'] || '';
+          const score = row['score'] || row['Score'] || '';
 
           if (!studentId || !assessmentId) {
             result.skipped++;
@@ -184,7 +253,60 @@ export const POST = withRateLimit(async function POST(request: Request) {
               studentId,
               assessmentId,
               score: score ? parseFloat(score) : null,
-              note: row['Note'] || row['note'] || null,
+              note: row['note'] || row['Note'] || null,
+            },
+          });
+          result.created++;
+        } catch (err) {
+          result.errors.push(`Row error: ${err instanceof Error ? err.message : 'Unknown error'}`);
+        }
+      }
+    } else if (type === 'ATTENDANCE') {
+      for (const row of mappedRows) {
+        try {
+          const studentId = row['studentId'] || row['Student ID'] || '';
+          const date = row['date'] || row['Date'] || row['Datum'] || '';
+          const status = row['status'] || row['Status'] || 'PRESENT';
+
+          if (!studentId || !date) {
+            result.skipped++;
+            result.errors.push(`Row skipped: missing student ID or date`);
+            continue;
+          }
+
+          await db.attendanceRecord.create({
+            data: {
+              studentId,
+              sessionId: row['sessionId'] || row['Session ID'] || '',
+              status,
+              date: new Date(date),
+            },
+          });
+          result.created++;
+        } catch (err) {
+          result.errors.push(`Row error: ${err instanceof Error ? err.message : 'Unknown error'}`);
+        }
+      }
+    } else if (type === 'COMPETENCY') {
+      for (const row of mappedRows) {
+        try {
+          const studentId = row['studentId'] || row['Student ID'] || '';
+          const competencyId = row['competencyId'] || row['Competency ID'] || '';
+          const level = row['level'] || row['Level'] || '';
+
+          if (!studentId || !competencyId) {
+            result.skipped++;
+            result.errors.push(`Row skipped: missing student ID or competency ID`);
+            continue;
+          }
+
+          await db.learningProgressEntry.create({
+            data: {
+              studentId,
+              competencyId,
+              teacherId: session.userId,
+              level: level ? parseInt(level) : 1,
+              note: row['note'] || row['Note'] || null,
             },
           });
           result.created++;
@@ -194,18 +316,38 @@ export const POST = withRateLimit(async function POST(request: Request) {
       }
     }
 
+    // Update import job
+    await db.dataImportJob.update({
+      where: { id: importJob.id },
+      data: {
+        status: 'completed',
+        totalRows: rows.length,
+        successRows: result.created,
+        errorRows: result.skipped + result.errors.length,
+        errors: result.errors.length > 0 ? JSON.stringify(result.errors.slice(0, 50)) : null,
+      },
+    });
+
+    // Create audit log
     await db.auditLog.create({
       data: {
         userId: session.userId,
         schoolId: session.user?.schoolId ?? null,
         action: 'IMPORT',
-        entityType: 'DataImport',
-        entityId: null,
-        metadata: JSON.stringify({ type, created: result.created, skipped: result.skipped, errorCount: result.errors.length }),
+        entityType: 'DataImportJob',
+        entityId: importJob.id,
+        metadata: JSON.stringify({
+          type,
+          created: result.created,
+          skipped: result.skipped,
+          errorCount: result.errors.length,
+          fileName: file.name,
+        }),
       },
     });
 
     return NextResponse.json({
+      id: importJob.id,
       type,
       totalRows: rows.length,
       created: result.created,
@@ -228,30 +370,27 @@ export async function GET(request: Request) {
     }
 
     const { searchParams } = new URL(request.url);
-    const type = searchParams.get('type') || 'students';
+    const schoolId = searchParams.get('schoolId') || session.user?.schoolId;
 
-    let csvContent = '';
-    let filename = '';
-
-    if (type === 'students') {
-      csvContent = 'First Name,Last Name,Date of Birth,External ID\nMax,Mustermann,2015-03-15,STU001\nAnna,Schmidt,2015-07-22,STU002\n';
-      filename = 'sample_students.csv';
-    } else if (type === 'assessments') {
-      csvContent = 'Title,Class ID,Subject ID,Date,Type,Max Score,Weight\nMath Test 1,cls_001,subj_math,2025-01-15,WRITTEN,100,1.0\nReading Test,cls_001,subj_german,2025-01-20,WRITTEN,50,1.0\n';
-      filename = 'sample_assessments.csv';
-    } else if (type === 'grades') {
-      csvContent = 'Student ID,Assessment ID,Score,Note\nstu_001,asmt_001,85,Good work\nstu_002,asmt_001,92,Excellent\n';
-      filename = 'sample_grades.csv';
+    if (!schoolId) {
+      return NextResponse.json({ error: 'schoolId is required' }, { status: 400 });
     }
 
-    return new NextResponse(csvContent, {
-      headers: {
-        'Content-Type': 'text/csv; charset=utf-8',
-        'Content-Disposition': `attachment; filename="${filename}"`,
-      },
+    // For non-admin users, only show their own imports
+    const where: Record<string, unknown> = { schoolId };
+    if (session.user?.role === 'TEACHER') {
+      where.userId = session.userId;
+    }
+
+    const jobs = await db.dataImportJob.findMany({
+      where,
+      orderBy: { createdAt: 'desc' },
+      take: 50,
     });
+
+    return NextResponse.json(jobs);
   } catch (error) {
-    console.error('Sample CSV download error:', error);
+    console.error('Data Import GET error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

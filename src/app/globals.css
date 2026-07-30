@@ -876,6 +876,168 @@
     transform: translateY(0px) scale(0.99);
   }
 
+  /* ─── New Utility Classes (Round 24) ──────────────────────────────── */
+
+  /* .animate-pulse-slow — Slower pulse animation */
+  @keyframes pulse-slow {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.7; transform: scale(1.05); }
+  }
+  .animate-pulse-slow {
+    animation: pulse-slow 3s ease-in-out infinite;
+  }
+
+  /* .hover-lift — Hover lift effect */
+  .hover-lift {
+    transition: transform 0.2s ease-out, box-shadow 0.2s ease-out;
+  }
+  .hover-lift:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 12px 28px -8px oklch(0.55 0.17 155 / 0.2);
+  }
+  .dark .hover-lift:hover {
+    box-shadow: 0 12px 28px -8px oklch(0.65 0.17 155 / 0.3);
+  }
+
+  /* .gradient-border — Border with gradient */
+  .gradient-border {
+    position: relative;
+    border: none;
+    background-clip: padding-box;
+  }
+  .gradient-border::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    margin: -1.5px;
+    border-radius: inherit;
+    background: linear-gradient(135deg, oklch(0.55 0.17 155), oklch(0.55 0.14 175), oklch(0.65 0.22 330));
+  }
+  .dark .gradient-border::before {
+    background: linear-gradient(135deg, oklch(0.65 0.17 155), oklch(0.65 0.14 175), oklch(0.75 0.22 330));
+  }
+
+  /* .pattern-dots — Dot pattern background */
+  .pattern-dots {
+    background-image: radial-gradient(circle, oklch(0.55 0.17 155 / 0.12) 1px, transparent 1px);
+    background-size: 20px 20px;
+  }
+  .dark .pattern-dots {
+    background-image: radial-gradient(circle, oklch(0.65 0.17 155 / 0.15) 1px, transparent 1px);
+    background-size: 20px 20px;
+  }
+
+  /* .pattern-grid — Grid pattern background */
+  .pattern-grid {
+    background-image:
+      linear-gradient(oklch(0.55 0.17 155 / 0.05) 1px, transparent 1px),
+      linear-gradient(90deg, oklch(0.55 0.17 155 / 0.05) 1px, transparent 1px);
+    background-size: 32px 32px;
+  }
+  .dark .pattern-grid {
+    background-image:
+      linear-gradient(oklch(0.65 0.17 155 / 0.06) 1px, transparent 1px),
+      linear-gradient(90deg, oklch(0.65 0.17 155 / 0.06) 1px, transparent 1px);
+    background-size: 32px 32px;
+  }
+
+  /* @keyframes slideInUp — Slide in from bottom */
+  @keyframes slideInUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .animate-slide-in-up {
+    animation: slideInUp 0.4s ease-out;
+  }
+
+  /* @keyframes scaleIn — Scale in from center */
+  @keyframes scaleIn {
+    from { opacity: 0; transform: scale(0.9); }
+    to { opacity: 1; transform: scale(1); }
+  }
+  .animate-scale-in {
+    animation: scaleIn 0.3s ease-out;
+  }
+
+  /* @keyframes fadeInScale — Fade + scale combined */
+  @keyframes fadeInScale {
+    from { opacity: 0; transform: scale(0.95) translateY(8px); }
+    to { opacity: 1; transform: scale(1) translateY(0); }
+  }
+  .animate-fade-in-scale {
+    animation: fadeInScale 0.4s ease-out;
+  }
+
+  /* Notification badge pulse */
+  @keyframes badge-pulse {
+    0%, 100% { box-shadow: 0 0 0 0 oklch(0.55 0.17 155 / 0.4); }
+    50% { box-shadow: 0 0 0 6px oklch(0.55 0.17 155 / 0); }
+  }
+  .animate-badge-pulse {
+    animation: badge-pulse 2s ease-in-out infinite;
+  }
+  .dark .animate-badge-pulse {
+    animation-name: badge-pulse-dark;
+  }
+  @keyframes badge-pulse-dark {
+    0%, 100% { box-shadow: 0 0 0 0 oklch(0.65 0.17 155 / 0.5); }
+    50% { box-shadow: 0 0 0 6px oklch(0.65 0.17 155 / 0); }
+  }
+
+  /* Animated gradient header banner */
+  @keyframes header-gradient-shift {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+  }
+  .animate-header-gradient {
+    background-size: 200% 200%;
+    animation: header-gradient-shift 6s ease infinite;
+  }
+
+  /* Timeline connector line for activity entries */
+  .timeline-connector {
+    position: relative;
+  }
+  .timeline-connector::before {
+    content: '';
+    position: absolute;
+    left: 15px;
+    top: 36px;
+    bottom: -8px;
+    width: 2px;
+    background: oklch(0.90 0.01 155);
+  }
+  .dark .timeline-connector::before {
+    background: oklch(0.25 0.015 260);
+  }
+  .timeline-connector:last-child::before {
+    display: none;
+  }
+
+  /* Input validation states */
+  .input-valid {
+    border-color: oklch(0.55 0.17 155) !important;
+    box-shadow: 0 0 0 3px oklch(0.55 0.17 155 / 0.12);
+  }
+  .input-invalid {
+    border-color: oklch(0.577 0.245 27.325) !important;
+    box-shadow: 0 0 0 3px oklch(0.577 0.245 27.325 / 0.12);
+  }
+
+  /* Social login button hover */
+  .social-btn {
+    transition: all 0.2s ease-out;
+  }
+  .social-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px oklch(0 0 0 / 0.1);
+  }
+  .social-btn:active {
+    transform: translateY(0) scale(0.98);
+  }
+
   /* ─── Danger Zone Styling ────────────────────────────────────────── */
   .danger-zone {
     border: 2px dashed oklch(0.55 0.22 25 / 0.4);

@@ -29,6 +29,13 @@ export async function GET(
             },
           },
         },
+        feedbacks: {
+          include: {
+            user: {
+              select: { id: true, firstName: true, lastName: true },
+            },
+          },
+        },
       },
     });
 
@@ -85,6 +92,14 @@ export async function PUT(
       requiresRegistration,
       maxParticipants,
       notes,
+      budget,
+      registrationDeadline,
+      capacity,
+      isRecurring,
+      recurrenceRule,
+      bannerImageUrl,
+      status,
+      feedbackForm,
     } = body;
 
     const updated = await db.schoolEvent.update({
@@ -103,6 +118,14 @@ export async function PUT(
         ...(requiresRegistration !== undefined && { requiresRegistration }),
         ...(maxParticipants !== undefined && { maxParticipants: maxParticipants || null }),
         ...(notes !== undefined && { notes }),
+        ...(budget !== undefined && { budget: budget ?? null }),
+        ...(registrationDeadline !== undefined && { registrationDeadline: registrationDeadline ? new Date(registrationDeadline) : null }),
+        ...(capacity !== undefined && { capacity: capacity ?? null }),
+        ...(isRecurring !== undefined && { isRecurring }),
+        ...(recurrenceRule !== undefined && { recurrenceRule: recurrenceRule || null }),
+        ...(bannerImageUrl !== undefined && { bannerImageUrl: bannerImageUrl || null }),
+        ...(status !== undefined && { status }),
+        ...(feedbackForm !== undefined && { feedbackForm: feedbackForm || null }),
       },
       include: {
         organizer: {
@@ -112,6 +135,13 @@ export async function PUT(
           select: { id: true, name: true },
         },
         registrations: {
+          include: {
+            user: {
+              select: { id: true, firstName: true, lastName: true },
+            },
+          },
+        },
+        feedbacks: {
           include: {
             user: {
               select: { id: true, firstName: true, lastName: true },

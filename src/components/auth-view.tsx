@@ -2,11 +2,12 @@
 
 import React, { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { BookOpen, Mail, Lock, User, ArrowRight, GraduationCap, Heart, Sparkles, Flower2, Eye, EyeOff, KeyRound, Info, Shield, Leaf, Users as UsersIcon, HelpCircle, BarChart3, LockKeyhole, GitBranch } from 'lucide-react';
+import { BookOpen, Mail, Lock, User, ArrowRight, GraduationCap, Heart, Sparkles, Flower2, Eye, EyeOff, KeyRound, Info, Shield, Leaf, Users as UsersIcon, HelpCircle, BarChart3, LockKeyhole, GitBranch, CheckCircle2, XCircle, Globe, Github, Chrome } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import { useAppStore } from '@/lib/store';
@@ -338,7 +339,18 @@ export default function AuthView() {
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
   const [showForgotInfo, setShowForgotInfo] = useState(false);
+  const [showForgotModal, setShowForgotModal] = useState(false);
+  const [forgotEmail, setForgotEmail] = useState('');
+  const [forgotSent, setForgotSent] = useState(false);
   const setCurrentUser = useAppStore((s) => s.setCurrentUser);
+
+  // Input validation state
+  const emailValid = email.length > 0 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  const emailTouched = email.length > 0;
+  const passwordValid = password.length >= 6;
+  const passwordTouched = password.length > 0;
+  const firstNameValid = firstName.length > 0;
+  const lastNameValid = lastName.length > 0;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -591,12 +603,32 @@ export default function AuthView() {
                           <Label htmlFor="firstName" className="text-sm font-medium">{t('auth.firstName')}</Label>
                           <div className="relative">
                             <User className="absolute left-3.5 top-1/2 -translate-y-1/2 h-5 w-5 text-emerald-400" />
-                            <Input id="firstName" value={firstName} onChange={(e) => setFirstName(e.target.value)} className="pl-10 h-12 min-h-[44px] border-emerald-200/50 dark:border-emerald-900/30 focus:border-emerald-400 focus:ring-emerald-400/20 text-base bg-white/60 dark:bg-gray-900/40 backdrop-blur-sm" placeholder={t('auth.firstName')} required />
+                            <Input id="firstName" value={firstName} onChange={(e) => setFirstName(e.target.value)} className={`pl-10 pr-9 h-12 min-h-[44px] bg-white/60 dark:bg-gray-900/40 backdrop-blur-sm transition-all duration-200 ${
+                              firstName.length > 0 && firstNameValid ? 'input-valid border-emerald-400 dark:border-emerald-500'
+                                : firstName.length > 0 && !firstNameValid ? 'input-invalid border-red-300 dark:border-red-700'
+                                : 'border-emerald-200/50 dark:border-emerald-900/30 focus:border-emerald-400 focus:ring-emerald-400/20'
+                            }`} placeholder={t('auth.firstName')} required />
+                            {firstName.length > 0 && (
+                              <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: 'spring', stiffness: 300, damping: 20 }} className="absolute right-2.5 top-1/2 -translate-y-1/2">
+                                {firstNameValid ? <CheckCircle2 className="h-4 w-4 text-emerald-500" /> : <XCircle className="h-4 w-4 text-red-400" />}
+                              </motion.div>
+                            )}
                           </div>
                         </div>
                         <div className="space-y-2">
                           <Label htmlFor="lastName" className="text-sm font-medium">{t('auth.lastName')}</Label>
-                          <Input id="lastName" value={lastName} onChange={(e) => setLastName(e.target.value)} className="h-12 min-h-[44px] border-emerald-200/50 dark:border-emerald-900/30 focus:border-emerald-400 focus:ring-emerald-400/20 text-base bg-white/60 dark:bg-gray-900/40 backdrop-blur-sm" placeholder={t('auth.lastName')} required />
+                          <div className="relative">
+                            <Input id="lastName" value={lastName} onChange={(e) => setLastName(e.target.value)} className={`pr-9 h-12 min-h-[44px] bg-white/60 dark:bg-gray-900/40 backdrop-blur-sm transition-all duration-200 ${
+                              lastName.length > 0 && lastNameValid ? 'input-valid border-emerald-400 dark:border-emerald-500'
+                                : lastName.length > 0 && !lastNameValid ? 'input-invalid border-red-300 dark:border-red-700'
+                                : 'border-emerald-200/50 dark:border-emerald-900/30 focus:border-emerald-400 focus:ring-emerald-400/20'
+                            }`} placeholder={t('auth.lastName')} required />
+                            {lastName.length > 0 && (
+                              <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: 'spring', stiffness: 300, damping: 20 }} className="absolute right-2.5 top-1/2 -translate-y-1/2">
+                                {lastNameValid ? <CheckCircle2 className="h-4 w-4 text-emerald-500" /> : <XCircle className="h-4 w-4 text-red-400" />}
+                              </motion.div>
+                            )}
+                          </div>
                         </div>
                       </motion.div>
                     </motion.div>
@@ -624,7 +656,7 @@ export default function AuthView() {
                   )}
                 </AnimatePresence>
 
-                {/* Email field (always shown) */}
+                {/* Email field (always shown) with validation feedback */}
                 <motion.div variants={itemVariants} className="space-y-2">
                   <Label htmlFor="email" className="text-sm font-medium">{t('auth.email')}</Label>
                   <div className="relative">
@@ -634,7 +666,11 @@ export default function AuthView() {
                       type="email"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
-                      className={`pl-10 h-12 min-h-[44px] border-emerald-200/50 dark:border-emerald-900/30 focus:border-emerald-400 focus:ring-emerald-400/20 text-base bg-white/60 dark:bg-gray-900/40 backdrop-blur-sm transition-all duration-200 ${
+                      className={`pl-10 pr-10 h-12 min-h-[44px] text-base bg-white/60 dark:bg-gray-900/40 backdrop-blur-sm transition-all duration-200 ${
+                        emailTouched && emailValid ? 'input-valid border-emerald-400 dark:border-emerald-500 focus:border-emerald-500 focus:ring-emerald-400/20'
+                          : emailTouched && !emailValid ? 'input-invalid border-red-300 dark:border-red-700 focus:border-red-400 focus:ring-red-400/20'
+                          : 'border-emerald-200/50 dark:border-emerald-900/30 focus:border-emerald-400 focus:ring-emerald-400/20'
+                      } ${
                         loginRole === 'student' ? 'focus:border-amber-400 focus:ring-amber-400/20'
                           : loginRole === 'parent' ? 'focus:border-violet-400 focus:ring-violet-400/20'
                           : ''
@@ -642,17 +678,32 @@ export default function AuthView() {
                       placeholder={loginRole === 'student' ? 'name@schule.de' : loginRole === 'parent' ? 'parent@email.de' : 'name@schule.de'}
                       required
                     />
+                    {/* Validation icon */}
+                    {emailTouched && (
+                      <motion.div
+                        initial={{ scale: 0, opacity: 0 }}
+                        animate={{ scale: 1, opacity: 1 }}
+                        transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+                        className="absolute right-3.5 top-1/2 -translate-y-1/2"
+                      >
+                        {emailValid ? (
+                          <CheckCircle2 className="h-5 w-5 text-emerald-500" />
+                        ) : (
+                          <XCircle className="h-5 w-5 text-red-400" />
+                        )}
+                      </motion.div>
+                    )}
                   </div>
                 </motion.div>
 
-                {/* Password field */}
+                {/* Password field with validation feedback */}
                 <motion.div variants={itemVariants} className="space-y-2">
                   <div className="flex items-center justify-between">
                     <Label htmlFor="password" className="text-sm font-medium">{t('auth.password')}</Label>
                     {mode === 'login' && (
                       <motion.button
                         type="button"
-                        onClick={() => setShowForgotInfo(!showForgotInfo)}
+                        onClick={() => setShowForgotModal(true)}
                         className="text-xs text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 dark:hover:text-emerald-300 font-medium transition-colors"
                         whileHover={{ scale: 1.05 }}
                         whileTap={{ scale: 0.95 }}
@@ -668,15 +719,34 @@ export default function AuthView() {
                       type={showPassword ? 'text' : 'password'}
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
-                      className="pl-9 pr-10 h-12 min-h-[44px] border-emerald-200/50 dark:border-emerald-900/30 focus:border-emerald-400 focus:ring-emerald-400/20 bg-white/60 dark:bg-gray-900/40 backdrop-blur-sm transition-all duration-200"
+                      className={`pl-9 pr-12 h-12 min-h-[44px] bg-white/60 dark:bg-gray-900/40 backdrop-blur-sm transition-all duration-200 ${
+                        passwordTouched && passwordValid ? 'input-valid border-emerald-400 dark:border-emerald-500 focus:border-emerald-500 focus:ring-emerald-400/20'
+                          : passwordTouched && !passwordValid ? 'input-invalid border-red-300 dark:border-red-700 focus:border-red-400 focus:ring-red-400/20'
+                          : 'border-emerald-200/50 dark:border-emerald-900/30 focus:border-emerald-400 focus:ring-emerald-400/20'
+                      }`}
                       placeholder="••••••"
                       minLength={6}
                       required
                     />
+                    {/* Validation icon */}
+                    {passwordTouched && (
+                      <motion.div
+                        initial={{ scale: 0, opacity: 0 }}
+                        animate={{ scale: 1, opacity: 1 }}
+                        transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+                        className="absolute right-10 top-1/2 -translate-y-1/2"
+                      >
+                        {passwordValid ? (
+                          <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                        ) : (
+                          <XCircle className="h-4 w-4 text-red-400" />
+                        )}
+                      </motion.div>
+                    )}
                     <motion.button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-3.5 top-1/2 -translate-y-1/2 text-emerald-400 hover:text-emerald-600 dark:hover:text-emerald-300 transition-colors w-10 h-10 flex items-center justify-center"
+                      className="absolute right-3.5 top-1/2 -translate-y-1/2 text-emerald-400 hover:text-emerald-600 dark:hover:text-emerald-300 transition-colors w-6 h-6 flex items-center justify-center"
                       tabIndex={-1}
                       aria-label={showPassword ? t('polish.hide_password') : t('polish.show_password')}
                       whileHover={{ scale: 1.1 }}
@@ -685,6 +755,30 @@ export default function AuthView() {
                       {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                     </motion.button>
                   </div>
+
+                  {/* Password strength indicator (register mode) */}
+                  {mode === 'register' && passwordTouched && (
+                    <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} transition={{ duration: 0.2 }}>
+                      <div className="flex gap-1 mt-1">
+                        {[1, 2, 3, 4].map((level) => (
+                          <div
+                            key={level}
+                            className={`h-1 flex-1 rounded-full transition-colors duration-300 ${
+                              password.length >= level * 2
+                                ? level <= 1 ? 'bg-red-400'
+                                  : level <= 2 ? 'bg-amber-400'
+                                  : level <= 3 ? 'bg-emerald-400'
+                                  : 'bg-teal-400'
+                                : 'bg-gray-200 dark:bg-gray-700'
+                            }`}
+                          />
+                        ))}
+                      </div>
+                      <p className="text-[10px] mt-1 text-gray-500 dark:text-gray-400">
+                        {password.length < 4 ? t('auth.password_weak') || 'Weak' : password.length < 6 ? t('auth.password_fair') || 'Fair' : password.length < 8 ? t('auth.password_good') || 'Good' : t('auth.password_strong') || 'Strong'}
+                      </p>
+                    </motion.div>
+                  )}
 
                   {/* Forgot Password info */}
                   <AnimatePresence>
@@ -859,6 +953,54 @@ export default function AuthView() {
           </Card>
         </motion.div>
 
+        {/* Social login buttons (visual only) */}
+        {mode === 'login' && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.5, duration: 0.4 }}
+            className="mt-5"
+          >
+            <div className="flex items-center gap-3 mb-4">
+              <div className="flex-1 h-px bg-gray-200 dark:bg-gray-700" />
+              <span className="text-xs text-gray-400 dark:text-gray-500 font-medium">{t('auth.or_continue_with') || 'or continue with'}</span>
+              <div className="flex-1 h-px bg-gray-200 dark:bg-gray-700" />
+            </div>
+            <div className="grid grid-cols-3 gap-3">
+              <motion.button
+                type="button"
+                whileHover={{ scale: 1.03 }}
+                whileTap={{ scale: 0.97 }}
+                className="social-btn flex items-center justify-center gap-2 h-11 rounded-xl border border-gray-200 dark:border-gray-700 bg-white/60 dark:bg-gray-800/60 backdrop-blur-sm text-gray-700 dark:text-gray-300 font-medium text-xs hover:border-gray-300 dark:hover:border-gray-600"
+                onClick={() => toast.info(t('auth.social_coming_soon') || 'Social login coming soon')}
+              >
+                <Chrome className="h-4 w-4 text-blue-500" />
+                <span className="hidden sm:inline">Google</span>
+              </motion.button>
+              <motion.button
+                type="button"
+                whileHover={{ scale: 1.03 }}
+                whileTap={{ scale: 0.97 }}
+                className="social-btn flex items-center justify-center gap-2 h-11 rounded-xl border border-gray-200 dark:border-gray-700 bg-white/60 dark:bg-gray-800/60 backdrop-blur-sm text-gray-700 dark:text-gray-300 font-medium text-xs hover:border-gray-300 dark:hover:border-gray-600"
+                onClick={() => toast.info(t('auth.social_coming_soon') || 'Social login coming soon')}
+              >
+                <Github className="h-4 w-4" />
+                <span className="hidden sm:inline">GitHub</span>
+              </motion.button>
+              <motion.button
+                type="button"
+                whileHover={{ scale: 1.03 }}
+                whileTap={{ scale: 0.97 }}
+                className="social-btn flex items-center justify-center gap-2 h-11 rounded-xl border border-gray-200 dark:border-gray-700 bg-white/60 dark:bg-gray-800/60 backdrop-blur-sm text-gray-700 dark:text-gray-300 font-medium text-xs hover:border-gray-300 dark:hover:border-gray-600"
+                onClick={() => toast.info(t('auth.social_coming_soon') || 'Social login coming soon')}
+              >
+                <Globe className="h-4 w-4 text-emerald-500" />
+                <span className="hidden sm:inline">Moodle</span>
+              </motion.button>
+            </div>
+          </motion.div>
+        )}
+
         {/* Features section below form */}
         <FeaturesSection />
 
@@ -873,6 +1015,87 @@ export default function AuthView() {
           <p className="text-xs text-emerald-600/40 dark:text-emerald-400/30">{t('app.tagline')}</p>
         </motion.div>
       </motion.div>
+
+      {/* Forgot Password Modal */}
+      <Dialog open={showForgotModal} onOpenChange={setShowForgotModal}>
+        <DialogContent className="sm:max-w-md glass-card rounded-2xl border-0">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-lg">
+              <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-400 to-teal-500 text-white shadow-sm">
+                <LockKeyhole className="h-4 w-4" />
+              </div>
+              {t('auth.forgot_password')}
+            </DialogTitle>
+            <DialogDescription className="text-sm text-gray-500 dark:text-gray-400 mt-2">
+              {t('auth.forgot_password_desc') || 'Enter your email address and we will send you a link to reset your password.'}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            {forgotSent ? (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ type: 'spring', stiffness: 200, damping: 20 }}
+                className="flex flex-col items-center py-4"
+              >
+                <div className="flex items-center justify-center w-14 h-14 rounded-full bg-emerald-100 dark:bg-emerald-900/30 mb-4">
+                  <CheckCircle2 className="h-7 w-7 text-emerald-500" />
+                </div>
+                <p className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-1">{t('auth.forgot_email_sent') || 'Reset link sent!'}</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400 text-center">{t('auth.forgot_check_inbox') || 'Check your inbox for the password reset link.'}</p>
+              </motion.div>
+            ) : (
+              <>
+                <div className="relative">
+                  <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 h-5 w-5 text-emerald-400" />
+                  <Input
+                    value={forgotEmail}
+                    onChange={(e) => setForgotEmail(e.target.value)}
+                    className="pl-10 h-12 border-emerald-200/50 dark:border-emerald-900/30 focus:border-emerald-400 focus:ring-emerald-400/20 bg-white/60 dark:bg-gray-900/40 backdrop-blur-sm"
+                    placeholder="name@schule.de"
+                    type="email"
+                  />
+                </div>
+                {/* Demo credentials reminder */}
+                <div className="flex items-start gap-2 px-3 py-3 rounded-xl bg-emerald-50/50 dark:bg-emerald-900/10 border border-emerald-200/30 dark:border-emerald-900/20 backdrop-blur-sm">
+                  <HelpCircle className="h-4 w-4 text-emerald-500 shrink-0 mt-0.5" />
+                  <p className="text-xs text-emerald-700 dark:text-emerald-300">
+                    {t('polish.demo_email')}: demo@competencetrack.org / {t('polish.demo_password')}: Demo2025!
+                  </p>
+                </div>
+              </>
+            )}
+          </div>
+          <DialogFooter className="flex-row gap-2 sm:justify-end">
+            {forgotSent ? (
+              <Button
+                onClick={() => { setShowForgotModal(false); setForgotSent(false); setForgotEmail(''); }}
+                className="bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white min-h-[44px] px-5 font-semibold"
+              >
+                {t('auth.back_to_login') || 'Back to login'}
+              </Button>
+            ) : (
+              <>
+                <Button
+                  variant="outline"
+                  onClick={() => setShowForgotModal(false)}
+                  className="min-h-[44px] px-4"
+                >
+                  {t('auth.cancel') || 'Cancel'}
+                </Button>
+                <Button
+                  onClick={() => { setForgotSent(true); toast.success(t('auth.forgot_email_sent') || 'Reset link sent!'); }}
+                  disabled={!forgotEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(forgotEmail)}
+                  className="bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white min-h-[44px] px-5 font-semibold"
+                >
+                  {t('auth.send_reset_link') || 'Send reset link'}
+                  <ArrowRight className="h-4 w-4 ml-1.5" />
+                </Button>
+              </>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

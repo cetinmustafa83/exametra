@@ -25,6 +25,11 @@ export async function POST(
       return NextResponse.json({ error: 'Event does not require registration' }, { status: 400 });
     }
 
+    // Check registration deadline
+    if (event.registrationDeadline && new Date() > new Date(event.registrationDeadline)) {
+      return NextResponse.json({ error: 'Registration deadline has passed' }, { status: 400 });
+    }
+
     const body = await request.json();
     const { userId, notes } = body;
 
@@ -49,13 +54,14 @@ export async function POST(
       return NextResponse.json({ error: 'Already registered' }, { status: 409 });
     }
 
-    // Check max participants
-    if (event.maxParticipants) {
+    // Check capacity (use capacity field if available, otherwise maxParticipants)
+    const maxCap = event.capacity ?? event.maxParticipants;
+    if (maxCap) {
       const count = await db.eventRegistration.count({
         where: { eventId: id, status: 'registered' },
       });
-      if (count >= event.maxParticipants) {
-        return NextResponse.json({ error: 'Event is full' }, { status: 400 });
+      if (count >= maxCap) {
+        return NextResponse.json({ error: 'Event is full', waitlist: true }, { status: 400 });
       }
     }
 
@@ -64,6 +70,11 @@ export async function POST(
         eventId: id,
         userId,
         notes: notes || null,
+      },
+      include: {
+        user: {
+          select: { id: true, firstName: true, lastName: true },
+        },
       },
     });
 
@@ -103,11 +114,60 @@ export async function PUT(
     const updated = await db.eventRegistration.update({
       where: { id: registration.id },
       data: { status },
+      include: {
+        user: {
+          select: { id: true, firstName: true, lastName: true },
+        },
+      },
     });
 
     return NextResponse.json(updated);
   } catch (error) {
     console.error('EventRegistration PUT error:', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  }
+}
+
+export async function DELETE(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const session = await getSession();
+    if (!session) {
+      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    }
+
+    const { id } = await params;
+    const { searchParams } = new URL(request.url);
+    const userId = searchParams.get('userId');
+
+    if (!userId) {
+      return NextResponse.json({ error: 'userId is required' }, { status: 400 });
+    }
+
+    const registration = await db.eventRegistration.findUnique({
+      where: { eventId_userId: { eventId: id, userId } },
+    });
+
+    if (!registration) {
+      return NextResponse.json({ error: 'Registration not found' }, { status: 404 });
+    }
+
+    // Cancel registration (soft delete via status)
+    const updated = await db.eventRegistration.update({
+      where: { id: registration.id },
+      data: { status: 'cancelled' },
+      include: {
+        user: {
+          select: { id: true, firstName: true, lastName: true },
+        },
+      },
+    });
+
+    return NextResponse.json(updated);
+  } catch (error) {
+    console.error('EventRegistration DELETE error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
