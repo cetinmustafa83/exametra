@@ -122,6 +122,11 @@ model School {
   complianceConsultations ComplianceConsultation[]
   complianceStatus SchoolComplianceStatus?
   deletionFlags DeletionFlag[]
+  // Module B signage relations
+  emergencySignages EmergencySignage[]
+  signageMessages SignageMessage[]
+  signageSchedules SignageSchedule[]
+  signageAuditLogs SignageAuditLog[]
 }
 
 model User {
@@ -219,6 +224,8 @@ model User {
   dpiaRecordsApproved       DpiaRecord[] @relation("DpiaRecordApprover")
   complianceConsultationsAcknowledged ComplianceConsultation[] @relation("ComplianceConsultationAcknowledger")
   deletionFlagsApproved     DeletionFlag[] @relation("DeletionFlagApprover")
+  // Module B signage relations
+  signageMessagesCreated    SignageMessage[]
 }
 
 model SchoolYear {
@@ -2730,7 +2737,7 @@ model GradingAnnotation {
   @@map("grading_annotations")
 }
 
-// ─── Exam Planning ─────────────────────────────────────────────────
+// ─── Exam Planning ──────────��──────────────────────────────────────
 
 model ExamPlan {
   id            String   @id @default(cuid())
@@ -3322,4 +3329,99 @@ model DeletionFlag {
   @@index([schoolId])
   @@index([entityType])
   @@index([flaggedAt])
+}
+
+// ─── Module B: Emergency Signage System ─────────────────────────────
+
+model EmergencySignage {
+  id                String   @id @default(cuid())
+  schoolId          String
+  displayName       String   // Room name or location (e.g., "Main Hallway", "Cafeteria TV 1")
+  signageType       String   @default("digital_display") // digital_display, led_board, tv_monitor
+  resolution        String   @default("1920x1080") // resolution info
+  location          String   // Physical location in school
+  isActive          Boolean  @default(true)
+  currentMessageId  String?  // Current active message
+  brightness        Int      @default(100) // 1-100
+  volume            Int      @default(50) // 1-100 for audio
+  ipAddress         String?  // For network monitoring
+  lastHeartbeat     DateTime? // Last connection check
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  school            School   @relation(fields: [schoolId], references: [id])
+  messages          SignageMessage[]
+  schedules         SignageSchedule[]
+
+  @@index([schoolId])
+  @@index([isActive])
+  @@map("emergency_signages")
+}
+
+model SignageMessage {
+  id                String   @id @default(cuid())
+  schoolId          String
+  signageId         String
+  title             String
+  content           String   // HTML or plain text
+  messageType       String   // emergency, notification, schedule, announcement, alert
+  priority          String   @default("normal") // low, normal, high, critical
+  backgroundColor   String?  // Hex color
+  textColor         String?  // Hex color
+  displayDuration   Int      @default(10) // seconds to display
+  soundAlert        Boolean  @default(false) // Play sound on emergency
+  soundFile         String?  // URL to audio file
+  createdBy         String   // userId who created
+  createdAt         DateTime @default(now())
+  startTime         DateTime?
+  endTime           DateTime?
+  displayOrder      Int      @default(0)
+
+  school            School   @relation(fields: [schoolId], references: [id])
+  signage           EmergencySignage @relation(fields: [signageId], references: [id], onDelete: Cascade)
+  creator           User     @relation(fields: [createdBy], references: [id])
+  audits            SignageAuditLog[]
+
+  @@index([schoolId])
+  @@index([signageId])
+  @@index([messageType])
+  @@index([priority])
+  @@map("signage_messages")
+}
+
+model SignageSchedule {
+  id                String   @id @default(cuid())
+  schoolId          String
+  signageId         String
+  messageId         String?  // Optional: specific message to display
+  dayOfWeek         Int      // 0-6 (Sunday-Saturday)
+  startTime         String   // HH:mm format
+  endTime           String   // HH:mm format
+  isRecurring       Boolean  @default(true)
+  createdBy         String   // userId
+  createdAt         DateTime @default(now())
+
+  school            School   @relation(fields: [schoolId], references: [id])
+  signage           EmergencySignage @relation(fields: [signageId], references: [id], onDelete: Cascade)
+
+  @@index([schoolId])
+  @@index([signageId])
+  @@map("signage_schedules")
+}
+
+model SignageAuditLog {
+  id                String   @id @default(cuid())
+  schoolId          String
+  messageId         String
+  action            String   // created, updated, displayed, error, offline
+  details           String?  // JSON: { status, device, error, etc }
+  createdAt         DateTime @default(now())
+
+  school            School   @relation(fields: [schoolId], references: [id])
+  message           SignageMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@index([schoolId])
+  @@index([messageId])
+  @@index([action])
+  @@map("signage_audit_logs")
 }
