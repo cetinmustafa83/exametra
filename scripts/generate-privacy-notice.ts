@@ -1,0 +1,150 @@
+/**
+ * Generate Datenschutzerklärung (Privacy Notice) for parents
+ * Plain-language German, based on school configuration
+ */
+
+const fs = require("fs");
+const path = require("path");
+
+interface PrivacyNoticeParams {
+  schoolName: string;
+  dpoName: string;
+  dpoEmail: string;
+  schultragerName: string;
+  bundesland: string;
+}
+
+export function generatePrivacyNotice(
+  params: PrivacyNoticeParams,
+  outputPath: string = "docs/legal"
+): void {
+  if (!fs.existsSync(outputPath)) {
+    fs.mkdirSync(outputPath, { recursive: true });
+  }
+
+  const lines: string[] = [
+    "# Datenschutzerklärung",
+    "# (Privacy Notice for Parents & Students)",
+    "",
+    `**Schule**: ${params.schoolName}`,
+    `**Bundesland**: ${params.bundesland}`,
+    `**Schulträger**: ${params.schultragerName}`,
+    `**Datenschutzbeauftragter (DPO)**: ${params.dpoName} (${params.dpoEmail})`,
+    "",
+    "---",
+    "",
+    "## 1. Wer ist verantwortlich für die Verarbeitung Ihrer Daten?",
+    "",
+    `Die **${params.schoolName}** ist die Schule, die ihre Daten verarbeitet.`,
+    `Der Schulträger ist: **${params.schultragerName}**`,
+    "",
+    "Der Datenschutzbeauftragte (DPO) ist:",
+    `- **Name**: ${params.dpoName}`,
+    `- **Email**: ${params.dpoEmail}`,
+    "",
+    "Sie können den DPO jederzeit kontaktieren, wenn Sie Fragen zu Ihren Daten haben.",
+    "",
+    "## 2. Welche Daten werden verarbeitet?",
+    "",
+    "Wir verarbeiten folgende personenbezogene Daten:",
+    "",
+    "### Schülerdaten",
+    "- Name, Vorname, Geburtsdatum",
+    "- Kontaktinformationen (Email, Telefon)",
+    "- Adresse",
+    "- Schulleistungen, Noten, Zeugnisse",
+    "- Verhalten und Disziplin",
+    "- Medizinische Informationen (falls relevant)",
+    "",
+    "### Lehrerdaten",
+    "- Name, Email, Telefon",
+    "- Unterrichtsvertrag und Stundenpläne",
+    "- Aktivitätsprotokoll (Audit Logs)",
+    "",
+    "### Elterndaten",
+    "- Name, Kontaktinformationen",
+    "- Nachrichten mit Lehrern",
+    "",
+    "## 3. Warum verarbeiten wir Ihre Daten?",
+    "",
+    "Wir verarbeiten Ihre Daten für folgende Zwecke:",
+    "",
+    "- **Schulverwaltung**: Verwaltung von Schülereinträgen und Klassengruppen",
+    "- **Unterricht & Bewertung**: Verfolgung von Lernfortschritten und Noten",
+    "- **Kommunikation**: Nachrichten zwischen Lehrern, Eltern und Schülern",
+    "- **Sicherheit**: Überwachung von Prüfungen und Schulsicherheit",
+    "- **Rechtliche Verpflichtungen**: Einhaltung des Schulgesetzes und der DSGVO",
+    "",
+    "## 4. Was ist die Rechtsgrundlage?",
+    "",
+    "Die Verarbeitung erfolgt auf Grundlage von:",
+    "",
+    "- **Schulgesetz** (Schulgesetz des Bundeslandes): Rechtliche Verpflichtung zur Führung von Schülerdaten",
+    "- **DSGVO Art. 6(1)(a)**: Ihre Zustimmung (z.B. für Messaging)",
+    "- **DSGVO Art. 6(1)(c)**: Erfüllung rechtlicher Verpflichtungen",
+    "- **DSGVO Art. 9(2)(h)**: Zwecke der Gesundheit und Sicherheit (z.B. Wellness-Überprüfungen)",
+    "",
+    "Für Minderjährige: **Eltern erteilen die Zustimmung** gemäß DSGVO Art. 8.",
+    "",
+    "## 5. Wie lange werden die Daten gespeichert?",
+    "",
+    "Die Speicherdauer hängt von der Datenkategorie ab:",
+    "",
+    "| Datentyp | Speicherdauer |",
+    "|----------|--------------|",
+    "| Lernfortschritt | 1–2 Jahre nach Schulabgang |",
+    "| Zeugnisse/Endbewertungen | Dauerhaft (Schulgesetz erforderlich) |",
+    "| Disziplinarberichte | 3–10 Jahre (je nach Bundesland) |",
+    "| Nachrichten | 1–2 Jahre |",
+    "| Audit Logs | 1–2 Jahre |",
+    "",
+    "Nach Ablauf der Aufbewahrungsfrist werden Ihre Daten gelöscht.",
+    "",
+    "## 6. Ihre Rechte",
+    "",
+    "Sie haben folgende Rechte unter der DSGVO:",
+    "",
+    "- **Auskunftsrecht** (Art. 15): Sie können fragen, welche Daten wir speichern",
+    "- **Berichtigungsrecht** (Art. 16): Sie können falsche Daten korrigieren lassen",
+    "- **Löschungsrecht** (Art. 17): Sie können verlangen, dass Ihre Daten gelöscht werden (sofern nicht gesetzlich erforderlich)",
+    "- **Datenportabilität** (Art. 20): Sie können Ihre Daten exportieren",
+    "- **Beschwerderecht**: Sie können sich an die Datenschutzbehörde beschweren",
+    "",
+    "Um diese Rechte auszuüben, kontaktieren Sie bitte den DPO.",
+    "",
+    "## 7. Sicherheit Ihrer Daten",
+    "",
+    "Wir schützen Ihre Daten durch:",
+    "",
+    "- Verschlüsselung (TLS) bei der Übertragung",
+    "- Verschlüsselung bei der Speicherung",
+    "- Rollenbasierte Zugriffskontrolle",
+    "- Regelmäßige Sicherheitsprüfungen",
+    "- Audit-Logs aller Datenzugriffe",
+    "",
+    "## 8. Kontakt",
+    "",
+    `Bei Fragen zum Datenschutz kontaktieren Sie bitte:`,
+    `- **DPO**: ${params.dpoName}`,
+    `- **Email**: ${params.dpoEmail}`,
+    "",
+    "---",
+    "",
+    `**Gültig ab**: ${new Date().toISOString().split("T")[0]}`,
+    "**Generiertaus**: ExaMetra Module L Compliance Framework",
+  ];
+
+  const filePath = path.join(outputPath, "privacy-notice-de.md");
+  fs.writeFileSync(filePath, lines.join("\n"), "utf-8");
+  console.log(`[v0] Generated privacy notice at ${filePath}`);
+}
+
+if (require.main === module) {
+  generatePrivacyNotice({
+    schoolName: "Gymnasium Berlin",
+    dpoName: "Max Mustermann",
+    dpoEmail: "dpo@gymnasium-berlin.de",
+    schultragerName: "Stadt Berlin",
+    bundesland: "BERLIN",
+  });
+}

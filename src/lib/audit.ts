@@ -138,3 +138,137 @@ export function withAuditLog(
     return response;
   };
 }
+
+// ─── Module L: Compliance Audit Logging ────────────────────────────────
+
+export interface ComplianceAuditParams extends AuditLogParams {
+  dataSubject?: string; // Student ID if applicable (for GDPR export scope)
+}
+
+/**
+ * Log compliance-specific actions (DPO approvals, policy changes, etc.)
+ * Includes dataSubject field for tracking affected individuals
+ */
+export async function logComplianceAudit(params: ComplianceAuditParams): Promise<void> {
+  try {
+    let userId = params.userId;
+    if (!userId) {
+      const session = await getSession();
+      userId = session?.user?.id ?? undefined;
+    }
+
+    await db.auditLog.create({
+      data: {
+        userId: userId ?? null,
+        schoolId: params.schoolId ?? null,
+        action: params.action,
+        entityType: params.entityType,
+        entityId: params.entityId ?? null,
+        changes: params.changes ? JSON.stringify(params.changes) : null,
+        ipAddress: params.ipAddress ?? null,
+        userAgent: params.userAgent ?? null,
+        metadata: params.metadata ? JSON.stringify(params.metadata) : null,
+        dataSubject: params.dataSubject ?? null, // Track affected individual
+      },
+    });
+  } catch (error) {
+    console.error("[v0] Compliance audit log error:", error);
+  }
+}
+
+/**
+ * Log when a student's data is accessed (for audit trail)
+ */
+export async function logDataAccess(
+  userId: string,
+  studentId: string,
+  action: string,
+  schoolId?: string,
+  metadata?: Record<string, unknown>
+): Promise<void> {
+  await logComplianceAudit({
+    userId,
+    schoolId,
+    action: `DATA_ACCESS_${action}`, // e.g., DATA_ACCESS_VIEW_GRADES
+    entityType: "Student",
+    entityId: studentId,
+    dataSubject: studentId,
+    metadata: {
+      ...metadata,
+      timestamp: new Date().toISOString(),
+    },
+  });
+}
+
+/**
+ * Log DPO approval actions
+ */
+export async function logDPOApproval(
+  dpoId: string,
+  schoolId: string,
+  approvalType: string,
+  metadata?: Record<string, unknown>
+): Promise<void> {
+  await logComplianceAudit({
+    userId: dpoId,
+    schoolId,
+    action: `DPO_APPROVAL_${approvalType}`,
+    entityType: "ComplianceStatus",
+    metadata,
+  });
+}
+
+/**
+ * Log policy updates
+ */
+export async function logPolicyUpdate(
+  userId: string,
+  schoolId: string,
+  policyType: string,
+  changes: AuditLogParams['changes'],
+): Promise<void> {
+  await logComplianceAudit({
+    userId,
+    schoolId,
+    action: "POLICY_UPDATE",
+    entityType: policyType, // e.g., "DataRetentionPolicy"
+    changes,
+  });
+}
+
+/**
+ * Query audit logs for a specific data subject (student)
+ * Used for GDPR right-of-access requests
+ */
+export async function getAuditTrailForDataSubject(
+  schoolId: string,
+  studentId: string,
+  limit: number = 100
+) {
+  try {
+    const logs = await db.auditLog.findMany({
+      where: {
+        schoolId,
+        dataSubject: studentId,
+      },
+      orderBy: { timestamp: "desc" },
+      take: limit,
+      select: {
+        id: true,
+        action: true,
+        entityType: true,
+        userId: true,
+        timestamp: true,
+        metadata: true,
+      },
+    });
+
+    return logs.map((log) => ({
+      ...log,
+      metadata: log.metadata ? JSON.parse(log.metadata) : null,
+    }));
+  } catch (error) {
+    console.error("[v0] Error querying audit trail:", error);
+    return [];
+  }
+}

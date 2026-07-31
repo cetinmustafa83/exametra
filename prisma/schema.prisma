@@ -116,6 +116,26 @@ model School {
   substituteTeachers SubstituteTeacher[]
   teacherAbsences    TeacherAbsence[]
   substitutionAssignments SubstitutionAssignment[]
+  // Module L compliance relations
+  dataRetentionPolicies DataRetentionPolicy[]
+  dpiaRecords DpiaRecord[]
+  complianceConsultations ComplianceConsultation[]
+  complianceStatus SchoolComplianceStatus?
+  deletionFlags DeletionFlag[]
+  // Module B signage relations
+  emergencySignages EmergencySignage[]
+  signageMessages SignageMessage[]
+  signageSchedules SignageSchedule[]
+  signageAuditLogs SignageAuditLog[]
+  // Module F exam mode relations
+  examSessions ExamSession[]
+  // Module H notifications relations
+  notificationHubs NotificationHub[]
+  notificationArchives NotificationArchive[]
+  // Module J widgets relations
+  dashboardWidgets DashboardWidget[]
+  dashboardLayouts DashboardLayout[]
+  widgetTemplates WidgetTemplate[]
 }
 
 model User {
@@ -125,10 +145,11 @@ model User {
   passwordHash    String
   firstName       String
   lastName        String
-  role            String   @default("TEACHER") // TEACHER, SCHOOL_ADMIN, SUPER_ADMIN, STUDENT, PARENT, VICE_PRINCIPAL
+  role            String   @default("TEACHER") // TEACHER, SCHOOL_ADMIN, SUPER_ADMIN, STUDENT, PARENT, VICE_PRINCIPAL, DPO
   locale          String   @default("de")
   twoFactorSecret String?
   isDemo          Boolean  @default(false)
+  isTeacher       Boolean  @default(false) // civil-servant status for Personalrat rights
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
   deletedAt       DateTime?
@@ -207,6 +228,19 @@ model User {
   careerAppointments        CareerAppointment[]
   substituteTeacher         SubstituteTeacher?
   teacherAbsences           TeacherAbsence[]
+  // Module L compliance relations
+  retentionPoliciesReviewed DataRetentionPolicy[] @relation("DataRetentionPolicyReviewer")
+  dpiaRecordsApproved       DpiaRecord[] @relation("DpiaRecordApprover")
+  complianceConsultationsAcknowledged ComplianceConsultation[] @relation("ComplianceConsultationAcknowledger")
+  deletionFlagsApproved     DeletionFlag[] @relation("DeletionFlagApprover")
+  // Module B signage relations
+  signageMessagesCreated    SignageMessage[]
+  // Module H notifications relations
+  notificationHubs          NotificationHub[]
+  notificationArchives      NotificationArchive[]
+  // Module J widgets relations
+  dashboardWidgets          DashboardWidget[]
+  dashboardLayouts          DashboardLayout[]
 }
 
 model SchoolYear {
@@ -330,6 +364,8 @@ model Student {
   wellnessCheckins      WellnessCheckin[]
   wellnessScores        WellnessScore[]
   careerProfile         CareerProfile?
+  // Module F exam mode relations
+  examSessions          ExamSession[]
 
   @@index([userId])
 }
@@ -502,6 +538,8 @@ model Assessment {
   gradingReviews       TeacherGradingReview[]
   gradingAnnotations   GradingAnnotation[]
   examPlan             ExamPlan?
+  // Module F exam mode relations
+  examSessions         ExamSession[]
 }
 
 model AssessmentCompetencyLink {
@@ -651,9 +689,13 @@ model AuditLog {
   userAgent  String?
   timestamp  DateTime @default(now())
   metadata   String?  // JSON
+  dataSubject String? // track which student (if applicable) for GDPR export scope
 
   user  User?  @relation(fields: [userId], references: [id])
   school School? @relation(fields: [schoolId], references: [id])
+
+  @@index([dataSubject])
+  @@index([timestamp])
 }
 
 model DataExportRequest {
@@ -2714,7 +2756,7 @@ model GradingAnnotation {
   @@map("grading_annotations")
 }
 
-// ─── Exam Planning ─────────────────────────────────────────────────
+// ─── Exam Planning ──────────��──────────────────────────────────────
 
 model ExamPlan {
   id            String   @id @default(cuid())
@@ -3215,4 +3257,391 @@ model GradeReport {
 
   @@index([schoolId])
   @@index([generatedBy])
+}
+
+// ─── Module L: Legal & Data Protection Compliance ──────────────────
+
+model DataRetentionPolicy {
+  id                      String   @id @default(cuid())
+  schoolId                String
+  dataCategory            String   // LEARNING_PROGRESS, ASSESSMENT_RESULT, FINAL_REPORT, DISCIPLINARY_RECORD, EXAM_INCIDENT, MESSAGE, AI_TUTOR_LOG, NOTEBOOK_PAGE, SIGNAGE_LOG, TEACHER_AUDIT_LOG
+  retentionPeriodMonths   Int?     // nullable to force DPO to fill in legally-mandated categories
+  legalBasisNote          String?  // DPO notes on state-specific retention rule
+  isDefault               Boolean  @default(false) // false = legally mandated; true = optional product data
+  reviewedByUserId        String?  // DPO approval
+  reviewedAt              DateTime?
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+
+  school                  School   @relation(fields: [schoolId], references: [id])
+  reviewedByUser          User?    @relation("DataRetentionPolicyReviewer", fields: [reviewedByUserId], references: [id])
+
+  @@index([schoolId])
+  @@index([dataCategory])
+}
+
+model DpiaRecord {
+  id                      String   @id @default(cuid())
+  schoolId                String
+  moduleScope             String   // AI_TUTOR, EXAM_MODE, WELLNESS_CHECKS, SIGNAGE_EMERGENCY, MESSAGING, LEARNING_ANALYTICS
+  dataProcessingSummary   String   // what's processed, for how long, who sees it
+  completedAt             DateTime
+  approvedByUserId        String?  // DPO approval
+  documentUrl             String?  // uploaded DPIA PDF
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+
+  school                  School   @relation(fields: [schoolId], references: [id])
+  approvedByUser          User?    @relation("DpiaRecordApprover", fields: [approvedByUserId], references: [id])
+
+  @@index([schoolId])
+  @@index([moduleScope])
+  @@unique([schoolId, moduleScope])
+}
+
+model ComplianceConsultation {
+  id                      String   @id @default(cuid())
+  schoolId                String
+  consultationType        String   // ELTERNBEIRAT, SCHULKONFERENZ, PERSONALRAT
+  moduleScope             String?  // specific module if Personalrat for monitoring-capable features
+  acknowledgedByUserId    String
+  acknowledgedAt          DateTime
+  notes                   String?  // what was consulted/approved
+  createdAt               DateTime @default(now())
+
+  school                  School   @relation(fields: [schoolId], references: [id])
+  acknowledgedByUser      User     @relation("ComplianceConsultationAcknowledger", fields: [acknowledgedByUserId], references: [id])
+
+  @@index([schoolId])
+  @@index([consultationType])
+}
+
+model SchoolComplianceStatus {
+  id                      String   @id @default(cuid())
+  schoolId                String   @unique
+  bundesland              String?  // BERLIN, BREMEN, HAMBURG, etc. (16 states)
+  onboardingCompleted     Boolean  @default(false)
+  dpoDpoContactEmail      String?
+  schultragerContactEmail String?
+  moduleGates             String?  // JSON: { "AI_TUTOR": { isApprovedForUse: bool, diaCompleted: bool }, ... }
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+
+  school                  School   @relation(fields: [schoolId], references: [id])
+}
+
+model DeletionFlag {
+  id                      String   @id @default(cuid())
+  schoolId                String
+  entityType              String   // Student, Message, Notebook, etc.
+  entityId                String
+  dataCategory            String   // retention category reference
+  flaggedAt               DateTime @default(now())
+  approvedByUserId        String?
+  approvedAt              DateTime?
+  deletedAt               DateTime?
+  reason                  String   // "retention period expired", "erasure request", etc.
+
+  school                  School   @relation(fields: [schoolId], references: [id])
+  approvedByUser          User?    @relation("DeletionFlagApprover", fields: [approvedByUserId], references: [id])
+
+  @@index([schoolId])
+  @@index([entityType])
+  @@index([flaggedAt])
+}
+
+// ─── Module B: Emergency Signage System ─────────────────────────────
+
+model EmergencySignage {
+  id                String   @id @default(cuid())
+  schoolId          String
+  displayName       String   // Room name or location (e.g., "Main Hallway", "Cafeteria TV 1")
+  signageType       String   @default("digital_display") // digital_display, led_board, tv_monitor
+  resolution        String   @default("1920x1080") // resolution info
+  location          String   // Physical location in school
+  isActive          Boolean  @default(true)
+  currentMessageId  String?  // Current active message
+  brightness        Int      @default(100) // 1-100
+  volume            Int      @default(50) // 1-100 for audio
+  ipAddress         String?  // For network monitoring
+  lastHeartbeat     DateTime? // Last connection check
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  school            School   @relation(fields: [schoolId], references: [id])
+  messages          SignageMessage[]
+  schedules         SignageSchedule[]
+
+  @@index([schoolId])
+  @@index([isActive])
+  @@map("emergency_signages")
+}
+
+model SignageMessage {
+  id                String   @id @default(cuid())
+  schoolId          String
+  signageId         String
+  title             String
+  content           String   // HTML or plain text
+  messageType       String   // emergency, notification, schedule, announcement, alert
+  priority          String   @default("normal") // low, normal, high, critical
+  backgroundColor   String?  // Hex color
+  textColor         String?  // Hex color
+  displayDuration   Int      @default(10) // seconds to display
+  soundAlert        Boolean  @default(false) // Play sound on emergency
+  soundFile         String?  // URL to audio file
+  createdBy         String   // userId who created
+  createdAt         DateTime @default(now())
+  startTime         DateTime?
+  endTime           DateTime?
+  displayOrder      Int      @default(0)
+
+  school            School   @relation(fields: [schoolId], references: [id])
+  signage           EmergencySignage @relation(fields: [signageId], references: [id], onDelete: Cascade)
+  creator           User     @relation(fields: [createdBy], references: [id])
+  audits            SignageAuditLog[]
+
+  @@index([schoolId])
+  @@index([signageId])
+  @@index([messageType])
+  @@index([priority])
+  @@map("signage_messages")
+}
+
+model SignageSchedule {
+  id                String   @id @default(cuid())
+  schoolId          String
+  signageId         String
+  messageId         String?  // Optional: specific message to display
+  dayOfWeek         Int      // 0-6 (Sunday-Saturday)
+  startTime         String   // HH:mm format
+  endTime           String   // HH:mm format
+  isRecurring       Boolean  @default(true)
+  createdBy         String   // userId
+  createdAt         DateTime @default(now())
+
+  school            School   @relation(fields: [schoolId], references: [id])
+  signage           EmergencySignage @relation(fields: [signageId], references: [id], onDelete: Cascade)
+
+  @@index([schoolId])
+  @@index([signageId])
+  @@map("signage_schedules")
+}
+
+model SignageAuditLog {
+  id                String   @id @default(cuid())
+  schoolId          String
+  messageId         String
+  action            String   // created, updated, displayed, error, offline
+  details           String?  // JSON: { status, device, error, etc }
+  createdAt         DateTime @default(now())
+
+  school            School   @relation(fields: [schoolId], references: [id])
+  message           SignageMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@index([schoolId])
+  @@index([messageId])
+  @@index([action])
+  @@map("signage_audit_logs")
+}
+
+// ─── Module F: Exam Mode / Digital Test Environment ──────────────────
+
+model ExamSession {
+  id                String   @id @default(cuid())
+  schoolId          String
+  assessmentId      String
+  studentId         String
+  startTime         DateTime
+  endTime           DateTime?
+  submittedAt       DateTime?
+  status            String   @default("not_started") // not_started, in_progress, submitted, graded
+  score             Float?
+  totalPoints       Float?
+  lockdownEnabled   Boolean  @default(true) // Kiosk mode lockdown
+  cameraMonitor     Boolean  @default(false) // Enable face monitoring
+  screenShare       Boolean  @default(false) // Allow screen sharing for proctoring
+  environmentNotes  String?  // JSON: { browser, os, resolution, etc }
+  suspiciousActivity String? // JSON array of incidents
+  createdAt         DateTime @default(now())
+
+  school            School   @relation(fields: [schoolId], references: [id])
+  assessment        Assessment @relation(fields: [assessmentId], references: [id])
+  student           Student  @relation(fields: [studentId], references: [id])
+  answers           ExamAnswer[]
+  events            ExamEvent[]
+  warnings          ExamWarning[]
+
+  @@index([schoolId])
+  @@index([assessmentId])
+  @@index([studentId])
+  @@index([status])
+  @@map("exam_sessions")
+}
+
+model ExamAnswer {
+  id                String   @id @default(cuid())
+  examSessionId     String
+  questionId        String
+  answer            String?  // JSON: selected choice, free text, etc
+  submittedAt       DateTime @default(now())
+  isCorrect         Boolean?
+  pointsAwarded     Float?
+  reviewedAt        DateTime?
+
+  examSession       ExamSession @relation(fields: [examSessionId], references: [id], onDelete: Cascade)
+
+  @@index([examSessionId])
+  @@index([questionId])
+  @@map("exam_answers")
+}
+
+model ExamEvent {
+  id                String   @id @default(cuid())
+  examSessionId     String
+  eventType         String   // tab_switch, copy_paste, window_blur, camera_detected_none, suspicious_movement, time_warning
+  severity          String   @default("info") // info, warning, critical
+  description       String?
+  timestamp         DateTime @default(now())
+  metadata          String?  // JSON: additional context
+
+  examSession       ExamSession @relation(fields: [examSessionId], references: [id], onDelete: Cascade)
+
+  @@index([examSessionId])
+  @@index([eventType])
+  @@map("exam_events")
+}
+
+model ExamWarning {
+  id                String   @id @default(cuid())
+  examSessionId     String
+  studentId         String
+  warningType       String   // time_low, behavior_suspicious, multiple_tabs, camera_issue
+  message           String
+  acknowledged      Boolean  @default(false)
+  acknowledgedAt    DateTime?
+  createdAt         DateTime @default(now())
+
+  examSession       ExamSession @relation(fields: [examSessionId], references: [id], onDelete: Cascade)
+
+  @@index([examSessionId])
+  @@index([studentId])
+  @@map("exam_warnings")
+}
+
+// ─── Module H: Centralized Notifications Hub ───────────────────────
+
+model NotificationHub {
+  id                String   @id @default(cuid())
+  schoolId          String
+  userId            String
+  category          String   // assessment, behavior, communication, wellness, system, announcement
+  priority          String   @default("normal") // low, normal, high, critical
+  title             String
+  message           String
+  actionUrl         String?  // Link to related resource
+  actionLabel       String?  // e.g. "View Grade", "Respond"
+  isRead            Boolean  @default(false)
+  readAt            DateTime?
+  isDismissed       Boolean  @default(false)
+  dismissedAt       DateTime?
+  sourceType        String?  // assessment, incident, message, announcement, etc
+  sourceId          String?  // ID of related entity
+  createdAt         DateTime @default(now())
+  expiresAt         DateTime? // Auto-archive if set
+
+  school            School   @relation(fields: [schoolId], references: [id])
+  user              User     @relation(fields: [userId], references: [id])
+
+  @@index([schoolId])
+  @@index([userId])
+  @@index([isRead])
+  @@index([category])
+  @@index([createdAt])
+  @@map("notification_hubs")
+}
+
+model NotificationArchive {
+  id                String   @id @default(cuid())
+  schoolId          String
+  userId            String
+  originalId        String?  // reference to NotificationHub.id if archived
+  title             String
+  message           String
+  category          String
+  archivedAt        DateTime @default(now())
+
+  school            School   @relation(fields: [schoolId], references: [id])
+  user              User     @relation(fields: [userId], references: [id])
+
+  @@index([schoolId])
+  @@index([userId])
+  @@index([archivedAt])
+  @@map("notification_archives")
+}
+
+// ─── Module J: Customizable Dashboard Widgets ──────────────────────
+
+model DashboardWidget {
+  id                String   @id @default(cuid())
+  schoolId          String
+  userId            String
+  widgetType        String   // grade_summary, attendance_trend, upcoming_assessments, class_schedule, wellness_status, recent_messages, announcements
+  title             String?  // Custom title override
+  position          Int      // Grid position (0-11)
+  size              String   @default("medium") // small, medium, large, full_width
+  isVisible         Boolean  @default(true)
+  config            String?  // JSON: widget-specific settings { colors, dateRange, filters, etc }
+  dataSource        String?  // API endpoint or computed field reference
+  refreshInterval   Int      @default(300) // seconds (0 = manual)
+  lastRefresh       DateTime?
+  cacheData         String?  // JSON cached widget data
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  school            School   @relation(fields: [schoolId], references: [id])
+  user              User     @relation(fields: [userId], references: [id])
+
+  @@index([schoolId])
+  @@index([userId])
+  @@index([widgetType])
+  @@unique([userId, position])
+  @@map("dashboard_widgets")
+}
+
+model DashboardLayout {
+  id                String   @id @default(cuid())
+  schoolId          String
+  userId            String
+  name              String   // "Default", "Teacher View", "Student View", etc
+  gridColumns       Int      @default(4) // Grid layout columns
+  isDefault         Boolean  @default(false)
+  widgets           String   // JSON: array of widget positions
+  theme             String?  // Dark, light, custom
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  school            School   @relation(fields: [schoolId], references: [id])
+  user              User     @relation(fields: [userId], references: [id])
+
+  @@index([schoolId])
+  @@index([userId])
+  @@map("dashboard_layouts")
+}
+
+model WidgetTemplate {
+  id                String   @id @default(cuid())
+  schoolId          String
+  widgetType        String   // Same types as DashboardWidget
+  name              String
+  description       String?
+  defaultConfig     String   // JSON: default configuration
+  thumbnail         String?  // URL to preview image
+  createdAt         DateTime @default(now())
+
+  school            School   @relation(fields: [schoolId], references: [id])
+
+  @@unique([schoolId, widgetType])
+  @@index([schoolId])
+  @@map("widget_templates")
 }
