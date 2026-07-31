@@ -127,6 +127,11 @@ model School {
   signageMessages SignageMessage[]
   signageSchedules SignageSchedule[]
   signageAuditLogs SignageAuditLog[]
+  // Module F exam mode relations
+  examSessions ExamSession[]
+  // Module H notifications relations
+  notificationHubs NotificationHub[]
+  notificationArchives NotificationArchive[]
 }
 
 model User {
@@ -226,6 +231,9 @@ model User {
   deletionFlagsApproved     DeletionFlag[] @relation("DeletionFlagApprover")
   // Module B signage relations
   signageMessagesCreated    SignageMessage[]
+  // Module H notifications relations
+  notificationHubs          NotificationHub[]
+  notificationArchives      NotificationArchive[]
 }
 
 model SchoolYear {
@@ -349,6 +357,8 @@ model Student {
   wellnessCheckins      WellnessCheckin[]
   wellnessScores        WellnessScore[]
   careerProfile         CareerProfile?
+  // Module F exam mode relations
+  examSessions          ExamSession[]
 
   @@index([userId])
 }
@@ -521,6 +531,8 @@ model Assessment {
   gradingReviews       TeacherGradingReview[]
   gradingAnnotations   GradingAnnotation[]
   examPlan             ExamPlan?
+  // Module F exam mode relations
+  examSessions         ExamSession[]
 }
 
 model AssessmentCompetencyLink {
@@ -3424,4 +3436,139 @@ model SignageAuditLog {
   @@index([messageId])
   @@index([action])
   @@map("signage_audit_logs")
+}
+
+// ─── Module F: Exam Mode / Digital Test Environment ──────────────────
+
+model ExamSession {
+  id                String   @id @default(cuid())
+  schoolId          String
+  assessmentId      String
+  studentId         String
+  startTime         DateTime
+  endTime           DateTime?
+  submittedAt       DateTime?
+  status            String   @default("not_started") // not_started, in_progress, submitted, graded
+  score             Float?
+  totalPoints       Float?
+  lockdownEnabled   Boolean  @default(true) // Kiosk mode lockdown
+  cameraMonitor     Boolean  @default(false) // Enable face monitoring
+  screenShare       Boolean  @default(false) // Allow screen sharing for proctoring
+  environmentNotes  String?  // JSON: { browser, os, resolution, etc }
+  suspiciousActivity String? // JSON array of incidents
+  createdAt         DateTime @default(now())
+
+  school            School   @relation(fields: [schoolId], references: [id])
+  assessment        Assessment @relation(fields: [assessmentId], references: [id])
+  student           Student  @relation(fields: [studentId], references: [id])
+  answers           ExamAnswer[]
+  events            ExamEvent[]
+  warnings          ExamWarning[]
+
+  @@index([schoolId])
+  @@index([assessmentId])
+  @@index([studentId])
+  @@index([status])
+  @@map("exam_sessions")
+}
+
+model ExamAnswer {
+  id                String   @id @default(cuid())
+  examSessionId     String
+  questionId        String
+  answer            String?  // JSON: selected choice, free text, etc
+  submittedAt       DateTime @default(now())
+  isCorrect         Boolean?
+  pointsAwarded     Float?
+  reviewedAt        DateTime?
+
+  examSession       ExamSession @relation(fields: [examSessionId], references: [id], onDelete: Cascade)
+
+  @@index([examSessionId])
+  @@index([questionId])
+  @@map("exam_answers")
+}
+
+model ExamEvent {
+  id                String   @id @default(cuid())
+  examSessionId     String
+  eventType         String   // tab_switch, copy_paste, window_blur, camera_detected_none, suspicious_movement, time_warning
+  severity          String   @default("info") // info, warning, critical
+  description       String?
+  timestamp         DateTime @default(now())
+  metadata          String?  // JSON: additional context
+
+  examSession       ExamSession @relation(fields: [examSessionId], references: [id], onDelete: Cascade)
+
+  @@index([examSessionId])
+  @@index([eventType])
+  @@map("exam_events")
+}
+
+model ExamWarning {
+  id                String   @id @default(cuid())
+  examSessionId     String
+  studentId         String
+  warningType       String   // time_low, behavior_suspicious, multiple_tabs, camera_issue
+  message           String
+  acknowledged      Boolean  @default(false)
+  acknowledgedAt    DateTime?
+  createdAt         DateTime @default(now())
+
+  examSession       ExamSession @relation(fields: [examSessionId], references: [id], onDelete: Cascade)
+
+  @@index([examSessionId])
+  @@index([studentId])
+  @@map("exam_warnings")
+}
+
+// ─── Module H: Centralized Notifications Hub ───────────────────────
+
+model NotificationHub {
+  id                String   @id @default(cuid())
+  schoolId          String
+  userId            String
+  category          String   // assessment, behavior, communication, wellness, system, announcement
+  priority          String   @default("normal") // low, normal, high, critical
+  title             String
+  message           String
+  actionUrl         String?  // Link to related resource
+  actionLabel       String?  // e.g. "View Grade", "Respond"
+  isRead            Boolean  @default(false)
+  readAt            DateTime?
+  isDismissed       Boolean  @default(false)
+  dismissedAt       DateTime?
+  sourceType        String?  // assessment, incident, message, announcement, etc
+  sourceId          String?  // ID of related entity
+  createdAt         DateTime @default(now())
+  expiresAt         DateTime? // Auto-archive if set
+
+  school            School   @relation(fields: [schoolId], references: [id])
+  user              User     @relation(fields: [userId], references: [id])
+
+  @@index([schoolId])
+  @@index([userId])
+  @@index([isRead])
+  @@index([category])
+  @@index([createdAt])
+  @@map("notification_hubs")
+}
+
+model NotificationArchive {
+  id                String   @id @default(cuid())
+  schoolId          String
+  userId            String
+  originalId        String?  // reference to NotificationHub.id if archived
+  title             String
+  message           String
+  category          String
+  archivedAt        DateTime @default(now())
+
+  school            School   @relation(fields: [schoolId], references: [id])
+  user              User     @relation(fields: [userId], references: [id])
+
+  @@index([schoolId])
+  @@index([userId])
+  @@index([archivedAt])
+  @@map("notification_archives")
 }
