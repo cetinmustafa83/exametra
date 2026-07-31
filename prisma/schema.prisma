@@ -132,6 +132,10 @@ model School {
   // Module H notifications relations
   notificationHubs NotificationHub[]
   notificationArchives NotificationArchive[]
+  // Module J widgets relations
+  dashboardWidgets DashboardWidget[]
+  dashboardLayouts DashboardLayout[]
+  widgetTemplates WidgetTemplate[]
 }
 
 model User {
@@ -234,6 +238,9 @@ model User {
   // Module H notifications relations
   notificationHubs          NotificationHub[]
   notificationArchives      NotificationArchive[]
+  // Module J widgets relations
+  dashboardWidgets          DashboardWidget[]
+  dashboardLayouts          DashboardLayout[]
 }
 
 model SchoolYear {
@@ -3571,4 +3578,70 @@ model NotificationArchive {
   @@index([userId])
   @@index([archivedAt])
   @@map("notification_archives")
+}
+
+// ─── Module J: Customizable Dashboard Widgets ──────────────────────
+
+model DashboardWidget {
+  id                String   @id @default(cuid())
+  schoolId          String
+  userId            String
+  widgetType        String   // grade_summary, attendance_trend, upcoming_assessments, class_schedule, wellness_status, recent_messages, announcements
+  title             String?  // Custom title override
+  position          Int      // Grid position (0-11)
+  size              String   @default("medium") // small, medium, large, full_width
+  isVisible         Boolean  @default(true)
+  config            String?  // JSON: widget-specific settings { colors, dateRange, filters, etc }
+  dataSource        String?  // API endpoint or computed field reference
+  refreshInterval   Int      @default(300) // seconds (0 = manual)
+  lastRefresh       DateTime?
+  cacheData         String?  // JSON cached widget data
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  school            School   @relation(fields: [schoolId], references: [id])
+  user              User     @relation(fields: [userId], references: [id])
+
+  @@index([schoolId])
+  @@index([userId])
+  @@index([widgetType])
+  @@unique([userId, position])
+  @@map("dashboard_widgets")
+}
+
+model DashboardLayout {
+  id                String   @id @default(cuid())
+  schoolId          String
+  userId            String
+  name              String   // "Default", "Teacher View", "Student View", etc
+  gridColumns       Int      @default(4) // Grid layout columns
+  isDefault         Boolean  @default(false)
+  widgets           String   // JSON: array of widget positions
+  theme             String?  // Dark, light, custom
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  school            School   @relation(fields: [schoolId], references: [id])
+  user              User     @relation(fields: [userId], references: [id])
+
+  @@index([schoolId])
+  @@index([userId])
+  @@map("dashboard_layouts")
+}
+
+model WidgetTemplate {
+  id                String   @id @default(cuid())
+  schoolId          String
+  widgetType        String   // Same types as DashboardWidget
+  name              String
+  description       String?
+  defaultConfig     String   // JSON: default configuration
+  thumbnail         String?  // URL to preview image
+  createdAt         DateTime @default(now())
+
+  school            School   @relation(fields: [schoolId], references: [id])
+
+  @@unique([schoolId, widgetType])
+  @@index([schoolId])
+  @@map("widget_templates")
 }
