@@ -116,6 +116,12 @@ model School {
   substituteTeachers SubstituteTeacher[]
   teacherAbsences    TeacherAbsence[]
   substitutionAssignments SubstitutionAssignment[]
+  // Module L compliance relations
+  dataRetentionPolicies DataRetentionPolicy[]
+  dpiaRecords DpiaRecord[]
+  complianceConsultations ComplianceConsultation[]
+  complianceStatus SchoolComplianceStatus?
+  deletionFlags DeletionFlag[]
 }
 
 model User {
@@ -125,10 +131,11 @@ model User {
   passwordHash    String
   firstName       String
   lastName        String
-  role            String   @default("TEACHER") // TEACHER, SCHOOL_ADMIN, SUPER_ADMIN, STUDENT, PARENT, VICE_PRINCIPAL
+  role            String   @default("TEACHER") // TEACHER, SCHOOL_ADMIN, SUPER_ADMIN, STUDENT, PARENT, VICE_PRINCIPAL, DPO
   locale          String   @default("de")
   twoFactorSecret String?
   isDemo          Boolean  @default(false)
+  isTeacher       Boolean  @default(false) // civil-servant status for Personalrat rights
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
   deletedAt       DateTime?
@@ -207,6 +214,11 @@ model User {
   careerAppointments        CareerAppointment[]
   substituteTeacher         SubstituteTeacher?
   teacherAbsences           TeacherAbsence[]
+  // Module L compliance relations
+  retentionPoliciesReviewed DataRetentionPolicy[] @relation("DataRetentionPolicyReviewer")
+  dpiaRecordsApproved       DpiaRecord[] @relation("DpiaRecordApprover")
+  complianceConsultationsAcknowledged ComplianceConsultation[] @relation("ComplianceConsultationAcknowledger")
+  deletionFlagsApproved     DeletionFlag[] @relation("DeletionFlagApprover")
 }
 
 model SchoolYear {
@@ -651,9 +663,13 @@ model AuditLog {
   userAgent  String?
   timestamp  DateTime @default(now())
   metadata   String?  // JSON
+  dataSubject String? // track which student (if applicable) for GDPR export scope
 
   user  User?  @relation(fields: [userId], references: [id])
   school School? @relation(fields: [schoolId], references: [id])
+
+  @@index([dataSubject])
+  @@index([timestamp])
 }
 
 model DataExportRequest {
@@ -3215,4 +3231,95 @@ model GradeReport {
 
   @@index([schoolId])
   @@index([generatedBy])
+}
+
+// ─── Module L: Legal & Data Protection Compliance ──────────────────
+
+model DataRetentionPolicy {
+  id                      String   @id @default(cuid())
+  schoolId                String
+  dataCategory            String   // LEARNING_PROGRESS, ASSESSMENT_RESULT, FINAL_REPORT, DISCIPLINARY_RECORD, EXAM_INCIDENT, MESSAGE, AI_TUTOR_LOG, NOTEBOOK_PAGE, SIGNAGE_LOG, TEACHER_AUDIT_LOG
+  retentionPeriodMonths   Int?     // nullable to force DPO to fill in legally-mandated categories
+  legalBasisNote          String?  // DPO notes on state-specific retention rule
+  isDefault               Boolean  @default(false) // false = legally mandated; true = optional product data
+  reviewedByUserId        String?  // DPO approval
+  reviewedAt              DateTime?
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+
+  school                  School   @relation(fields: [schoolId], references: [id])
+  reviewedByUser          User?    @relation("DataRetentionPolicyReviewer", fields: [reviewedByUserId], references: [id])
+
+  @@index([schoolId])
+  @@index([dataCategory])
+}
+
+model DpiaRecord {
+  id                      String   @id @default(cuid())
+  schoolId                String
+  moduleScope             String   // AI_TUTOR, EXAM_MODE, WELLNESS_CHECKS, SIGNAGE_EMERGENCY, MESSAGING, LEARNING_ANALYTICS
+  dataProcessingSummary   String   // what's processed, for how long, who sees it
+  completedAt             DateTime
+  approvedByUserId        String?  // DPO approval
+  documentUrl             String?  // uploaded DPIA PDF
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+
+  school                  School   @relation(fields: [schoolId], references: [id])
+  approvedByUser          User?    @relation("DpiaRecordApprover", fields: [approvedByUserId], references: [id])
+
+  @@index([schoolId])
+  @@index([moduleScope])
+  @@unique([schoolId, moduleScope])
+}
+
+model ComplianceConsultation {
+  id                      String   @id @default(cuid())
+  schoolId                String
+  consultationType        String   // ELTERNBEIRAT, SCHULKONFERENZ, PERSONALRAT
+  moduleScope             String?  // specific module if Personalrat for monitoring-capable features
+  acknowledgedByUserId    String
+  acknowledgedAt          DateTime
+  notes                   String?  // what was consulted/approved
+  createdAt               DateTime @default(now())
+
+  school                  School   @relation(fields: [schoolId], references: [id])
+  acknowledgedByUser      User     @relation("ComplianceConsultationAcknowledger", fields: [acknowledgedByUserId], references: [id])
+
+  @@index([schoolId])
+  @@index([consultationType])
+}
+
+model SchoolComplianceStatus {
+  id                      String   @id @default(cuid())
+  schoolId                String   @unique
+  bundesland              String?  // BERLIN, BREMEN, HAMBURG, etc. (16 states)
+  onboardingCompleted     Boolean  @default(false)
+  dpoDpoContactEmail      String?
+  schultragerContactEmail String?
+  moduleGates             String?  // JSON: { "AI_TUTOR": { isApprovedForUse: bool, diaCompleted: bool }, ... }
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+
+  school                  School   @relation(fields: [schoolId], references: [id])
+}
+
+model DeletionFlag {
+  id                      String   @id @default(cuid())
+  schoolId                String
+  entityType              String   // Student, Message, Notebook, etc.
+  entityId                String
+  dataCategory            String   // retention category reference
+  flaggedAt               DateTime @default(now())
+  approvedByUserId        String?
+  approvedAt              DateTime?
+  deletedAt               DateTime?
+  reason                  String   // "retention period expired", "erasure request", etc.
+
+  school                  School   @relation(fields: [schoolId], references: [id])
+  approvedByUser          User?    @relation("DeletionFlagApprover", fields: [approvedByUserId], references: [id])
+
+  @@index([schoolId])
+  @@index([entityType])
+  @@index([flaggedAt])
 }
