@@ -136,6 +136,10 @@ model School {
   dashboardWidgets DashboardWidget[]
   dashboardLayouts DashboardLayout[]
   widgetTemplates WidgetTemplate[]
+  // Module C escalation relations
+  escalationPolicies EscalationPolicy[]
+  escalations        Escalation[]
+  escalationMessageTemplates EscalationMessageTemplate[]
 }
 
 model User {
@@ -241,6 +245,9 @@ model User {
   // Module J widgets relations
   dashboardWidgets          DashboardWidget[]
   dashboardLayouts          DashboardLayout[]
+  // Module C escalation relations
+  escalationsInitiated      Escalation[] @relation("EscalationInitiator")
+  escalationLogsPerformed   EscalationLog[] @relation("EscalationLogPerformer")
 }
 
 model SchoolYear {
@@ -383,7 +390,7 @@ model Enrollment {
   schoolYear  SchoolYear  @relation(fields: [schoolYearId], references: [id])
 }
 
-// ─── Subject & Competency Structure ────────────────────────────────
+// ─── Subject & Competency Structure ─────────────────────────────��──
 
 model Subject {
   id           String @id @default(cuid())
@@ -1240,7 +1247,7 @@ model Backup {
   @@map("backups")
 }
 
-// ─── Behavior Interventions ─────────────────────────────────────────
+// ──�� Behavior Interventions ─────────────────────────────────────────
 
 model BehaviorIntervention {
   id              String    @id @default(cuid())
@@ -3328,6 +3335,138 @@ model SchoolComplianceStatus {
   updatedAt               DateTime @updatedAt
 
   school                  School   @relation(fields: [schoolId], references: [id])
+}
+
+// ─── Module C: Escalation Policy Engine ─────────────────────────────
+
+model EscalationPolicy {
+  id                 String   @id @default(cuid())
+  schoolId           String
+  name               String   // "Verhaltensauffälligkeiten", "Noten-Bedenken", etc.
+  description        String?
+  triggerType        String   // BEHAVIOR_INCIDENT, GRADE_CONCERN, ATTENDANCE, WELLNESS, CUSTOM
+  severity           String   // MINOR, MODERATE, MAJOR
+  isActive           Boolean  @default(true)
+  
+  // Business days calculation
+  businessDaysUntilEscalation Int @default(5)  // e.g., 5 business days until parent can escalate
+  timezone           String   @default("Europe/Berlin")
+  
+  // Escalation chain configuration
+  escalationSteps    EscalationStep[]
+  
+  // Audit
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+  
+  school             School   @relation(fields: [schoolId], references: [id])
+  escalations        Escalation[]
+
+  @@unique([schoolId, name])
+  @@index([schoolId])
+}
+
+model EscalationStep {
+  id                 String   @id @default(cuid())
+  policyId           String
+  stepNumber         Int      // 1, 2, 3, etc.
+  recipientRole      String   // TEACHER, CLASS_LEADER, VICE_PRINCIPAL, PRINCIPAL, COUNSELOR, SCHOOL_ADMIN
+  requiresConfirmation Boolean @default(true)
+  autoNotify         Boolean  @default(true)
+  messageTemplate    String?  // Reason why escalation necessary
+  
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+  
+  policy             EscalationPolicy @relation(fields: [policyId], references: [id], onDelete: Cascade)
+  escalationLogs     EscalationLog[]
+
+  @@unique([policyId, stepNumber])
+  @@index([policyId])
+}
+
+model Escalation {
+  id                 String   @id @default(cuid())
+  schoolId           String
+  policyId           String
+  initiatedByUserId  String
+  initiatorRole      String   // student, parent, teacher
+  subjectUserId      String   // Student being escalated
+  subjectType        String   // STUDENT, BEHAVIOR, GRADE, ATTENDANCE, WELLNESS
+  subjectId          String   // ID of the specific issue (incidentId, gradeId, etc.)
+  
+  // Escalation state
+  status             String   @default("PENDING")  // PENDING, IN_REVIEW, ESCALATED, RESOLVED, CLOSED
+  currentStep        Int      @default(1)
+  eligibleAtDateTime DateTime  // Calculated by business-day logic
+  
+  // Context
+  reason             String   // Why escalation was initiated
+  attachmentUrls     String?  // JSON array of file URLs
+  
+  // Audit
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+  resolvedAt         DateTime?
+  
+  school             School   @relation(fields: [schoolId], references: [id])
+  policy             EscalationPolicy @relation(fields: [policyId], references: [id])
+  initiatedBy        User     @relation("EscalationInitiator", fields: [initiatedByUserId], references: [id])
+  subjectUser        Student  @relation(fields: [subjectUserId], references: [id])
+  logs               EscalationLog[]
+
+  @@index([schoolId])
+  @@index([policyId])
+  @@index([subjectUserId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model EscalationLog {
+  id                 String   @id @default(cuid())
+  escalationId       String
+  stepId             String
+  actionType         String   // INITIATED, NOTIFIED, CONFIRMED, ESCALATED_TO_NEXT_STEP, RESOLVED
+  performedByUserId  String?
+  actionReason       String?
+  confidentialNote   String?  // Only visible to authorized users
+  
+  createdAt          DateTime @default(now())
+  
+  escalation         Escalation @relation(fields: [escalationId], references: [id], onDelete: Cascade)
+  step               EscalationStep @relation(fields: [stepId], references: [id])
+  performedBy        User?    @relation("EscalationLogPerformer", fields: [performedByUserId], references: [id])
+
+  @@index([escalationId])
+  @@index([performedByUserId])
+  @@index([createdAt])
+}
+
+model EscalationMessageTemplate {
+  id                 String   @id @default(cuid())
+  schoolId           String
+  triggerType        String   // BEHAVIOR_INCIDENT, GRADE_CONCERN, ATTENDANCE, WELLNESS
+  severity           String   // MINOR, MODERATE, MAJOR
+  stepNumber         Int      // At which step this message is sent
+  
+  // Template content
+  titleDe            String   // German
+  titleEn            String?  // English (optional)
+  bodyDe             String
+  bodyEn             String?
+  
+  // Personalization placeholders: {{studentName}}, {{incidentDate}}, {{reason}}, {{nextStepRole}}
+  
+  isDefault          Boolean  @default(false)
+  isActive           Boolean  @default(true)
+  
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+  
+  school             School   @relation(fields: [schoolId], references: [id])
+
+  @@unique([schoolId, triggerType, severity, stepNumber])
+  @@index([schoolId])
 }
 
 model DeletionFlag {
