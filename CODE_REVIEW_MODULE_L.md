@@ -1,4 +1,4 @@
-# ExaMetra Code Review & Refactor Analysis
+# SchulOS Code Review & Refactor Analysis
 ## PRD v1 → v2 + Module L Compliance
 
 **Date:** 2026-07-31  

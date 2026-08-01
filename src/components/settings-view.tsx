@@ -732,7 +732,7 @@ function PrivacyTab({ currentUser }: { currentUser: { id: string; role: string; 
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `competencetrack-data-export-${new Date().toISOString().split('T')[0]}.json`;
+      a.download = `schulos-data-export-${new Date().toISOString().split('T')[0]}.json`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -866,7 +866,7 @@ function PrivacyTab({ currentUser }: { currentUser: { id: string; role: string; 
               <Mail className="h-4 w-4 text-gray-600 dark:text-gray-400" />
               <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300">{t('dsgvo.contact_dpo')}</h4>
             </div>
-            <p className="text-sm text-gray-600 dark:text-gray-400">datenschutz@competencetrack.org</p>
+            <p className="text-sm text-gray-600 dark:text-gray-400">datenschutz@schulos.org</p>
           </div>
         </CardContent>
       </Card>
@@ -1070,12 +1070,12 @@ function PrivacyTab({ currentUser }: { currentUser: { id: string; role: string; 
                 className="min-h-[44px] rounded-xl border-violet-200 dark:border-violet-900/30 text-violet-700 dark:text-violet-300 hover:bg-violet-50 dark:hover:bg-violet-900/20 font-semibold"
                 onClick={() => {
                   // Generate a simple DPA template as a downloadable text file
-                  const dpaTemplate = `Auftragsverarbeitungsvertrag (AVV)\ngemäß Art. 28 DSGVO\n\nVerantwortliche Stelle (Schule):\n[Name der Schule]\n[Adresse]\n\nAuftragsverarbeiter:\nCompetenceTrack\n[Adresse]\n\n1. Gegenstand und Dauer der Verarbeitung\nDer Auftragsverarbeiter verarbeitet personenbezogene Daten im Auftrag der verantwortlichen Stelle gemäß den Bestimmungen dieses Vertrages.\n\n2. Art und Zweck der Verarbeitung\n- Bereitstellung und Betrieb der CompetenceTrack-Plattform\n- Verwaltung von Schüler- und Klassendaten\n- Dokumentation von Lernfortschritten\n- Erstellung von Zeugnissen und Berichten\n\n3. Art der personenbezogenen Daten\n- Name, E-Mail-Adresse\n- Schülereinschreibungsdaten\n- Lernfortschrittsdaten\n- Bewertungsdaten\n- Anwesenheitsdaten\n\n4. Betroffene Personenkreise\n- Schülerinnen und Schüler\n- Lehrkräfte\n- Eltern / Erziehungsberechtigte\n\n5. Technisch-organisatorische Maßnahmen\nDer Auftragsverarbeiter implementiert angemessene technisch-organisatorische Maßnahmen gemäß Art. 32 DSGVO.\n\n6. Löschung und Rückgabe von Daten\nNach Beendigung des Auftragsverhältnisses werden alle personenbezogenen Daten gelöscht.\n\n7. Kontrolle durch die verantwortliche Stelle\nDie verantwortliche Stelle hat das Recht, die Einhaltung der Maßnahmen zu kontrollieren.\n\n8. Unterauftragsverhältnisse\nEine Weitergabe an Unterauftragnehmer bedarf der vorherigen Zustimmung der verantwortlichen Stelle.\n\nOrt, Datum: _______________\n\nUnterschrift Verantwortliche Stelle: _______________\nUnterschrift Auftragsverarbeiter: _______________`;
+                  const dpaTemplate = `Auftragsverarbeitungsvertrag (AVV)\ngemäß Art. 28 DSGVO\n\nVerantwortliche Stelle (Schule):\n[Name der Schule]\n[Adresse]\n\nAuftragsverarbeiter:\nSchulOS\n[Adresse]\n\n1. Gegenstand und Dauer der Verarbeitung\nDer Auftragsverarbeiter verarbeitet personenbezogene Daten im Auftrag der verantwortlichen Stelle gemäß den Bestimmungen dieses Vertrages.\n\n2. Art und Zweck der Verarbeitung\n- Bereitstellung und Betrieb der SchulOS-Plattform\n- Verwaltung von Schüler- und Klassendaten\n- Dokumentation von Lernfortschritten\n- Erstellung von Zeugnissen und Berichten\n\n3. Art der personenbezogenen Daten\n- Name, E-Mail-Adresse\n- Schülereinschreibungsdaten\n- Lernfortschrittsdaten\n- Bewertungsdaten\n- Anwesenheitsdaten\n\n4. Betroffene Personenkreise\n- Schülerinnen und Schüler\n- Lehrkräfte\n- Eltern / Erziehungsberechtigte\n\n5. Technisch-organisatorische Maßnahmen\nDer Auftragsverarbeiter implementiert angemessene technisch-organisatorische Maßnahmen gemäß Art. 32 DSGVO.\n\n6. Löschung und Rückgabe von Daten\nNach Beendigung des Auftragsverhältnisses werden alle personenbezogenen Daten gelöscht.\n\n7. Kontrolle durch die verantwortliche Stelle\nDie verantwortliche Stelle hat das Recht, die Einhaltung der Maßnahmen zu kontrollieren.\n\n8. Unterauftragsverhältnisse\nEine Weitergabe an Unterauftragnehmer bedarf der vorherigen Zustimmung der verantwortlichen Stelle.\n\nOrt, Datum: _______________\n\nUnterschrift Verantwortliche Stelle: _______________\nUnterschrift Auftragsverarbeiter: _______________`;
                   const blob = new Blob([dpaTemplate], { type: 'text/plain;charset=utf-8' });
                   const url = URL.createObjectURL(blob);
                   const a = document.createElement('a');
                   a.href = url;
-                  a.download = 'AVV_CompetenceTrack_Vorlage.txt';
+                  a.download = 'AVV_SchulOS_Vorlage.txt';
                   document.body.appendChild(a);
                   a.click();
                   document.body.removeChild(a);
@@ -1102,7 +1102,7 @@ function PrivacyTab({ currentUser }: { currentUser: { id: string; role: string; 
                     title: 'Verzeichnis von Verarbeitungstätigkeiten',
                     legalBasis: 'Art. 30 DSGVO',
                     controller: '[Name der Schule]',
-                    processor: 'CompetenceTrack',
+                    processor: 'SchulOS',
                     processingActivities: [
                       { name: 'Benutzerverwaltung', purpose: 'Bereitstellung der Plattform', dataCategories: 'Name, E-Mail, Rolle', retention: 'Dauer der Nutzung + 30 Tage', legalBasis: 'Art. 6 Abs. 1 lit. b DSGVO' },
                       { name: 'Schülerverwaltung', purpose: 'Verwaltung von Klassen und Schülern', dataCategories: 'Name, Geburtsdatum, Geschlecht', retention: 'Dauer der Nutzung + 30 Tage', legalBasis: 'Art. 6 Abs. 1 lit. b DSGVO' },
@@ -5085,7 +5085,7 @@ export default function SettingsView() {
                     </div>
                   )}
                   <div>
-                    <p className="font-bold text-gray-900 dark:text-gray-100" style={{ color: brandingForm.primaryColor }}>{selectedSchool?.name || 'CompetenceTrack'}</p>
+                    <p className="font-bold text-gray-900 dark:text-gray-100" style={{ color: brandingForm.primaryColor }}>{selectedSchool?.name || 'SchulOS'}</p>
                     <p className="text-xs text-gray-500 dark:text-gray-400">{brandingForm.motto || t('app.subtitle')}</p>
                   </div>
                 </div>
@@ -5444,7 +5444,7 @@ export default function SettingsView() {
                 <div className="p-4 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900">
                   <p className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">{t('email.template_subject')}: {emailPreviewTemplate.subject}</p>
                   <div className="mt-3 p-3 rounded-xl bg-gray-50 dark:bg-gray-800/50 text-sm max-h-64 overflow-y-auto scrollbar-education">
-                    {emailPreviewTemplate.body.replace(/\{\{studentName\}\}/g, 'Max Mustermann').replace(/\{\{className\}\}/g, 'Klasse 5a').replace(/\{\{teacherName\}\}/g, 'Frau Muster').replace(/\{\{date\}\}/g, new Date().toLocaleDateString()).replace(/\{\{schoolName\}\}/g, 'CompetenceTrack Schule').replace(/\{\{subjectName\}\}/g, 'Mathematik').replace(/\{\{score\}\}/g, '85%')}
+                    {emailPreviewTemplate.body.replace(/\{\{studentName\}\}/g, 'Max Mustermann').replace(/\{\{className\}\}/g, 'Klasse 5a').replace(/\{\{teacherName\}\}/g, 'Frau Muster').replace(/\{\{date\}\}/g, new Date().toLocaleDateString()).replace(/\{\{schoolName\}\}/g, 'SchulOS Schule').replace(/\{\{subjectName\}\}/g, 'Mathematik').replace(/\{\{score\}\}/g, '85%')}
                   </div>
                 </div>
                 <div className="space-y-2">

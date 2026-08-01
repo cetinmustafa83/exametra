@@ -1,4 +1,4 @@
-// CompetenceTrack — WebSocket Hook
+// SchulOS — WebSocket Hook
 // Real-time collaboration and push notifications via Socket.IO
 
 'use client';

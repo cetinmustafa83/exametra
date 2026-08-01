@@ -1,4 +1,4 @@
-# ExaMetra PRD Implementation Todo — Visual Roadmap
+# SchulOS PRD Implementation Todo — Visual Roadmap
 
 ## Current Status: 30% Complete (Week 1)
 

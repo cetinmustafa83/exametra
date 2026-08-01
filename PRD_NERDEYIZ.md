@@ -1,4 +1,4 @@
-# ExaMetra PRD: Nerede Olduğumuz ve Eksiklerimiz
+# SchulOS PRD: Nerede Olduğumuz ve Eksiklerimiz
 
 **Tarih:** 1 Ağustos 2026  
 **Durum:** 30% tamamlanmış, 70% eksik
@@ -7,7 +7,7 @@
 
 ## Özet
 
-ExaMetra PRD'ye göre **12 modül** tanımlanmış. Bugünkü konsolidasyonda **Takvim** ve **Notlandırma** sistemini birleştirdik, ama **10 modül hala yapılacak**.
+SchulOS PRD'ye göre **12 modül** tanımlanmış. Bugünkü konsolidasyonda **Takvim** ve **Notlandırma** sistemini birleştirdik, ama **10 modül hala yapılacak**.
 
 ---
 

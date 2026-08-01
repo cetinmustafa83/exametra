@@ -1,4 +1,4 @@
-// CompetenceTrack — QR Code Generation Utility
+// SchulOS — QR Code Generation Utility
 // Generates QR codes as base64 PNG images using canvas
 
 export type QRCodeType = 'student' | 'class' | 'attendance' | 'event';
@@ -17,7 +17,7 @@ export interface QRCodeData {
  * Build a URL string from QR code data that can be encoded into a QR code
  */
 export function buildQRCodeUrl(data: QRCodeData): string {
-  const base = typeof window !== 'undefined' ? window.location.origin : 'https://competencetrack.app';
+  const base = typeof window !== 'undefined' ? window.location.origin : 'https://schulos.app';
   switch (data.type) {
     case 'student':
       return `${base}/?student=${data.id}`;

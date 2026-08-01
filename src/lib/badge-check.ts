@@ -1,4 +1,4 @@
-// CompetenceTrack — Badge Auto-Award Check Utility
+// SchulOS — Badge Auto-Award Check Utility
 // Checks if a student meets requirements for auto-awarded badges
 
 import { db } from '@/lib/db';

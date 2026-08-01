@@ -1,4 +1,4 @@
-# ExaMetra
+# SchulOS
 
 **Free & open-source competence & grading platform for schools**
 
@@ -6,9 +6,9 @@ _Kompetenzorientierte Beurteilung fur alle_
 
 ---
 
-## What is ExaMetra?
+## What is SchulOS?
 
-ExaMetra is a comprehensive, free, and open-source web application designed for schools to track student competencies, manage assessments, compute grades, and generate reports. Built with modern web technologies, it provides a rich, professional interface for teachers, school administrators, students, and parents.
+SchulOS is a comprehensive, free, and open-source web application designed for schools to track student competencies, manage assessments, compute grades, and generate reports. Built with modern web technologies, it provides a rich, professional interface for teachers, school administrators, students, and parents.
 
 ## Features
 
@@ -71,8 +71,8 @@ ExaMetra is a comprehensive, free, and open-source web application designed for 
 
 ```bash
 # Clone the repository
-git clone https://github.com/cetinmustafa83/exametra.git
-cd exametra
+git clone https://github.com/cetinmustafa83/schulos.git
+cd schulos
 
 # Install dependencies
 npm install
@@ -108,7 +108,7 @@ After seeding, you can log in with these demo accounts:
 ## Project Structure
 
 ```
-exametra/
+schulos/
   src/
     app/              # Next.js App Router pages & API routes
       api/            # 34+ API endpoint directories
@@ -152,4 +152,4 @@ Contributions are welcome! This is a free and open-source project aimed at makin
 
 ---
 
-**ExaMetra** — Kompetenzorientierte Beurteilung fur alle
+**SchulOS** — Kompetenzorientierte Beurteilung fur alle

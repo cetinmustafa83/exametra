@@ -1,4 +1,4 @@
-// CompetenceTrack — Notifications API (DB-backed, Enhanced)
+// SchulOS — Notifications API (DB-backed, Enhanced)
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { getSession } from '@/lib/auth';

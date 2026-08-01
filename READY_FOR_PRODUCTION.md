@@ -1,4 +1,4 @@
-# ExaMetra: READY FOR PRODUCTION
+# SchulOS: READY FOR PRODUCTION
 
 ## Project Completion Status: 100%
 
@@ -254,8 +254,8 @@ pnpm run build
 vercel deploy --prod
 
 # Or Docker/self-hosted
-docker build -t exametra:latest .
-docker run -e DATABASE_URL=$DB_URL exametra:latest
+docker build -t schulos:latest .
+docker run -e DATABASE_URL=$DB_URL schulos:latest
 ```
 
 ### 4. Verify Deployment

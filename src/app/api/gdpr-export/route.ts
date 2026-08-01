@@ -253,7 +253,7 @@ export async function GET() {
     const exportData: Record<string, unknown> = {
       exportMetadata: {
         exportDate: new Date().toISOString(),
-        platform: 'CompetenceTrack',
+        platform: 'SchulOS',
         legalBasis: 'DSGVO Art. 20 - Recht auf Datenübertragbarkeit',
         userId: user.id,
       },
@@ -285,7 +285,7 @@ export async function GET() {
 
     return NextResponse.json(exportData, {
       headers: {
-        'Content-Disposition': `attachment; filename="competencetrack-data-export-${new Date().toISOString().split('T')[0]}.json"`,
+        'Content-Disposition': `attachment; filename="schulos-data-export-${new Date().toISOString().split('T')[0]}.json"`,
       },
     });
   } catch (error) {

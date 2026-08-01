@@ -196,5 +196,5 @@ All code:
 - ✓ Includes usage examples
 - ✓ Handles error cases
 - ✓ Uses shadcn/ui components
-- ✓ Follows existing ExaMetra patterns
+- ✓ Follows existing SchulOS patterns
 - ✓ Database migrations completed

@@ -1,8 +1,12 @@
-// CompetenceTrack — Service Worker for PWA Offline Support
-const CACHE_NAME = 'competencetrack-v3';
-const STATIC_CACHE = 'competencetrack-static-v3';
-const DATA_CACHE = 'competencetrack-data-v3';
-const OFFLINE_CACHE = 'competencetrack-offline-v3';
+// SchulOS — Service Worker for PWA Offline Support
+const CACHE_NAME = 'schulos-v3';
+const STATIC_CACHE = 'schulos-static-v3';
+const DATA_CACHE = 'schulos-data-v3';
+const OFFLINE_CACHE = 'schulos-offline-v3';
+const SYNC_TAG = 'schulos-sync';
+const LEGACY_SYNC_TAG = 'competencetrack-sync';
+const SYNC_DB = 'schulos-sync-db';
+const LEGACY_SYNC_DB = 'competencetrack-sync-db';
 
 // Static assets to cache on install
 const STATIC_ASSETS = [
@@ -33,19 +37,17 @@ self.addEventListener('install', (event) => {
   );
 });
 
-// Activate event — clean up old caches
+// Activate event — migrate queued writes before clearing legacy caches.
 self.addEventListener('activate', (event) => {
   event.waitUntil(
-    caches.keys().then((keys) => {
-      return Promise.all(
+    migrateLegacyPendingRequests()
+      .then(() => caches.keys())
+      .then((keys) => Promise.all(
         keys
           .filter((key) => key !== CACHE_NAME && key !== STATIC_CACHE && key !== DATA_CACHE && key !== OFFLINE_CACHE)
           .map((key) => caches.delete(key))
-      );
-    }).then(() => {
-      console.log('[SW] Activated and old caches cleaned');
-      return self.clients.claim();
-    })
+      ))
+      .then(() => self.clients.claim())
   );
 });
 
@@ -191,7 +193,7 @@ async function networkFirstWithOfflineFallback(request) {
 
 // Store failed requests for background sync
 async function storeRequestForSync(request) {
-  const db = await openIndexedDB();
+  const db = await openIndexedDB(SYNC_DB);
   const tx = db.transaction('pending-requests', 'readwrite');
   const store = tx.objectStore('pending-requests');
   const requestData = {
@@ -202,16 +204,13 @@ async function storeRequestForSync(request) {
     timestamp: Date.now(),
   };
   store.add(requestData);
-  await tx.done;
-
-  // Register for background sync
-  self.registration.sync.register('competencetrack-sync');
+  await transactionDone(tx);
+  self.registration.sync.register(SYNC_TAG);
 }
 
-// Open IndexedDB for storing pending requests
-function openIndexedDB() {
+function openIndexedDB(name) {
   return new Promise((resolve, reject) => {
-    const request = indexedDB.open('competencetrack-sync-db', 1);
+    const request = indexedDB.open(name, 1);
     request.onupgradeneeded = () => {
       const db = request.result;
       if (!db.objectStoreNames.contains('pending-requests')) {
@@ -223,18 +222,54 @@ function openIndexedDB() {
   });
 }
 
-// Background sync event — replay queued requests when back online
+function transactionDone(tx) {
+  return new Promise((resolve, reject) => {
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+    tx.onabort = () => reject(tx.error);
+  });
+}
+
+async function migrateLegacyPendingRequests() {
+  const legacyDb = await openIndexedDB(LEGACY_SYNC_DB);
+  const legacyTx = legacyDb.transaction('pending-requests', 'readonly');
+  const legacyStore = legacyTx.objectStore('pending-requests');
+  const requests = await new Promise((resolve, reject) => {
+    const request = legacyStore.getAll();
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+  await transactionDone(legacyTx);
+
+  if (!requests.length) return;
+
+  const currentDb = await openIndexedDB(SYNC_DB);
+  const currentTx = currentDb.transaction('pending-requests', 'readwrite');
+  const currentStore = currentTx.objectStore('pending-requests');
+  for (const request of requests) currentStore.put(request);
+  await transactionDone(currentTx);
+
+  const deleteTx = legacyDb.transaction('pending-requests', 'readwrite');
+  deleteTx.objectStore('pending-requests').clear();
+  await transactionDone(deleteTx);
+}
+
+// Background sync event — replay queues from both brand generations.
 self.addEventListener('sync', (event) => {
-  if (event.tag === 'competencetrack-sync') {
-    event.waitUntil(replayPendingRequests());
+  if (event.tag === SYNC_TAG || event.tag === LEGACY_SYNC_TAG) {
+    event.waitUntil(migrateLegacyPendingRequests().then(replayPendingRequests));
   }
 });
 
 async function replayPendingRequests() {
-  const db = await openIndexedDB();
+  const db = await openIndexedDB(SYNC_DB);
   const tx = db.transaction('pending-requests', 'readwrite');
   const store = tx.objectStore('pending-requests');
-  const allRequests = await store.getAll();
+  const allRequests = await new Promise((resolve, reject) => {
+    const request = store.getAll();
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
 
   for (const reqData of allRequests) {
     try {
@@ -244,15 +279,12 @@ async function replayPendingRequests() {
         headers,
         body: reqData.method !== 'GET' ? reqData.body : undefined,
       });
-      if (response.ok) {
-        store.delete(reqData.timestamp);
-      }
+      if (response.ok) store.delete(reqData.timestamp);
     } catch (error) {
       console.warn('[SW] Failed to replay request:', error);
-      // Keep the request in the store for next sync attempt
     }
   }
-  await tx.done;
+  await transactionDone(tx);
 }
 
 // Push event — show notification (if push notifications are configured)
@@ -269,7 +301,7 @@ self.addEventListener('push', (event) => {
     },
   };
   event.waitUntil(
-    self.registration.showNotification(data.title || 'CompetenceTrack', options)
+    self.registration.showNotification(data.title || 'SchulOS', options)
   );
 });
 

@@ -1762,7 +1762,7 @@ function generatePrintHTML(
     return `
       <div class="report-card-page">
         <div class="header">
-          <h1>${school?.name ?? 'CompetenceTrack'}</h1>
+          <h1>${school?.name ?? 'SchulOS'}</h1>
           ${school?.motto ? `<p class="motto">${school.motto}</p>` : ''}
           <h2>Zeugnis / Report Card</h2>
           <p>Schuljahr: ${report.schoolYear.label}</p>

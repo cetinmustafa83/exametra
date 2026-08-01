@@ -1,4 +1,4 @@
-// CompetenceTrack — API Rate Limiting Middleware
+// SchulOS — API Rate Limiting Middleware
 // In-memory rate limiting with configurable limits per endpoint
 
 interface RateLimitEntry {

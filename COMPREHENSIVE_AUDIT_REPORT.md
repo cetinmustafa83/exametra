@@ -1,4 +1,4 @@
-# ExaMetra Comprehensive Audit Report
+# SchulOS Comprehensive Audit Report
 
 ## Executive Summary
 

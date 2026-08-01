@@ -1,5 +1,5 @@
 {
-  "name": "exametra",
+  "name": "schulos",
   "version": "1.0.0",
   "private": false,
   "description": "Free & open-source competence & grading platform for schools — Kompetenzorientierte Beurteilung für alle",
@@ -7,7 +7,7 @@
   "author": "Mustafa Cetin",
   "repository": {
     "type": "git",
-    "url": "https://github.com/cetinmustafa83/exametra"
+    "url": "https://github.com/cetinmustafa83/schulos"
   },
   "keywords": [
     "education",

@@ -51,7 +51,7 @@ export async function POST(request: Request) {
       teacherName: `${session.user?.firstName || 'Frau'} ${session.user?.lastName || 'Muster'}`,
       date: new Date().toLocaleDateString('de-DE'),
       score: '85%',
-      schoolName: 'CompetenceTrack Schule',
+      schoolName: 'SchulOS Schule',
       subjectName: 'Mathematik',
       behaviorDescription: 'Beschreibung des Vorfalls',
       behaviorCategory: 'Störung',

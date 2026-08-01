@@ -1,5 +1,5 @@
 /**
- * CompetenceTrack — Prisma Seed Script
+ * SchulOS — Prisma Seed Script
  * Populates the database with realistic demo data for a Berlin elementary school.
  *
  * Usage: bun prisma/seed.ts
@@ -29,7 +29,7 @@ function pick<T>(arr: T[]): T {
 }
 
 async function main() {
-  console.log('🌱 Seeding CompetenceTrack database...\n')
+  console.log('🌱 Seeding SchulOS database...\n')
 
   // Clean up existing data (order matters due to foreign keys)
   console.log('  🧹 Cleaning existing data...')

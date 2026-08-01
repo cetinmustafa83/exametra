@@ -1,4 +1,4 @@
-// CompetenceTrack — Notification Helper
+// SchulOS — Notification Helper
 // Server-side utility for creating notifications in the database
 // Also pushes notifications via WebSocket service
 

@@ -1,4 +1,4 @@
-// CompetenceTrack — Single Notification API
+// SchulOS — Single Notification API
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { getSession } from '@/lib/auth';

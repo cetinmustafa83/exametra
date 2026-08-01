@@ -1,4 +1,4 @@
-// CompetenceTrack — Offline Cache for Notebook Data
+// SchulOS — Offline Cache for Notebook Data
 // Stores notebook data in localStorage for offline access
 
 const NOTEBOOK_CACHE_KEY = 'ct_notebook_cache';

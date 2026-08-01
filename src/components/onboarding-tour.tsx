@@ -244,7 +244,7 @@ export default function OnboardingTour({ open, onClose }: OnboardingTourProps) {
         {/* Hidden title for accessibility */}
         <DialogHeader className="sr-only">
           <VisuallyHidden>
-            <DialogTitle>CompetenceTrack Onboarding Tour</DialogTitle>
+            <DialogTitle>SchulOS Onboarding Tour</DialogTitle>
           </VisuallyHidden>
         </DialogHeader>
         {/* Close button */}

@@ -1,4 +1,4 @@
-// CompetenceTrack — In-memory API response cache utility
+// SchulOS — In-memory API response cache utility
 // Provides TTL-based caching for API responses to reduce redundant fetches
 
 interface CacheEntry<T> {

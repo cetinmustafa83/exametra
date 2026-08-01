@@ -1,4 +1,4 @@
-// CompetenceTrack — Zustand Store
+// SchulOS — Zustand Store
 import { create } from 'zustand';
 import { setLocale, getLocale } from '@/lib/i18n';
 

@@ -59,7 +59,7 @@ export default function CompliancePage() {
         <Card className="border-emerald-200 bg-emerald-50">
           <CardContent className="pt-6">
             <p className="text-emerald-800 mb-4">
-              ✓ Compliance onboarding completed successfully! Your school is now ready to use ExaMetra.
+              ✓ Compliance onboarding completed successfully! Your school is now ready to use SchulOS.
             </p>
             <button
               onClick={() => router.push("/admin/compliance-overview")}

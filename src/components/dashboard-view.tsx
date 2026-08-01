@@ -3295,7 +3295,7 @@ export default function DashboardView() {
               <div className="hidden sm:flex flex-col items-end gap-1 shrink-0">
                 <Badge className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300 text-xs">
                   <GraduationCap className="h-3 w-3 mr-1" />
-                  {currentUser?.schoolId ? t('nav.classes') : 'CompetenceTrack'}
+                  {currentUser?.schoolId ? t('nav.classes') : 'SchulOS'}
                 </Badge>
                 <span className="text-[10px] text-gray-400 dark:text-gray-500">
                   {t('dashboard.total_students')}: {data.stats.totalStudents} · {t('dashboard.total_classes')}: {data.stats.totalClasses}

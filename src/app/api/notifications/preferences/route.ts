@@ -1,4 +1,4 @@
-// CompetenceTrack — Notification Preferences API
+// SchulOS — Notification Preferences API
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { getSession } from '@/lib/auth';

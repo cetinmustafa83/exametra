@@ -1,4 +1,4 @@
-// CompetenceTrack — Full Database Schema
+// SchulOS — Full Database Schema
 // SQLite via Prisma ORM | UUIDs for portability | UTC timestamps
 
 generator client {

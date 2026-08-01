@@ -1,4 +1,4 @@
-# ExaMetra Refactor Action Plan
+# SchulOS Refactor Action Plan
 ## PRD v1 → v2 → Production Ready
 
 **Current State Analysis:**

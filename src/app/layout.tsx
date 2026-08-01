@@ -15,19 +15,19 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "CompetenceTrack — Free Competency & Grading Platform",
+  title: "SchulOS — Free Competency & Grading Platform",
   description: "Open-Source School Software for Competency-Based Assessment and Grading. Built with Next.js, TypeScript, and shadcn/ui.",
-  keywords: ["CompetenceTrack", "competency", "grading", "school", "education", "Next.js", "TypeScript", "shadcn/ui"],
-  authors: [{ name: "CompetenceTrack Team" }],
+  keywords: ["SchulOS", "competency", "grading", "school", "education", "Next.js", "TypeScript", "shadcn/ui"],
+  authors: [{ name: "SchulOS Team" }],
   manifest: "/manifest.json",
   icons: {
-    icon: "https://z-cdn.chatglm.cn/z-ai/static/logo.svg",
+    icon: "/logo.svg",
     apple: "/icon-192.png",
   },
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "CompetenceTrack",
+    title: "SchulOS",
   },
 };
 

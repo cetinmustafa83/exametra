@@ -126,8 +126,8 @@ export async function POST(request: Request) {
       {
         schoolId: school.id,
         name: 'welcome',
-        subject: 'Willkommen bei CompetenceTrack',
-        body: '<h1>Willkommen bei CompetenceTrack!</h1><p>Hallo {{studentName}},</p><p>du wurdest für die Schule {{schoolName}} registriert.</p><p>Deine Zugangsdaten:</p><p>E-Mail: {{email}}</p><p>Bitte melde dich an und ändere dein Passwort.</p><p>Mit freundlichen Grüßen,<br>{{schoolName}}</p>',
+        subject: 'Willkommen bei SchulOS',
+        body: '<h1>Willkommen bei SchulOS!</h1><p>Hallo {{studentName}},</p><p>du wurdest für die Schule {{schoolName}} registriert.</p><p>Deine Zugangsdaten:</p><p>E-Mail: {{email}}</p><p>Bitte melde dich an und ändere dein Passwort.</p><p>Mit freundlichen Grüßen,<br>{{schoolName}}</p>',
         isDefault: true,
       },
     ];

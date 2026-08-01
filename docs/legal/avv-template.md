@@ -32,7 +32,7 @@ The Processor shall process the following personal data on behalf of the Control
 - Exam monitoring logs
 - Communication/messaging data
 
-**Purpose**: Operation and maintenance of the ExaMetra school management platform
+**Purpose**: Operation and maintenance of the SchulOS school management platform
 
 ---
 
@@ -202,6 +202,6 @@ The Processor is authorized to engage the following sub-processors:
 ---
 
 **Generated**: ISO 8601 timestamp
-**Source**: ExaMetra Module L - Compliance Framework
+**Source**: SchulOS Module L - Compliance Framework
 
 **REMINDER**: This is a template. Consult legal counsel to customize for your jurisdiction and service provider.

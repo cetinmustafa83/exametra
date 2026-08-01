@@ -1,5 +1,5 @@
 ================================================================================
-                    EXAMETRA CODE AUDIT SUMMARY
+                    SCHULOS CODE AUDIT SUMMARY
                 PRD v1 → v2 + Module L Compliance Analysis
 ================================================================================
 
@@ -357,7 +357,7 @@ AUDIT_SUMMARY.txt (this file)
   - Executive summary
   - Quick reference
 
-MEMORY (v0_memories/user/exametra-code-review.md)
+MEMORY (v0_memories/user/schulos-code-review.md)
   - Saved for future conversations
 
 ═══════════════════════════════════════════════════════════════════════════════

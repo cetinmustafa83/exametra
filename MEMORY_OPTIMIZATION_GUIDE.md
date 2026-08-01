@@ -1,4 +1,4 @@
-# ExaMetra Memory Optimization & Menu Consolidation Guide
+# SchulOS Memory Optimization & Menu Consolidation Guide
 
 ## Problem Analysis
 

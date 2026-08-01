@@ -1,6 +1,6 @@
 {
-  "name": "CompetenceTrack",
-  "short_name": "CompTrack",
+  "name": "SchulOS",
+  "short_name": "SchulOS",
   "description": "Kompetenz- und Benotungsplattform für Schulen",
   "start_url": "/",
   "display": "standalone",

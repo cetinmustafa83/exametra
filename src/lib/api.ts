@@ -1,4 +1,4 @@
-// CompetenceTrack — API Client
+// SchulOS — API Client
 // All API calls go through these helpers
 
 /* ── Generic helpers ──────────────────────────────────────────────── */

@@ -1,4 +1,4 @@
-// CompetenceTrack — Announcement Read Receipt API
+// SchulOS — Announcement Read Receipt API
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { getSession } from '@/lib/auth';

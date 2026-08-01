@@ -1,4 +1,4 @@
-// CompetenceTrack — Audit Logging Middleware
+// SchulOS — Audit Logging Middleware
 // Provides logAudit() and withAuditLog() helpers for recording all data modifications
 
 import { db } from '@/lib/db';

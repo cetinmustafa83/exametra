@@ -534,7 +534,7 @@ export default function SchoolLibraryView() {
         <p><strong>${t('library.due_date')}:</strong> ${new Date(checkout.dueDate).toLocaleDateString()}</p>
         <p><strong>${t('library.condition')}:</strong> ${checkout.condition}</p>
         <hr/>
-        <p style="text-align:center; font-size: 12px;">CompetenceTrack - ${t('library.title')}</p>
+        <p style="text-align:center; font-size: 12px;">SchulOS - ${t('library.title')}</p>
       </body></html>
     `);
     printWindow.document.close();

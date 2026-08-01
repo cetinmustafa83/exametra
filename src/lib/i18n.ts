@@ -1,11 +1,11 @@
-// CompetenceTrack — i18n (German + English)
+// SchulOS — i18n (German + English)
 // Simple translation system: t(key) returns the string for the current locale
 
 type TranslationDict = Record<string, string>;
 
 const de: TranslationDict = {
   // App branding
-  'app.name': 'CompetenceTrack',
+  'app.name': 'SchulOS',
   'app.subtitle': 'Freie Kompetenz- & Benotungsplattform für Schulen',
   'app.tagline': 'Open-Source Software für kompetenzorientierte Beurteilung',
 
@@ -56,7 +56,7 @@ const de: TranslationDict = {
   'auth.password': 'Passwort',
   'auth.firstName': 'Vorname',
   'auth.lastName': 'Nachname',
-  'auth.login_title': 'Bei CompetenceTrack anmelden',
+  'auth.login_title': 'Bei SchulOS anmelden',
   'auth.register_title': 'Neues Konto erstellen',
   'auth.login_subtitle': 'Geben Sie Ihre Zugangsdaten ein',
   'auth.register_subtitle': 'Erstellen Sie ein kostenloses Konto',
@@ -440,7 +440,7 @@ const de: TranslationDict = {
 
   // Onboarding checklist
   'onboarding.title': 'Erste Schritte',
-  'onboarding.subtitle': 'Follow these steps to set up CompetenceTrack',
+  'onboarding.subtitle': 'Follow these steps to set up SchulOS',
   'onboarding.step_create_class': 'Erstellen Sie Ihre erste Klasse',
   'onboarding.step_assign_grid': 'Weisen Sie ein Kompetenzraster zu',
   'onboarding.step_add_students': 'Fügen Sie Schüler hinzu',
@@ -478,7 +478,7 @@ const de: TranslationDict = {
   'classes.assign_no_templates': 'Keine passenden Raster gefunden.',
 
   // Footer
-  'footer.copyright': 'CompetenceTrack — Freie Schulsoftware',
+  'footer.copyright': 'SchulOS — Freie Schulsoftware',
   'footer.version': 'Version 1.0',
   'footer.oss': 'Open Source',
   'sidebar.eco_message': 'Papier sparen, Umwelt schutzen',
@@ -1732,7 +1732,7 @@ const de: TranslationDict = {
   'notifications.days_ago': 'vor {days} Tagen',
 
   // Onboarding
-  'onboarding.welcome_title': 'Willkommen bei CompetenceTrack!',
+  'onboarding.welcome_title': 'Willkommen bei SchulOS!',
   'onboarding.welcome_desc': 'Ihre freie Kompetenz- & Benotungsplattform für Schulen. Lassen Sie uns eine kurze Einführung machen.',
   'onboarding.dashboard_title': 'Dashboard',
   'onboarding.dashboard_desc': 'Hier sehen Sie einen Überblick über alle Klassen, Schüler und aktuelle Aktivitäten. Nutzen Sie die Schnellaktionen für häufige Aufgaben.',
@@ -1743,7 +1743,7 @@ const de: TranslationDict = {
   'onboarding.reports_title': 'Berichte',
   'onboarding.reports_desc': 'Erstellen Sie Zeugnis- und Entwicklungsberichte. Exportieren Sie diese als PDF oder drucken Sie sie direkt.',
   'onboarding.done_title': 'Fertig!',
-  'onboarding.done_desc': 'Sie sind bereit, CompetenceTrack zu nutzen. Bei Fragen klicken Sie auf das Hilfe-Symbol in der Kopfzeile.',
+  'onboarding.done_desc': 'Sie sind bereit, SchulOS zu nutzen. Bei Fragen klicken Sie auf das Hilfe-Symbol in der Kopfzeile.',
   'onboarding.skip': 'Überspringen',
   'onboarding.next': 'Weiter',
   'onboarding.back': 'Zurück',
@@ -1764,7 +1764,7 @@ const de: TranslationDict = {
   'onboarding.parents_title': 'Elternkommunikation',
   'onboarding.parents_desc': 'Kommunizieren Sie mit Eltern über den Lernfortschritt. Senden Sie Berichte und halten Sie den Dialog aufrecht.',
   'onboarding.environmental_title': 'Umweltschutz',
-  'onboarding.environmental_desc': 'CompetenceTrack spart Papier: Jeder digitale Eintrag ersetzt ca. 50 Seiten Papier. Danke für Ihren Beitrag zum Umweltschutz!',
+  'onboarding.environmental_desc': 'SchulOS spart Papier: Jeder digitale Eintrag ersetzt ca. 50 Seiten Papier. Danke für Ihren Beitrag zum Umweltschutz!',
 
   // Batch deletion (progress entries)
   'progress.batch_select': 'Auswählen',
@@ -2728,10 +2728,10 @@ const de: TranslationDict = {
   'pwa.back_online_desc': 'Ihre Verbindung wurde wiederhergestellt.',
   'pwa.cached_data': 'Cache-Daten',
   'pwa.install_app': 'App installieren',
-  'pwa.install_app_desc': 'CompetenceTrack als App auf Ihrem Gerät installieren.',
+  'pwa.install_app_desc': 'SchulOS als App auf Ihrem Gerät installieren.',
   'pwa.install': 'Installieren',
   'pwa.installed': 'App installiert',
-  'pwa.installed_desc': 'CompetenceTrack wurde erfolgreich als App installiert.',
+  'pwa.installed_desc': 'SchulOS wurde erfolgreich als App installiert.',
   'pwa.install_accepted': 'Installation gestartet',
   'pwa.update_available': 'Update verfügbar',
   'pwa.update_available_desc': 'Eine neue Version ist verfügbar. Laden Sie die Seite neu.',
@@ -3300,7 +3300,7 @@ const de: TranslationDict = {
   'events.view_all': 'Alle Veranstaltungen',
 
   // Onboarding Tour (24 steps) - DE
-  'onboarding.step_1_title': 'Willkommen bei CompetenceTrack!',
+  'onboarding.step_1_title': 'Willkommen bei SchulOS!',
   'onboarding.step_1_desc': 'Ihre freie Kompetenz- & Benotungsplattform für Schulen. Lassen Sie uns eine kurze Einführung machen.',
   'onboarding.step_2_title': 'Dashboard',
   'onboarding.step_2_desc': 'Hier sehen Sie einen Überblick über alle Klassen, Schüler und aktuelle Aktivitäten. Nutzen Sie die Schnellaktionen und Kennzahlen.',
@@ -3349,7 +3349,7 @@ const de: TranslationDict = {
   'onboarding.step_24_title': 'Einstellungen',
   'onboarding.step_24_desc': 'Passen Sie die Plattform an: Schulprofil, Branding, Backup und Datenverwaltung.',
   'onboarding.celebration': 'Sie sind bereit!',
-  'onboarding.complete': 'Sie haben die Tour abgeschlossen. Viel Erfolg mit CompetenceTrack!',
+  'onboarding.complete': 'Sie haben die Tour abgeschlossen. Viel Erfolg mit SchulOS!',
   'onboarding.previous': 'Zurück',
   'onboarding.dont_show_again': 'Nicht mehr anzeigen',
   'onboarding.restart_tour': 'Tour erneut starten',
@@ -3676,7 +3676,7 @@ const de: TranslationDict = {
   'dsgvo.dpa_desc': 'Vertrag zur Auftragsdatenverarbeitung gemäß Art. 28 DSGVO',
   'dsgvo.data_register': 'Verzeichnis von Verarbeitungstätigkeiten',
   'dsgvo.data_register_desc': 'Übersicht aller Verarbeitungstätigkeiten gemäß Art. 30 DSGVO',
-  'dsgvo.privacy_policy_text': 'Die nachfolgende Datenschutzerklärung gilt für die Nutzung der Plattform CompetenceTrack. Verantwortlich für die Datenverarbeitung ist die jeweilige Schule.',
+  'dsgvo.privacy_policy_text': 'Die nachfolgende Datenschutzerklärung gilt für die Nutzung der Plattform SchulOS. Verantwortlich für die Datenverarbeitung ist die jeweilige Schule.',
   'dsgvo.data_collected_list': 'Name, E-Mail-Adresse, Passwort (verschlüsselt), Rollenzuordnung, Klassen- und Fächerverknüpfungen, Lernfortschritte, Bewertungen, Anwesenheitsdaten, Notizen und Zeugnisse.',
   'dsgvo.data_purpose_list': 'Bereitstellung und Betrieb der Plattform, Verwaltung von Schülern und Klassen, Dokumentation von Lernfortschritten, Erstellung von Zeugnissen und Berichten, Kommunikation mit Eltern.',
   'dsgvo.data_retention_list': 'Nutzerdaten werden für die Dauer der Nutzung gespeichert. Nach Löschung des Kontos werden die Daten nach Ablauf der 30-tägigen Widerspruchsfrist unwiderruflich gelöscht. Auswertungsdaten werden nach 3 Jahren anonymisiert.',
@@ -6654,7 +6654,7 @@ const de: TranslationDict = {
 
 const en: TranslationDict = {
   // App branding
-  'app.name': 'CompetenceTrack',
+  'app.name': 'SchulOS',
   'app.subtitle': 'Free Competency & Grading Platform for Schools',
   'app.tagline': 'Open-Source Software for Competency-Based Assessment',
 
@@ -6705,7 +6705,7 @@ const en: TranslationDict = {
   'auth.password': 'Password',
   'auth.firstName': 'First Name',
   'auth.lastName': 'Last Name',
-  'auth.login_title': 'Sign in to CompetenceTrack',
+  'auth.login_title': 'Sign in to SchulOS',
   'auth.register_title': 'Create a new account',
   'auth.login_subtitle': 'Enter your credentials',
   'auth.register_subtitle': 'Create a free account',
@@ -7089,7 +7089,7 @@ const en: TranslationDict = {
 
   // Onboarding checklist
   'onboarding.title': 'Getting Started',
-  'onboarding.subtitle': 'Follow these steps to set up CompetenceTrack',
+  'onboarding.subtitle': 'Follow these steps to set up SchulOS',
   'onboarding.step_create_class': 'Create your first class',
   'onboarding.step_assign_grid': 'Assign a competency grid',
   'onboarding.step_add_students': 'Add students',
@@ -7127,7 +7127,7 @@ const en: TranslationDict = {
   'classes.assign_no_templates': 'No matching templates found.',
 
   // Footer
-  'footer.copyright': 'CompetenceTrack — Free School Software',
+  'footer.copyright': 'SchulOS — Free School Software',
   'footer.version': 'Version 1.0',
   'footer.oss': 'Open Source',
   'sidebar.eco_message': 'Save paper, protect the environment',
@@ -8381,7 +8381,7 @@ const en: TranslationDict = {
   'notifications.days_ago': '{days} days ago',
 
   // Onboarding
-  'onboarding.welcome_title': 'Welcome to CompetenceTrack!',
+  'onboarding.welcome_title': 'Welcome to SchulOS!',
   'onboarding.welcome_desc': 'Your free competency & grading platform for schools. Let\'s take a quick tour.',
   'onboarding.dashboard_title': 'Dashboard',
   'onboarding.dashboard_desc': 'Here you see an overview of all classes, students and current activities. Use quick actions for common tasks.',
@@ -8392,7 +8392,7 @@ const en: TranslationDict = {
   'onboarding.reports_title': 'Reports',
   'onboarding.reports_desc': 'Create report cards and development reports. Export as PDF or print directly.',
   'onboarding.done_title': 'Done!',
-  'onboarding.done_desc': 'You\'re ready to use CompetenceTrack. For questions, click the help icon in the header.',
+  'onboarding.done_desc': 'You\'re ready to use SchulOS. For questions, click the help icon in the header.',
   'onboarding.skip': 'Skip',
   'onboarding.next': 'Next',
   'onboarding.back': 'Back',
@@ -8413,7 +8413,7 @@ const en: TranslationDict = {
   'onboarding.parents_title': 'Parent Communication',
   'onboarding.parents_desc': 'Communicate with parents about learning progress. Send reports and maintain an ongoing dialogue.',
   'onboarding.environmental_title': 'Environmental Protection',
-  'onboarding.environmental_desc': 'CompetenceTrack saves paper: Each digital entry replaces ~50 pages of paper. Thank you for contributing to environmental protection!',
+  'onboarding.environmental_desc': 'SchulOS saves paper: Each digital entry replaces ~50 pages of paper. Thank you for contributing to environmental protection!',
 
   // Batch deletion (progress entries)
   'progress.batch_select': 'Select',
@@ -9376,10 +9376,10 @@ const en: TranslationDict = {
   'pwa.back_online_desc': 'Your connection has been restored.',
   'pwa.cached_data': 'Cached data',
   'pwa.install_app': 'Install App',
-  'pwa.install_app_desc': 'Install CompetenceTrack as an app on your device.',
+  'pwa.install_app_desc': 'Install SchulOS as an app on your device.',
   'pwa.install': 'Install',
   'pwa.installed': 'App installed',
-  'pwa.installed_desc': 'CompetenceTrack has been successfully installed as an app.',
+  'pwa.installed_desc': 'SchulOS has been successfully installed as an app.',
   'pwa.install_accepted': 'Installation started',
   'pwa.update_available': 'Update available',
   'pwa.update_available_desc': 'A new version is available. Reload the page to update.',
@@ -9948,7 +9948,7 @@ const en: TranslationDict = {
   'events.view_all': 'View All Events',
 
   // Onboarding Tour (24 steps) - EN
-  'onboarding.step_1_title': 'Welcome to CompetenceTrack!',
+  'onboarding.step_1_title': 'Welcome to SchulOS!',
   'onboarding.step_1_desc': 'Your free competency & grading platform for schools. Let\'s take a quick tour.',
   'onboarding.step_2_title': 'Dashboard',
   'onboarding.step_2_desc': 'Here you see an overview of all classes, students and current activities. Use quick actions and key metrics.',
@@ -9997,7 +9997,7 @@ const en: TranslationDict = {
   'onboarding.step_24_title': 'Settings',
   'onboarding.step_24_desc': 'Customize the platform: school profile, branding, backup and data management.',
   'onboarding.celebration': 'You\'re all set!',
-  'onboarding.complete': 'You\'ve completed the tour. Good luck with CompetenceTrack!',
+  'onboarding.complete': 'You\'ve completed the tour. Good luck with SchulOS!',
   'onboarding.previous': 'Previous',
   'onboarding.dont_show_again': 'Don\'t show again',
   'onboarding.restart_tour': 'Restart tour',
@@ -10324,7 +10324,7 @@ const en: TranslationDict = {
   'dsgvo.dpa_desc': 'Data processing agreement pursuant to Art. 28 GDPR',
   'dsgvo.data_register': 'Register of Processing Activities',
   'dsgvo.data_register_desc': 'Overview of all processing activities pursuant to Art. 30 GDPR',
-  'dsgvo.privacy_policy_text': 'The following privacy policy applies to the use of the CompetenceTrack platform. The respective school is responsible for data processing.',
+  'dsgvo.privacy_policy_text': 'The following privacy policy applies to the use of the SchulOS platform. The respective school is responsible for data processing.',
   'dsgvo.data_collected_list': 'Name, email address, password (encrypted), role assignment, class and subject associations, learning progress, assessments, attendance data, notes and reports.',
   'dsgvo.data_purpose_list': 'Provision and operation of the platform, management of students and classes, documentation of learning progress, creation of reports, communication with parents.',
   'dsgvo.data_retention_list': 'User data is stored for the duration of use. After account deletion, data is permanently deleted after the 30-day objection period. Analytics data is anonymized after 3 years.',

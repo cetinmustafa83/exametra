@@ -378,7 +378,7 @@ function exportStudentCsv(data: StudentDetailData) {
   const rows: string[] = [];
 
   // Header section
-  rows.push('CompetenceTrack - Student Export');
+  rows.push('SchulOS - Student Export');
   rows.push(`Student,${studentName}`);
   rows.push(`Class,${primaryClass}`);
   rows.push(`School,${schoolName}`);

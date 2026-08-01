@@ -337,7 +337,7 @@ function generatePrintHtml(report: Record<string, unknown>, template: string): s
   </style>
 </head>
 <body>
-  <div class="watermark">CompetenceTrack</div>
+  <div class="watermark">SchulOS</div>
   <button class="print-btn no-print" onclick="window.print()">Drucken / Print</button>
 
   <div class="header">
@@ -364,7 +364,7 @@ function generatePrintHtml(report: Record<string, unknown>, template: string): s
   ${gradesHtml}
 
   <div class="footer">
-    <p>CompetenceTrack — Kompetenzbericht · ${new Date().toLocaleDateString('de-DE')}</p>
+    <p>SchulOS — Kompetenzbericht · ${new Date().toLocaleDateString('de-DE')}</p>
   </div>
   <div class="eco-footer">
     Digital erstellt — Papier sparen, Umwelt schutzen
