@@ -160,7 +160,7 @@ function LeftIllustration({ loginRole }: { loginRole: LoginRole }) {
       initial={{ opacity: 0, x: -40 }}
       animate={{ opacity: 1, x: 0 }}
       transition={{ duration: 0.7, delay: 0.2, ease: 'easeOut' }}
-      className="hidden lg:flex flex-col items-center justify-center w-1/2 max-w-lg mr-12"
+      className="relative z-10 hidden lg:flex flex-col items-center justify-center w-1/2 max-w-lg mr-12"
     >
       <div className="relative">
         {/* Decorative orbiting circles */}
@@ -240,7 +240,7 @@ function LeftIllustration({ loginRole }: { loginRole: LoginRole }) {
                 <div className={`flex items-center justify-center w-9 h-9 rounded-xl ${c.bg} ${c.text} ring-1 ${c.ring}`}>
                   <f.icon className="w-4.5 h-4.5" />
                 </div>
-                <p className="text-sm text-gray-600 dark:text-gray-400 font-medium">{t(f.labelKey)}</p>
+                <p className="text-sm text-gray-800 dark:text-gray-200 font-semibold">{t(f.labelKey)}</p>
               </motion.div>
             );
           })}
@@ -251,23 +251,23 @@ function LeftIllustration({ loginRole }: { loginRole: LoginRole }) {
           initial={{ opacity: 0, y: 14 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 1.3 }}
-          className="mt-8 p-5 rounded-2xl bg-white/60 dark:bg-gray-800/40 backdrop-blur-md border border-emerald-200/30 dark:border-emerald-900/20 shadow-xl shadow-emerald-100/20 dark:shadow-emerald-900/10"
+          className="relative z-10 mt-8 p-5 rounded-2xl bg-white dark:bg-gray-800 border border-emerald-300 dark:border-emerald-600 shadow-xl shadow-emerald-200/60 dark:shadow-emerald-950/50"
         >
           <div className="flex items-center gap-2 mb-3">
             <div className="w-2.5 h-2.5 rounded-full bg-red-400" />
             <div className="w-2.5 h-2.5 rounded-full bg-amber-400" />
             <div className="w-2.5 h-2.5 rounded-full bg-emerald-400" />
-            <div className="ml-3 flex-1 h-2.5 rounded-full bg-emerald-100 dark:bg-emerald-900/30" />
+            <div className="ml-3 flex-1 h-2.5 rounded-full bg-emerald-100 dark:bg-emerald-900" />
           </div>
           <div className="grid grid-cols-3 gap-2">
             {[0, 1, 2, 3, 4, 5].map((i) => (
-              <div key={i} className={`h-10 rounded-lg ${i % 3 === 0 ? 'bg-gradient-to-br from-emerald-100 to-emerald-200/50 dark:from-emerald-900/30 dark:to-emerald-800/20' : i % 3 === 1 ? 'bg-gradient-to-br from-teal-100 to-teal-200/50 dark:from-teal-900/30 dark:to-teal-800/20' : 'bg-gradient-to-br from-amber-100 to-amber-200/50 dark:from-amber-900/30 dark:to-amber-800/20'}`} />
+              <div key={i} className={`h-10 rounded-lg ${i % 3 === 0 ? 'bg-gradient-to-br from-emerald-100 to-emerald-200 dark:from-emerald-800 dark:to-emerald-900' : i % 3 === 1 ? 'bg-gradient-to-br from-teal-100 to-teal-200 dark:from-teal-800 dark:to-teal-900' : 'bg-gradient-to-br from-amber-100 to-amber-200 dark:from-amber-800 dark:to-amber-900'}`} />
             ))}
           </div>
           <div className="mt-3 space-y-2">
-            <div className="h-2 w-full rounded-full bg-emerald-100 dark:bg-emerald-900/30" />
-            <div className="h-2 w-3/4 rounded-full bg-teal-100 dark:bg-teal-900/30" />
-            <div className="h-2 w-1/2 rounded-full bg-amber-100 dark:bg-amber-900/30" />
+            <div className="h-2 w-full rounded-full bg-emerald-100 dark:bg-emerald-900" />
+            <div className="h-2 w-3/4 rounded-full bg-teal-100 dark:bg-teal-900" />
+            <div className="h-2 w-1/2 rounded-full bg-amber-100 dark:bg-amber-900" />
           </div>
         </motion.div>
       </motion.div>
