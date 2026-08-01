@@ -556,11 +556,11 @@ export default function AuthView() {
                         <div className="space-y-2">
                           <Label htmlFor="firstName" className="text-sm font-medium">{t('auth.firstName')}</Label>
                           <div className="relative">
-                            <User className="absolute left-3.5 top-1/2 -translate-y-1/2 h-5 w-5 text-emerald-400" />
-                            <Input id="firstName" value={firstName} onChange={(e) => setFirstName(e.target.value)} className={`pl-10 pr-9 h-12 min-h-[44px] bg-white/60 dark:bg-gray-900/40 backdrop-blur-sm transition-all duration-200 ${
+                            <User className="pointer-events-none absolute z-10 left-3.5 top-1/2 -translate-y-1/2 h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+                            <Input id="firstName" value={firstName} onChange={(e) => setFirstName(e.target.value)} className={`pl-10 pr-9 h-12 min-h-[44px] bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 placeholder:text-gray-500 dark:placeholder:text-gray-400 transition-all duration-200 ${
                               firstName.length > 0 && firstNameValid ? 'input-valid border-emerald-400 dark:border-emerald-500'
                                 : firstName.length > 0 && !firstNameValid ? 'input-invalid border-red-300 dark:border-red-700'
-                                : 'border-emerald-200/50 dark:border-emerald-900/30 focus:border-emerald-400 focus:ring-emerald-400/20'
+                                : 'border-emerald-200 dark:border-emerald-800 focus:border-emerald-400 focus:ring-emerald-400/20'
                             }`} placeholder={t('auth.firstName')} required />
                             {firstName.length > 0 && (
                               <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: 'spring', stiffness: 300, damping: 20 }} className="absolute right-2.5 top-1/2 -translate-y-1/2">
@@ -572,10 +572,10 @@ export default function AuthView() {
                         <div className="space-y-2">
                           <Label htmlFor="lastName" className="text-sm font-medium">{t('auth.lastName')}</Label>
                           <div className="relative">
-                            <Input id="lastName" value={lastName} onChange={(e) => setLastName(e.target.value)} className={`pr-9 h-12 min-h-[44px] bg-white/60 dark:bg-gray-900/40 backdrop-blur-sm transition-all duration-200 ${
+                            <Input id="lastName" value={lastName} onChange={(e) => setLastName(e.target.value)} className={`pr-9 h-12 min-h-[44px] bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 placeholder:text-gray-500 dark:placeholder:text-gray-400 transition-all duration-200 ${
                               lastName.length > 0 && lastNameValid ? 'input-valid border-emerald-400 dark:border-emerald-500'
                                 : lastName.length > 0 && !lastNameValid ? 'input-invalid border-red-300 dark:border-red-700'
-                                : 'border-emerald-200/50 dark:border-emerald-900/30 focus:border-emerald-400 focus:ring-emerald-400/20'
+                                : 'border-emerald-200 dark:border-emerald-800 focus:border-emerald-400 focus:ring-emerald-400/20'
                             }`} placeholder={t('auth.lastName')} required />
                             {lastName.length > 0 && (
                               <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: 'spring', stiffness: 300, damping: 20 }} className="absolute right-2.5 top-1/2 -translate-y-1/2">
@@ -593,8 +593,8 @@ export default function AuthView() {
                     <motion.div key="school-id" initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} transition={{ duration: 0.25 }} className="space-y-2">
                       <Label htmlFor="schoolId" className="text-sm font-medium">{t('auth.school_id')}</Label>
                       <div className="relative">
-                        <Info className="absolute left-3.5 top-1/2 -translate-y-1/2 h-5 w-5 text-emerald-500" />
-                        <Input id="schoolId" value={schoolIdInput} onChange={(e) => setSchoolIdInput(e.target.value)} className="pl-10 h-12 min-h-[44px] border-emerald-200/50 dark:border-emerald-900/30 focus:border-emerald-400 focus:ring-emerald-400/20 text-base bg-white/60 dark:bg-gray-900/40 backdrop-blur-sm" placeholder={t('auth.school_id')} />
+                        <Info className="pointer-events-none absolute z-10 left-3.5 top-1/2 -translate-y-1/2 h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+                        <Input id="schoolId" value={schoolIdInput} onChange={(e) => setSchoolIdInput(e.target.value)} className="pl-10 h-12 min-h-[44px] border-emerald-200 dark:border-emerald-800 focus:border-emerald-400 focus:ring-emerald-400/20 text-base bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 placeholder:text-gray-500 dark:placeholder:text-gray-400" placeholder={t('auth.school_id')} />
                       </div>
                     </motion.div>
                   )}
@@ -614,16 +614,16 @@ export default function AuthView() {
                 <motion.div variants={itemVariants} className="space-y-2">
                   <Label htmlFor="email" className="text-sm font-medium">{t('auth.email')}</Label>
                   <div className="relative">
-                    <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 h-5 w-5 text-emerald-400" />
+                    <Mail className="pointer-events-none absolute z-10 left-3.5 top-1/2 -translate-y-1/2 h-5 w-5 text-emerald-600 dark:text-emerald-400" />
                     <Input
                       id="email"
                       type="email"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
-                      className={`pl-10 pr-10 h-12 min-h-[44px] text-base bg-white/60 dark:bg-gray-900/40 backdrop-blur-sm transition-all duration-200 ${
+                      className={`pl-10 pr-10 h-12 min-h-[44px] text-base bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 placeholder:text-gray-500 dark:placeholder:text-gray-400 transition-all duration-200 ${
                         emailTouched && emailValid ? 'input-valid border-emerald-400 dark:border-emerald-500 focus:border-emerald-500 focus:ring-emerald-400/20'
                           : emailTouched && !emailValid ? 'input-invalid border-red-300 dark:border-red-700 focus:border-red-400 focus:ring-red-400/20'
-                          : 'border-emerald-200/50 dark:border-emerald-900/30 focus:border-emerald-400 focus:ring-emerald-400/20'
+                          : 'border-emerald-200 dark:border-emerald-800 focus:border-emerald-400 focus:ring-emerald-400/20'
                       } ${
                         loginRole === 'student' ? 'focus:border-amber-400 focus:ring-amber-400/20'
                           : loginRole === 'parent' ? 'focus:border-violet-400 focus:ring-violet-400/20'
@@ -667,16 +667,16 @@ export default function AuthView() {
                     )}
                   </div>
                   <div className="relative">
-                    <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 h-5 w-5 text-emerald-400" />
+                    <Lock className="pointer-events-none absolute z-10 left-3.5 top-1/2 -translate-y-1/2 h-5 w-5 text-emerald-600 dark:text-emerald-400" />
                     <Input
                       id="password"
                       type={showPassword ? 'text' : 'password'}
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
-                      className={`pl-9 pr-12 h-12 min-h-[44px] bg-white/60 dark:bg-gray-900/40 backdrop-blur-sm transition-all duration-200 ${
+                      className={`pl-9 pr-12 h-12 min-h-[44px] bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 placeholder:text-gray-500 dark:placeholder:text-gray-400 transition-all duration-200 ${
                         passwordTouched && passwordValid ? 'input-valid border-emerald-400 dark:border-emerald-500 focus:border-emerald-500 focus:ring-emerald-400/20'
                           : passwordTouched && !passwordValid ? 'input-invalid border-red-300 dark:border-red-700 focus:border-red-400 focus:ring-red-400/20'
-                          : 'border-emerald-200/50 dark:border-emerald-900/30 focus:border-emerald-400 focus:ring-emerald-400/20'
+                          : 'border-emerald-200 dark:border-emerald-800 focus:border-emerald-400 focus:ring-emerald-400/20'
                       }`}
                       placeholder="••••••"
                       minLength={6}
