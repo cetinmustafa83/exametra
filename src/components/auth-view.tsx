@@ -384,6 +384,7 @@ export default function AuthView() {
     icon: React.ElementType;
     labelKey: string;
     color: string;
+    iconColor: string;
     activeColor: string;
     activeBg: string;
     bgGradient: string;
@@ -396,6 +397,7 @@ export default function AuthView() {
       icon: GraduationCap,
       labelKey: 'auth.login',
       color: 'text-emerald-600 dark:text-emerald-400',
+      iconColor: 'text-emerald-600 dark:text-emerald-400',
       activeColor: 'text-white',
       activeBg: 'bg-gradient-to-r from-emerald-500 to-teal-500',
       bgGradient: 'from-emerald-50/50 to-teal-50/50 dark:from-emerald-950/10 dark:to-teal-950/10',
@@ -407,7 +409,8 @@ export default function AuthView() {
       key: 'student',
       icon: UsersIcon,
       labelKey: 'auth.student_login',
-      color: 'text-amber-600 dark:text-amber-400',
+      color: 'text-emerald-600 dark:text-emerald-400',
+      iconColor: 'text-emerald-600 dark:text-emerald-400',
       activeColor: 'text-white',
       activeBg: 'bg-gradient-to-r from-amber-500 to-orange-500',
       bgGradient: 'from-amber-50/50 to-orange-50/50 dark:from-amber-950/10 dark:to-orange-950/10',
@@ -419,7 +422,8 @@ export default function AuthView() {
       key: 'parent',
       icon: Heart,
       labelKey: 'auth.parent_login',
-      color: 'text-violet-600 dark:text-violet-400',
+      color: 'text-emerald-600 dark:text-emerald-400',
+      iconColor: 'text-emerald-600 dark:text-emerald-400',
       activeColor: 'text-white',
       activeBg: 'bg-gradient-to-r from-violet-500 to-purple-500',
       bgGradient: 'from-violet-50/50 to-purple-50/50 dark:from-violet-950/10 dark:to-purple-950/10',
@@ -505,7 +509,7 @@ export default function AuthView() {
                   whileHover={{ scale: loginRole === tab.key ? 1 : 1.02 }}
                   whileTap={{ scale: 0.98 }}
                 >
-                  <tab.icon className="h-4.5 w-4.5" />
+                  <tab.icon className={`h-4.5 w-4.5 ${loginRole === tab.key ? 'text-white' : tab.iconColor}`} />
                   <span>{t(tab.labelKey)}</span>
                   {/* Active indicator */}
                   {loginRole === tab.key && (
@@ -589,8 +593,8 @@ export default function AuthView() {
                     <motion.div key="school-id" initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} transition={{ duration: 0.25 }} className="space-y-2">
                       <Label htmlFor="schoolId" className="text-sm font-medium">{t('auth.school_id')}</Label>
                       <div className="relative">
-                        <Info className="absolute left-3.5 top-1/2 -translate-y-1/2 h-5 w-5 text-amber-400" />
-                        <Input id="schoolId" value={schoolIdInput} onChange={(e) => setSchoolIdInput(e.target.value)} className="pl-10 h-12 min-h-[44px] border-amber-200/50 dark:border-amber-900/30 focus:border-amber-400 focus:ring-amber-400/20 text-base bg-white/60 dark:bg-gray-900/40 backdrop-blur-sm" placeholder={t('auth.school_id')} />
+                        <Info className="absolute left-3.5 top-1/2 -translate-y-1/2 h-5 w-5 text-emerald-500" />
+                        <Input id="schoolId" value={schoolIdInput} onChange={(e) => setSchoolIdInput(e.target.value)} className="pl-10 h-12 min-h-[44px] border-emerald-200/50 dark:border-emerald-900/30 focus:border-emerald-400 focus:ring-emerald-400/20 text-base bg-white/60 dark:bg-gray-900/40 backdrop-blur-sm" placeholder={t('auth.school_id')} />
                       </div>
                     </motion.div>
                   )}
@@ -598,9 +602,9 @@ export default function AuthView() {
                   {/* Parent-specific: name fields on login */}
                   {loginRole === 'parent' && mode === 'login' && (
                     <motion.div key="parent-name" initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} transition={{ duration: 0.25 }}>
-                      <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-violet-50/50 dark:bg-violet-900/10 border border-violet-100/50 dark:border-violet-900/20 backdrop-blur-sm">
-                        <Heart className="h-4 w-4 text-violet-500" />
-                        <p className="text-xs text-violet-700 dark:text-violet-300 font-medium">{t('auth.parent_login_desc')}</p>
+                      <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-emerald-50/50 dark:bg-emerald-900/10 border border-emerald-100/50 dark:border-emerald-900/20 backdrop-blur-sm">
+                        <Heart className="h-4 w-4 text-emerald-500" />
+                        <p className="text-xs text-emerald-700 dark:text-emerald-300 font-medium">{t('auth.parent_login_desc')}</p>
                       </div>
                     </motion.div>
                   )}
@@ -809,9 +813,9 @@ export default function AuthView() {
                 >
                   <div className="text-center mb-3">
                     <div className="flex items-center justify-center gap-1.5">
-                      <KeyRound className="h-3.5 w-3.5 text-amber-500" />
+                      <KeyRound className="h-3.5 w-3.5 text-emerald-500" />
                       <p className="text-sm font-semibold text-gray-700 dark:text-gray-300">{t('auth.demo_section_title')}</p>
-                      <Badge className="bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 border-amber-200/50 dark:border-amber-900/30 text-[10px] px-1.5 py-0">{t('badge.demo')}</Badge>
+                      <Badge className="bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 border-emerald-200/50 dark:border-emerald-900/30 text-[10px] px-1.5 py-0">{t('badge.demo')}</Badge>
                     </div>
                     <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{t('auth.demo_section_subtitle')}</p>
                   </div>
@@ -830,7 +834,9 @@ export default function AuthView() {
                           disabled={loading || demoLoading}
                           className={`group h-12 w-full px-4 rounded-xl border-0 bg-gradient-to-r ${demo.colorClass} text-white font-semibold text-sm shadow-lg flex items-center justify-center gap-2 hover:shadow-xl hover:scale-[1.01] active:scale-[0.99] transition-all duration-200`}
                         >
-                          <demo.icon className="h-4 w-4 shrink-0 transition-transform duration-200 group-hover:scale-110" />
+                          <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-white/90 text-emerald-600">
+                            <demo.icon className="h-4 w-4 transition-transform duration-200 group-hover:scale-110" />
+                          </span>
                           <span className="truncate">{t(demo.labelKey)}</span>
                         </Button>
                       </motion.div>
