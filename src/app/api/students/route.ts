@@ -36,15 +36,13 @@ export async function GET(request: Request) {
     if (userId) {
       // For STUDENT role, also match by name + school as fallback for legacy data
       if (session.user?.role === 'STUDENT' && session.user.id === userId) {
-        userIdFilter = [
-          { userId },
-          {
-            userId: null,
-            firstName: session.user.firstName,
-            lastName: session.user.lastName,
-            schoolId: session.user.schoolId,
-          },
-        ];
+        const legacyStudentFilter: Record<string, unknown> = {
+          userId: null,
+          firstName: session.user.firstName,
+          lastName: session.user.lastName,
+          schoolId: session.user.schoolId,
+        };
+        userIdFilter = [{ userId }, legacyStudentFilter];
       } else {
         where.userId = userId;
       }

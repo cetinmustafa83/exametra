@@ -470,7 +470,7 @@ function renderView(view: ViewName) {
     case 'matrix': return <MasteryMatrixView />;
     case 'analytics': return <AnalyticsView />;
     case 'assessments': return <AssessmentsView />;
-    case 'grading': return <GradingView />;
+    case 'grading': return <UnifiedGradingPanel />;
     case 'reports': return <ReportsView />;
     case 'settings': return <SettingsView />;
     case 'student-detail': return <StudentDetailView />;
