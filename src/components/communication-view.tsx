@@ -119,7 +119,10 @@ export default function CommunicationView() {
   useEffect(() => {
     fetchRooms();
     const interval = setInterval(fetchRooms, 5000);
-    return () => clearInterval(interval);
+    
+    return () => {
+      clearInterval(interval);
+    };
   }, [fetchRooms]);
 
   const role = currentUser?.role;

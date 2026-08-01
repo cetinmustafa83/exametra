@@ -189,16 +189,16 @@ export function useServiceWorker() {
           scope: '/',
         });
 
-        // Check for updates every 30 minutes
-        setInterval(() => {
+        // Check for updates every 30 minutes with proper cleanup
+        const updateInterval = setInterval(() => {
           registration.update();
         }, 30 * 60 * 1000);
 
-        // Handle updates
-        registration.addEventListener('updatefound', () => {
+        // Handle updates with proper event listener cleanup
+        const handleUpdateFound = () => {
           const newWorker = registration.installing;
           if (newWorker) {
-            newWorker.addEventListener('statechange', () => {
+            const handleStateChange = () => {
               if (newWorker.state === 'activated') {
                 toast.info(t('pwa.update_available'), {
                   description: t('pwa.update_available_desc'),
@@ -208,18 +208,28 @@ export function useServiceWorker() {
                   },
                   duration: 10000,
                 });
+                newWorker.removeEventListener('statechange', handleStateChange);
               }
-            });
+            };
+            newWorker.addEventListener('statechange', handleStateChange);
           }
-        });
+        };
+
+        registration.addEventListener('updatefound', handleUpdateFound);
 
         console.log('[PWA] Service Worker registered successfully');
+
+        // Cleanup on unmount
+        return () => {
+          clearInterval(updateInterval);
+          registration.removeEventListener('updatefound', handleUpdateFound);
+        };
       } catch (error) {
         console.warn('[PWA] Service Worker registration failed:', error);
       }
     }
 
-    registerSW();
+    return registerSW().catch(console.error);
   }, []);
 }
 
@@ -327,10 +337,10 @@ export function OfflineSyncManager() {
     };
     updateCount();
 
-    // Check every 10 seconds
+    // Check every 10 seconds with proper cleanup
     const interval = setInterval(updateCount, 10000);
 
-    // When back online, try to replay queued requests
+    // When back online, try to replay queued requests with proper cleanup
     const handleOnline = async () => {
       const queue = getOfflineQueue();
       if (queue.length === 0) return;
@@ -366,6 +376,7 @@ export function OfflineSyncManager() {
     };
 
     window.addEventListener('online', handleOnline);
+    
     return () => {
       clearInterval(interval);
       window.removeEventListener('online', handleOnline);
@@ -434,7 +445,10 @@ export function RateLimitStatus() {
   useEffect(() => {
     loadStats();
     const interval = setInterval(loadStats, 30000);
-    return () => clearInterval(interval);
+    
+    return () => {
+      clearInterval(interval);
+    };
   }, [loadStats]);
 
   return (
