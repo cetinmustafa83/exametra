@@ -80,3 +80,4 @@ Caddyfile
 
 # lock files (optional - some projects include them)
 bun.lock
+.dyad/
