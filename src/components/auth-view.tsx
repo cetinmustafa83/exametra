@@ -815,7 +815,7 @@ export default function AuthView() {
                     </div>
                     <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{t('auth.demo_section_subtitle')}</p>
                   </div>
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 gap-2">
                     {DEMO_ACCOUNTS.map((demo, i) => (
                       <motion.div
                         key={demo.email}
@@ -828,10 +828,10 @@ export default function AuthView() {
                           variant="outline"
                           onClick={() => handleDemoLogin(demo.email, demo.password)}
                           disabled={loading || demoLoading}
-                          className={`group h-auto min-h-[44px] py-3 px-3 rounded-xl border-0 bg-gradient-to-br ${demo.colorClass} text-white font-semibold text-xs shadow-lg flex flex-col items-center gap-1.5 hover:shadow-xl hover:scale-[1.03] active:scale-[0.97] transition-all duration-200`}
+                          className={`group h-12 w-full px-4 rounded-xl border-0 bg-gradient-to-r ${demo.colorClass} text-white font-semibold text-sm shadow-lg flex items-center justify-center gap-2 hover:shadow-xl hover:scale-[1.01] active:scale-[0.99] transition-all duration-200`}
                         >
-                          <demo.icon className="h-5 w-5 transition-transform duration-200 group-hover:scale-110" />
-                          <span>{t(demo.labelKey)}</span>
+                          <demo.icon className="h-4 w-4 shrink-0 transition-transform duration-200 group-hover:scale-110" />
+                          <span className="truncate">{t(demo.labelKey)}</span>
                         </Button>
                       </motion.div>
                     ))}
