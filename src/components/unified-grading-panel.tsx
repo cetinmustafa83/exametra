@@ -43,7 +43,7 @@ import { toast } from 'sonner';
 import { DataTable } from './data-table';
 import { FormBuilder } from './form-builder';
 import { GradingEngine } from '@/lib/grading-engine';
-import { useApi } from '@/lib/hooks/useApi';
+import { useApiGet, useApiMutation } from '@/lib/hooks/useApi';
 import { cn } from '@/lib/utils';
 
 interface Grade {
@@ -94,16 +94,13 @@ export function UnifiedGradingPanel({
   );
 
   // Fetch grades from API
-  const { data: backendGrades, isLoading, mutate } = useApi(
-    '/api/v1/grades',
-    {
-      method: 'GET',
-      params: {
-        ...(classId && { classId }),
-        ...(studentId && { studentId }),
-      },
-      revalidateOnFocus: true,
-    }
+  const queryParams = new URLSearchParams();
+  if (classId) queryParams.append('classId', classId);
+  if (studentId) queryParams.append('studentId', studentId);
+  
+  const { data: backendGrades, isLoading, mutate } = useApiGet(
+    `/api/v1/grades${queryParams.toString() ? '?' + queryParams.toString() : ''}`,
+    { revalidateOnFocus: true }
   );
 
   // Update local grades when backend data changes

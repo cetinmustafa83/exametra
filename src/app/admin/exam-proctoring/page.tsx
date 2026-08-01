@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useApi } from '@/lib/hooks/useApi';
+import { useApiGet } from '@/lib/hooks/useApi';
 import { DataTable } from '@/components/data-table';
 import { Button } from '@/components/ui/button';
 import { AlertCircle, Eye, Clock, Check, X } from 'lucide-react';
@@ -19,7 +19,7 @@ interface ExamSessionRow {
 
 export default function ExamProctoringPage() {
   const [sessions, setSessions] = useState<ExamSessionRow[]>([]);
-  const { data: examSessions, isLoading } = useApi('/api/v1/exams/active-sessions');
+  const { data: examSessions, isLoading } = useApiGet('/api/v1/exams/active-sessions');
 
   useEffect(() => {
     if (examSessions) {

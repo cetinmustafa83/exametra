@@ -64,7 +64,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { CalendarManager, CalendarEvent, CalendarEventType } from '@/lib/calendar-manager';
-import { useApi } from '@/lib/hooks/useApi';
+import { useApiGet } from '@/lib/hooks/useApi';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 
@@ -98,14 +98,10 @@ export function ProfessionalCalendar({
   const dateLocale = locale === 'de' ? deLocale : enLocale;
 
   // Fetch events from backend
-  const { data: backendEvents, isLoading } = useApi('/api/v1/calendar/events', {
-    method: 'GET',
-    params: {
-      startDate: format(startOfMonth(currentDate), 'yyyy-MM-dd'),
-      endDate: format(endOfMonth(currentDate), 'yyyy-MM-dd'),
-    },
-    revalidateOnFocus: true,
-  });
+  const { data: backendEvents, isLoading } = useApiGet(
+    `/api/v1/calendar/events?startDate=${format(startOfMonth(currentDate), 'yyyy-MM-dd')}&endDate=${format(endOfMonth(currentDate), 'yyyy-MM-dd')}`,
+    { revalidateOnFocus: true }
+  );
 
   useEffect(() => {
     if (backendEvents) {
