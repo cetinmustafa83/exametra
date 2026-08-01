@@ -48,6 +48,7 @@ export interface NavGroup {
 export const NAVIGATION_ROUTES = {
   DASHBOARD: '/dashboard',
   GRADES: '/grades',
+  CALENDAR: '/calendar',
   ASSESSMENTS: '/assessments',
   CLASSES: '/classes',
   COMMUNICATION: '/communication',
@@ -93,6 +94,14 @@ export const TEACHER_NAV_ITEMS: NavGroup[] = [
     title: 'Academic',
     items: [
       {
+        id: 'calendar',
+        label: 'Calendar',
+        href: NAVIGATION_ROUTES.CALENDAR,
+        icon: Calendar,
+        roles: ['TEACHER', 'STUDENT', 'PARENT', 'SCHOOL_ADMIN'],
+        description: 'View all events, exams, and school calendar',
+      },
+      {
         id: 'grades',
         label: 'Grades',
         href: NAVIGATION_ROUTES.GRADES,
@@ -105,13 +114,6 @@ export const TEACHER_NAV_ITEMS: NavGroup[] = [
         href: NAVIGATION_ROUTES.ASSESSMENTS,
         icon: FileText,
         roles: ['TEACHER', 'SCHOOL_ADMIN'],
-      },
-      {
-        id: 'calendar',
-        label: 'Calendar',
-        href: NAVIGATION_ROUTES.ATTENDANCE, // Placeholder
-        icon: Calendar,
-        roles: ['TEACHER'],
       },
     ],
   },

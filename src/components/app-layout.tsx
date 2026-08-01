@@ -152,7 +152,7 @@ import CompetencyGridView from './competency-grid-view';
 import ProgressEntriesView from './progress-entries-view';
 import CompetenceFlowerView from './competence-flower-view';
 import AssessmentsView from './assessments-view';
-import GradingView from './grading-view';
+
 import ReportsView from './reports-view';
 import SettingsView from './settings-view';
 import StudentDetailView from './student-detail-view';
@@ -181,8 +181,8 @@ import VirtualCharacter from './virtual-character';
 import ParentPortalView from './parent-portal-view';
 import NotificationCenterView from './notification-center-view';
 import SchoolAnnouncementsView from './school-announcements-view';
-import TabletGradingView from './tablet-grading-view';
-import ExamCalendarView from './exam-calendar-view';
+import { UnifiedGradingPanel } from './unified-grading-panel';
+import { ProfessionalCalendar } from './professional-calendar';
 import StudentAchievementsView from './student-achievements-view';
 import StudentStudyPlannerView from './student-study-planner-view';
 import ReportCardView from './report-card-view';
@@ -190,13 +190,11 @@ import SchoolLibraryView from './school-library-view';
 import SeatingChartView from './seating-chart-view';
 import StudentWellnessView from './student-wellness-view';
 import DataImportExportView from './data-import-export-view';
-import SchoolEventsView from './school-events-view';
 import StudentCareerView from './student-career-view';
 import SubstituteTeacherView from './substitute-teacher-view';
 import SchoolNewsletterView from './school-newsletter-view';
 import SchoolTransportView from './school-transport-view';
 import PeerAssessmentView from './peer-assessment-view';
-import GradeAnalyticsView from './grade-analytics-view';
 
 // Dynamic imports for heavy components with loading skeletons
 const AnalyticsView = dynamic(() => import('./analytics-view'), {
@@ -204,9 +202,7 @@ const AnalyticsView = dynamic(() => import('./analytics-view'), {
   loading: () => <div className="space-y-4 p-4"><Skeleton className="h-8 w-48" /><div className="grid grid-cols-1 md:grid-cols-3 gap-4">{[1,2,3].map(i => <Skeleton key={i} className="h-32" />)}</div><Skeleton className="h-64" /></div>,
 });
 
-const CalendarView = dynamic(() => import('./calendar-view'), {
-  loading: () => <div className="space-y-4 p-4"><Skeleton className="h-8 w-48" /><Skeleton className="h-96" /></div>,
-});
+
 
 const NotebooksView = dynamic(() => import('./notebooks-view'), {
   loading: () => <div className="space-y-4 p-4"><Skeleton className="h-8 w-48" /><div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">{[1,2,3].map(i => <Skeleton key={i} className="h-48" />)}</div></div>,
@@ -480,7 +476,7 @@ function renderView(view: ViewName) {
     case 'student-detail': return <StudentDetailView />;
     case 'attendance': return <AttendanceView />;
     case 'lesson-plans': return <LessonPlansView />;
-    case 'calendar': return <CalendarView />;
+    case 'calendar': return <ProfessionalCalendar variant="month" />;
     case 'parents': return <ParentCommunicationView />;
     case 'behavior': return <BehaviorTrackingView />;
     case 'coverage': return <CurriculumCoverageView />;
@@ -503,10 +499,10 @@ function renderView(view: ViewName) {
     case 'parent-portal': return <ParentPortalView />;
     case 'notification-center': return <NotificationCenterView />;
     case 'announcements': return <SchoolAnnouncementsView />;
-    case 'tablet-grading': return <TabletGradingView />;
-    case 'exam-calendar': return <ExamCalendarView />;
+    case 'tablet-grading': return <UnifiedGradingPanel mode="teacher" variant="tablet" />;
+    case 'exam-calendar': return <ProfessionalCalendar variant="month" />;
     case 'peer-assessment': return <PeerAssessmentView />;
-    case 'grade-analytics': return <GradeAnalyticsView />;
+    case 'grade-analytics': return <UnifiedGradingPanel mode="teacher" />;
     case 'student-achievements': return <StudentAchievementsView />;
     case 'student-study-planner': return <StudentStudyPlannerView />;
     case 'seating-chart': return <SeatingChartView />;
@@ -515,7 +511,7 @@ function renderView(view: ViewName) {
     case 'student-wellness': return <StudentWellnessView />;
     case 'student-career': return <StudentCareerView />;
     case 'data-import-export': return <DataImportExportView />;
-    case 'school-events': return <SchoolEventsView />;
+    case 'school-events': return <ProfessionalCalendar variant="month" />;
     case 'substitute-teacher': return <SubstituteTeacherView />;
     case 'school-newsletter': return <SchoolNewsletterView />;
     case 'school-transport': return <SchoolTransportView />;

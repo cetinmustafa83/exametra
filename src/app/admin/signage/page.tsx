@@ -10,12 +10,17 @@ import { DataTable } from '@/components/data-table';
 import { ConfirmDialog } from '@/components/confirm-dialog';
 import { useApiGet, useApiMutation } from '@/lib/hooks/useApi';
 import { getPriorityColor, getMessageTypeIcon, formatDisplayTime } from '@/lib/signage-utils';
-import { useSession } from '@/lib/auth';
 import { AlertCircle, Tv, Plus } from 'lucide-react';
 
 export default function SignageAdminPage() {
-  const session = useSession() as any;
-  const schoolId = session?.user?.schoolId;
+  // Get schoolId from URL params or context
+  const [schoolId, setSchoolId] = React.useState<string | null>(null);
+  
+  React.useEffect(() => {
+    // Get schoolId from session or localStorage
+    const storedSchoolId = typeof window !== 'undefined' ? localStorage.getItem('schoolId') : null;
+    setSchoolId(storedSchoolId);
+  }, []);
 
   const [showNewMessage, setShowNewMessage] = useState(false);
   const [selectedSignage, setSelectedSignage] = useState<string | null>(null);
