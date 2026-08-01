@@ -30,6 +30,7 @@
     "db:reset": "prisma migrate reset",
     "db:seed": "bun prisma/seed.ts",
     "db:seed-demo": "bun prisma/seed-demo.ts",
+    "db:setup-demo": "bun run db:push && bun run db:seed-demo",
     "test": "playwright test --config playwright-dyad.config.ts"
   },
   "dependencies": {
