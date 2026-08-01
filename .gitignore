@@ -81,3 +81,9 @@ Caddyfile
 # lock files (optional - some projects include them)
 bun.lock
 .dyad/
+
+# Playwright test artifacts
+/test-results/
+/playwright-report/
+/playwright/.cache/
+.last-run.json

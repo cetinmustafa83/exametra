@@ -2,7 +2,7 @@
 
 import React, { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { BookOpen, Mail, Lock, User, ArrowRight, GraduationCap, Heart, Sparkles, Flower2, Eye, EyeOff, KeyRound, Info, Shield, Leaf, Users as UsersIcon, HelpCircle, BarChart3, LockKeyhole, GitBranch, CheckCircle2, XCircle, Globe, Github, Chrome } from 'lucide-react';
+import { BookOpen, Mail, Lock, User, ArrowRight, GraduationCap, Heart, Sparkles, Flower2, Eye, EyeOff, KeyRound, Info, Shield, Leaf, Users as UsersIcon, HelpCircle, LockKeyhole, GitBranch, CheckCircle2, XCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -271,56 +271,6 @@ function LeftIllustration({ loginRole }: { loginRole: LoginRole }) {
           </div>
         </motion.div>
       </motion.div>
-    </motion.div>
-  );
-}
-
-/* ─── Features section below form ───────────────────────────── */
-function FeaturesSection() {
-  const features = [
-    { icon: BarChart3, labelKey: 'auth.feature_grading', descKey: 'auth.feature_grading_desc', color: 'emerald' },
-    { icon: GraduationCap, labelKey: 'auth.feature_attendance', descKey: 'auth.feature_attendance_desc', color: 'teal' },
-    { icon: Sparkles, labelKey: 'auth.feature_ai', descKey: 'auth.feature_ai_desc', color: 'violet' },
-    { icon: Heart, labelKey: 'auth.feature_collaboration', descKey: 'auth.feature_collaboration_desc', color: 'amber' },
-  ];
-
-  const colorClasses: Record<string, { bg: string; text: string; border: string; iconBg: string }> = {
-    emerald: { bg: 'bg-emerald-50 dark:bg-emerald-900/20', text: 'text-emerald-600 dark:text-emerald-400', border: 'border-emerald-200/60 dark:border-emerald-800/40', iconBg: 'bg-gradient-to-br from-emerald-400 to-emerald-500 text-white' },
-    teal: { bg: 'bg-teal-50 dark:bg-teal-900/20', text: 'text-teal-600 dark:text-teal-400', border: 'border-teal-200/60 dark:border-teal-800/40', iconBg: 'bg-gradient-to-br from-teal-400 to-teal-500 text-white' },
-    amber: { bg: 'bg-amber-50 dark:bg-amber-900/20', text: 'text-amber-600 dark:text-amber-400', border: 'border-amber-200/60 dark:border-amber-800/40', iconBg: 'bg-gradient-to-br from-amber-400 to-amber-500 text-white' },
-    violet: { bg: 'bg-violet-50 dark:bg-violet-900/20', text: 'text-violet-600 dark:text-violet-400', border: 'border-violet-200/60 dark:border-violet-800/40', iconBg: 'bg-gradient-to-br from-violet-400 to-violet-500 text-white' },
-  };
-
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 16 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5, delay: 0.6 }}
-      className="mt-6"
-    >
-      <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3 text-center">{t('auth.feature_showcase')}</p>
-      <div className="grid grid-cols-2 gap-3">
-        {features.map((f, i) => {
-          const c = colorClasses[f.color];
-          return (
-            <motion.div
-              key={f.labelKey}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.3, delay: 0.7 + i * 0.08 }}
-              className={`flex items-start gap-2.5 px-3 py-3 rounded-xl ${c.bg} border ${c.border}`}
-            >
-              <div className={`flex items-center justify-center w-7 h-7 rounded-lg ${c.iconBg} shrink-0 shadow-sm`}>
-                <f.icon className="w-3.5 h-3.5" />
-              </div>
-              <div className="min-w-0">
-                <p className="text-xs font-semibold text-gray-800 dark:text-gray-200 leading-tight">{t(f.labelKey)}</p>
-                <p className="text-[10px] text-gray-500 dark:text-gray-400 leading-tight mt-0.5">{t(f.descKey)}</p>
-              </div>
-            </motion.div>
-          );
-        })}
-      </div>
     </motion.div>
   );
 }
@@ -952,57 +902,6 @@ export default function AuthView() {
             </CardContent>
           </Card>
         </motion.div>
-
-        {/* Social login buttons (visual only) */}
-        {mode === 'login' && (
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.5, duration: 0.4 }}
-            className="mt-5"
-          >
-            <div className="flex items-center gap-3 mb-4">
-              <div className="flex-1 h-px bg-gray-200 dark:bg-gray-700" />
-              <span className="text-xs text-gray-400 dark:text-gray-500 font-medium">{t('auth.or_continue_with') || 'or continue with'}</span>
-              <div className="flex-1 h-px bg-gray-200 dark:bg-gray-700" />
-            </div>
-            <div className="grid grid-cols-3 gap-3">
-              <motion.button
-                type="button"
-                whileHover={{ scale: 1.03 }}
-                whileTap={{ scale: 0.97 }}
-                className="social-btn flex items-center justify-center gap-2 h-11 rounded-xl border border-gray-200 dark:border-gray-700 bg-white/60 dark:bg-gray-800/60 backdrop-blur-sm text-gray-700 dark:text-gray-300 font-medium text-xs hover:border-gray-300 dark:hover:border-gray-600"
-                onClick={() => toast.info(t('auth.social_coming_soon') || 'Social login coming soon')}
-              >
-                <Chrome className="h-4 w-4 text-blue-500" />
-                <span className="hidden sm:inline">Google</span>
-              </motion.button>
-              <motion.button
-                type="button"
-                whileHover={{ scale: 1.03 }}
-                whileTap={{ scale: 0.97 }}
-                className="social-btn flex items-center justify-center gap-2 h-11 rounded-xl border border-gray-200 dark:border-gray-700 bg-white/60 dark:bg-gray-800/60 backdrop-blur-sm text-gray-700 dark:text-gray-300 font-medium text-xs hover:border-gray-300 dark:hover:border-gray-600"
-                onClick={() => toast.info(t('auth.social_coming_soon') || 'Social login coming soon')}
-              >
-                <Github className="h-4 w-4" />
-                <span className="hidden sm:inline">GitHub</span>
-              </motion.button>
-              <motion.button
-                type="button"
-                whileHover={{ scale: 1.03 }}
-                whileTap={{ scale: 0.97 }}
-                className="social-btn flex items-center justify-center gap-2 h-11 rounded-xl border border-gray-200 dark:border-gray-700 bg-white/60 dark:bg-gray-800/60 backdrop-blur-sm text-gray-700 dark:text-gray-300 font-medium text-xs hover:border-gray-300 dark:hover:border-gray-600"
-                onClick={() => toast.info(t('auth.social_coming_soon') || 'Social login coming soon')}
-              >
-                <Globe className="h-4 w-4 text-emerald-500" />
-                <span className="hidden sm:inline">Moodle</span>
-              </motion.button>
-            </div>
-          </motion.div>
-        )}
-
-        {/* Features section below form */}
-        <FeaturesSection />
 
         {/* Footer */}
         <motion.div
