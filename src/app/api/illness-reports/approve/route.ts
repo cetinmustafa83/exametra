@@ -43,8 +43,6 @@ export async function POST(request: Request) {
       if (!parentLink) {
         return NextResponse.json({ error: 'You can only approve reports for your children' }, { status: 403 });
       }
-    }
-
       const newStatus = action === 'approve' ? 'approved' : 'rejected';
       const updated = await db.illnessReport.update({
         where: { id: reportId },

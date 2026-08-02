@@ -2461,12 +2461,19 @@ model IllnessReport {
   startDate     DateTime
   endDate       DateTime?
   documentUrl   String?  // Medical certificate URL
+  leaveType     String   @default("illness") // illness, personal_day, religious_holiday
   parentApprovalStatus String @default("pending") // pending, approved, rejected
   parentApprovedBy String? // userId of approving parent
   parentApprovedAt DateTime?
   // Status: only visible to student/parent until approved
   isVisibleToTeacher Boolean @default(false)
   isVisibleToAdmin   Boolean @default(false)
+  teacherNotifiedAt DateTime?
+  adminApprovalStatus String @default("pending") // pending, approved, rejected
+  adminApprovedBy String?
+  adminApprovedAt DateTime?
+  adminNotes     String?
+  calendarEventId String? @unique
   status        String   @default("pending") // pending, approved, rejected, expired
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
@@ -2475,12 +2482,15 @@ model IllnessReport {
   student       Student  @relation(fields: [studentId], references: [id])
   reporter      User     @relation(fields: [reportedBy], references: [id])
   approver      User?    @relation("IllnessApprover", fields: [parentApprovedBy], references: [id])
+  adminApprover User?    @relation("IllnessAdminApprover", fields: [adminApprovedBy], references: [id])
+  calendarEvent CalendarEvent? @relation(fields: [calendarEventId], references: [id])
 
   @@index([schoolId])
   @@index([studentId])
   @@index([reportedBy])
   @@index([parentApprovalStatus])
   @@index([status])
+  @@index([adminApprovalStatus])
   @@map("illness_reports")
 }
 
