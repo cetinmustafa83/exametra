@@ -26,6 +26,9 @@ export const RATE_LIMITS = {
   // Auth POST endpoints: 30 requests per minute (allows retries & multiple tabs)
   auth: { limit: 30, windowMs: 60 * 1000 },
 
+  // Password reset requests: 5 requests per hour per source IP.
+  passwordReset: { limit: 5, windowMs: 60 * 60 * 1000 },
+
   // Auth GET endpoint: 120 requests per minute (high frequency, low cost)
   authGet: { limit: 120, windowMs: 60 * 1000 },
 

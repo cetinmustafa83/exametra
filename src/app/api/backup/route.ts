@@ -2,6 +2,7 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { withRateLimit } from '@/lib/rate-limit';
+import { deleteStorageFile, readStorageFile, writeStorageFile } from '@/lib/storage';
 
 // GET /api/backup — List backups for a school
 export async function GET(req: Request) {
@@ -41,9 +42,12 @@ export const POST = withRateLimit(async function POST(req: Request) {
       if (!backup || backup.status !== 'completed') {
         return NextResponse.json({ error: 'Backup not found or not completed' }, { status: 404 });
       }
-      // In a real implementation, we would restore the DB from the backup JSON
-      // For now, we just mark the restore as acknowledged
-      return NextResponse.json({ message: 'Backup restore initiated', backup });
+      const content = await readStorageFile('backups', `${backup.schoolId}/${backup.filename}`);
+      return NextResponse.json({
+        message: 'Backup file verified. Restore must run in a disposable maintenance environment.',
+        backup,
+        bytes: content.byteLength,
+      });
     }
 
     // Create a new backup — export entire DB as JSON
@@ -106,6 +110,7 @@ export const POST = withRateLimit(async function POST(req: Request) {
 
     const jsonStr = JSON.stringify(backupData, null, 2);
     const size = Buffer.byteLength(jsonStr, 'utf-8');
+    await writeStorageFile('backups', `${schoolId}/${filename}`, jsonStr);
 
     const backup = await db.backup.create({
       data: {
@@ -120,7 +125,6 @@ export const POST = withRateLimit(async function POST(req: Request) {
 
     return NextResponse.json({
       ...backup,
-      data: backupData, // Include the actual backup data for download
     });
   } catch (error) {
     console.error('Backup create error:', error);
@@ -151,6 +155,11 @@ export async function DELETE(req: NextRequest) {
     if (!id) {
       return NextResponse.json({ error: 'id is required' }, { status: 400 });
     }
+    const backup = await db.backup.findUnique({ where: { id } });
+    if (!backup) {
+      return NextResponse.json({ error: 'Backup not found' }, { status: 404 });
+    }
+    await deleteStorageFile('backups', `${backup.schoolId}/${backup.filename}`);
     await db.backup.delete({ where: { id } });
     return NextResponse.json({ message: 'Backup deleted' });
   } catch (error) {

@@ -6,7 +6,7 @@
  */
 
 import { PrismaClient } from '@prisma/client'
-import bcrypt from 'bcryptjs'
+import argon2 from 'argon2'
 
 const prisma = new PrismaClient()
 
@@ -96,7 +96,12 @@ async function main() {
 
   // ─── 3. Demo Users ──────────────────────────────────────────────────
   console.log('  👩‍🏫 Creating demo users...')
-  const passwordHash = await bcrypt.hash('Demo2025!', 10)
+  const passwordHash = await argon2.hash('Demo2025!', {
+    type: argon2.argon2id,
+    memoryCost: 19 * 1024,
+    timeCost: 2,
+    parallelism: 1,
+  })
   const teacher = await prisma.user.create({
     data: {
       schoolId: school.id,

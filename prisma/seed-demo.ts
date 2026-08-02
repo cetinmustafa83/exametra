@@ -1,5 +1,5 @@
 import { PrismaClient } from '@prisma/client'
-import bcrypt from 'bcryptjs'
+import argon2 from 'argon2'
 
 const prisma = new PrismaClient()
 const password = 'Demo2025!'
@@ -13,7 +13,12 @@ const demoUsers = [
 ]
 
 async function main() {
-  const passwordHash = await bcrypt.hash(password, 10)
+  const passwordHash = await argon2.hash(password, {
+    type: argon2.argon2id,
+    memoryCost: 19 * 1024,
+    timeCost: 2,
+    parallelism: 1,
+  })
 
   for (const user of demoUsers) {
     await prisma.user.upsert({

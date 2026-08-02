@@ -1,10 +1,22 @@
 import bcrypt from 'bcryptjs';
+import argon2 from 'argon2';
 import { cookies } from 'next/headers';
 import { Prisma } from '@prisma/client';
 import { db } from '@/lib/db';
 
 export const SESSION_COOKIE_NAME = 'ct_session';
-export const SESSION_COOKIE_MAX_AGE = 60 * 60 * 24 * 7; // 7 days
+const DEFAULT_SESSION_MAX_AGE = 60 * 60 * 24 * 7;
+const parsedSessionMaxAge = Number.parseInt(process.env.SESSION_MAX_AGE_SECONDS ?? '', 10);
+export const SESSION_COOKIE_MAX_AGE = Number.isFinite(parsedSessionMaxAge) && parsedSessionMaxAge >= 60
+  ? parsedSessionMaxAge
+  : DEFAULT_SESSION_MAX_AGE;
+
+const ARGON2_OPTIONS = {
+  type: argon2.argon2id,
+  memoryCost: 19 * 1024,
+  timeCost: 2,
+  parallelism: 1,
+} as const;
 
 /**
  * Determine whether the Secure flag should be set on cookies.
@@ -32,15 +44,21 @@ export function getSessionCookieOptions(secure: boolean) {
 }
 
 export async function hashPassword(password: string): Promise<string> {
-  const salt = await bcrypt.genSalt(10);
-  return bcrypt.hash(password, salt);
+  return argon2.hash(password, { ...ARGON2_OPTIONS, raw: false });
 }
 
 export async function verifyPassword(
   password: string,
   hash: string
 ): Promise<boolean> {
+  if (hash.startsWith('$argon2')) {
+    return argon2.verify(hash, password);
+  }
   return bcrypt.compare(password, hash);
+}
+
+export function needsPasswordRehash(hash: string): boolean {
+  return !hash.startsWith('$argon2');
 }
 
 export async function createSession(userId: string, secure?: boolean): Promise<void> {

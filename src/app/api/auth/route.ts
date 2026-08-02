@@ -4,6 +4,7 @@ import { db } from '@/lib/db';
 import {
   hashPassword,
   verifyPassword,
+  needsPasswordRehash,
   createSession,
   getSession,
   clearSession,
@@ -12,6 +13,7 @@ import {
   getSessionCookieOptions,
 } from '@/lib/auth';
 import { withRateLimit, checkRateLimit, getRateLimitKey, getRateLimitHeaders, createRateLimitResponse } from '@/lib/rate-limit';
+import { createPasswordResetToken, hashResetToken, passwordResetExpiry } from '@/lib/password-reset';
 
 const loginSchema = z.object({
   email: z.string().email(),
@@ -26,10 +28,68 @@ const registerSchema = z.object({
   schoolId: z.string().optional(),
 });
 
+const requestPasswordResetSchema = z.object({
+  email: z.string().email(),
+});
+
+const resetPasswordSchema = z.object({
+  token: z.string().min(40),
+  password: z.string().min(12),
+});
+
 export const POST = withRateLimit(async function POST(request: Request) {
   try {
     const body = await request.json();
     const { action } = body;
+
+    if (action === 'request-password-reset') {
+      const parsed = requestPasswordResetSchema.safeParse(body);
+      if (!parsed.success) return NextResponse.json({ error: 'Validation failed' }, { status: 400 });
+
+      const key = `password-reset:${getRateLimitKey(request)}`;
+      const result = checkRateLimit(key, 5, 60 * 60 * 1000);
+      if (!result.allowed) {
+        const response = createRateLimitResponse(result);
+        return NextResponse.json(response.body, { status: response.status, headers: response.headers });
+      }
+
+      const user = await db.user.findFirst({ where: { email: parsed.data.email, deletedAt: null } });
+      let developmentToken: string | undefined;
+      if (user) {
+        await db.passwordResetToken.deleteMany({ where: { userId: user.id, usedAt: null } });
+        const { token, tokenHash } = createPasswordResetToken();
+        await db.passwordResetToken.create({
+          data: { userId: user.id, tokenHash, expiresAt: passwordResetExpiry() },
+        });
+        if (process.env.NODE_ENV !== 'production' || process.env.AUTH_SHOW_RESET_TOKEN === 'true') {
+          developmentToken = token;
+        }
+      }
+
+      return NextResponse.json({
+        message: 'If the account exists, reset instructions have been prepared.',
+        ...(developmentToken ? { developmentToken } : {}),
+      });
+    }
+
+    if (action === 'reset-password') {
+      const parsed = resetPasswordSchema.safeParse(body);
+      if (!parsed.success) return NextResponse.json({ error: 'Validation failed' }, { status: 400 });
+
+      const reset = await db.passwordResetToken.findFirst({
+        where: { tokenHash: hashResetToken(parsed.data.token), usedAt: null, expiresAt: { gt: new Date() } },
+        include: { user: true },
+      });
+      if (!reset || reset.user.deletedAt) {
+        return NextResponse.json({ error: 'Invalid or expired reset token' }, { status: 400 });
+      }
+
+      await db.$transaction([
+        db.user.update({ where: { id: reset.userId }, data: { passwordHash: await hashPassword(parsed.data.password) } }),
+        db.passwordResetToken.update({ where: { id: reset.id }, data: { usedAt: new Date() } }),
+      ]);
+      return NextResponse.json({ message: 'Password reset complete' });
+    }
 
     // ── Login ──
     if (action === 'login') {
@@ -60,6 +120,13 @@ export const POST = withRateLimit(async function POST(request: Request) {
           { error: 'Invalid credentials' },
           { status: 401 }
         );
+      }
+
+      if (needsPasswordRehash(user.passwordHash)) {
+        await db.user.update({
+          where: { id: user.id },
+          data: { passwordHash: await hashPassword(password) },
+        });
       }
 
       const secure = isSecureRequest(request);
@@ -112,6 +179,7 @@ export const POST = withRateLimit(async function POST(request: Request) {
           lastName,
           schoolId: schoolId ?? null,
           role: 'TEACHER',
+          emailVerifiedAt: process.env.AUTH_REQUIRE_EMAIL_VERIFICATION === 'true' ? null : new Date(),
         },
       });
 
