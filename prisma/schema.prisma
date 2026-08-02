@@ -1641,7 +1641,7 @@ model EmailTemplate {
 }
 
 model EmailLog {
-  id              String   @id @default(cuid())
+  id              String  
   schoolId        String
   templateId      String?
   recipientEmail   String
@@ -3706,4 +3706,58 @@ model WidgetTemplate {
   @@unique([schoolId, widgetType])
   @@index([schoolId])
   @@map("widget_templates")
+}
+
+model SchoolPolicy {
+  id                  String   @id @default(cuid())
+  schoolId            String
+  policyType          String   // ESCALATION, CLASS_LOCKING, etc.
+  policyData          String   // JSON: policy configuration
+  isActive            Boolean  @default(true)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  school              School   @relation(fields: [schoolId], references: [id])
+
+  @@index([schoolId])
+  @@map("school_policies")
+}
+
+model EscalationPolicy {
+  id                        String   @id @default(cuid())
+  schoolId                  String
+  fromRole                  String   // PARENT, TEACHER, ADMIN, etc.
+  toRole                    String   // ADMIN, TEACHER, etc.
+  requiredPriorContactRole  String   // TEACHER, etc.
+  waitingPeriodBusinessDays Int      @default(3)
+  isActive                  Boolean  @default(true)
+  overriddenByUserId        String?  // nullable, admin-configured exceptions
+  createdAt                 DateTime @default(now())
+  updatedAt                 DateTime @updatedAt
+
+  school                    School   @relation(fields: [schoolId], references: [id])
+  overridingUser            User?    @relation(fields: [overriddenByUserId], references: [id])
+
+  @@index([schoolId])
+  @@index([fromRole, toRole])
+  @@map("escalation_policies")
+}
+
+model ClassMessagingLock {
+  id            String    @id @default(cuid())
+  classGroupId  String
+  lockedByUserId String    // teacher who locked
+  lockedFrom     DateTime
+  lockedUntil    DateTime? // nullable = "until class ends"
+  reason         String?   // optional reason for lock
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  classGroup    ClassGroup @relation(fields: [classGroupId], references: [id])
+  lockedByUser   User       @relation(fields: [lockedByUserId], references: [id])
+
+  @@index([classGroupId])
+  @@index([lockedByUserId])
+  @@index([lockedFrom, lockedUntil])
+  @@map("class_messaging_locks")
 }
