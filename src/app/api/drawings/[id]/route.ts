@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { db } from '@/lib/db';
 import { getSession } from '@/lib/auth';
+import { canAccessClass } from '@/lib/access-policy';
 
 const updateDrawingSchema = z.object({
   title: z.string().min(1).optional(),
@@ -31,9 +32,15 @@ export async function GET(
     if (!drawing) {
       return NextResponse.json({ error: 'Drawing not found' }, { status: 404 });
     }
+    if (session.user?.role !== 'SUPER_ADMIN' && drawing.schoolId !== session.user?.schoolId) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
 
     // Only owner or public drawings
     if (drawing.ownerId !== session.userId && !drawing.isPublic) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+    if (drawing.isPublic && drawing.classGroupId && (!session.user || !(await canAccessClass(session.user, drawing.classGroupId)))) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
@@ -67,6 +74,9 @@ export async function PUT(
     if (existing.ownerId !== session.userId) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
+    if (existing.schoolId !== session.user?.schoolId && session.user?.role !== 'SUPER_ADMIN') {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
 
     const body = await request.json();
     const parsed = updateDrawingSchema.safeParse(body);
@@ -75,6 +85,12 @@ export async function PUT(
         { error: 'Validation failed', details: parsed.error.issues },
         { status: 400 }
       );
+    }
+    if (parsed.data.classGroupId && (!session.user || !(await canAccessClass(session.user, parsed.data.classGroupId)))) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+    if (session.user?.role === 'STUDENT' && parsed.data.isPublic) {
+      return NextResponse.json({ error: 'Students cannot publish drawings to a class' }, { status: 403 });
     }
 
     const drawing = await db.drawing.update({
@@ -110,6 +126,9 @@ export async function DELETE(
       return NextResponse.json({ error: 'Drawing not found' }, { status: 404 });
     }
     if (existing.ownerId !== session.userId && session.user?.role !== 'SUPER_ADMIN' && session.user?.role !== 'SCHOOL_ADMIN') {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+    if (existing.schoolId !== session.user?.schoolId && session.user?.role !== 'SUPER_ADMIN') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 

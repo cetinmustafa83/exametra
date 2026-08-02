@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { db } from '@/lib/db';
 import { getSession } from '@/lib/auth';
 import { withRateLimit } from '@/lib/rate-limit';
+import { getTeacherClassIds } from '@/lib/access-policy';
 
 // ── GET: List student answers (for the current student) ──
 async function getAnswers(request: Request) {
@@ -74,6 +75,10 @@ async function getAnswers(request: Request) {
       return NextResponse.json(answers);
     }
 
+    if (session.user.role === 'PARENT') {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
     // Teachers / Admins: can see answers for their school
     const schoolId = session.user.schoolId;
     if (!schoolId) {
@@ -85,6 +90,11 @@ async function getAnswers(request: Request) {
     if (questionId) where.questionId = questionId;
 
     if (lessonId) {
+      if (session.user.role === 'TEACHER') {
+        const classIds = await getTeacherClassIds(session.user.id);
+        const lesson = await db.subjectLesson.findFirst({ where: { id: lessonId, topic: { schoolId } }, select: { id: true } });
+        if (!lesson || classIds.length === 0) return NextResponse.json([]);
+      }
       const answers = await db.studentAnswer.findMany({
         where: {
           question: {
@@ -138,6 +148,9 @@ async function submitAnswer(request: Request) {
     const session = await getSession();
     if (!session?.user) {
       return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    }
+    if (session.user.role !== 'STUDENT') {
+      return NextResponse.json({ error: 'Only students can submit answers' }, { status: 403 });
     }
 
     const body = await request.json();

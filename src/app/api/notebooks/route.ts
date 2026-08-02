@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { db } from '@/lib/db';
 import { getSession } from '@/lib/auth';
+import { canAccessClass } from '@/lib/access-policy';
 
 // ── GET: List notebooks for the current user ──
 export async function GET(request: Request) {
@@ -190,6 +191,12 @@ export async function POST(request: Request) {
         { error: 'User must belong to a school to create notebooks' },
         { status: 400 }
       );
+    }
+    if (classGroupId && !(await canAccessClass(session.user, classGroupId))) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+    if (session.user.role === 'STUDENT' && isPublic) {
+      return NextResponse.json({ error: 'Students cannot publish notebooks to a class' }, { status: 403 });
     }
 
     const ownerType = session.user.role === 'STUDENT' ? 'STUDENT' : 'TEACHER';

@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { getSession } from '@/lib/auth';
+import { canAccessStudent } from '@/lib/access-policy';
+import { isAdministrator } from '@/lib/role-access';
 
 export async function GET(request: Request) {
   try {
@@ -114,6 +116,9 @@ export async function GET(request: Request) {
 
     // Teacher/Admin view
     if (studentIdParam) {
+      if (!session.user || !(await canAccessStudent(session.user, studentIdParam))) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      }
       const studentBadges = await db.studentBadge.findMany({
         where: { schoolId, studentId: studentIdParam },
         orderBy: { awardedAt: 'desc' },
@@ -164,6 +169,12 @@ export async function POST(request: Request) {
       if (!schoolId || !studentId || !badgeId) {
         return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
       }
+      if (!isAdministrator(session.user?.role) && session.user?.role !== 'TEACHER') {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      }
+      if (!session.user || !(await canAccessStudent(session.user, studentId))) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      }
 
       // Check if already awarded
       const existing = await db.studentBadge.findUnique({
@@ -197,6 +208,12 @@ export async function POST(request: Request) {
       if (!schoolId || !studentId || xpAmount === undefined) {
         return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
       }
+      if (!isAdministrator(session.user?.role) && session.user?.role !== 'TEACHER') {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      }
+      if (!session.user || !(await canAccessStudent(session.user, studentId))) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      }
 
       const student = await db.student.findUnique({ where: { id: studentId }, select: { userId: true } });
       if (!student?.userId) return NextResponse.json({ error: 'Student has no user account' }, { status: 400 });
@@ -208,6 +225,9 @@ export async function POST(request: Request) {
     if (action === 'update_character') {
       if (!characterData) {
         return NextResponse.json({ error: 'Missing characterData' }, { status: 400 });
+      }
+      if (schoolId && session.user?.role !== 'SUPER_ADMIN' && schoolId !== session.user?.schoolId) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
       }
 
       const character = await db.virtualCharacter.upsert({

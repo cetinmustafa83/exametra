@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { db } from '@/lib/db';
 import { getSession } from '@/lib/auth';
+import { canAccessClass, canAccessStudent, getTeacherClassIds } from '@/lib/access-policy';
 
 const createReportCardSchema = z.object({
   studentId: z.string().min(1),
@@ -40,6 +41,12 @@ export async function GET(request: Request) {
     const templateId = searchParams.get('templateId');
 
     const where: Record<string, unknown> = {};
+    if (studentId && (!session.user || !(await canAccessStudent(session.user, studentId)))) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+    if (classGroupId && (!session.user || !(await canAccessClass(session.user, classGroupId)))) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
     if (studentId) where.studentId = studentId;
     if (classGroupId) where.classGroupId = classGroupId;
     if (schoolYearId) where.schoolYearId = schoolYearId;
@@ -70,11 +77,7 @@ export async function GET(request: Request) {
     } else if (session.user?.role === 'TEACHER') {
       // Teachers see reports for their classes
       if (!classGroupId) {
-        const teacherClasses = await db.classGroupTeacher.findMany({
-          where: { userId: session.userId },
-        });
-        const classIds = teacherClasses.map((c) => c.classGroupId);
-        where.classGroupId = { in: classIds };
+        where.classGroupId = { in: await getTeacherClassIds(session.userId) };
       }
     }
 
@@ -129,6 +132,9 @@ export async function POST(request: Request) {
     }
 
     const { sections, ...reportData } = parsed.data;
+    if (!session.user || !(await canAccessStudent(session.user, reportData.studentId)) || !(await canAccessClass(session.user, reportData.classGroupId))) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
 
     // If attendance summary not provided, try to compute it
     let attendanceSummary = reportData.attendanceSummary;

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { db } from '@/lib/db';
 import { getSession } from '@/lib/auth';
+import { canAccessClass } from '@/lib/access-policy';
 
 const createDrawingSchema = z.object({
   title: z.string().min(1).default('Untitled Drawing'),
@@ -69,6 +70,16 @@ export async function POST(request: Request) {
         { error: 'Validation failed', details: parsed.error.issues },
         { status: 400 }
       );
+    }
+
+    if (parsed.data.schoolId && session.user?.role !== 'SUPER_ADMIN' && parsed.data.schoolId !== session.user?.schoolId) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+    if (parsed.data.classGroupId && (!session.user || !(await canAccessClass(session.user, parsed.data.classGroupId)))) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+    if (session.user?.role === 'STUDENT' && parsed.data.isPublic) {
+      return NextResponse.json({ error: 'Students cannot publish drawings to a class' }, { status: 403 });
     }
 
     const drawing = await db.drawing.create({

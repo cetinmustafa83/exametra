@@ -65,15 +65,22 @@ export async function POST(request: Request) {
     const body = await request.json();
     const { requestType, description, addToCalendar, isPrivate } = body;
     const schoolId = body.schoolId || session.user?.schoolId;
+    const role = session.user?.role;
 
     if (!schoolId) {
       return NextResponse.json({ error: 'schoolId is required' }, { status: 400 });
     }
+    if (role !== 'SUPER_ADMIN' && schoolId !== session.user?.schoolId) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
 
-    // Only students can request counseling
-    const role = session.user?.role;
+    // Only students can request counseling.
     if (role !== 'STUDENT' && role !== 'SCHOOL_ADMIN' && role !== 'SUPER_ADMIN') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+    if (role === 'STUDENT') {
+      const student = await db.student.findFirst({ where: { userId: session.userId, schoolId, deletedAt: null }, select: { id: true } });
+      if (!student) return NextResponse.json({ error: 'Student profile not found' }, { status: 403 });
     }
 
     // Find a counselor teacher for this school

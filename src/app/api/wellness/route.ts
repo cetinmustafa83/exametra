@@ -1,22 +1,30 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { getSession } from '@/lib/auth';
+import { canAccessClass, canAccessStudent } from '@/lib/access-policy';
+import { isAdministrator } from '@/lib/role-access';
 
 // GET /api/wellness — Get wellness data for a student
 export async function GET(req: NextRequest) {
   try {
+    const session = await getSession();
+    if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     const { searchParams } = new URL(req.url);
     const schoolId = searchParams.get('schoolId');
     const studentId = searchParams.get('studentId');
-    const role = searchParams.get('role') || 'STUDENT';
+    const role = session.user.role;
     const classGroupId = searchParams.get('classGroupId');
     const limit = parseInt(searchParams.get('limit') || '30');
 
     if (!schoolId) {
       return NextResponse.json({ error: 'schoolId is required' }, { status: 400 });
     }
+    if (role !== 'SUPER_ADMIN' && schoolId !== session.user.schoolId) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
 
     // Admin/VP: school-wide overview
-    if ((role === 'SCHOOL_ADMIN' || role === 'VICE_PRINCIPAL') && !studentId) {
+    if (isAdministrator(role) && !studentId) {
       const totalCheckins = await db.wellnessCheckin.count({
         where: { schoolId },
       });
@@ -55,6 +63,9 @@ export async function GET(req: NextRequest) {
 
     // Teacher: class overview
     if (role === 'TEACHER' && classGroupId && !studentId) {
+      if (!(await canAccessClass(session.user, classGroupId))) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      }
       const enrollments = await db.enrollment.findMany({
         where: { classGroupId, endDate: null },
         select: { studentId: true },
@@ -82,6 +93,9 @@ export async function GET(req: NextRequest) {
 
     // Student or specific student view
     if (studentId) {
+      if (!(await canAccessStudent(session.user, studentId))) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      }
       const checkins = await db.wellnessCheckin.findMany({
         where: { schoolId, studentId },
         orderBy: { date: 'desc' },
@@ -112,11 +126,16 @@ export async function GET(req: NextRequest) {
 // POST /api/wellness — Submit daily check-in
 export async function POST(req: NextRequest) {
   try {
+    const session = await getSession();
+    if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     const body = await req.json();
     const { schoolId, studentId, mood, sleepHours, sleepQuality, stressLevel, activityType, activityMinutes, mealsCount, waterGlasses, gratitudeEntry, notes } = body;
 
     if (!schoolId || !studentId || mood === undefined) {
       return NextResponse.json({ error: 'schoolId, studentId, and mood are required' }, { status: 400 });
+    }
+    if (session.user.role !== 'STUDENT' || schoolId !== session.user.schoolId || !(await canAccessStudent(session.user, studentId))) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
     if (mood < 1 || mood > 5) {

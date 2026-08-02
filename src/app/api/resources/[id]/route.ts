@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { db } from '@/lib/db';
 import { getSession } from '@/lib/auth';
+import { canAccessClass } from '@/lib/access-policy';
 
 const resourceTypeEnum = z.enum([
   'document', 'worksheet', 'presentation', 'video_link', 'image', 'link', 'audio',
@@ -48,9 +49,15 @@ export async function GET(
     if (!resource) {
       return NextResponse.json({ error: 'Resource not found' }, { status: 404 });
     }
+    if (session.user?.role !== 'SUPER_ADMIN' && resource.schoolId !== session.user?.schoolId) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
 
     // Students can only see public resources
     if (session.user?.role === 'STUDENT' && !resource.isPublic) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+    if (resource.classGroupId && (!session.user || !(await canAccessClass(session.user, resource.classGroupId)))) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
@@ -88,6 +95,9 @@ export async function PUT(
     if (!existing) {
       return NextResponse.json({ error: 'Resource not found' }, { status: 404 });
     }
+    if (session.user?.role !== 'SUPER_ADMIN' && existing.schoolId !== session.user?.schoolId) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
 
     // Only the author or admins can edit
     if (session.user?.role === 'TEACHER' && existing.authorId !== session.userId) {
@@ -111,6 +121,9 @@ export async function PUT(
     if (parsed.data.content !== undefined) updateData.content = parsed.data.content;
     if (parsed.data.subjectId !== undefined) updateData.subjectId = parsed.data.subjectId || null;
     if (parsed.data.classGroupId !== undefined) updateData.classGroupId = parsed.data.classGroupId || null;
+    if (parsed.data.classGroupId && (!session.user || !(await canAccessClass(session.user, parsed.data.classGroupId)))) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
     if (parsed.data.gradeLevel !== undefined) updateData.gradeLevel = parsed.data.gradeLevel;
     if (parsed.data.tags !== undefined) updateData.tags = parsed.data.tags ? JSON.stringify(parsed.data.tags) : null;
     if (parsed.data.isPublic !== undefined) updateData.isPublic = parsed.data.isPublic;
@@ -149,6 +162,9 @@ export async function DELETE(
     const existing = await db.resource.findUnique({ where: { id, deletedAt: null } });
     if (!existing) {
       return NextResponse.json({ error: 'Resource not found' }, { status: 404 });
+    }
+    if (session.user?.role !== 'SUPER_ADMIN' && existing.schoolId !== session.user?.schoolId) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
     // Only the author or admins can delete

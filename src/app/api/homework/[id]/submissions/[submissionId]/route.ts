@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { db } from '@/lib/db';
 import { getSession } from '@/lib/auth';
+import { canAccessClass, canAccessStudent } from '@/lib/access-policy';
 
 const gradeSchema = z.object({
   score: z.number().min(0).optional().nullable(),
@@ -26,7 +27,7 @@ export async function PUT(
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    const { submissionId } = await params;
+    const { id: homeworkId, submissionId } = await params;
 
     const body = await request.json();
     const parsed = gradeSchema.safeParse(body);
@@ -42,6 +43,10 @@ export async function PUT(
     });
     if (!existing) {
       return NextResponse.json({ error: 'Submission not found' }, { status: 404 });
+    }
+    const homework = await db.homework.findUnique({ where: { id: homeworkId }, select: { classGroupId: true } });
+    if (!homework || !session.user || !(await canAccessClass(session.user, homework.classGroupId)) || !(await canAccessStudent(session.user, existing.studentId))) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
     const updateData: Record<string, unknown> = {};
@@ -82,12 +87,16 @@ export async function DELETE(
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    const { submissionId } = await params;
+    const { id: homeworkId, submissionId } = await params;
     const existing = await db.homeworkSubmission.findUnique({
       where: { id: submissionId, deletedAt: null },
     });
     if (!existing) {
       return NextResponse.json({ error: 'Submission not found' }, { status: 404 });
+    }
+    const homework = await db.homework.findUnique({ where: { id: homeworkId }, select: { classGroupId: true } });
+    if (!homework || !session.user || !(await canAccessClass(session.user, homework.classGroupId)) || !(await canAccessStudent(session.user, existing.studentId))) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
     await db.homeworkSubmission.update({

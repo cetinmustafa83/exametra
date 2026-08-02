@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { getSession } from '@/lib/auth';
+import { canAccessStudent } from '@/lib/access-policy';
 
 // ── GET: List checkouts ──────────────────────────────────────────────
 export async function GET(request: Request) {
@@ -21,6 +22,12 @@ export async function GET(request: Request) {
 
     if (!schoolId) {
       return NextResponse.json({ error: 'schoolId is required' }, { status: 400 });
+    }
+    if (session.user?.role !== 'SUPER_ADMIN' && schoolId !== session.user?.schoolId) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+    if (studentId && (!session.user || !(await canAccessStudent(session.user, studentId)))) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
     const where: Record<string, unknown> = { schoolId };
@@ -129,11 +136,20 @@ export async function POST(request: Request) {
         { status: 400 }
       );
     }
+    if (session.user?.role !== 'SUPER_ADMIN' && schoolId !== session.user?.schoolId) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+    if (!session.user || !(await canAccessStudent(session.user, studentId))) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
 
     // Check book availability
     const book = await db.libraryBook.findUnique({ where: { id: bookId } });
     if (!book) {
       return NextResponse.json({ error: 'Book not found' }, { status: 404 });
+    }
+    if (book.schoolId !== schoolId) {
+      return NextResponse.json({ error: 'Book not found in this school' }, { status: 404 });
     }
 
     if (book.availableCopies <= 0) {

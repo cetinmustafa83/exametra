@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { db } from '@/lib/db';
 import { getSession } from '@/lib/auth';
+import { canAccessStudent } from '@/lib/access-policy';
 
 const awardBadgeSchema = z.object({
   schoolId: z.string().min(1),
@@ -35,6 +36,9 @@ export async function GET(request: Request) {
     if (!schoolId) return NextResponse.json([]);
 
     const where: Record<string, unknown> = { schoolId };
+    if (studentIdParam && (!session.user || !(await canAccessStudent(session.user, studentIdParam)))) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
     if (studentIdParam) where.studentId = studentIdParam;
     if (badgeIdParam) where.badgeId = badgeIdParam;
 
@@ -68,14 +72,22 @@ export async function POST(request: Request) {
     }
 
     const { schoolId, studentId, badgeId } = parsed.data;
+    if (session.user?.role !== 'SUPER_ADMIN' && schoolId !== session.user?.schoolId) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+    if (!session.user || !(await canAccessStudent(session.user, studentId))) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
 
     // Verify badge exists
     const badge = await db.badge.findUnique({ where: { id: badgeId, deletedAt: null } });
     if (!badge) return NextResponse.json({ error: 'Badge not found' }, { status: 404 });
+    if (badge.schoolId !== schoolId) return NextResponse.json({ error: 'Badge not found in this school' }, { status: 404 });
 
     // Verify student exists
     const student = await db.student.findUnique({ where: { id: studentId, deletedAt: null } });
     if (!student) return NextResponse.json({ error: 'Student not found' }, { status: 404 });
+    if (student.schoolId !== schoolId) return NextResponse.json({ error: 'Student not found in this school' }, { status: 404 });
 
     // Check if already awarded
     const existing = await db.studentBadge.findUnique({

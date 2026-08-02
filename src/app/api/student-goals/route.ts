@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { getSession } from '@/lib/auth';
+import { canAccessStudent } from '@/lib/access-policy';
 
 export async function GET(request: Request) {
   try {
@@ -17,23 +18,8 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'studentId is required' }, { status: 400 });
     }
 
-    // Verify the student belongs to the same school or is the student themselves
-    if (session.user?.role === 'STUDENT') {
-      const student = await db.student.findUnique({
-        where: { id: studentId },
-        select: { userId: true, schoolId: true },
-      });
-      if (!student || student.userId !== session.user.id) {
-        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-      }
-    } else if (session.user?.role !== 'SUPER_ADMIN') {
-      const student = await db.student.findUnique({
-        where: { id: studentId },
-        select: { schoolId: true },
-      });
-      if (!student || student.schoolId !== session.user?.schoolId) {
-        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-      }
+    if (!session.user || !(await canAccessStudent(session.user, studentId))) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
     const where: Record<string, unknown> = { studentId };
@@ -68,32 +54,8 @@ export async function POST(request: Request) {
       );
     }
 
-    // Verify the student belongs to the same school or is the student themselves
-    if (session.user?.role === 'STUDENT') {
-      const student = await db.student.findUnique({
-        where: { id: studentId },
-        select: { userId: true, schoolId: true, firstName: true, lastName: true },
-      });
-      if (!student) {
-        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-      }
-      // Check by userId (direct link) or by name matching (fallback for legacy data)
-      const isOwnStudent = student.userId === session.user.id ||
-        (student.userId === null &&
-         student.firstName === session.user.firstName &&
-         student.lastName === session.user.lastName &&
-         student.schoolId === session.user.schoolId);
-      if (!isOwnStudent) {
-        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-      }
-    } else if (session.user?.role !== 'SUPER_ADMIN') {
-      const student = await db.student.findUnique({
-        where: { id: studentId },
-        select: { schoolId: true },
-      });
-      if (!student || student.schoolId !== session.user?.schoolId) {
-        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-      }
+    if (!session.user || !(await canAccessStudent(session.user, studentId))) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
     const goal = await db.studentGoal.create({

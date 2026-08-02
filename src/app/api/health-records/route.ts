@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { getSession } from '@/lib/auth';
+import { canAccessStudent } from '@/lib/access-policy';
+import { isAdministrator } from '@/lib/role-access';
 
 export async function GET(request: Request) {
   try {
@@ -20,12 +22,18 @@ export async function GET(request: Request) {
     if (session.user?.role !== 'SUPER_ADMIN' && session.user?.schoolId !== schoolId) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
+    if (!isAdministrator(session.user?.role)) {
+      return NextResponse.json({ error: 'Health records are restricted to administrators' }, { status: 403 });
+    }
 
     const where: Record<string, unknown> = {
       schoolId,
       deletedAt: null,
     };
 
+    if (studentId && (!session.user || !(await canAccessStudent(session.user, studentId)))) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
     if (studentId) where.studentId = studentId;
 
     const records = await db.healthRecord.findMany({
@@ -78,6 +86,9 @@ export async function POST(request: Request) {
     }
 
     if (session.user?.role !== 'SUPER_ADMIN' && session.user?.schoolId !== schoolId) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+    if (!isAdministrator(session.user?.role) || !session.user || !(await canAccessStudent(session.user, studentId))) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 

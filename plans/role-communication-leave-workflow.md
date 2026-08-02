@@ -217,3 +217,88 @@ Status: implemented
 - Teachers cannot alter status, or edit/delete a leave once it is approved.
 - Vice principals cannot delete student leave records; reporters may only
   withdraw requests before either approval stage is processed.
+
+## Phase 9: Academic And Behavioral Data Isolation
+
+Status: implemented
+
+- Learning progress reads and writes enforce linked student, class, and teacher
+  scope rather than accepting arbitrary identifiers.
+- Assessment results validate assessment class access and every target student.
+- Homework submissions return only the logged-in student or linked parent
+  records, and student submissions resolve from the authenticated user ID.
+- Behavior incidents are limited to a teacher's assigned classes for reads and
+  writes.
+
+## Phase 10: Sensitive Student Resource Isolation
+
+Status: implemented
+
+- Health records are administrator-only and additionally validate the target
+  student scope and school on every operation.
+- Portfolio entries resolve to the current student or linked parent children
+  when no explicit authorized student is supplied.
+- Notebook and drawing creation validates class ownership, school ownership,
+  and prevents students from publishing class-visible resources.
+
+## Phase 11: Personal Planning And Calendar Integrity
+
+Status: implemented
+
+- Calendar event updates and deletions require event ownership or administrator
+  authority, plus matching school and class access.
+- Student goals and study plans now use the shared student access predicate for
+  all student, parent, teacher, and administrator callers.
+- Badge awards and XP changes require an authorized teacher/administrator and
+  an accessible student; character updates cannot cross school boundaries.
+
+## Phase 12: Wellbeing And Private Record Isolation
+
+Status: implemented
+
+- Wellness API identity and role now come exclusively from the active session;
+  caller-controlled role query parameters can no longer grant access.
+- Students may submit only their own daily wellness check-ins; teachers may
+  view only assigned classes.
+- Teacher notes verify target student scope before reads or writes.
+- Emergency contacts are restricted to administrators and require school plus
+  authorized target-student scope.
+
+## Phase 13: Operational Resource Isolation
+
+Status: implemented
+
+- Student transport records are administrator-only and verify target student
+  scope for read, create, update, and deletion.
+- Library checkouts validate caller school, target student access, and book
+  school ownership before mutation.
+- Student resource discovery is limited to public resources targeted at their
+  enrolled classes; resource creation verifies school and class ownership.
+- School event creation requires a teacher/administrator and class scope;
+  student lists are restricted to all-school or their enrolled-class events.
+
+## Phase 14: Assessment And Report Isolation
+
+Status: implemented
+
+- Only students may submit lesson answers or peer assessments, and both flows
+  verify the authenticated student and assigned class.
+- Teachers can only create/view peer assessment sessions in their own classes;
+  vice principals cannot create them.
+- Learning goals and report cards enforce the shared student/class access
+  policy for every caller.
+- Student and parent report lists are restricted to published reports for self
+  or linked children; teacher report lists are limited to assigned classes.
+
+## Phase 15: Single-Item Resource Integrity
+
+Status: implemented
+
+- Homework grading/deletion validates the homework class and target student
+  before a teacher or administrator can mutate a submission.
+- Student badge queries, awards, and deletions validate school plus target
+  student scope.
+- Single drawing/resource operations now enforce school and class visibility;
+  student-owned work cannot be republished class-wide.
+- School-event registration, cancellation, and status changes prohibit user ID
+  spoofing and validate the caller's event school/class access.

@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { getSession } from '@/lib/auth';
+import { canAccessClass } from '@/lib/access-policy';
+import { isAdministrator } from '@/lib/role-access';
 
 export async function POST(
   request: Request,
@@ -20,6 +22,12 @@ export async function POST(
     if (!event) {
       return NextResponse.json({ error: 'Event not found' }, { status: 404 });
     }
+    if (session.user?.role !== 'SUPER_ADMIN' && event.schoolId !== session.user?.schoolId) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+    if (event.classGroupId && (!session.user || !(await canAccessClass(session.user, event.classGroupId)))) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
 
     if (!event.requiresRegistration) {
       return NextResponse.json({ error: 'Event does not require registration' }, { status: 400 });
@@ -35,6 +43,9 @@ export async function POST(
 
     if (!userId) {
       return NextResponse.json({ error: 'userId is required' }, { status: 400 });
+    }
+    if (userId !== session.userId && !isAdministrator(session.user?.role)) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
     // Check if already registered
@@ -110,6 +121,13 @@ export async function PUT(
     if (!registration) {
       return NextResponse.json({ error: 'Registration not found' }, { status: 404 });
     }
+    const event = await db.schoolEvent.findFirst({ where: { id, deletedAt: null } });
+    if (!event || (session.user?.role !== 'SUPER_ADMIN' && event.schoolId !== session.user?.schoolId)) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+    if (userId !== session.userId && !isAdministrator(session.user?.role)) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
 
     const updated = await db.eventRegistration.update({
       where: { id: registration.id },
@@ -152,6 +170,13 @@ export async function DELETE(
 
     if (!registration) {
       return NextResponse.json({ error: 'Registration not found' }, { status: 404 });
+    }
+    const event = await db.schoolEvent.findFirst({ where: { id, deletedAt: null } });
+    if (!event || (session.user?.role !== 'SUPER_ADMIN' && event.schoolId !== session.user?.schoolId)) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+    if (userId !== session.userId && !isAdministrator(session.user?.role)) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
     // Cancel registration (soft delete via status)

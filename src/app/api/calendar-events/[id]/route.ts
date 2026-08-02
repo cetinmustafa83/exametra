@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { getSession } from '@/lib/auth';
+import { canAccessClass } from '@/lib/access-policy';
+import { isAdministrator } from '@/lib/role-access';
 import { addDays, addWeeks, addMonths, addYears, getDay } from 'date-fns';
 
 interface RecurrencePattern {
@@ -124,6 +126,15 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
     if (!existing) {
       return NextResponse.json({ error: 'Event not found' }, { status: 404 });
     }
+    if (!session.user || (!isAdministrator(session.user.role) && existing.teacherId !== session.user.id)) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+    if (session.user.role !== 'SUPER_ADMIN' && existing.schoolId !== session.user.schoolId) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+    if (classGroupId && !(await canAccessClass(session.user, classGroupId))) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
 
     // If editing a single instance of a recurring event
     if (editMode === 'instance' && existing.parentEventId) {
@@ -236,6 +247,12 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
     });
     if (!existing) {
       return NextResponse.json({ error: 'Event not found' }, { status: 404 });
+    }
+    if (!session.user || (!isAdministrator(session.user.role) && existing.teacherId !== session.user.id)) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+    if (session.user.role !== 'SUPER_ADMIN' && existing.schoolId !== session.user.schoolId) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
     // If deleting a single instance, just delete that one

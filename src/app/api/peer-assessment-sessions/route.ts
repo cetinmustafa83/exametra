@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { getSession } from '@/lib/auth';
+import { canAccessClass, getTeacherClassIds } from '@/lib/access-policy';
+import { isAdministrator } from '@/lib/role-access';
 
 export async function GET(request: Request) {
   try {
@@ -23,6 +25,9 @@ export async function GET(request: Request) {
     if (session.user?.role !== 'SUPER_ADMIN' && session.user?.schoolId !== schoolId) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
+    if (classGroupId && (!session.user || !(await canAccessClass(session.user, classGroupId)))) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
 
     const where: Record<string, unknown> = {
       schoolId,
@@ -42,6 +47,8 @@ export async function GET(request: Request) {
       if (student) {
         where.assignedPairs = { contains: student.id };
       }
+    } else if (session.user?.role === 'TEACHER') {
+      where.classGroupId = { in: await getTeacherClassIds(session.user.id) };
     }
 
     const sessions = await db.peerAssessmentSession.findMany({
@@ -125,6 +132,14 @@ export async function POST(request: Request) {
 
     if (session.user?.role !== 'SUPER_ADMIN' && session.user?.schoolId !== schoolId) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+    if (session.user?.role === 'VICE_PRINCIPAL') {
+      return NextResponse.json({ error: 'Vice principals cannot create peer assessments' }, { status: 403 });
+    }
+    if (session.user?.role === 'TEACHER') {
+      if ((teacherId && teacherId !== session.user.id) || (classGroupId && !(await canAccessClass(session.user, classGroupId)))) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      }
     }
 
     const assessmentSession = await db.peerAssessmentSession.create({

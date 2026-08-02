@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { getSession } from '@/lib/auth';
+import { canAccessClass } from '@/lib/access-policy';
 
 export async function POST(
   request: Request,
@@ -27,6 +28,9 @@ export async function POST(
 
     if (!assessmentSession) {
       return NextResponse.json({ error: 'Session not found' }, { status: 404 });
+    }
+    if (!session.user || !assessmentSession.classGroupId || !(await canAccessClass(session.user, assessmentSession.classGroupId))) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
     if (assessmentSession.status === 'closed') {
@@ -55,6 +59,8 @@ export async function POST(
       if (!student || student.id !== assessment.assessorId) {
         return NextResponse.json({ error: 'You can only submit your own assessments' }, { status: 403 });
       }
+    } else {
+      return NextResponse.json({ error: 'Only students can submit peer assessments' }, { status: 403 });
     }
 
     // Update the assessment

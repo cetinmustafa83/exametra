@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { getSession } from '@/lib/auth';
+import { canAccessStudent } from '@/lib/access-policy';
 
 export async function GET(request: Request) {
   try {
@@ -28,7 +29,18 @@ export async function GET(request: Request) {
       deletedAt: null,
     };
 
+    if (studentId && (!session.user || !(await canAccessStudent(session.user, studentId)))) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
     if (studentId) where.studentId = studentId;
+    if (!studentId && session.user?.role === 'STUDENT') {
+      const student = await db.student.findFirst({ where: { userId: session.user.id }, select: { id: true } });
+      if (!student) return NextResponse.json([]);
+      where.studentId = student.id;
+    } else if (!studentId && session.user?.role === 'PARENT') {
+      const links = await db.parentStudentLink.findMany({ where: { parentId: session.user.id }, select: { studentId: true } });
+      where.studentId = { in: links.map((link) => link.studentId) };
+    }
     if (competencyId) where.competencyId = competencyId;
     if (status) where.status = status;
 
@@ -88,6 +100,9 @@ export async function POST(request: Request) {
     }
 
     if (session.user?.role !== 'SUPER_ADMIN' && session.user?.schoolId !== schoolId) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+    if (!session.user || !(await canAccessStudent(session.user, studentId))) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 

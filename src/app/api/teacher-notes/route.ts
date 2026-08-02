@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { db } from '@/lib/db';
 import { getSession } from '@/lib/auth';
+import { canAccessStudent } from '@/lib/access-policy';
 
 const noteCategoryEnum = z.enum([
   'GENERAL',
@@ -48,6 +49,9 @@ export async function GET(request: Request) {
 
     if (!student) {
       return NextResponse.json({ error: 'Student not found' }, { status: 404 });
+    }
+    if (!session.user || !(await canAccessStudent(session.user, studentId))) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
     if (
@@ -103,6 +107,9 @@ export async function POST(request: Request) {
 
     if (!student) {
       return NextResponse.json({ error: 'Student not found' }, { status: 404 });
+    }
+    if (!session.user || !(await canAccessStudent(session.user, studentId))) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
     if (

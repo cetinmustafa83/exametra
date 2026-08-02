@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { db } from '@/lib/db';
 import { getSession } from '@/lib/auth';
+import { canAccessClass } from '@/lib/access-policy';
 
 const resourceTypeEnum = z.enum([
   'document', 'worksheet', 'presentation', 'video_link', 'image', 'link', 'audio',
@@ -50,17 +51,26 @@ export async function GET(request: Request) {
     if (!schoolId) {
       return NextResponse.json([]);
     }
+    if (session.user?.role !== 'SUPER_ADMIN' && schoolId !== session.user?.schoolId) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
 
     const where: Record<string, unknown> = { schoolId, deletedAt: null };
 
     // Students can only see public resources
     if (session.user?.role === 'STUDENT') {
       where.isPublic = true;
+      const student = await db.student.findFirst({ where: { userId: session.user.id, deletedAt: null }, select: { id: true } });
+      const enrollments = student ? await db.enrollment.findMany({ where: { studentId: student.id, endDate: null }, select: { classGroupId: true } }) : [];
+      where.OR = [{ classGroupId: null }, { classGroupId: { in: enrollments.map((enrollment) => enrollment.classGroupId) } }];
     }
 
     if (resourceType && resourceType !== 'all') where.resourceType = resourceType;
     if (subjectId && subjectId !== 'all') where.subjectId = subjectId;
     if (classGroupId && classGroupId !== 'all') where.classGroupId = classGroupId;
+    if (classGroupId && classGroupId !== 'all' && !(await canAccessClass(session.user!, classGroupId))) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
     if (isPublic === 'true') where.isPublic = true;
     if (isPublic === 'false') where.isPublic = false;
 
@@ -117,6 +127,9 @@ export async function POST(request: Request) {
     if (session.user?.role === 'SCHOOL_ADMIN' && session.user.schoolId && school.id !== session.user.schoolId) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
+    if (session.user?.role === 'TEACHER' && session.user.schoolId !== school.id) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
 
     // Verify subject if provided
     if (subjectId) {
@@ -131,6 +144,9 @@ export async function POST(request: Request) {
       const classGroup = await db.classGroup.findUnique({ where: { id: classGroupId } });
       if (!classGroup || classGroup.schoolId !== schoolId) {
         return NextResponse.json({ error: 'Class group not found in this school' }, { status: 404 });
+      }
+      if (!session.user || !(await canAccessClass(session.user, classGroupId))) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
       }
     }
 

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { getSession } from '@/lib/auth';
+import { canAccessStudent } from '@/lib/access-policy';
 
 export async function GET(request: Request) {
   try {
@@ -34,15 +35,8 @@ export async function GET(request: Request) {
 
     if (!studentId) return NextResponse.json([]);
 
-    // Verify access
-    if (session.user?.role === 'STUDENT') {
-      const student = await db.student.findUnique({
-        where: { id: studentId },
-        select: { userId: true },
-      });
-      if (!student || student.userId !== session.userId) {
-        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-      }
+    if (!session.user || !(await canAccessStudent(session.user, studentId))) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
     const studyPlans = await db.studyPlan.findMany({
@@ -125,15 +119,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
-    // Verify access
-    if (session.user?.role === 'STUDENT') {
-      const student = await db.student.findUnique({
-        where: { id: studentId },
-        select: { userId: true, schoolId: true },
-      });
-      if (!student || student.userId !== session.userId || student.schoolId !== schoolId) {
-        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-      }
+    if (!session.user || !(await canAccessStudent(session.user, studentId))) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
     const plan = await db.studyPlan.create({

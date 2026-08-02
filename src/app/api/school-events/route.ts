@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { getSession } from '@/lib/auth';
+import { canAccessClass } from '@/lib/access-policy';
+import { isAdministrator } from '@/lib/role-access';
 
 export async function GET(request: Request) {
   try {
@@ -27,11 +29,18 @@ export async function GET(request: Request) {
     if (session.user?.role !== 'SUPER_ADMIN' && session.user?.schoolId !== schoolId) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
-
+    if (classGroupId && (!session.user || !(await canAccessClass(session.user, classGroupId)))) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
     const where: Record<string, unknown> = {
       schoolId,
       deletedAt: null,
     };
+    if (session.user?.role === 'STUDENT') {
+      const student = await db.student.findFirst({ where: { userId: session.user.id }, select: { id: true } });
+      const classIds = student ? (await db.enrollment.findMany({ where: { studentId: student.id, endDate: null }, select: { classGroupId: true } })).map((enrollment) => enrollment.classGroupId) : [];
+      where.OR = [{ isAllSchool: true }, { classGroupId: { in: classIds } }];
+    }
 
     if (eventType) where.eventType = eventType;
     if (classGroupId) where.classGroupId = classGroupId;
@@ -129,6 +138,12 @@ export async function POST(request: Request) {
     }
 
     if (session.user?.role !== 'SUPER_ADMIN' && session.user?.schoolId !== schoolId) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+    if (!isAdministrator(session.user?.role) && session.user?.role !== 'TEACHER') {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+    if (classGroupId && (!session.user || !(await canAccessClass(session.user, classGroupId)))) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 

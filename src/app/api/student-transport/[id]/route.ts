@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { getSession } from '@/lib/auth';
+import { canAccessStudent } from '@/lib/access-policy';
+import { isAdministrator } from '@/lib/role-access';
 
 export async function GET(
   _request: Request,
@@ -32,6 +34,9 @@ export async function GET(
     if (session.user?.role !== 'SUPER_ADMIN' && session.user?.schoolId !== transport.schoolId) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
+    if (!isAdministrator(session.user?.role) || !session.user || !(await canAccessStudent(session.user, transport.studentId))) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
 
     return NextResponse.json(transport);
   } catch (error) {
@@ -60,6 +65,9 @@ export async function PUT(
     }
 
     if (session.user?.role !== 'SUPER_ADMIN' && session.user?.schoolId !== existing.schoolId) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+    if (!isAdministrator(session.user?.role) || !session.user || !(await canAccessStudent(session.user, existing.studentId))) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
@@ -128,6 +136,9 @@ export async function DELETE(
     }
 
     if (session.user?.role !== 'SUPER_ADMIN' && session.user?.schoolId !== existing.schoolId) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+    if (!isAdministrator(session.user?.role) || !session.user || !(await canAccessStudent(session.user, existing.studentId))) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 

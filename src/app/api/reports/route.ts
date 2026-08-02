@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { db } from '@/lib/db';
 import { getSession } from '@/lib/auth';
+import { canAccessClass, canAccessStudent, getTeacherClassIds } from '@/lib/access-policy';
 
 const createReportSchema = z.object({
   studentId: z.string().min(1),
@@ -34,8 +35,26 @@ export async function GET(request: Request) {
     const status = searchParams.get('status');
 
     const where: Record<string, unknown> = {};
+    if (studentId && (!session.user || !(await canAccessStudent(session.user, studentId)))) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+    if (classGroupId && (!session.user || !(await canAccessClass(session.user, classGroupId)))) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
     if (studentId) where.studentId = studentId;
     if (classGroupId) where.classGroupId = classGroupId;
+    if (!studentId && session.user?.role === 'STUDENT') {
+      const student = await db.student.findFirst({ where: { userId: session.user.id }, select: { id: true } });
+      if (!student) return NextResponse.json([]);
+      where.studentId = student.id;
+      where.status = 'PUBLISHED';
+    } else if (!studentId && session.user?.role === 'PARENT') {
+      const links = await db.parentStudentLink.findMany({ where: { parentId: session.user.id }, select: { studentId: true } });
+      where.studentId = { in: links.map((link) => link.studentId) };
+      where.status = 'PUBLISHED';
+    } else if (!studentId && session.user?.role === 'TEACHER') {
+      where.classGroupId = { in: await getTeacherClassIds(session.user.id) };
+    }
     if (schoolYearId) where.schoolYearId = schoolYearId;
     if (status) where.status = status;
 
@@ -95,6 +114,9 @@ export async function POST(request: Request) {
     }
 
     const { sections, ...reportData } = parsed.data;
+    if (!session.user || !(await canAccessStudent(session.user, reportData.studentId)) || !(await canAccessClass(session.user, reportData.classGroupId))) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
 
     const report = await db.report.create({
       data: {
