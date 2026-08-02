@@ -223,12 +223,7 @@ function LeftIllustration({ loginRole }: { loginRole: LoginRole }) {
         transition={{ duration: 0.5, delay: 0.7 }}
         className="mt-12 space-y-4 text-center"
       >
-        <div>
-          <p className="text-3xl font-bold tracking-tight text-gray-900 dark:text-gray-100">SchulOS</p>
-          <h3 className="mt-2 text-2xl font-bold text-gray-800 dark:text-gray-200 tracking-tight">
-            {t('auth.mission_title')}
-          </h3>
-        </div>
+        <p className="text-3xl font-bold tracking-tight text-gray-900 dark:text-gray-100">SchulOS</p>
         <div className="space-y-3">
           {features.map((f, i) => {
             const c = colorClasses[f.color];
@@ -477,14 +472,6 @@ export default function AuthView() {
           >
             {t('app.name')}
           </motion.h1>
-          <motion.p
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4, delay: 0.3 }}
-            className="mt-2 text-sm text-emerald-600/70 dark:text-emerald-400/50"
-          >
-            {t('app.subtitle')}
-          </motion.p>
         </div>
 
         {/* Auth Card - Glassmorphism */}
