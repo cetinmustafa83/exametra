@@ -168,7 +168,7 @@ export function queueNotebookEdit(
     if (cached) {
       const page = cached.pages.find((p) => p.id === pageId);
       if (page) {
-        (page as Record<string, unknown>)[field] = value;
+        (page as unknown as Record<string, unknown>)[field] = value;
         localStorage.setItem(NOTEBOOK_CACHE_KEY, JSON.stringify(cache));
       }
     }

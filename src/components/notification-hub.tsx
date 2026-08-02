@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useApi } from '@/lib/hooks/useApi';
+import { useApiGet } from '@/lib/hooks/useApi';
 import { Bell, X, Check, Archive, AlertCircle, Info, CheckCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { formatDistanceToNow } from 'date-fns';
@@ -22,11 +22,11 @@ interface Notification {
 export function NotificationHub() {
   const [isOpen, setIsOpen] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
-  const { data: hubData, mutate } = useApi('/api/v1/notifications/hub');
+  const { data: hubData, mutate } = useApiGet<Notification[]>('/api/v1/notifications/hub');
 
   useEffect(() => {
     if (hubData) {
-      setNotifications(hubData.filter((n: any) => !n.isDismissed));
+      setNotifications(hubData.filter((n) => !n.isDismissed));
     }
   }, [hubData]);
 

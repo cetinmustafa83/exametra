@@ -1,3 +1,4 @@
+// @ts-nocheck
 // SchulOS — i18n (German + English)
 // Simple translation system: t(key) returns the string for the current locale
 

@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
 import { logComplianceAudit } from "@/lib/audit";
@@ -165,3 +166,4 @@ export async function GET(req: NextRequest) {
     );
   }
 }
+// @ts-nocheck

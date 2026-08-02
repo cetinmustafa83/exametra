@@ -148,13 +148,17 @@ export function createRateLimitResponse(result: RateLimitResult): {
 
 import { NextResponse } from 'next/server';
 
-type RouteHandler = (request: Request, context?: { params: Promise<Record<string, string>> }) => Promise<NextResponse>;
+type RouteContext = { params: Promise<Record<string, string>> };
+type RouteHandler<TContext extends RouteContext = RouteContext> = (
+  request: Request,
+  context: TContext
+) => Promise<NextResponse>;
 
-export function withRateLimit(
-  handler: RouteHandler,
+export function withRateLimit<TContext extends RouteContext>(
+  handler: RouteHandler<TContext>,
   limitPreset: keyof typeof RATE_LIMITS | { limit: number; windowMs: number }
-): RouteHandler {
-  return async (request: Request, context?: { params: Promise<Record<string, string>> }) => {
+): RouteHandler<TContext> {
+  return async (request: Request, context: TContext) => {
     const { limit, windowMs } = typeof limitPreset === 'string'
       ? RATE_LIMITS[limitPreset]
       : limitPreset;

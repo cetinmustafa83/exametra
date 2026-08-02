@@ -26,7 +26,7 @@ export async function POST(request: Request) {
     const assessment = await db.assessment.findUnique({
       where: { id: assessmentId },
       include: {
-        results: {
+        assessmentResults: {
           where: { studentId },
           include: {
             student: { select: { id: true, firstName: true, lastName: true } },
@@ -45,7 +45,7 @@ export async function POST(request: Request) {
       orderBy: { createdAt: 'asc' },
     });
 
-    const studentResult = assessment.results[0];
+    const studentResult = assessment.assessmentResults[0];
     const student = studentResult?.student;
 
     // Generate AI grading audit

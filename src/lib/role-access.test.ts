@@ -1,9 +1,10 @@
 import { describe, expect, test } from 'bun:test';
+import type { ViewName } from './store';
 import { canAccessView, filterSectionsForRole, filterViewsForRole, getFallbackView } from './role-access';
 
 const mixedItems = [
   { key: 'dashboard' as const },
-  { key: 'students' as const },
+  { key: 'parent-portal' as ViewName },
   { key: 'classes' as const },
 ];
 
@@ -15,7 +16,7 @@ describe('role access', () => {
   test('removes empty sections for parent, student, and teacher', () => {
     const sections = [
       { id: 'visible', items: [{ key: 'dashboard' as const }] },
-      { id: 'hidden', items: [{ key: 'students' as const }] },
+      { id: 'hidden', items: [{ key: 'student-detail' as ViewName }] },
     ];
 
     for (const role of ['PARENT', 'STUDENT', 'TEACHER'] as const) {
@@ -24,7 +25,7 @@ describe('role access', () => {
   });
 
   test('falls back to dashboard for an inaccessible active view', () => {
-    expect(canAccessView('PARENT', 'students')).toBeFalse();
+    expect(canAccessView('PARENT', 'student-detail')).toBeFalse();
     expect(getFallbackView('PARENT')).toBe('dashboard');
   });
 

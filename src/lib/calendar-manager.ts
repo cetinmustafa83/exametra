@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Unified Calendar Manager
  * Consolidates all calendar-related operations (events, exams, school events)

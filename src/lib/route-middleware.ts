@@ -6,7 +6,7 @@ import { hasRoleAccess, type AppRole } from '@/lib/role-access';
 
 export type RouteHandler = (
   request: NextRequest,
-  context: any
+  context: { params: Promise<Record<string, string>> }
 ) => Promise<NextResponse>;
 
 export interface RouteConfig {
@@ -19,7 +19,7 @@ export interface RouteConfig {
  * Middleware for authentication check
  */
 export const withAuth = (handler: RouteHandler) => {
-  return async (request: NextRequest, context: any) => {
+  return async (request: NextRequest, context: { params: Promise<Record<string, string>> }) => {
     try {
       const session = await getSession();
       if (!session) {
@@ -40,7 +40,7 @@ export const withAuth = (handler: RouteHandler) => {
  */
 export const withRoles = (allowedRoles: string[]) => {
   return (handler: RouteHandler) => {
-    return async (request: NextRequest, context: any) => {
+    return async (request: NextRequest, context: { params: Promise<Record<string, string>> }) => {
       const session = await getSession();
       if (!session) {
         return unauthorizedError(request.url);

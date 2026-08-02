@@ -89,8 +89,6 @@ async function getAnswers(request: Request) {
         where: {
           question: {
             lessonId,
-          },
-          question: {
             lesson: {
               topic: { schoolId },
             },

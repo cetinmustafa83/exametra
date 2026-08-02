@@ -181,7 +181,7 @@ export function calculateWeightedGrade(
   const feedback = generateFeedback(finalNormalized, config);
 
   return {
-    originalScore: components.map((c) => c.score),
+    originalScore: components[0]?.score ?? 0,
     normalizedScore: finalNormalized,
     grade: grade as GradeScale | MasteryLevel,
     isPassing: passing,
