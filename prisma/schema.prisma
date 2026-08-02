@@ -1641,7 +1641,7 @@ model EmailTemplate {
 }
 
 model EmailLog {
-  id              String  
+  id              String   @id
   schoolId        String
   templateId      String?
   recipientEmail   String
