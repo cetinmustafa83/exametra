@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { db } from '@/lib/db';
 import { getSession } from '@/lib/auth';
+import { canAccessClass, canAccessStudent } from '@/lib/access-policy';
 
 const resultSchema = z.object({
   studentId: z.string().min(1),
@@ -23,6 +24,10 @@ export async function GET(
     }
 
     const { id: assessmentId } = await params;
+    const assessment = await db.assessment.findUnique({ where: { id: assessmentId }, select: { classGroupId: true } });
+    if (!assessment || !session.user || !(await canAccessClass(session.user, assessment.classGroupId))) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
 
     const results = await db.assessmentResult.findMany({
       where: { assessmentId },
@@ -66,6 +71,10 @@ export async function POST(
     }
 
     const { id: assessmentId } = await params;
+    const assessment = await db.assessment.findUnique({ where: { id: assessmentId }, select: { classGroupId: true } });
+    if (!assessment || !session.user || !(await canAccessClass(session.user, assessment.classGroupId))) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
 
     const body = await request.json();
     const isBulk = Array.isArray(body);
@@ -82,6 +91,9 @@ export async function POST(
       // Upsert each result (assessmentId + studentId is unique)
       const results: Array<{ id: string; studentId: string; score: number | null; masteryLevelValue: number | null; note: string | null; assessmentId: string }> = [];
       for (const item of parsed.data) {
+        if (!(await canAccessStudent(session.user!, item.studentId))) {
+          return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+        }
         const result = await db.assessmentResult.upsert({
           where: {
             assessmentId_studentId: {
@@ -116,6 +128,9 @@ export async function POST(
           { error: 'Validation failed', details: parsed.error.issues },
           { status: 400 }
         );
+      }
+      if (!(await canAccessStudent(session.user!, parsed.data.studentId))) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
       }
 
       const result = await db.assessmentResult.upsert({

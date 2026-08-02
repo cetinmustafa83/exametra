@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { db } from '@/lib/db';
 import { getSession } from '@/lib/auth';
+import { canAccessClass, canAccessStudent, getTeacherClassIds } from '@/lib/access-policy';
 
 const severityEnum = z.enum(['minor', 'moderate', 'major']);
 
@@ -60,6 +61,15 @@ export async function GET(request: Request) {
     }
 
     const where: Record<string, unknown> = { schoolId };
+    if (session.user?.role === 'TEACHER') {
+      where.classGroupId = { in: await getTeacherClassIds(session.user.id) };
+    }
+    if (studentId && (!session.user || !(await canAccessStudent(session.user, studentId)))) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+    if (classGroupId && classGroupId !== 'all' && (!session.user || !(await canAccessClass(session.user, classGroupId)))) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
     if (studentId) where.studentId = studentId;
     if (classGroupId && classGroupId !== 'all') where.classGroupId = classGroupId;
     if (categoryId && categoryId !== 'all') where.categoryId = categoryId;
@@ -153,6 +163,9 @@ export async function POST(request: Request) {
     if (student.deletedAt) {
       return NextResponse.json({ error: 'Student is deleted' }, { status: 400 });
     }
+    if (!session.user || !(await canAccessStudent(session.user, studentId))) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
 
     // Verify category belongs to same school
     const category = await db.behaviorCategory.findUnique({
@@ -171,6 +184,9 @@ export async function POST(request: Request) {
       });
       if (!classGroup || classGroup.schoolId !== schoolId) {
         return NextResponse.json({ error: 'Class group not found in this school' }, { status: 404 });
+      }
+      if (!session.user || !(await canAccessClass(session.user, classGroupId))) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
       }
     }
 

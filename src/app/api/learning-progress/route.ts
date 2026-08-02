@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { db } from '@/lib/db';
 import { getSession } from '@/lib/auth';
+import { canAccessClass, canAccessStudent, getTeacherClassIds } from '@/lib/access-policy';
+import { isAdministrator } from '@/lib/role-access';
 
 const entrySchema = z.object({
   studentId: z.string().min(1),
@@ -30,8 +32,29 @@ export async function GET(request: Request) {
     const endDate = searchParams.get('endDate');
 
     const where: Record<string, unknown> = {};
+    if (!session.user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    if (studentId && !(await canAccessStudent(session.user, studentId))) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+    if (classGroupId && !(await canAccessClass(session.user, classGroupId))) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
     if (studentId) where.studentId = studentId;
     if (classGroupId) where.classGroupId = classGroupId;
+    if (!isAdministrator(session.user.role) && !studentId && !classGroupId) {
+      if (session.user.role === 'TEACHER') {
+        where.classGroupId = { in: await getTeacherClassIds(session.user.id) };
+      } else if (session.user.role === 'STUDENT') {
+        const student = await db.student.findFirst({ where: { userId: session.user.id }, select: { id: true } });
+        if (!student) return NextResponse.json([]);
+        where.studentId = student.id;
+      } else if (session.user.role === 'PARENT') {
+        const links = await db.parentStudentLink.findMany({ where: { parentId: session.user.id }, select: { studentId: true } });
+        where.studentId = { in: links.map((link) => link.studentId) };
+      } else {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      }
+    }
     if (competencyId) where.competencyId = competencyId;
 
     if (startDate || endDate) {
@@ -78,6 +101,10 @@ export async function POST(request: Request) {
 
     const body = await request.json();
 
+    if (session.user?.role !== 'TEACHER' && !isAdministrator(session.user?.role)) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
     // Support both single entry and bulk (array) entries
     const isBulk = Array.isArray(body);
 
@@ -90,6 +117,11 @@ export async function POST(request: Request) {
         );
       }
 
+      for (const entry of parsed.data) {
+        if (entry.teacherId !== session.userId || !(await canAccessStudent(session.user!, entry.studentId)) || !(await canAccessClass(session.user!, entry.classGroupId))) {
+          return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+        }
+      }
       const entries = await db.learningProgressEntry.createMany({
         data: parsed.data,
       });
@@ -105,6 +137,9 @@ export async function POST(request: Request) {
           { error: 'Validation failed', details: parsed.error.issues },
           { status: 400 }
         );
+      }
+      if (parsed.data.teacherId !== session.userId || !(await canAccessStudent(session.user!, parsed.data.studentId)) || !(await canAccessClass(session.user!, parsed.data.classGroupId))) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
       }
 
       const entry = await db.learningProgressEntry.create({

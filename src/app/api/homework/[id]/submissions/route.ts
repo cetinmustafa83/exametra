@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { db } from '@/lib/db';
 import { getSession } from '@/lib/auth';
+import { canAccessClass, canAccessStudent } from '@/lib/access-policy';
 
 const submitSchema = z.object({
   content: z.string().max(10000).optional().nullable(),
@@ -27,7 +28,19 @@ export async function GET(
     const { searchParams } = new URL(request.url);
     const status = searchParams.get('status');
 
+    const homework = await db.homework.findUnique({ where: { id, deletedAt: null }, select: { classGroupId: true } });
+    if (!homework || !session.user || !(await canAccessClass(session.user, homework.classGroupId))) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
     const where: Record<string, unknown> = { homeworkId: id, deletedAt: null };
+    if (session.user.role === 'STUDENT') {
+      const student = await db.student.findFirst({ where: { userId: session.user.id }, select: { id: true } });
+      if (!student) return NextResponse.json([]);
+      where.studentId = student.id;
+    } else if (session.user.role === 'PARENT') {
+      const links = await db.parentStudentLink.findMany({ where: { parentId: session.user.id }, select: { studentId: true } });
+      where.studentId = { in: links.map((link) => link.studentId) };
+    }
     if (status && status !== 'all') where.status = status;
 
     const submissions = await db.homeworkSubmission.findMany({
@@ -81,6 +94,7 @@ export async function POST(
       // Student users need to find their student record via enrollment
       const student = await db.student.findFirst({
         where: {
+          userId: session.user.id,
           schoolId: homework.schoolId,
           deletedAt: null,
           enrollments: {
@@ -97,6 +111,9 @@ export async function POST(
       studentId = body.studentId;
       if (!studentId) {
         return NextResponse.json({ error: 'studentId is required' }, { status: 400 });
+      }
+      if (!session.user || !(await canAccessStudent(session.user, studentId))) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
       }
     }
 
