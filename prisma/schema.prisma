@@ -283,7 +283,7 @@ model SchoolYear {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  school      School     @relation(fields: [schoolId], references: [id])
+  school School   @relation(fields: [schoolId], references: [id])
   classGroups ClassGroup[]
   enrollments Enrollment[]
   computedGrades ComputedGrade[]
@@ -302,7 +302,7 @@ model ClassGroup {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  school              School              @relation(fields: [schoolId], references: [id])
+  school School   @relation(fields: [schoolId], references: [id])
   schoolYear          SchoolYear          @relation(fields: [schoolYearId], references: [id])
   responsibleTeacher  User?               @relation("ResponsibleTeacher", fields: [responsibleTeacherId], references: [id])
   teachers            ClassGroupTeacher[]
@@ -362,7 +362,7 @@ model Student {
   deletedAt       DateTime?
 
   user                  User?                 @relation(fields: [userId], references: [id])
-  school                School                @relation(fields: [schoolId], references: [id])
+  school School   @relation(fields: [schoolId], references: [id])
   enrollments           Enrollment[]
   learningProgressEntries LearningProgressEntry[]
   assessmentResults     AssessmentResult[]
@@ -411,7 +411,7 @@ model Enrollment {
   endDate      DateTime? // null = still enrolled
 
   student     Student     @relation(fields: [studentId], references: [id])
-  classGroup  ClassGroup  @relation(fields: [classGroupId], references: [id])
+  classGroup ClassGroup @relation(fields: [classGroupId], references: [id])
   schoolYear  SchoolYear  @relation(fields: [schoolYearId], references: [id])
 }
 
@@ -521,7 +521,7 @@ model ClassCompetencyAssignment {
   schoolYearId        String
   clonedTemplateId    String? // if customized, points to the school's cloned copy
 
-  classGroup         ClassGroup         @relation(fields: [classGroupId], references: [id])
+  classGroup ClassGroup @relation(fields: [classGroupId], references: [id])
   subject            Subject            @relation(fields: [subjectId], references: [id])
   competencyTemplate CompetencyTemplate @relation(fields: [competencyTemplateId], references: [id])
 
@@ -545,7 +545,7 @@ model LearningProgressEntry {
   student     Student     @relation(fields: [studentId], references: [id])
   competency  Competency  @relation(fields: [competencyId], references: [id])
   teacher     User        @relation(fields: [teacherId], references: [id])
-  classGroup  ClassGroup  @relation(fields: [classGroupId], references: [id])
+  classGroup ClassGroup @relation(fields: [classGroupId], references: [id])
 }
 
 model Assessment {
@@ -561,7 +561,7 @@ model Assessment {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  classGroup           ClassGroup           @relation(fields: [classGroupId], references: [id])
+  classGroup ClassGroup @relation(fields: [classGroupId], references: [id])
   subject              Subject              @relation(fields: [subjectId], references: [id])
   teacher              User                 @relation(fields: [teacherId], references: [id])
   assessmentCompetencyLinks AssessmentCompetencyLink[]
@@ -645,7 +645,7 @@ model ComputedGrade {
 
   student     Student     @relation(fields: [studentId], references: [id])
   subject     Subject     @relation(fields: [subjectId], references: [id])
-  classGroup  ClassGroup  @relation(fields: [classGroupId], references: [id])
+  classGroup ClassGroup @relation(fields: [classGroupId], references: [id])
   schoolYear  SchoolYear  @relation(fields: [schoolYearId], references: [id])
 }
 
@@ -673,7 +673,7 @@ model Report {
   publishedAt       DateTime? // publish timestamp
 
   student        Student     @relation(fields: [studentId], references: [id])
-  classGroup     ClassGroup  @relation(fields: [classGroupId], references: [id])
+  classGroup ClassGroup @relation(fields: [classGroupId], references: [id])
   schoolYear     SchoolYear  @relation(fields: [schoolYearId], references: [id])
   generatedByUser User       @relation(fields: [generatedByUserId], references: [id])
   sections       ReportSection[]
@@ -692,7 +692,7 @@ model ReportCardTemplate {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  school   School   @relation(fields: [schoolId], references: [id])
+  school School   @relation(fields: [schoolId], references: [id])
   reports  Report[]
 }
 
@@ -759,7 +759,7 @@ model AttendanceSession {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  classGroup   ClassGroup  @relation(fields: [classGroupId], references: [id])
+  classGroup ClassGroup @relation(fields: [classGroupId], references: [id])
   teacher      User        @relation(fields: [teacherId], references: [id])
   subject      Subject?    @relation(fields: [subjectId], references: [id])
   records      AttendanceRecord[]
@@ -822,7 +822,7 @@ model LessonPlan {
   updatedAt     DateTime @updatedAt
 
   teacher       User       @relation(fields: [teacherId], references: [id])
-  classGroup    ClassGroup @relation(fields: [classGroupId], references: [id])
+  classGroup ClassGroup @relation(fields: [classGroupId], references: [id])
   subject       Subject?   @relation(fields: [subjectId], references: [id])
 
   @@index([teacherId])
@@ -884,7 +884,7 @@ model ParentMessage {
 model BehaviorCategory {
   id        String   @id @default(cuid())
   schoolId  String
-  school    School   @relation(fields: [schoolId], references: [id])
+  school School   @relation(fields: [schoolId], references: [id])
   name      String
   color     String   // hex color, e.g. "#10b981"
   valence   String   // "positive" | "negative" | "neutral"
@@ -907,7 +907,7 @@ model BehaviorIncident {
   classGroupId String?
   classGroup   ClassGroup? @relation(fields: [classGroupId], references: [id])
   schoolId     String
-  school       School   @relation(fields: [schoolId], references: [id])
+  school School   @relation(fields: [schoolId], references: [id])
   categoryId   String
   category     BehaviorCategory @relation(fields: [categoryId], references: [id])
   date         DateTime
@@ -935,7 +935,7 @@ model BehaviorIncident {
 model Rubric {
   id          String   @id @default(cuid())
   schoolId    String
-  school      School   @relation(fields: [schoolId], references: [id])
+  school School   @relation(fields: [schoolId], references: [id])
   teacherId   String
   teacher     User     @relation(fields: [teacherId], references: [id])
   subjectId   String?
@@ -993,7 +993,7 @@ model RubricLevel {
 model CommentCategory {
   id        String   @id @default(cuid())
   schoolId  String
-  school    School   @relation(fields: [schoolId], references: [id])
+  school School   @relation(fields: [schoolId], references: [id])
   name      String
   color     String   // hex color
   icon      String?  // emoji
@@ -1009,7 +1009,7 @@ model CommentCategory {
 model CommentBankEntry {
   id          String   @id @default(cuid())
   schoolId    String
-  school      School   @relation(fields: [schoolId], references: [id])
+  school School   @relation(fields: [schoolId], references: [id])
   teacherId   String
   teacher     User     @relation(fields: [teacherId], references: [id])
   categoryId  String
@@ -1054,7 +1054,7 @@ model Notebook {
   updatedAt   DateTime @updatedAt
   deletedAt   DateTime?
 
-  school     School    @relation(fields: [schoolId], references: [id])
+  school School   @relation(fields: [schoolId], references: [id])
   owner      User      @relation(fields: [ownerId], references: [id])
   subject    Subject?  @relation(fields: [subjectId], references: [id])
   classGroup ClassGroup? @relation(fields: [classGroupId], references: [id])
@@ -1120,7 +1120,7 @@ model Drawing {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  school     School    @relation(fields: [schoolId], references: [id])
+  school School   @relation(fields: [schoolId], references: [id])
   owner      User      @relation(fields: [ownerId], references: [id])
   subject    Subject?  @relation(fields: [subjectId], references: [id])
   classGroup ClassGroup? @relation(fields: [classGroupId], references: [id])
@@ -1147,7 +1147,7 @@ model Notification {
   updatedAt   DateTime @updatedAt
   deletedAt   DateTime?
 
-  school      School   @relation(fields: [schoolId], references: [id])
+  school School   @relation(fields: [schoolId], references: [id])
   user        User     @relation(fields: [userId], references: [id])
 
   @@index([userId, isRead])
@@ -1179,7 +1179,7 @@ model CalendarEvent {
   createdAt          DateTime  @default(now())
   updatedAt          DateTime  @updatedAt
 
-  school       School         @relation(fields: [schoolId], references: [id])
+  school School   @relation(fields: [schoolId], references: [id])
   teacher      User           @relation(fields: [teacherId], references: [id])
   subject      Subject?       @relation(fields: [subjectId], references: [id])
   classGroup   ClassGroup?    @relation(fields: [classGroupId], references: [id])
@@ -1211,7 +1211,7 @@ model ParentStudentLink {
 
   parent        User     @relation(fields: [parentId], references: [id])
   student       Student  @relation(fields: [studentId], references: [id])
-  school        School   @relation(fields: [schoolId], references: [id])
+  school School   @relation(fields: [schoolId], references: [id])
 
   @@unique([parentId, studentId])
   @@map("parent_student_links")
@@ -1234,7 +1234,7 @@ model CurriculumStandard {
   updatedAt   DateTime @updatedAt
   deletedAt   DateTime?
 
-  school      School   @relation(fields: [schoolId], references: [id])
+  school School   @relation(fields: [schoolId], references: [id])
   subject     Subject? @relation(fields: [subjectId], references: [id])
   competencyLinks CurriculumStandardLink[]
 
@@ -1293,7 +1293,7 @@ model BehaviorIntervention {
   updatedAt       DateTime  @updatedAt
   deletedAt       DateTime?
 
-  school          School            @relation(fields: [schoolId], references: [id])
+  school School   @relation(fields: [schoolId], references: [id])
   student         Student           @relation(fields: [studentId], references: [id])
   incident        BehaviorIncident? @relation(fields: [incidentId], references: [id])
   assignedUser    User?             @relation("InterventionAssignee", fields: [assignedTo], references: [id])
@@ -1327,7 +1327,7 @@ model ReportSchedule {
   updatedAt       DateTime @updatedAt
   deletedAt       DateTime?
 
-  school          School   @relation(fields: [schoolId], references: [id])
+  school School   @relation(fields: [schoolId], references: [id])
   classGroup      ClassGroup? @relation(fields: [classGroupId], references: [id])
 
   @@index([schoolId, isActive])
@@ -1373,8 +1373,8 @@ model Homework {
   updatedAt       DateTime @updatedAt
   deletedAt       DateTime?
 
-  school          School   @relation(fields: [schoolId], references: [id])
-  classGroup      ClassGroup @relation(fields: [classGroupId], references: [id])
+  school School   @relation(fields: [schoolId], references: [id])
+  classGroup ClassGroup @relation(fields: [classGroupId], references: [id])
   subject         Subject? @relation(fields: [subjectId], references: [id])
   teacher         User     @relation(fields: [teacherId], references: [id])
   submissions     HomeworkSubmission[]
@@ -1426,7 +1426,7 @@ model Announcement {
   updatedAt       DateTime @updatedAt
   deletedAt       DateTime?
 
-  school          School   @relation(fields: [schoolId], references: [id])
+  school School   @relation(fields: [schoolId], references: [id])
   author          User     @relation(fields: [authorId], references: [id])
   classGroup      ClassGroup? @relation(fields: [classGroupId], references: [id])
   reads           AnnouncementRead[]
@@ -1469,7 +1469,7 @@ model NotificationPreferences {
   updatedAt           DateTime @updatedAt
 
   user                User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  school              School   @relation(fields: [schoolId], references: [id])
+  school School   @relation(fields: [schoolId], references: [id])
 
   @@index([userId])
   @@map("notification_preferences")
@@ -1493,7 +1493,7 @@ model SelfAssessment {
   updatedAt       DateTime @updatedAt
   deletedAt       DateTime?
 
-  school          School       @relation(fields: [schoolId], references: [id])
+  school School   @relation(fields: [schoolId], references: [id])
   student         Student      @relation(fields: [studentId], references: [id])
   competency      Competency   @relation(fields: [competencyId], references: [id])
   classGroup      ClassGroup?  @relation(fields: [classGroupId], references: [id])
@@ -1522,7 +1522,7 @@ model LearningGoal {
   updatedAt       DateTime @updatedAt
   deletedAt       DateTime?
 
-  school          School       @relation(fields: [schoolId], references: [id])
+  school School   @relation(fields: [schoolId], references: [id])
   student         Student      @relation(fields: [studentId], references: [id])
   competency      Competency?  @relation(fields: [competencyId], references: [id])
   selfAssessments SelfAssessment[]
@@ -1552,7 +1552,7 @@ model PortfolioEntry {
   updatedAt       DateTime @updatedAt
   deletedAt       DateTime?
 
-  school          School       @relation(fields: [schoolId], references: [id])
+  school School   @relation(fields: [schoolId], references: [id])
   student         Student      @relation(fields: [studentId], references: [id])
   competency      Competency?  @relation(fields: [competencyId], references: [id])
 
@@ -1579,8 +1579,8 @@ model TimetableSlot {
   updatedAt       DateTime @updatedAt
   deletedAt       DateTime?
 
-  school          School     @relation(fields: [schoolId], references: [id])
-  classGroup      ClassGroup @relation(fields: [classGroupId], references: [id])
+  school School   @relation(fields: [schoolId], references: [id])
+  classGroup ClassGroup @relation(fields: [classGroupId], references: [id])
   subject         Subject?   @relation(fields: [subjectId], references: [id])
   teacher         User?      @relation(fields: [teacherId], references: [id])
 
@@ -1611,7 +1611,7 @@ model Resource {
   updatedAt       DateTime @updatedAt
   deletedAt       DateTime?
 
-  school          School       @relation(fields: [schoolId], references: [id])
+  school School   @relation(fields: [schoolId], references: [id])
   author          User         @relation(fields: [authorId], references: [id])
   subject         Subject?     @relation(fields: [subjectId], references: [id])
   classGroup      ClassGroup?  @relation(fields: [classGroupId], references: [id])
@@ -1634,7 +1634,7 @@ model EmailTemplate {
   updatedAt       DateTime @updatedAt
   deletedAt       DateTime?
 
-  school          School   @relation(fields: [schoolId], references: [id])
+  school School   @relation(fields: [schoolId], references: [id])
 
   @@unique([schoolId, name])
   @@map("email_templates")
@@ -1653,7 +1653,7 @@ model EmailLog {
   error           String?
   createdAt       DateTime @default(now())
 
-  school          School   @relation(fields: [schoolId], references: [id])
+  school School   @relation(fields: [schoolId], references: [id])
 
   @@index([schoolId, status])
   @@map("email_logs")
@@ -1680,7 +1680,7 @@ model PeerAssessmentSession {
   updatedAt       DateTime @updatedAt
   deletedAt       DateTime?
 
-  school          School       @relation(fields: [schoolId], references: [id])
+  school School   @relation(fields: [schoolId], references: [id])
   teacher         User?        @relation("PeerAssessmentTeacher", fields: [teacherId], references: [id])
   classGroup      ClassGroup?  @relation("PeerAssessmentClassGroup", fields: [classGroupId], references: [id])
   peerAssessments PeerAssessment[]
@@ -1710,7 +1710,7 @@ model PeerAssessment {
   updatedAt       DateTime @updatedAt
   deletedAt       DateTime?
 
-  school          School       @relation(fields: [schoolId], references: [id])
+  school School   @relation(fields: [schoolId], references: [id])
   session         PeerAssessmentSession? @relation(fields: [sessionId], references: [id])
   assessor        Student      @relation("PeerAssessor", fields: [assessorId], references: [id])
   assessed        Student      @relation("PeerAssessed", fields: [assessedId], references: [id])
@@ -1744,7 +1744,7 @@ model EmergencyContact {
   updatedAt       DateTime @updatedAt
   deletedAt       DateTime?
 
-  school          School   @relation(fields: [schoolId], references: [id])
+  school School   @relation(fields: [schoolId], references: [id])
   student         Student  @relation(fields: [studentId], references: [id])
 
   @@index([schoolId, studentId])
@@ -1782,7 +1782,7 @@ model SchoolEvent {
   status          String   @default("draft") // draft, published, cancelled, completed
   feedbackForm    String?  // JSON: feedback questions
 
-  school          School       @relation(fields: [schoolId], references: [id])
+  school School   @relation(fields: [schoolId], references: [id])
   organizer       User?        @relation(fields: [organizerId], references: [id])
   classGroup      ClassGroup?  @relation(fields: [classGroupId], references: [id])
   registrations   EventRegistration[]
@@ -1844,7 +1844,7 @@ model StudentTransport {
   updatedAt       DateTime @updatedAt
   deletedAt       DateTime?
 
-  school          School          @relation(fields: [schoolId], references: [id])
+  school School   @relation(fields: [schoolId], references: [id])
   student         Student         @relation(fields: [studentId], references: [id])
   route           TransportRoute? @relation(fields: [routeId], references: [id])
 
@@ -1867,7 +1867,7 @@ model TransportRoute {
   updatedAt       DateTime @updatedAt
   deletedAt       DateTime?
 
-  school          School           @relation(fields: [schoolId], references: [id])
+  school School   @relation(fields: [schoolId], references: [id])
   stops           TransportStop[]
   assignments     StudentTransport[]
 
@@ -1915,7 +1915,7 @@ model HealthRecord {
   updatedAt       DateTime @updatedAt
   deletedAt       DateTime?
 
-  school          School   @relation(fields: [schoolId], references: [id])
+  school School   @relation(fields: [schoolId], references: [id])
   student         Student  @relation(fields: [studentId], references: [id])
 
   @@unique([schoolId, studentId])
@@ -1940,7 +1940,7 @@ model Badge {
   updatedAt       DateTime @updatedAt
   deletedAt       DateTime?
 
-  school          School   @relation(fields: [schoolId], references: [id])
+  school School   @relation(fields: [schoolId], references: [id])
   studentBadges   StudentBadge[]
 
   @@index([schoolId, category])
@@ -1958,7 +1958,7 @@ model StudentBadge {
   isDemo          Boolean  @default(false)
   createdAt       DateTime @default(now())
 
-  school          School   @relation(fields: [schoolId], references: [id])
+  school School   @relation(fields: [schoolId], references: [id])
   student         Student  @relation(fields: [studentId], references: [id])
   badge           Badge    @relation(fields: [badgeId], references: [id])
   awardedByUser   User?    @relation(fields: [awardedBy], references: [id])
@@ -1994,7 +1994,7 @@ model Competition {
   updatedAt      DateTime @updatedAt
   deletedAt      DateTime?
 
-  school         School   @relation(fields: [schoolId], references: [id])
+  school School   @relation(fields: [schoolId], references: [id])
   createdBy      User     @relation(fields: [createdById], references: [id])
   subject        Subject? @relation(fields: [subjectId], references: [id])
   participants   CompetitionParticipant[]
@@ -2088,7 +2088,7 @@ model RewardClaim {
   isDemo          Boolean  @default(false)
   createdAt       DateTime @default(now())
 
-  school          School   @relation(fields: [schoolId], references: [id])
+  school School   @relation(fields: [schoolId], references: [id])
   user            User     @relation(fields: [userId], references: [id])
   competition     Competition @relation(fields: [competitionId], references: [id])
   reward          CompetitionReward @relation(fields: [rewardId], references: [id])
@@ -2128,7 +2128,7 @@ model Newsletter {
   updatedAt       DateTime  @updatedAt
   deletedAt       DateTime?
 
-  school          School    @relation(fields: [schoolId], references: [id])
+  school School   @relation(fields: [schoolId], references: [id])
   author          User      @relation(fields: [authorId], references: [id])
 
   @@index([schoolId, isPublished, publishedAt])
@@ -2154,7 +2154,7 @@ model SubjectTopic {
   updatedAt   DateTime @updatedAt
   deletedAt   DateTime?
 
-  school     School   @relation(fields: [schoolId], references: [id])
+  school School   @relation(fields: [schoolId], references: [id])
   subject    Subject  @relation(fields: [subjectId], references: [id])
   lessons    SubjectLesson[]
 
@@ -2243,7 +2243,7 @@ model Reward {
   updatedAt   DateTime @updatedAt
   deletedAt   DateTime?
 
-  school     School   @relation(fields: [schoolId], references: [id])
+  school School   @relation(fields: [schoolId], references: [id])
   redemptions RewardRedemption[]
 
   @@index([schoolId])
@@ -2281,7 +2281,7 @@ model RewardPoints {
   createdAt   DateTime @default(now())
 
   user        User     @relation(fields: [userId], references: [id])
-  school      School   @relation(fields: [schoolId], references: [id])
+  school School   @relation(fields: [schoolId], references: [id])
 
   @@index([userId])
   @@index([schoolId])
@@ -2322,7 +2322,7 @@ model SubjectCategory {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  school      School   @relation(fields: [schoolId], references: [id])
+  school School   @relation(fields: [schoolId], references: [id])
   contents    SubjectContent[]
 
   @@index([schoolId])
@@ -2351,7 +2351,7 @@ model SubjectContent {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  school      School          @relation(fields: [schoolId], references: [id])
+  school School   @relation(fields: [schoolId], references: [id])
   category    SubjectCategory @relation(fields: [categoryId], references: [id])
   parent      SubjectContent? @relation("ContentHierarchy", fields: [parentId], references: [id])
   children    SubjectContent[] @relation("ContentHierarchy")
@@ -2381,7 +2381,7 @@ model ContentChangeRequest {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  school     School          @relation(fields: [schoolId], references: [id])
+  school School   @relation(fields: [schoolId], references: [id])
   content    SubjectContent  @relation(fields: [contentId], references: [id])
   requester  User            @relation("ContentRequester", fields: [requestedBy], references: [id])
   reviewer   User?           @relation("ContentReviewer", fields: [reviewedBy], references: [id])
@@ -2426,7 +2426,7 @@ model AISettings {
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
 
-  school    School    @relation(fields: [schoolId], references: [id])
+  school School   @relation(fields: [schoolId], references: [id])
 
   @@map("ai_settings")
 }
@@ -2448,7 +2448,7 @@ model VirtualCharacter {
   updatedAt   DateTime @updatedAt
 
   user        User     @relation(fields: [userId], references: [id])
-  school      School   @relation(fields: [schoolId], references: [id])
+  school School   @relation(fields: [schoolId], references: [id])
 
   @@index([userId])
   @@index([schoolId])
@@ -2469,7 +2469,7 @@ model ChatMessage {
   createdAt   DateTime @default(now())
 
   user        User     @relation(fields: [userId], references: [id])
-  school      School   @relation(fields: [schoolId], references: [id])
+  school School   @relation(fields: [schoolId], references: [id])
   room        CommunicationRoom? @relation(fields: [roomId], references: [id])
 
   @@index([userId])
@@ -2509,7 +2509,7 @@ model IllnessReport {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
-  school        School   @relation(fields: [schoolId], references: [id])
+  school School   @relation(fields: [schoolId], references: [id])
   student       Student  @relation(fields: [studentId], references: [id])
   reporter      User     @relation(fields: [reportedBy], references: [id])
   approver      User?    @relation("IllnessApprover", fields: [parentApprovedBy], references: [id])
@@ -2547,7 +2547,7 @@ model CommunicationRoom {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
-  school        School   @relation(fields: [schoolId], references: [id])
+  school School   @relation(fields: [schoolId], references: [id])
   student       User     @relation("RoomStudent", fields: [studentId], references: [id])
   teacher       User     @relation("RoomTeacher", fields: [teacherId], references: [id])
   classGroup    ClassGroup? @relation(fields: [classGroupId], references: [id])
@@ -2618,7 +2618,7 @@ model CounselingAppointment {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
-  school        School   @relation(fields: [schoolId], references: [id])
+  school School   @relation(fields: [schoolId], references: [id])
   counselor     User     @relation("Counselor", fields: [counselorId], references: [id])
   student       User     @relation("CounselingStudent", fields: [studentId], references: [id])
 
@@ -2641,7 +2641,7 @@ model DisciplinaryCommittee {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
-  school        School   @relation(fields: [schoolId], references: [id])
+  school School   @relation(fields: [schoolId], references: [id])
   members       DisciplinaryCommitteeMember[]
   cases         DisciplinaryCase[]
 
@@ -2716,7 +2716,7 @@ model AITestGeneration {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
-  school        School   @relation(fields: [schoolId], references: [id])
+  school School   @relation(fields: [schoolId], references: [id])
   assessment    Assessment? @relation(fields: [assessmentId], references: [id])
   student       User?    @relation(fields: [studentId], references: [id])
   classGroup    ClassGroup? @relation(fields: [classGroupId], references: [id])
@@ -2743,7 +2743,7 @@ model TeacherGradingReview {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
-  school        School   @relation(fields: [schoolId], references: [id])
+  school School   @relation(fields: [schoolId], references: [id])
   assessment    Assessment @relation(fields: [assessmentId], references: [id])
   teacher       User     @relation(fields: [teacherId], references: [id])
   comments      GradingReviewComment[]
@@ -2795,7 +2795,7 @@ model GradingAnnotation {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
-  school          School           @relation(fields: [schoolId], references: [id])
+  school School   @relation(fields: [schoolId], references: [id])
   assessment      Assessment       @relation(fields: [assessmentId], references: [id])
   student         Student          @relation(fields: [studentId], references: [id])
   result          AssessmentResult? @relation(fields: [resultId], references: [id])
@@ -2831,10 +2831,10 @@ model ExamPlan {
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
-  school        School    @relation(fields: [schoolId], references: [id])
+  school School   @relation(fields: [schoolId], references: [id])
   teacher       User      @relation(fields: [teacherId], references: [id])
   subject       Subject   @relation(fields: [subjectId], references: [id])
-  classGroup    ClassGroup @relation(fields: [classGroupId], references: [id])
+  classGroup ClassGroup @relation(fields: [classGroupId], references: [id])
   calendarEvent CalendarEvent? @relation(fields: [calendarEventId], references: [id])
   assessment    Assessment?   @relation(fields: [assessmentId], references: [id])
 
@@ -2869,7 +2869,7 @@ model StudyPlan {
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
-  school        School   @relation(fields: [schoolId], references: [id])
+  school School   @relation(fields: [schoolId], references: [id])
   student       Student  @relation(fields: [studentId], references: [id])
   subject       Subject? @relation(fields: [subjectId], references: [id])
   sessions      StudySession[]
@@ -2902,7 +2902,7 @@ model StudySession {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
-  school        School   @relation(fields: [schoolId], references: [id])
+  school School   @relation(fields: [schoolId], references: [id])
   student       Student  @relation(fields: [studentId], references: [id])
   studyPlan     StudyPlan? @relation(fields: [studyPlanId], references: [id])
   subject       Subject? @relation(fields: [subjectId], references: [id])
@@ -2937,7 +2937,7 @@ model LibraryBook {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
-  school        School            @relation(fields: [schoolId], references: [id])
+  school School   @relation(fields: [schoolId], references: [id])
   checkouts     BookCheckout[]
   reservations  BookReservation[]
 
@@ -2967,7 +2967,7 @@ model BookCheckout {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
-  school        School       @relation(fields: [schoolId], references: [id])
+  school School   @relation(fields: [schoolId], references: [id])
   book          LibraryBook  @relation(fields: [bookId], references: [id])
   student       Student      @relation(fields: [studentId], references: [id])
   checkedOutByUser User      @relation(fields: [checkedOutBy], references: [id])
@@ -2993,7 +2993,7 @@ model BookReservation {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  school      School       @relation(fields: [schoolId], references: [id])
+  school School   @relation(fields: [schoolId], references: [id])
   book        LibraryBook  @relation(fields: [bookId], references: [id])
   student     Student      @relation(fields: [studentId], references: [id])
   user        User         @relation(fields: [userId], references: [id])
@@ -3028,8 +3028,8 @@ model SeatingChart {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
-  school       School     @relation(fields: [schoolId], references: [id])
-  classGroup   ClassGroup @relation(fields: [classGroupId], references: [id])
+  school School   @relation(fields: [schoolId], references: [id])
+  classGroup ClassGroup @relation(fields: [classGroupId], references: [id])
   teacher      User       @relation(fields: [teacherId], references: [id])
 
   @@index([schoolId])
@@ -3053,7 +3053,7 @@ model DataImportJob {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  school      School   @relation(fields: [schoolId], references: [id])
+  school School   @relation(fields: [schoolId], references: [id])
   user        User     @relation(fields: [userId], references: [id])
 
   @@index([schoolId])
@@ -3075,7 +3075,7 @@ model DataExportJob {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  school      School   @relation(fields: [schoolId], references: [id])
+  school School   @relation(fields: [schoolId], references: [id])
   user        User     @relation(fields: [userId], references: [id])
 
   @@index([schoolId])
@@ -3101,7 +3101,7 @@ model WellnessCheckin {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
-  school          School   @relation(fields: [schoolId], references: [id])
+  school School   @relation(fields: [schoolId], references: [id])
   student         Student  @relation(fields: [studentId], references: [id])
 
   @@index([schoolId])
@@ -3122,7 +3122,7 @@ model WellnessScore {
   academicScore   Float?   // 0-100
   createdAt       DateTime @default(now())
 
-  school          School   @relation(fields: [schoolId], references: [id])
+  school School   @relation(fields: [schoolId], references: [id])
   student         Student  @relation(fields: [studentId], references: [id])
 
   @@index([schoolId])
@@ -3150,7 +3150,7 @@ model CareerProfile {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
-  school          School   @relation(fields: [schoolId], references: [id])
+  school School   @relation(fields: [schoolId], references: [id])
   student         Student  @relation(fields: [studentId], references: [id])
   goals           CareerGoal[]
   appointments    CareerAppointment[]
@@ -3196,7 +3196,7 @@ model CareerAppointment {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
-  school          School        @relation(fields: [schoolId], references: [id])
+  school School   @relation(fields: [schoolId], references: [id])
   profile         CareerProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
   counselor       User          @relation(fields: [counselorId], references: [id])
 
@@ -3229,7 +3229,7 @@ model SubstituteTeacher {
   updatedAt         DateTime @updatedAt
   deletedAt         DateTime?
 
-  school            School   @relation(fields: [schoolId], references: [id])
+  school School   @relation(fields: [schoolId], references: [id])
   user              User?    @relation(fields: [userId], references: [id])
   assignments       SubstitutionAssignment[]
 
@@ -3257,7 +3257,7 @@ model TeacherAbsence {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
-  school          School   @relation(fields: [schoolId], references: [id])
+  school School   @relation(fields: [schoolId], references: [id])
   teacher         User     @relation(fields: [teacherId], references: [id])
   approver        User?    @relation("TeacherAbsenceApprover", fields: [approvedBy], references: [id])
   calendarEvent   CalendarEvent? @relation("TeacherAbsenceCalendar", fields: [calendarEventId], references: [id])
@@ -3285,7 +3285,7 @@ model SubstitutionAssignment {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
-  school          School             @relation(fields: [schoolId], references: [id])
+  school School   @relation(fields: [schoolId], references: [id])
   absence         TeacherAbsence     @relation(fields: [absenceId], references: [id])
   substitute      SubstituteTeacher  @relation(fields: [substituteId], references: [id])
   classGroup      ClassGroup?        @relation(fields: [classGroupId], references: [id])
@@ -3314,7 +3314,7 @@ model GradeReport {
   fileData        String?  // Base64 encoded or JSON report data
   createdAt       DateTime @default(now())
 
-  school          School   @relation(fields: [schoolId], references: [id])
+  school School   @relation(fields: [schoolId], references: [id])
   generator       User     @relation("GradeReportGenerator", fields: [generatedBy], references: [id])
 
   @@index([schoolId])
@@ -3335,7 +3335,7 @@ model DataRetentionPolicy {
   createdAt               DateTime @default(now())
   updatedAt               DateTime @updatedAt
 
-  school                  School   @relation(fields: [schoolId], references: [id])
+  school School   @relation(fields: [schoolId], references: [id])
   reviewedByUser          User?    @relation("DataRetentionPolicyReviewer", fields: [reviewedByUserId], references: [id])
 
   @@index([schoolId])
@@ -3353,7 +3353,7 @@ model DpiaRecord {
   createdAt               DateTime @default(now())
   updatedAt               DateTime @updatedAt
 
-  school                  School   @relation(fields: [schoolId], references: [id])
+  school School   @relation(fields: [schoolId], references: [id])
   approvedByUser          User?    @relation("DpiaRecordApprover", fields: [approvedByUserId], references: [id])
 
   @@index([schoolId])
@@ -3371,7 +3371,7 @@ model ComplianceConsultation {
   notes                   String?  // what was consulted/approved
   createdAt               DateTime @default(now())
 
-  school                  School   @relation(fields: [schoolId], references: [id])
+  school School   @relation(fields: [schoolId], references: [id])
   acknowledgedByUser      User     @relation("ComplianceConsultationAcknowledger", fields: [acknowledgedByUserId], references: [id])
 
   @@index([schoolId])
@@ -3389,7 +3389,7 @@ model SchoolComplianceStatus {
   createdAt               DateTime @default(now())
   updatedAt               DateTime @updatedAt
 
-  school                  School   @relation(fields: [schoolId], references: [id])
+  school School   @relation(fields: [schoolId], references: [id])
 }
 
 model DeletionFlag {
@@ -3404,7 +3404,7 @@ model DeletionFlag {
   deletedAt               DateTime?
   reason                  String   // "retention period expired", "erasure request", etc.
 
-  school                  School   @relation(fields: [schoolId], references: [id])
+  school School   @relation(fields: [schoolId], references: [id])
   approvedByUser          User?    @relation("DeletionFlagApprover", fields: [approvedByUserId], references: [id])
 
   @@index([schoolId])
@@ -3430,7 +3430,7 @@ model EmergencySignage {
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 
-  school            School   @relation(fields: [schoolId], references: [id])
+  school School   @relation(fields: [schoolId], references: [id])
   messages          SignageMessage[]
   schedules         SignageSchedule[]
 
@@ -3458,7 +3458,7 @@ model SignageMessage {
   endTime           DateTime?
   displayOrder      Int      @default(0)
 
-  school            School   @relation(fields: [schoolId], references: [id])
+  school School   @relation(fields: [schoolId], references: [id])
   signage           EmergencySignage @relation(fields: [signageId], references: [id], onDelete: Cascade)
   creator           User     @relation(fields: [createdBy], references: [id])
   audits            SignageAuditLog[]
@@ -3482,7 +3482,7 @@ model SignageSchedule {
   createdBy         String   // userId
   createdAt         DateTime @default(now())
 
-  school            School   @relation(fields: [schoolId], references: [id])
+  school School   @relation(fields: [schoolId], references: [id])
   signage           EmergencySignage @relation(fields: [signageId], references: [id], onDelete: Cascade)
 
   @@index([schoolId])
@@ -3498,7 +3498,7 @@ model SignageAuditLog {
   details           String?  // JSON: { status, device, error, etc }
   createdAt         DateTime @default(now())
 
-  school            School   @relation(fields: [schoolId], references: [id])
+  school School   @relation(fields: [schoolId], references: [id])
   message           SignageMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
 
   @@index([schoolId])
@@ -3527,7 +3527,7 @@ model ExamSession {
   suspiciousActivity String? // JSON array of incidents
   createdAt         DateTime @default(now())
 
-  school            School   @relation(fields: [schoolId], references: [id])
+  school School   @relation(fields: [schoolId], references: [id])
   assessment        Assessment @relation(fields: [assessmentId], references: [id])
   student           Student  @relation(fields: [studentId], references: [id])
   answers           ExamAnswer[]
@@ -3612,7 +3612,7 @@ model NotificationHub {
   createdAt         DateTime @default(now())
   expiresAt         DateTime? // Auto-archive if set
 
-  school            School   @relation(fields: [schoolId], references: [id])
+  school School   @relation(fields: [schoolId], references: [id])
   user              User     @relation(fields: [userId], references: [id])
 
   @@index([schoolId])
@@ -3633,7 +3633,7 @@ model NotificationArchive {
   category          String
   archivedAt        DateTime @default(now())
 
-  school            School   @relation(fields: [schoolId], references: [id])
+  school School   @relation(fields: [schoolId], references: [id])
   user              User     @relation(fields: [userId], references: [id])
 
   @@index([schoolId])
@@ -3661,7 +3661,7 @@ model DashboardWidget {
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 
-  school            School   @relation(fields: [schoolId], references: [id])
+  school School   @relation(fields: [schoolId], references: [id])
   user              User     @relation(fields: [userId], references: [id])
 
   @@index([schoolId])
@@ -3683,7 +3683,7 @@ model DashboardLayout {
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 
-  school            School   @relation(fields: [schoolId], references: [id])
+  school School   @relation(fields: [schoolId], references: [id])
   user              User     @relation(fields: [userId], references: [id])
 
   @@index([schoolId])
@@ -3701,7 +3701,7 @@ model WidgetTemplate {
   thumbnail         String?  // URL to preview image
   createdAt         DateTime @default(now())
 
-  school            School   @relation(fields: [schoolId], references: [id])
+  school School   @relation(fields: [schoolId], references: [id])
 
   @@unique([schoolId, widgetType])
   @@index([schoolId])
@@ -3717,7 +3717,7 @@ model SchoolPolicy {
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
 
-  school              School   @relation(fields: [schoolId], references: [id])
+  school School   @relation(fields: [schoolId], references: [id])
 
   @@index([schoolId])
   @@map("school_policies")
@@ -3735,7 +3735,7 @@ model EscalationPolicy {
   createdAt                 DateTime @default(now())
   updatedAt                 DateTime @updatedAt
 
-  school                    School   @relation(fields: [schoolId], references: [id])
+  school School   @relation(fields: [schoolId], references: [id])
   overridingUser            User?    @relation(fields: [overriddenByUserId], references: [id])
 
   @@index([schoolId])
@@ -3753,8 +3753,8 @@ model ClassMessagingLock {
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 
-  classGroup    ClassGroup @relation(fields: [classGroupId], references: [id])
-  lockedByUser   User       @relation(fields: [lockedByUserId], references: [id])
+  classGroup ClassGroup @relation(fields: [classGroupId], references: [id])
+  lockedByUser User       @relation(fields: [lockedByUserId], references: [id])
 
   @@index([classGroupId])
   @@index([lockedByUserId])
