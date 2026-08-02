@@ -4,7 +4,7 @@ import { ThemeProvider } from "next-themes";
 import { Toaster } from "@/components/ui/sonner";
 
 export const metadata: Metadata = {
-  title: "SchulOS — Free Competency & Grading Platform",
+  title: "SchulOS",
   description: "Open-Source School Software for Competency-Based Assessment and Grading. Built with Next.js, TypeScript, and shadcn/ui.",
   keywords: ["SchulOS", "competency", "grading", "school", "education", "Next.js", "TypeScript", "shadcn/ui"],
   authors: [{ name: "SchulOS Team" }],

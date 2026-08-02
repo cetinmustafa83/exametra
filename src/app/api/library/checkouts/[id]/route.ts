@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { getSession } from '@/lib/auth';
+import { canAccessStudent } from '@/lib/access-policy';
 
 // ── PUT: Return a book (or renew) ──────────────────────────────────
 export async function PUT(
@@ -34,6 +35,12 @@ export async function PUT(
 
     if (!checkout) {
       return NextResponse.json({ error: 'Checkout not found' }, { status: 404 });
+    }
+    if (session.user?.role !== 'SUPER_ADMIN' && checkout.schoolId !== session.user?.schoolId) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+    if (!session.user || !(await canAccessStudent(session.user, checkout.studentId))) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
     if (action === 'return') {
@@ -153,6 +160,14 @@ export async function DELETE(
     }
 
     const { id } = await params;
+    const checkout = await db.bookCheckout.findUnique({ where: { id } });
+    if (!checkout) return NextResponse.json({ error: 'Checkout not found' }, { status: 404 });
+    if (session.user?.role !== 'SUPER_ADMIN' && checkout.schoolId !== session.user?.schoolId) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+    if (!session.user || !(await canAccessStudent(session.user, checkout.studentId))) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
     await db.bookCheckout.delete({ where: { id } });
 
     return NextResponse.json({ success: true });

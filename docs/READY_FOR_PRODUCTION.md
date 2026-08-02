@@ -275,7 +275,7 @@ wscat -c wss://your-domain.com/ws
 ## Support & Maintenance
 
 ### Documentation
-- See `API_IMPLEMENTATION_GUIDE.md` for endpoint specifications
+- See `docs/API_IMPLEMENTATION_GUIDE.md` for endpoint specifications
 - See `PHASE_2_COMPLETE.md` for module details
 - See `CODE_REVIEW_MODULE_L.md` for technical overview
 

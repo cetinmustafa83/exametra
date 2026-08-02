@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { getSession } from '@/lib/auth';
+import { canAccessStudent } from '@/lib/access-policy';
 
 export async function GET(request: Request) {
   try {
@@ -13,12 +14,15 @@ export async function GET(request: Request) {
     const schoolId = searchParams.get('schoolId') ?? session.user?.schoolId;
     const status = searchParams.get('status');
     const committeeId = searchParams.get('committeeId');
+    const role = session.user?.role;
 
     if (!schoolId) {
       return NextResponse.json([]);
     }
+    if (role !== 'SUPER_ADMIN' && schoolId !== session.user?.schoolId) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
 
-    const role = session.user?.role;
     const userId = session.userId;
 
     const where: Record<string, unknown> = { schoolId };
@@ -79,6 +83,12 @@ export async function POST(request: Request) {
 
     if (!schoolId || !committeeId || !studentId || !caseType || !description) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
+    }
+    if (role !== 'SUPER_ADMIN' && schoolId !== session.user?.schoolId) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+    if (!session.user || !(await canAccessStudent(session.user, studentId))) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
     const newCase = await db.disciplinaryCase.create({

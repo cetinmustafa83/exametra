@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { getSession } from '@/lib/auth';
+import { canAccessClass, canAccessStudent } from '@/lib/access-policy';
 
 export async function GET(request: Request) {
   try {
@@ -28,6 +29,12 @@ export async function GET(request: Request) {
       deletedAt: null,
     };
 
+    if (studentId && (!session.user || !(await canAccessStudent(session.user, studentId)))) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+    if (classGroupId && (!session.user || !(await canAccessClass(session.user, classGroupId)))) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
     if (studentId) where.studentId = studentId;
     if (competencyId) where.competencyId = competencyId;
     if (classGroupId) where.classGroupId = classGroupId;
@@ -94,6 +101,12 @@ export async function POST(request: Request) {
     }
 
     if (session.user?.role !== 'SUPER_ADMIN' && session.user?.schoolId !== schoolId) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+    if (!session.user || !(await canAccessStudent(session.user, studentId))) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+    if (classGroupId && !(await canAccessClass(session.user, classGroupId))) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 

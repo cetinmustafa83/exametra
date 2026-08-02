@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { getSession } from '@/lib/auth';
+import { canAccessStudent } from '@/lib/access-policy';
 
 export async function PUT(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -13,6 +14,12 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
     // Verify the plan belongs to the student
     const existing = await db.studyPlan.findUnique({ where: { id } });
     if (!existing) return NextResponse.json({ error: 'Plan not found' }, { status: 404 });
+    if (session.user?.role !== 'SUPER_ADMIN' && session.user?.schoolId !== existing.schoolId) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+    if (!session.user || !(await canAccessStudent(session.user, existing.studentId))) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
 
     if (session.user?.role === 'STUDENT') {
       const student = await db.student.findFirst({
@@ -62,6 +69,12 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
 
     const existing = await db.studyPlan.findUnique({ where: { id } });
     if (!existing) return NextResponse.json({ error: 'Plan not found' }, { status: 404 });
+    if (session.user?.role !== 'SUPER_ADMIN' && session.user?.schoolId !== existing.schoolId) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+    if (!session.user || !(await canAccessStudent(session.user, existing.studentId))) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
 
     if (session.user?.role === 'STUDENT') {
       const student = await db.student.findFirst({

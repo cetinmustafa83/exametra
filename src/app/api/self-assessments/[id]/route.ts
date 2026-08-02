@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { getSession } from '@/lib/auth';
+import { canAccessClass, canAccessStudent } from '@/lib/access-policy';
 
 export async function GET(
   _request: Request,
@@ -38,6 +39,9 @@ export async function GET(
     if (session.user?.role !== 'SUPER_ADMIN' && session.user?.schoolId !== assessment.schoolId) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
+    if (!session.user || !(await canAccessStudent(session.user, assessment.studentId)) || (assessment.classGroupId && !(await canAccessClass(session.user, assessment.classGroupId)))) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
 
     return NextResponse.json(assessment);
   } catch (error) {
@@ -66,6 +70,9 @@ export async function PUT(
     }
 
     if (session.user?.role !== 'SUPER_ADMIN' && session.user?.schoolId !== existing.schoolId) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+    if (!session.user || !(await canAccessStudent(session.user, existing.studentId)) || (existing.classGroupId && !(await canAccessClass(session.user, existing.classGroupId)))) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
@@ -132,6 +139,9 @@ export async function DELETE(
     }
 
     if (session.user?.role !== 'SUPER_ADMIN' && session.user?.schoolId !== existing.schoolId) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+    if (!session.user || !(await canAccessStudent(session.user, existing.studentId)) || (existing.classGroupId && !(await canAccessClass(session.user, existing.classGroupId)))) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 

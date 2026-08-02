@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { db } from '@/lib/db';
 import { getSession } from '@/lib/auth';
+import { canAccessClass, canAccessStudent } from '@/lib/access-policy';
 
 export async function GET(
   _request: Request,
@@ -19,7 +20,7 @@ export async function GET(
       include: {
         student: { select: { id: true, firstName: true, lastName: true, avatarUrl: true, dateOfBirth: true } },
         classGroup: {
-          select: { id: true, name: true, gradeLevel: true, schoolType: true, responsibleTeacher: { select: { id: true, firstName: true, lastName: true } } },
+          select: { id: true, schoolId: true, name: true, gradeLevel: true, schoolType: true, responsibleTeacher: { select: { id: true, firstName: true, lastName: true } } },
         },
         schoolYear: { select: { id: true, label: true, startDate: true, endDate: true } },
         generatedByUser: { select: { id: true, firstName: true, lastName: true } },
@@ -35,6 +36,12 @@ export async function GET(
 
     if (!report) {
       return NextResponse.json({ error: 'Report not found' }, { status: 404 });
+    }
+    if (session.user?.role !== 'SUPER_ADMIN' && report.classGroup.schoolId !== session.user?.schoolId) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+    if (!session.user || !(await canAccessStudent(session.user, report.studentId)) || !(await canAccessClass(session.user, report.classGroupId))) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
     // Role-based access check
@@ -123,6 +130,10 @@ export async function PUT(
     }
 
     const { sections, ...updateData } = parsed.data;
+    const existingReport = await db.report.findUnique({ where: { id }, select: { studentId: true, classGroupId: true, classGroup: { select: { schoolId: true } } } });
+    if (!existingReport || !session.user || (session.user.role !== 'SUPER_ADMIN' && existingReport.classGroup.schoolId !== session.user.schoolId) || !(await canAccessStudent(session.user, existingReport.studentId)) || !(await canAccessClass(session.user, existingReport.classGroupId))) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
 
     // Check if teacher owns this report
     if (session.user?.role === 'TEACHER') {
@@ -207,6 +218,10 @@ export async function DELETE(
     }
 
     const { id } = await params;
+    const existing = await db.report.findUnique({ where: { id }, select: { studentId: true, classGroupId: true, classGroup: { select: { schoolId: true } } } });
+    if (!existing || !session.user || (session.user.role !== 'SUPER_ADMIN' && existing.classGroup.schoolId !== session.user.schoolId) || !(await canAccessStudent(session.user, existing.studentId)) || !(await canAccessClass(session.user, existing.classGroupId))) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
 
     await db.reportSection.deleteMany({ where: { reportId: id } });
     await db.report.delete({ where: { id } });

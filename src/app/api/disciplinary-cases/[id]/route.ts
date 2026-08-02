@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { getSession } from '@/lib/auth';
+import { canAccessStudent } from '@/lib/access-policy';
 
 export async function GET(
   _request: Request,
@@ -36,6 +37,12 @@ export async function GET(
     if (!disciplinaryCase) {
       return NextResponse.json({ error: 'Not found' }, { status: 404 });
     }
+    if (session.user?.role !== 'SUPER_ADMIN' && disciplinaryCase.schoolId !== session.user?.schoolId) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+    if (!session.user || !(await canAccessStudent(session.user, disciplinaryCase.studentId))) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
 
     return NextResponse.json(disciplinaryCase);
   } catch (error) {
@@ -61,6 +68,12 @@ export async function PUT(
     const existing = await db.disciplinaryCase.findUnique({ where: { id } });
     if (!existing) {
       return NextResponse.json({ error: 'Not found' }, { status: 404 });
+    }
+    if (session.user?.role !== 'SUPER_ADMIN' && existing.schoolId !== session.user?.schoolId) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+    if (!session.user || !(await canAccessStudent(session.user, existing.studentId))) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
     const role = session.user?.role;

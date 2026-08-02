@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { getSession } from '@/lib/auth';
+import { canAccessStudent } from '@/lib/access-policy';
 
 export async function POST(request: Request) {
   try {
@@ -26,15 +27,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
-    // Verify access
-    if (session.user?.role === 'STUDENT') {
-      const student = await db.student.findUnique({
-        where: { id: studentId },
-        select: { userId: true, schoolId: true },
-      });
-      if (!student || student.userId !== session.userId || student.schoolId !== schoolId) {
-        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-      }
+    if (session.user?.role !== 'STUDENT' || schoolId !== session.user?.schoolId || !session.user || !(await canAccessStudent(session.user, studentId))) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
     const studySession = await db.studySession.create({
@@ -99,16 +93,8 @@ export async function PUT(request: Request) {
 
     const existing = await db.studySession.findUnique({ where: { id: sessionId } });
     if (!existing) return NextResponse.json({ error: 'Session not found' }, { status: 404 });
-
-    // Verify access
-    if (session.user?.role === 'STUDENT') {
-      const student = await db.student.findFirst({
-        where: { userId: session.userId, schoolId: existing.schoolId, deletedAt: null },
-        select: { id: true },
-      });
-      if (!student || student.id !== existing.studentId) {
-        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-      }
+    if (session.user?.role !== 'STUDENT' || existing.schoolId !== session.user?.schoolId || !session.user || !(await canAccessStudent(session.user, existing.studentId))) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
     const updated = await db.studySession.update({

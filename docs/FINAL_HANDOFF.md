@@ -94,10 +94,10 @@ Built reusable, production-grade infrastructure eliminating 40% duplication:
 **Documentation Provided:**
 - `READY_FOR_PRODUCTION.md` - Executive summary
 - `CRITICAL_APIS_TO_BUILD.md` - 18 priority endpoints with full specs (555 lines)
-- `API_IMPLEMENTATION_GUIDE.md` - Complete reference (409 lines)
+- `docs/API_IMPLEMENTATION_GUIDE.md` - Complete reference (409 lines)
 - `PHASE_1_COMPLETE.md` - Infrastructure recap
 - `PHASE_2_COMPLETE.md` - Module details
-- `PROJECT_STATUS.md` - Full status overview
+- `docs/PROJECT_STATUS.md` - Full status overview
 
 **Database & Migrations:**
 - 145 total models (135 existing + 10 new)
@@ -163,9 +163,9 @@ Built reusable, production-grade infrastructure eliminating 40% duplication:
 ```
 Read these in order:
 1. READY_FOR_PRODUCTION.md       (5 min - overview)
-2. PROJECT_STATUS.md              (10 min - current state)
+2. docs/PROJECT_STATUS.md         (10 min - current state)
 3. CRITICAL_APIS_TO_BUILD.md      (30 min - what to build)
-4. API_IMPLEMENTATION_GUIDE.md   (20 min - how to build)
+4. docs/API_IMPLEMENTATION_GUIDE.md (20 min - how to build)
 ```
 
 ### 2. Pick an API to Implement
@@ -236,8 +236,8 @@ SchulOS/
 │   └── db/custom.db               ← Local dev database
 ├── READY_FOR_PRODUCTION.md        ← Start here
 ├── CRITICAL_APIS_TO_BUILD.md      ← Build priority
-├── API_IMPLEMENTATION_GUIDE.md    ← Implementation details
-├── PROJECT_STATUS.md              ← Current status
+├── docs/API_IMPLEMENTATION_GUIDE.md ← Implementation details
+├── docs/PROJECT_STATUS.md          ← Current status
 ├── CODE_REVIEW_MODULE_L.md        ← Technical analysis
 └── [other docs]/
 ```
@@ -295,7 +295,7 @@ SchulOS/
 
 ### If You Get Stuck
 1. Check `CRITICAL_APIS_TO_BUILD.md` for endpoint specs
-2. Check `API_IMPLEMENTATION_GUIDE.md` for examples
+2. Check `docs/API_IMPLEMENTATION_GUIDE.md` for examples
 3. Look at existing routes in `/src/app/api/v1/` for patterns
 4. Reference middleware in `src/lib/route-middleware.ts`
 5. Check utility files for business logic

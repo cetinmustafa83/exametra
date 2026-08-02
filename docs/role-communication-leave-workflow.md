@@ -302,3 +302,27 @@ Status: implemented
   student-owned work cannot be republished class-wide.
 - School-event registration, cancellation, and status changes prohibit user ID
   spoofing and validate the caller's event school/class access.
+
+## Phase 16: Detail Record Scope Enforcement
+
+Status: implemented
+
+- Single learning goals and study plans now verify school and target-student
+  scope before reads, updates, or deletion.
+- Report-card detail/update/delete paths validate student, class, and school
+  scope in addition to publication rules.
+- Emergency-contact detail operations are administrator-only with target
+  student scope enforcement.
+- Library return/renew/delete paths validate the checkout school and student
+  before changing inventory or checkout state.
+
+## Phase 17: Discipline And Student Reflection Isolation
+
+Status: implemented
+
+- Disciplinary cases and behavior interventions validate school and target
+  student scope before reads or writes.
+- Self-assessments now validate student and class ownership on collection and
+  detail endpoints.
+- Study sessions are student-owned: only the authenticated student can create
+  or update a session for their own profile.

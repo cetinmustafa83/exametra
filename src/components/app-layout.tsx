@@ -986,8 +986,7 @@ export default function AppLayout() {
               </div>
             )}
             <div className="group-data-[collapsible=icon]:hidden">
-              <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100 leading-tight">{schoolBranding?.name || 'SchulOS'}</h2>
-              <p className="text-[10px] text-emerald-600/70 dark:text-emerald-400/50 leading-tight">{t('app.subtitle')}</p>
+              <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100 leading-tight">SchulOS</h2>
             </div>
           </motion.div>
         </SidebarHeader>
@@ -1420,7 +1419,7 @@ export default function AppLayout() {
           <div className="flex items-center justify-between text-xs text-emerald-600/60 dark:text-emerald-400/40">
             <span className="flex items-center gap-1">
               <Leaf className="h-3 w-3 text-emerald-500" />
-              SchulOS — {t('footer.copyright')}
+              SchulOS
             </span>
             <span className="flex items-center gap-2">
               <span className="hidden sm:inline">{t('footer.version')} · {t('footer.oss')}</span>

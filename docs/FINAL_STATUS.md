@@ -86,7 +86,7 @@
 - `PRD_STATUS_REPORT.md` (469 lines)
 - `PRD_NERDEYIZ.md` (287 lines)
 - `TODO_VISUAL.md` (237 lines)
-- `FINAL_STATUS.md` (This file)
+- `docs/FINAL_STATUS.md` (This file)
 
 ---
 

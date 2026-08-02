@@ -201,7 +201,7 @@ All endpoints follow middleware pattern and include:
 ## Key Files for Reference
 
 **Architecture & Documentation:**
-- `/PROJECT_STATUS.md` - This file
+- `docs/PROJECT_STATUS.md` - This file
 - `/PHASE_1_COMPLETE.md` - Infrastructure work
 - `/PHASE_2_COMPLETE.md` - Module implementation details
 - `/CODE_REVIEW_MODULE_L.md` - Detailed code analysis

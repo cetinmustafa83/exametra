@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { getSession } from '@/lib/auth';
 import { logAudit, extractClientInfo } from '@/lib/audit';
+import { canAccessStudent } from '@/lib/access-policy';
 
 export async function GET(request: Request) {
   try {
@@ -31,6 +32,9 @@ export async function GET(request: Request) {
       deletedAt: null,
     };
 
+    if (studentId && (!session.user || !(await canAccessStudent(session.user, studentId)))) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
     if (studentId) where.studentId = studentId;
     if (incidentId) where.incidentId = incidentId;
     if (type) where.type = type;
@@ -86,6 +90,15 @@ export async function POST(request: Request) {
         { error: 'schoolId, studentId, type, and description are required' },
         { status: 400 }
       );
+    }
+    if (session.user?.role !== 'SUPER_ADMIN' && session.user?.schoolId !== schoolId) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+    if (session.user?.role !== 'TEACHER' && session.user?.role !== 'SCHOOL_ADMIN' && session.user?.role !== 'SUPER_ADMIN') {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+    if (!session.user || !(await canAccessStudent(session.user, studentId))) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
     const intervention = await db.behaviorIntervention.create({
