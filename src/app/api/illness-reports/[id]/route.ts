@@ -189,11 +189,18 @@ export async function DELETE(
     const role = session.user?.role;
     const userId = session.userId;
 
-    // Only the reporter or admin can delete
-    if (role !== 'SUPER_ADMIN' && role !== 'SCHOOL_ADMIN' && role !== 'VICE_PRINCIPAL') {
+    // Only the reporter can withdraw a still-pending request. Final approval
+    // records cannot be removed by vice principals.
+    if (role !== 'SUPER_ADMIN' && role !== 'SCHOOL_ADMIN') {
       if (report.reportedBy !== userId) {
         return NextResponse.json({ error: 'Only the reporter or admin can delete' }, { status: 403 });
       }
+      if (report.parentApprovalStatus !== 'pending' || report.adminApprovalStatus !== 'pending') {
+        return NextResponse.json({ error: 'Approved or reviewed reports cannot be deleted by the reporter' }, { status: 400 });
+      }
+    }
+    if (role !== 'SUPER_ADMIN' && role !== 'STUDENT' && role !== 'PARENT' && report.schoolId !== session.user?.schoolId) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
     await db.illnessReport.delete({ where: { id } });

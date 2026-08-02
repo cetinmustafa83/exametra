@@ -207,3 +207,13 @@ Status: implemented
   vice principals cannot remove conversation records.
 - Administrative room closure verifies the administrator belongs to the room's
   school.
+
+## Phase 8: Leave Record Integrity
+
+Status: implemented
+
+- Teacher absence detail endpoints now require authentication, school scope,
+  and either the absence owner or an administrator.
+- Teachers cannot alter status, or edit/delete a leave once it is approved.
+- Vice principals cannot delete student leave records; reporters may only
+  withdraw requests before either approval stage is processed.
