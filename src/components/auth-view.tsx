@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useMemo } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, type Variants } from 'framer-motion';
 import { BookOpen, Mail, Lock, User, ArrowRight, GraduationCap, Heart, Sparkles, Flower2, Eye, EyeOff, KeyRound, Info, Shield, Leaf, Users as UsersIcon, HelpCircle, LockKeyhole, GitBranch, CheckCircle2, XCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -34,7 +34,7 @@ const containerVariants = {
   },
 };
 
-const itemVariants = {
+const itemVariants: Variants = {
   hidden: { opacity: 0, y: 14 },
   visible: { opacity: 1, y: 0, transition: { duration: 0.4, ease: 'easeOut' } },
 };
@@ -223,9 +223,12 @@ function LeftIllustration({ loginRole }: { loginRole: LoginRole }) {
         transition={{ duration: 0.5, delay: 0.7 }}
         className="mt-12 space-y-4 text-center"
       >
-        <h3 className="text-2xl font-bold text-gray-800 dark:text-gray-200 tracking-tight">
-          {t('auth.mission_title')}
-        </h3>
+        <div>
+          <p className="text-3xl font-bold tracking-tight text-gray-900 dark:text-gray-100">SchulOS</p>
+          <h3 className="mt-2 text-2xl font-bold text-gray-800 dark:text-gray-200 tracking-tight">
+            {t('auth.mission_title')}
+          </h3>
+        </div>
         <div className="space-y-3">
           {features.map((f, i) => {
             const c = colorClasses[f.color];
