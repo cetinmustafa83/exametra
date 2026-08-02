@@ -13,7 +13,7 @@ export default defineConfig({
   webServer: process.env.DYAD_TEST_BASE_URL
     ? undefined
     : {
-        command: "pnpm dev --hostname 127.0.0.1 --port 32104",
+        command: "pnpm start --hostname 127.0.0.1 --port 32104",
         url: "http://127.0.0.1:32104",
         reuseExistingServer: !process.env.CI,
         timeout: 120_000,

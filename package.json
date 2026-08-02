@@ -34,7 +34,7 @@
     "db:wal": "node scripts/sqlite-wal.mjs",
     "db:backup": "node scripts/sqlite-backup.mjs",
     "test": "bun test",
-    "test:e2e": "playwright test --config playwright-dyad.config.ts",
+    "test:e2e": "pnpm build && playwright test --config playwright-dyad.config.ts",
     "typecheck": "next build --webpack && tsc --noEmit --pretty false"
   },
   "dependencies": {

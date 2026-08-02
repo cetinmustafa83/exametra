@@ -34,6 +34,8 @@ export function isTrustedRequestOrigin(request: Request): boolean {
   if (process.env.NODE_ENV !== 'production') {
     allowedOrigins.add('http://localhost:3000');
     allowedOrigins.add('http://127.0.0.1:3000');
+    allowedOrigins.add('http://localhost:32104');
+    allowedOrigins.add('http://127.0.0.1:32104');
   }
 
   const suppliedOrigin = origin ?? referer;
