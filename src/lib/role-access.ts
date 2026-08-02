@@ -32,13 +32,18 @@ const vicePrincipalViews: ViewName[] = [
   'analytics', 'disciplinary', 'school-transport', 'substitute-teacher',
 ];
 
+export function hasRoleAccess(role: string | undefined, allowedRoles: readonly AppRole[]): boolean {
+  return role === 'SCHOOL_ADMIN' || role === 'SUPER_ADMIN' || (role !== undefined && allowedRoles.includes(role as AppRole));
+}
+
 export function canAccessView(role: string | undefined, view: ViewName): boolean {
   if (role === 'SCHOOL_ADMIN' || role === 'SUPER_ADMIN') return true;
   const allowed = role === 'PARENT' ? parentViews
     : role === 'STUDENT' ? studentViews
+    : role === 'TEACHER' ? teacherViews
     : role === 'VICE_PRINCIPAL' ? vicePrincipalViews
     : role === 'DPO' ? ['dashboard', 'settings', 'reports']
-    : teacherViews;
+    : [];
   return allowed.includes(view);
 }
 
