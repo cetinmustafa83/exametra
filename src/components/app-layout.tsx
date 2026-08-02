@@ -121,6 +121,7 @@ import { Badge } from '@/components/ui/badge';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useAppStore, type ViewName } from '@/lib/store';
+import { canAccessView, filterSectionsForRole, getFallbackView } from '@/lib/role-access';
 import { t } from '@/lib/i18n';
 import { fetchSchoolYears, fetchStudents, fetchClasses, fetchDBNotifications, markAllNotificationsRead, markSingleNotificationRead, type SchoolYear, type Student, type ClassGroup, type DBNotification, type DBNotificationData } from '@/lib/api';
 import { apiGet } from '@/lib/api';
@@ -571,6 +572,16 @@ export default function AppLayout() {
   const isStudent = currentUser?.role === 'STUDENT';
   const isParent = currentUser?.role === 'PARENT';
   const activeNavSections = isStudent ? studentNavSections : isParent ? parentNavSections : navSections;
+  const visibleNavSections = useMemo(
+    () => filterSectionsForRole(currentUser?.role, activeNavSections),
+    [activeNavSections, currentUser?.role],
+  );
+
+  useEffect(() => {
+    if (currentUser && !canAccessView(currentUser.role, currentView)) {
+      setCurrentView(getFallbackView(currentUser.role));
+    }
+  }, [currentUser, currentView, setCurrentView]);
 
   const isDemoUser = currentUser?.isDemo === true || (currentUser?.email?.endsWith('@competencetrack.org') && currentUser?.email?.startsWith('demo'));
 
@@ -1016,7 +1027,7 @@ export default function AppLayout() {
             </SidebarGroupContent>
           </SidebarGroup>
 
-          {activeNavSections.map((section) => (
+          {visibleNavSections.map((section) => (
             <SidebarGroup key={section.id}>
               <SidebarGroupLabel className="text-emerald-600/70 dark:text-emerald-400/50 text-xs font-semibold uppercase tracking-wider inline-flex items-center gap-1.5">
                 {section.id === 'analysis' && <TrendingUp className="h-3 w-3" />}
