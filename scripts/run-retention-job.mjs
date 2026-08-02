@@ -6,17 +6,10 @@
  * Usage: npx ts-node scripts/run-retention-job.ts
  */
 
-const { PrismaClient } = require("@prisma/client");
+import { PrismaClient } from "@prisma/client";
+import path from "node:path";
 
 const prisma = new PrismaClient();
-
-interface FlaggedRecord {
-  entityType: string;
-  entityId: string;
-  dataCategory: string;
-  flaggedAt: Date;
-  reason: string;
-}
 
 /**
  * Check records for each school and flag those exceeding retention period
@@ -32,7 +25,7 @@ async function runRetentionJob() {
     });
 
     let totalFlagged = 0;
-    const report: { school: string; flagged: number }[] = [];
+    const report = [];
 
     for (const school of schools) {
       const schoolFlagged = await flagExpiredRecordsForSchool(school.id);
@@ -75,7 +68,7 @@ async function runRetentionJob() {
 /**
  * Flag expired records for a specific school
  */
-async function flagExpiredRecordsForSchool(schoolId: string): Promise<number> {
+async function flagExpiredRecordsForSchool(schoolId) {
   // Get all retention policies for this school
   const policies = await prisma.dataRetentionPolicy.findMany({
     where: { schoolId },
@@ -106,11 +99,7 @@ async function flagExpiredRecordsForSchool(schoolId: string): Promise<number> {
 /**
  * Flag records of a specific category that are older than expiryDate
  */
-async function flagRecordsByCategory(
-  schoolId: string,
-  dataCategory: string,
-  expiryDate: Date
-): Promise<number> {
+async function flagRecordsByCategory(schoolId, dataCategory, expiryDate) {
   let flaggedCount = 0;
 
   try {
@@ -201,11 +190,7 @@ async function flagRecordsByCategory(
 /**
  * Generic function to flag expired records by entity type
  */
-async function flagRecordsByEntityType(
-  schoolId: string,
-  entityType: string,
-  expiryDate: Date
-): Promise<number> {
+async function flagRecordsByEntityType(schoolId, entityType, expiryDate) {
   // Check if records of this type already have deletion flags
   const alreadyFlagged = await prisma.deletionFlag.findMany({
     where: {
@@ -255,7 +240,7 @@ async function flagRecordsByEntityType(
 }
 
 // Run the job if this script is executed directly
-if (require.main === module) {
+if (process.argv[1] && path.resolve(process.argv[1]) === new URL(import.meta.url).pathname) {
   runRetentionJob()
     .then((result) => {
       console.log(
@@ -270,4 +255,4 @@ if (require.main === module) {
     });
 }
 
-module.exports = { runRetentionJob, flagExpiredRecordsForSchool };
+export { runRetentionJob, flagExpiredRecordsForSchool };

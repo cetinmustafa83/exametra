@@ -3,26 +3,15 @@
  * Plain-language German, based on school configuration
  */
 
-const fs = require("fs");
-const path = require("path");
+import fs from "node:fs";
+import path from "node:path";
 
-interface PrivacyNoticeParams {
-  schoolName: string;
-  dpoName: string;
-  dpoEmail: string;
-  schultragerName: string;
-  bundesland: string;
-}
-
-export function generatePrivacyNotice(
-  params: PrivacyNoticeParams,
-  outputPath: string = "docs/legal"
-): void {
+function generatePrivacyNotice(params, outputPath = "docs/legal") {
   if (!fs.existsSync(outputPath)) {
     fs.mkdirSync(outputPath, { recursive: true });
   }
 
-  const lines: string[] = [
+  const lines = [
     "# Datenschutzerklärung",
     "# (Privacy Notice for Parents & Students)",
     "",
@@ -139,7 +128,7 @@ export function generatePrivacyNotice(
   console.log(`[v0] Generated privacy notice at ${filePath}`);
 }
 
-if (require.main === module) {
+if (process.argv[1] && path.resolve(process.argv[1]) === new URL(import.meta.url).pathname) {
   generatePrivacyNotice({
     schoolName: "Gymnasium Berlin",
     dpoName: "Max Mustermann",

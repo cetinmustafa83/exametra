@@ -8,16 +8,16 @@ import { checkModuleAccess } from "@/lib/compliance";
 export async function GET(req: NextRequest) {
   try {
     const schoolId = req.nextUrl.searchParams.get("schoolId");
-    const module = req.nextUrl.searchParams.get("module");
+    const moduleName = req.nextUrl.searchParams.get("module");
 
-    if (!schoolId || !module) {
+    if (!schoolId || !moduleName) {
       return NextResponse.json(
         { error: "Missing schoolId or module parameter" },
         { status: 400 }
       );
     }
 
-    const result = await checkModuleAccess(schoolId, module);
+    const result = await checkModuleAccess(schoolId, moduleName);
 
     return NextResponse.json(result);
   } catch (error) {

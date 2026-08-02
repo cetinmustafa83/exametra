@@ -3,20 +3,11 @@
  * This document lists all data entities, their purposes, legal basis, and retention categories
  */
 
-const fs = require("fs");
-const path = require("path");
-
-interface DataEntity {
-  name: string;
-  dataCategories: string[];
-  legalBasis: string;
-  purpose: string;
-  retentionCategory: string;
-  notes?: string;
-}
+import fs from "node:fs";
+import path from "node:path";
 
 // Core data model definition
-const dataModel: DataEntity[] = [
+const dataModel = [
   {
     name: "User",
     dataCategories: ["firstName", "lastName", "email", "role", "createdAt"],
@@ -112,12 +103,12 @@ const dataModel: DataEntity[] = [
   },
 ];
 
-export function generateDataModel(outputPath: string = "docs/legal"): void {
+function generateDataModel(outputPath = "docs/legal") {
   if (!fs.existsSync(outputPath)) {
     fs.mkdirSync(outputPath, { recursive: true });
   }
 
-  const lines: string[] = [
+  const lines = [
     "# Data Model Documentation",
     "",
     "**Status**: Schema Reference for ExaMetra (Module L)",
@@ -166,7 +157,7 @@ export function generateDataModel(outputPath: string = "docs/legal"): void {
     "",
     `Generated: ${new Date().toISOString()}`,
     "Source: ExaMetra Prisma schema (Module L)",
-  ];
+  );
 
   const filePath = path.join(outputPath, "DATA_MODEL.md");
   fs.writeFileSync(filePath, lines.join("\n"), "utf-8");

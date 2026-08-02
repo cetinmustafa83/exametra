@@ -145,23 +145,17 @@ export function useApiQueries<T = any>(
   queries: Array<{ url: string | null; key?: string }>,
   options?: SWRConfiguration
 ) {
-  const results = queries.map((query) => {
-    const { data, error, isLoading, mutate } = useApiGet(query.url, options);
-    return {
-      key: query.key || query.url,
-      data,
-      error,
-      isLoading,
-      mutate,
-    };
-  });
+  const activeQueries = queries.filter((query) => query.url);
+  const cacheKey = activeQueries.map((query) => query.url).join("|") || null;
+  const { data: values, error, isLoading } = useSWR<T[]>(
+    cacheKey,
+    () => Promise.all(activeQueries.map((query) => apiFetcher(query.url!))),
+    options
+  );
 
-  const isLoading = results.some((r) => r.isLoading);
-  const error = results.find((r) => r.error);
-  const data = Object.fromEntries(results.map((r) => [r.key, r.data])) as Record<
-    string,
-    T | undefined
-  >;
+  const data = Object.fromEntries(
+    activeQueries.map((query, index) => [query.key || query.url, values?.[index]])
+  ) as Record<string, T | undefined>;
 
   return { data, error, isLoading };
 }

@@ -4,20 +4,10 @@
  * German legal document for school's DPO review
  */
 
-const fs = require("fs");
-const path = require("path");
+import fs from "node:fs";
+import path from "node:path";
 
-interface RopaEntry {
-  name: string;
-  purposes: string[];
-  dataCategories: string[];
-  recipients: string[];
-  retentionPeriod: string;
-  legalBasis: string;
-  securityMeasures: string[];
-}
-
-const ropas: RopaEntry[] = [
+const ropas = [
   {
     name: "Student Information Management",
     purposes: [
@@ -126,12 +116,12 @@ const ropas: RopaEntry[] = [
   },
 ];
 
-export function generateRopa(outputPath: string = "docs/legal"): void {
+function generateRopa(outputPath = "docs/legal") {
   if (!fs.existsSync(outputPath)) {
     fs.mkdirSync(outputPath, { recursive: true });
   }
 
-  const lines: string[] = [
+  const lines = [
     "# Verzeichnis von Verarbeitungstätigkeiten",
     "# (Records of Processing Activities - Art. 30 GDPR)",
     "",
@@ -198,7 +188,7 @@ export function generateRopa(outputPath: string = "docs/legal"): void {
     "",
     `**Generiert**: ${new Date().toISOString()}`,
     "**Quelle**: ExaMetra Module L - Compliance Framework",
-  ];
+  );
 
   const filePath = path.join(
     outputPath,

@@ -107,7 +107,9 @@ export const serverError = (error: Error | string, path?: string) => {
 /**
  * Wrap handler with automatic error handling
  */
-export const withErrorHandling = (handler: Function) => {
+export const withErrorHandling = (
+  handler: (...args: any[]) => any
+) => {
   return async (...args: any[]) => {
     try {
       return await handler(...args);
