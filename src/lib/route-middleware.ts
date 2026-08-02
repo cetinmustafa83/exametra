@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { logComplianceAudit } from '@/lib/audit';
-import { successResponse, unauthorizedError, forbiddenError } from '@/lib/api-response';
+import { unauthorizedError, forbiddenError } from '@/lib/api-response';
+import { hasRoleAccess, type AppRole } from '@/lib/role-access';
 
 export type RouteHandler = (
   request: NextRequest,
@@ -46,7 +47,7 @@ export const withRoles = (allowedRoles: string[]) => {
       }
 
       const userRole = session.user?.role;
-      if (!allowedRoles.includes(userRole)) {
+      if (!hasRoleAccess(userRole, allowedRoles as AppRole[])) {
         return forbiddenError(request.url);
       }
 
@@ -72,7 +73,7 @@ export const withAudit = (action: string) => {
         try {
           await logComplianceAudit({
             userId: user.id,
-            schoolId: user.schoolId,
+            schoolId: user.schoolId ?? undefined,
             action,
             entityType: request.url.split('/').pop() || 'unknown',
             metadata: {
