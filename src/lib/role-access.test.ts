@@ -16,7 +16,7 @@ describe('role access', () => {
   test('removes empty sections for parent, student, and teacher', () => {
     const sections = [
       { id: 'visible', items: [{ key: 'dashboard' as const }] },
-      { id: 'hidden', items: [{ key: 'student-detail' as ViewName }] },
+      { id: 'hidden', items: [{ key: 'districts' as ViewName }] },
     ];
 
     for (const role of ['PARENT', 'STUDENT', 'TEACHER'] as const) {
