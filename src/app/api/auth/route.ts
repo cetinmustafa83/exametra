@@ -24,7 +24,6 @@ const registerSchema = z.object({
   firstName: z.string().min(1),
   lastName: z.string().min(1),
   schoolId: z.string().optional(),
-  role: z.enum(['TEACHER', 'SCHOOL_ADMIN', 'SUPER_ADMIN', 'VICE_PRINCIPAL']).default('TEACHER'),
 });
 
 export const POST = withRateLimit(async function POST(request: Request) {
@@ -93,8 +92,7 @@ export const POST = withRateLimit(async function POST(request: Request) {
         );
       }
 
-      const { email, password, firstName, lastName, schoolId, role } =
-        parsed.data;
+      const { email, password, firstName, lastName, schoolId } = parsed.data;
 
       const existing = await db.user.findUnique({ where: { email } });
       if (existing) {
@@ -113,7 +111,7 @@ export const POST = withRateLimit(async function POST(request: Request) {
           firstName,
           lastName,
           schoolId: schoolId ?? null,
-          role,
+          role: 'TEACHER',
         },
       });
 
