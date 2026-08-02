@@ -124,6 +124,9 @@ export async function PUT(
         if (role !== 'SCHOOL_ADMIN' && role !== 'VICE_PRINCIPAL' && role !== 'SUPER_ADMIN') {
           return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
         }
+        if (role !== 'SUPER_ADMIN' && room.schoolId !== session.user?.schoolId) {
+          return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+        }
       }
 
       const updated = await db.communicationRoom.update({
@@ -192,9 +195,13 @@ export async function DELETE(
 
     const role = session.user?.role;
 
-    // Only admin can delete rooms
-    if (role !== 'SUPER_ADMIN' && role !== 'SCHOOL_ADMIN' && role !== 'VICE_PRINCIPAL') {
+    // Only school administrators can delete rooms. Vice principals may manage
+    // operational states but must not remove communication records.
+    if (role !== 'SUPER_ADMIN' && role !== 'SCHOOL_ADMIN') {
       return NextResponse.json({ error: 'Only admins can delete rooms' }, { status: 403 });
+    }
+    if (role !== 'SUPER_ADMIN' && room.schoolId !== session.user?.schoolId) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
     await db.communicationMessage.deleteMany({ where: { roomId: id } });

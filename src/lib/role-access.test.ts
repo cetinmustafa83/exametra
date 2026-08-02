@@ -50,11 +50,21 @@ describe('role access', () => {
     expect(canAccessView('PARENT', 'parent-portal')).toBeTrue();
   });
 
+  test('keeps student and parent menus free of staff-only administration tools', () => {
+    for (const role of ['STUDENT', 'PARENT'] as const) {
+      expect(canAccessView(role, 'settings')).toBeFalse();
+      expect(canAccessView(role, 'analytics')).toBeFalse();
+      expect(canAccessView(role, 'student-detail')).toBeFalse();
+    }
+  });
+
   test('does not grant vice principals administrator account control', () => {
     expect(canManageUser('VICE_PRINCIPAL', 'TEACHER')).toBeFalse();
     expect(canManageUser('SCHOOL_ADMIN', 'SCHOOL_ADMIN', true)).toBeFalse();
     expect(canManageUser('SCHOOL_ADMIN', 'SUPER_ADMIN')).toBeFalse();
     expect(canManageUser('SUPER_ADMIN', 'SCHOOL_ADMIN')).toBeTrue();
+    expect(canManageUser('SCHOOL_ADMIN', 'VICE_PRINCIPAL')).toBeTrue();
+    expect(canManageUser('VICE_PRINCIPAL', 'SCHOOL_ADMIN')).toBeFalse();
   });
 
   test('allows student record mutation only to administrators and teachers', () => {

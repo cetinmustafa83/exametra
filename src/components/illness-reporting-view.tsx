@@ -55,6 +55,11 @@ interface IllnessReport {
   parentApprovalStatus: string;
   parentApprovedBy: string | null;
   parentApprovedAt: string | null;
+  leaveType: string;
+  teacherNotifiedAt: string | null;
+  adminApprovalStatus: string;
+  adminApprovedAt: string | null;
+  calendarEventId: string | null;
   isVisibleToTeacher: boolean;
   isVisibleToAdmin: boolean;
   status: string;
@@ -334,6 +339,15 @@ function ReportCard({
   const [isApproving, setIsApproving] = useState(false);
 
   const getStatusBadge = () => {
+    if (report.adminApprovalStatus === 'approved') {
+      return <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-300 dark:bg-emerald-950/30 dark:text-emerald-300 dark:border-emerald-800"><CheckCircle2 className="h-3 w-3 mr-1" />Approved and on calendar</Badge>;
+    }
+    if (report.adminApprovalStatus === 'rejected') {
+      return <Badge variant="outline" className="bg-rose-50 text-rose-700 border-rose-300 dark:bg-rose-950/30 dark:text-rose-300 dark:border-rose-800"><XCircle className="h-3 w-3 mr-1" />Rejected by administration</Badge>;
+    }
+    if (report.parentApprovalStatus === 'approved') {
+      return <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-300 dark:bg-blue-950/30 dark:text-blue-300 dark:border-blue-800"><Clock className="h-3 w-3 mr-1" />Awaiting administration</Badge>;
+    }
     switch (report.parentApprovalStatus) {
       case 'pending':
         return <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-300 dark:bg-amber-950/30 dark:text-amber-300 dark:border-amber-800"><Clock className="h-3 w-3 mr-1" />{t('illness.pending_approval')}</Badge>;
@@ -380,6 +394,10 @@ function ReportCard({
       setIsApproving(false);
     }
   };
+
+  const canAdminApprove = (role === 'SCHOOL_ADMIN' || role === 'SUPER_ADMIN')
+    && report.parentApprovalStatus === 'approved'
+    && report.adminApprovalStatus === 'pending';
 
   const handleDelete = async () => {
     try {
@@ -440,7 +458,8 @@ function ReportCard({
                   <motion.div
                     key={i}
                     className={`h-1.5 flex-1 rounded-full ${
-                      report.parentApprovalStatus === 'approved' ? 'bg-emerald-400' :
+                      report.adminApprovalStatus === 'approved' ? 'bg-emerald-400' :
+                      report.parentApprovalStatus === 'approved' ? 'bg-blue-400' :
                       report.parentApprovalStatus === 'pending' ? 'bg-amber-400' : 'bg-rose-400'
                     }`}
                     initial={{ scaleX: 0 }}
@@ -478,6 +497,28 @@ function ReportCard({
                   >
                     <XCircle className="h-3.5 w-3.5 mr-1" />
                     {t('illness.reject')}
+                  </Button>
+                </>
+              )}
+              {canAdminApprove && (
+                <>
+                  <Button
+                    size="sm"
+                    className="bg-emerald-500 hover:bg-emerald-600 text-white h-8"
+                    onClick={handleApprove}
+                    disabled={isApproving}
+                  >
+                    <CheckCircle2 className="h-3.5 w-3.5 mr-1" />
+                    Final approve
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-8 text-rose-600 border-rose-300 hover:bg-rose-50"
+                    onClick={handleReject}
+                    disabled={isApproving}
+                  >
+                    Reject
                   </Button>
                 </>
               )}

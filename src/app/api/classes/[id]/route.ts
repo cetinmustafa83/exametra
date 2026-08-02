@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { db } from '@/lib/db';
 import { getSession } from '@/lib/auth';
+import { canAccessClass } from '@/lib/access-policy';
+import { isAdministrator } from '@/lib/role-access';
 
 const updateClassSchema = z.object({
   name: z.string().min(1).optional(),
@@ -64,6 +66,10 @@ export async function GET(
       return NextResponse.json({ error: 'Class not found' }, { status: 404 });
     }
 
+    if (!session.user || !(await canAccessClass(session.user, id))) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
     const result = {
       ...classGroup,
       studentCount: classGroup._count.enrollments,
@@ -94,11 +100,7 @@ export async function PUT(
       return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
     }
 
-    if (
-      session.user?.role !== 'SUPER_ADMIN' &&
-      session.user?.role !== 'SCHOOL_ADMIN' &&
-      session.user?.role !== 'TEACHER'
-    ) {
+    if (!isAdministrator(session.user?.role)) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
@@ -115,6 +117,10 @@ export async function PUT(
     const existing = await db.classGroup.findUnique({ where: { id } });
     if (!existing) {
       return NextResponse.json({ error: 'Class not found' }, { status: 404 });
+    }
+
+    if (session.user?.role !== 'SUPER_ADMIN' && existing.schoolId !== session.user?.schoolId) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
     // If updating responsibleTeacherId, validate the teacher exists
@@ -224,6 +230,10 @@ export async function DELETE(
     const existing = await db.classGroup.findUnique({ where: { id } });
     if (!existing) {
       return NextResponse.json({ error: 'Class not found' }, { status: 404 });
+    }
+
+    if (session.user?.role !== 'SUPER_ADMIN' && existing.schoolId !== session.user?.schoolId) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
     await db.classGroup.delete({ where: { id } });

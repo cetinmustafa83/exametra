@@ -138,19 +138,27 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Teachers should use staff communication channels' }, { status: 400 });
     }
 
-    // Find the student's class and the responsible teacher
+    // Student direct messages target their own profile. Parent direct messages
+    // must explicitly name one linked child.
+    const requestedStudentId = body.studentId as string | undefined;
+    if (role === 'PARENT' && !requestedStudentId) {
+      return NextResponse.json({ error: 'studentId is required for parent conversations' }, { status: 400 });
+    }
+    const studentWhere = role === 'PARENT'
+      ? { id: requestedStudentId, parentStudentLinks: { some: { parentId: userId } } }
+      : {
+          OR: [
+            { userId },
+            {
+              userId: null,
+              firstName: session.user?.firstName,
+              lastName: session.user?.lastName,
+              schoolId: session.user?.schoolId,
+            },
+          ],
+        };
     const student = await db.student.findFirst({
-      where: {
-        OR: [
-          { userId },
-          {
-            userId: null,
-            firstName: session.user?.firstName,
-            lastName: session.user?.lastName,
-            schoolId: session.user?.schoolId,
-          },
-        ],
-      },
+      where: studentWhere,
       include: {
         enrollments: {
           where: { endDate: null },
@@ -183,7 +191,7 @@ export async function POST(request: Request) {
     // Check if there's already an active/requested room
     const existingRoom = await db.communicationRoom.findFirst({
       where: {
-        studentId: userId,
+        studentId: role === 'PARENT' ? student.userId ?? userId : userId,
         teacherId: teacher.id,
         status: { in: ['requested', 'active'] },
       },
@@ -196,7 +204,7 @@ export async function POST(request: Request) {
     const room = await db.communicationRoom.create({
       data: {
         schoolId: student.schoolId,
-        studentId: userId,
+        studentId: role === 'PARENT' ? student.userId ?? userId : userId,
         teacherId: teacher.id,
         roomType: 'chat',
         status: 'requested',

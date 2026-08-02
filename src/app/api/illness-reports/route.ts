@@ -63,7 +63,16 @@ export async function GET(request: Request) {
       // Super admin can see all
     }
 
-    if (studentId) where.studentId = studentId;
+    if (studentId) {
+      if (role === 'STUDENT' && where.studentId !== studentId) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      }
+      if (role === 'PARENT') {
+        const linked = await db.parentStudentLink.findFirst({ where: { parentId: userId, studentId }, select: { id: true } });
+        if (!linked) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      }
+      where.studentId = studentId;
+    }
     if (status) where.status = status;
     if (parentApprovalStatus) where.parentApprovalStatus = parentApprovalStatus;
 

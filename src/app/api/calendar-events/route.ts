@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { getSession } from '@/lib/auth';
+import { getTeacherClassIds } from '@/lib/access-policy';
+import { isAdministrator } from '@/lib/role-access';
 import { addDays, addWeeks, addMonths, addYears, format, getDay } from 'date-fns';
 
 interface RecurrencePattern {
@@ -124,6 +126,19 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'title, date, and schoolId are required' }, { status: 400 });
     }
 
+    if (!session.user || (!isAdministrator(session.user.role) && session.user.schoolId !== schoolId)) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+    if (session.user.role === 'TEACHER' && classGroupId) {
+      const classIds = await getTeacherClassIds(session.user.id);
+      if (!classIds.includes(classGroupId)) {
+        return NextResponse.json({ error: 'Teachers can only create events for their own classes' }, { status: 403 });
+      }
+    }
+    if (session.user.role === 'STUDENT' || session.user.role === 'PARENT' || session.user.role === 'VICE_PRINCIPAL') {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
     // Parse recurrence pattern
     let parsedPattern: RecurrencePattern | null = null;
     if (recurrencePattern && recurrencePattern.type && recurrencePattern.type !== 'none') {
@@ -220,6 +235,10 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'schoolId is required' }, { status: 400 });
     }
 
+    if (!session.user || (!isAdministrator(session.user.role) && session.user.schoolId !== schoolId)) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
     let year: number;
     let monthIndex: number;
     if (monthParam && /^\d{4}-\d{2}$/.test(monthParam)) {
@@ -235,11 +254,25 @@ export async function GET(request: Request) {
     const startOfMonth = new Date(Date.UTC(year, monthIndex, 1, 0, 0, 0, 0));
     const endOfMonth = new Date(Date.UTC(year, monthIndex + 1, 0, 23, 59, 59, 999));
 
+    const eventWhere: Record<string, unknown> = {
+      schoolId,
+      date: { gte: startOfMonth, lte: endOfMonth },
+    };
+    if (session.user.role === 'TEACHER') {
+      const classIds = await getTeacherClassIds(session.user.id);
+      eventWhere.OR = [{ teacherId: session.user.id }, { classGroupId: { in: classIds } }];
+    } else if (session.user.role === 'STUDENT') {
+      const student = await db.student.findFirst({ where: { userId: session.user.id }, select: { id: true } });
+      const enrollments = student ? await db.enrollment.findMany({ where: { studentId: student.id, endDate: null }, select: { classGroupId: true } }) : [];
+      eventWhere.classGroupId = { in: enrollments.map((enrollment) => enrollment.classGroupId) };
+    } else if (session.user.role === 'PARENT') {
+      const links = await db.parentStudentLink.findMany({ where: { parentId: session.user.id }, select: { studentId: true } });
+      const enrollments = await db.enrollment.findMany({ where: { studentId: { in: links.map((link) => link.studentId) }, endDate: null }, select: { classGroupId: true } });
+      eventWhere.classGroupId = { in: enrollments.map((enrollment) => enrollment.classGroupId) };
+    }
+
     const events = await db.calendarEvent.findMany({
-      where: {
-        schoolId,
-        date: { gte: startOfMonth, lte: endOfMonth },
-      },
+      where: eventWhere,
       include: {
         subject: { select: { id: true, name: true } },
         classGroup: { select: { id: true, name: true } },

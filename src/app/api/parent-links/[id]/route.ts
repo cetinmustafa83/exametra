@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { getSession } from '@/lib/auth';
+import { canAccessStudent } from '@/lib/access-policy';
+import { isAdministrator } from '@/lib/role-access';
 
 export async function GET(
   request: Request,
@@ -52,6 +54,16 @@ export async function GET(
       return NextResponse.json({ error: 'Link not found' }, { status: 404 });
     }
 
+    if (session.user?.role === 'TEACHER' && (!session.user || !(await canAccessStudent(session.user, link.studentId)))) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+    if (!isAdministrator(session.user?.role) && session.user?.role !== 'TEACHER' && session.user?.role !== 'PARENT') {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+    if (session.user?.role !== 'SUPER_ADMIN' && session.user?.role !== 'PARENT' && link.schoolId !== session.user?.schoolId) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
     // Parents can only view their own links
     if (session.user?.role === 'PARENT' && link.parentId !== session.user.id) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
@@ -81,6 +93,13 @@ export async function PUT(
     const link = await db.parentStudentLink.findUnique({ where: { id } });
     if (!link) {
       return NextResponse.json({ error: 'Link not found' }, { status: 404 });
+    }
+
+    if (session.user?.role === 'TEACHER' && (!session.user || !(await canAccessStudent(session.user, link.studentId)))) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+    if (session.user?.role !== 'SUPER_ADMIN' && session.user?.role !== 'PARENT' && link.schoolId !== session.user?.schoolId) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
     // Only admins, teachers, or the parent can update
@@ -141,6 +160,13 @@ export async function DELETE(
     const link = await db.parentStudentLink.findUnique({ where: { id } });
     if (!link) {
       return NextResponse.json({ error: 'Link not found' }, { status: 404 });
+    }
+
+    if (session.user?.role === 'TEACHER' && (!session.user || !(await canAccessStudent(session.user, link.studentId)))) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+    if (session.user?.role !== 'SUPER_ADMIN' && session.user?.role !== 'PARENT' && link.schoolId !== session.user?.schoolId) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
     // Only admins, teachers, or the parent can delete

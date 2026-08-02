@@ -83,6 +83,8 @@ Implemented baseline:
 
 ## Phase 3: Student And Parent Leave Workflow
 
+Status: implemented
+
 Scope:
 
 - Generalize `IllnessReport` into a leave request workflow for illness,
@@ -105,6 +107,17 @@ Verification:
 
 - Workflow tests covering pending, parent-approved, teacher-notified,
   admin-approved, rejected, and calendar-created states.
+
+Implemented baseline:
+
+- Student requests require a linked parent approval.
+- Parent-created requests pass the parent approval stage immediately.
+- Parent approval notifies the responsible teacher.
+- Final approval is restricted to school and super administrators.
+- Final approval creates one class-linked, all-day calendar event and stores the
+  event reference on the leave request.
+- Evidence documents remain on the leave request and are not placed in calendar
+  event notes.
 
 ## Phase 4: Teacher Leave And Calendar Visibility
 
@@ -130,6 +143,8 @@ Verification:
 
 ## Phase 5: UI Completion And Regression Coverage
 
+Status: implemented
+
 Scope:
 
 - Render role-specific menu items and communication/leave screens.
@@ -145,6 +160,16 @@ Verification:
 - `pnpm exec tsc --noEmit --pretty false`, `pnpm lint`, `pnpm test`, and
   `pnpm build`.
 
+Implemented baseline:
+
+- Leave cards distinguish parent approval from final administrator approval and
+  show calendar publication only after the final approval.
+- Student and parent conversation panels expose the escalation action only
+  after the five-business-day threshold.
+- Escalated rooms visibly identify their administrative escalation state.
+- `pnpm typecheck` provides a build-first typecheck that avoids stale generated
+  Next type files.
+
 ## Dependency Order
 
 1. Phase 1 must precede all others because it establishes reusable access
@@ -158,3 +183,27 @@ Verification:
 - All schema changes use additive columns/tables first.
 - No existing data is deleted by migrations.
 - New policy checks default to deny for unknown roles and missing ownership.
+
+## Phase 6: Endpoint Authorization Hardening
+
+Status: implemented
+
+- User role assignment now uses the same administrator target-protection policy
+  as user update/delete operations.
+- Class updates and deletion are restricted to school administrators; all class
+  reads validate class membership or administrator scope.
+- Bulk student creation validates the caller school and a teacher's assigned
+  class before creating records.
+- Parent-link reads and edits validate teacher student scope and school scope.
+
+## Phase 7: Workflow Scope Hardening
+
+Status: implemented
+
+- Parent communication creation requires an explicitly linked child rather than
+  inferring a profile from the parent's own account.
+- Parent and student leave list filters reject unlinked student identifiers.
+- Communication room deletion is limited to school/super administrators;
+  vice principals cannot remove conversation records.
+- Administrative room closure verifies the administrator belongs to the room's
+  school.

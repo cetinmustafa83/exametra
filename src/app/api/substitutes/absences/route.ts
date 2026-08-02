@@ -1,9 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { getSession } from '@/lib/auth';
 
 // GET /api/substitutes/absences - List teacher absences
 export async function GET(req: NextRequest) {
   try {
+    const session = await getSession();
+    if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
     const { searchParams } = new URL(req.url);
     const schoolId = searchParams.get('schoolId');
     const teacherId = searchParams.get('teacherId');
@@ -16,9 +19,13 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'schoolId is required' }, { status: 400 });
     }
 
+    if (session.user?.role !== 'SUPER_ADMIN' && session.user?.schoolId !== schoolId) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
     const where: Record<string, unknown> = { schoolId };
+    if (session.user?.role === 'TEACHER') where.teacherId = session.userId;
 
-    if (teacherId) where.teacherId = teacherId;
+    if (teacherId && session.user?.role !== 'TEACHER') where.teacherId = teacherId;
     if (type) where.type = type;
     if (status) where.status = status;
 
@@ -57,11 +64,24 @@ export async function GET(req: NextRequest) {
 // POST /api/substitutes/absences - Create a teacher absence
 export async function POST(req: NextRequest) {
   try {
+    const session = await getSession();
+    if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
     const body = await req.json();
     const { schoolId, teacherId, type, startDate, endDate, reason, status, notes } = body;
 
     if (!schoolId || !teacherId || !type || !startDate || !endDate) {
       return NextResponse.json({ error: 'schoolId, teacherId, type, startDate, and endDate are required' }, { status: 400 });
+    }
+
+    const isTeacherRequest = session.user?.role === 'TEACHER';
+    if (isTeacherRequest && teacherId !== session.userId) {
+      return NextResponse.json({ error: 'Teachers can only submit their own leave request' }, { status: 403 });
+    }
+    if (session.user?.role !== 'SUPER_ADMIN' && session.user?.schoolId !== schoolId) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+    if (session.user?.role !== 'TEACHER' && session.user?.role !== 'SCHOOL_ADMIN' && session.user?.role !== 'SUPER_ADMIN') {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
     const absence = await db.teacherAbsence.create({
@@ -74,6 +94,8 @@ export async function POST(req: NextRequest) {
         reason: reason || null,
         status: status || 'reported',
         notes: notes || null,
+        approvalStatus: 'pending',
+        documentUrl: body.documentUrl || null,
       },
       include: {
         teacher: { select: { id: true, firstName: true, lastName: true, email: true } },

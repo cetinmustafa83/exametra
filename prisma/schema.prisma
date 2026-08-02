@@ -199,6 +199,7 @@ model User {
   illnessReports            IllnessReport[]
   illnessReportApprovals    IllnessReport[] @relation("IllnessApprover")
   illnessReportAdminApprovals IllnessReport[] @relation("IllnessAdminApprover")
+  teacherAbsenceApprovals TeacherAbsence[] @relation("TeacherAbsenceApprover")
   communicationRoomMembers  CommunicationRoomMember[]
   communicationMessages     CommunicationMessage[]
   counselingAppointments    CounselingAppointment[] @relation("Counselor")
@@ -1157,6 +1158,7 @@ model CalendarEvent {
   childEvents  CalendarEvent[] @relation("EventRecurrence")
   examPlan     ExamPlan?
   illnessReport IllnessReport?
+  teacherAbsence TeacherAbsence? @relation("TeacherAbsenceCalendar")
 
   @@index([schoolId])
   @@index([teacherId])
@@ -3217,16 +3219,25 @@ model TeacherAbsence {
   reason          String?
   status          String   @default("reported") // reported, covered, cancelled
   notes           String?
+  approvalStatus  String   @default("pending") // pending, approved, rejected
+  approvedBy      String?
+  approvedAt      DateTime?
+  privateAdminNotes String?
+  documentUrl     String?
+  calendarEventId String?  @unique
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
   school          School   @relation(fields: [schoolId], references: [id])
   teacher         User     @relation(fields: [teacherId], references: [id])
+  approver        User?    @relation("TeacherAbsenceApprover", fields: [approvedBy], references: [id])
+  calendarEvent   CalendarEvent? @relation("TeacherAbsenceCalendar", fields: [calendarEventId], references: [id])
   assignments     SubstitutionAssignment[]
 
   @@index([schoolId])
   @@index([teacherId])
   @@index([startDate])
+  @@index([approvalStatus])
   @@map("teacher_absences")
 }
 

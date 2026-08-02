@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { db } from '@/lib/db';
 import { getSession } from '@/lib/auth';
+import { getTeacherClassIds } from '@/lib/access-policy';
 
 const studentItemSchema = z.object({
   firstName: z.string().min(1),
@@ -42,6 +43,19 @@ export async function POST(request: Request) {
     }
 
     const { schoolId, classGroupId, schoolYearId, students } = parsed.data;
+
+    if (session.user?.role !== 'SUPER_ADMIN' && session.user?.schoolId !== schoolId) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+    if (session.user?.role === 'TEACHER') {
+      if (!classGroupId) {
+        return NextResponse.json({ error: 'Teachers must select one of their classes' }, { status: 400 });
+      }
+      const classIds = await getTeacherClassIds(session.userId);
+      if (!classIds.includes(classGroupId)) {
+        return NextResponse.json({ error: 'Teachers can only import students into their own classes' }, { status: 403 });
+      }
+    }
 
     // Validate class & school year
     if (classGroupId) {

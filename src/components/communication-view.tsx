@@ -54,6 +54,10 @@ interface CommunicationRoom {
   studentId: string;
   teacherId: string;
   roomType: string;
+  audienceType: string;
+  escalationEligibleAt: string | null;
+  escalatedAt: string | null;
+  resolutionStatus: string;
   status: string;
   requestedBy: string;
   acceptedAt: string | null;
@@ -532,6 +536,17 @@ function ChatArea({
     }
   };
 
+  const handleEscalate = async () => {
+    try {
+      await apiPut(`/api/communication-rooms/${roomId}`, { action: 'escalate' });
+      toast.success('Conversation escalated to administration');
+      fetchRoom();
+      onRefresh();
+    } catch {
+      toast.error('This conversation cannot be escalated yet');
+    }
+  };
+
   // Voice recording with Web Audio API
   const startRecording = async () => {
     try {
@@ -704,6 +719,11 @@ function ChatArea({
   const isStudent = room?.studentId === currentUserId;
   const otherPerson = isStudent ? room?.teacher : room?.student;
   const isAdmin = role === 'SCHOOL_ADMIN' || role === 'VICE_PRINCIPAL' || role === 'SUPER_ADMIN';
+  const canEscalate = (role === 'STUDENT' || role === 'PARENT')
+    && room?.audienceType === 'direct'
+    && room?.resolutionStatus !== 'resolved'
+    && !room?.escalatedAt
+    && Boolean(room?.escalationEligibleAt && new Date(room.escalationEligibleAt) <= new Date());
 
   const formatTime = (dateStr: string) => {
     const date = new Date(dateStr);
@@ -766,12 +786,17 @@ function ChatArea({
                  room?.status === 'active' ? t('communication.active') :
                  t('communication.closed')}
               </Badge>
-              {isAdmin && (
+               {isAdmin && (
                 <Badge variant="outline" className="text-xs">
                   <Eye className="h-3 w-3 mr-1" />
                   {t('communication.read_only')}
                 </Badge>
-              )}
+               )}
+               {room?.escalatedAt && (
+                 <Badge variant="outline" className="text-xs border-blue-300 text-blue-700">
+                   <Shield className="h-3 w-3 mr-1" />Escalated
+                 </Badge>
+               )}
             </div>
           </div>
         </div>
@@ -788,7 +813,7 @@ function ChatArea({
               </Button>
             </>
           )}
-          {role === 'TEACHER' && room?.status === 'active' && (
+           {role === 'TEACHER' && room?.status === 'active' && (
             <>
               <Button variant="outline" size="sm" className="h-8" onClick={() => setShowTeacherNotes(!showTeacherNotes)}>
                 <StickyNote className="h-3.5 w-3.5 mr-1" />
@@ -799,7 +824,12 @@ function ChatArea({
                 {t('communication.close')}
               </Button>
             </>
-          )}
+           )}
+           {canEscalate && (
+             <Button variant="outline" size="sm" className="h-8 border-amber-300 text-amber-700" onClick={handleEscalate}>
+               <AlertTriangle className="h-3.5 w-3.5 mr-1" />Escalate
+             </Button>
+           )}
         </div>
       </div>
 
