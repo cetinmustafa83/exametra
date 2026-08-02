@@ -99,7 +99,7 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
-    const { studentId, reason, description, startDate, endDate, documentUrl } = body;
+    const { studentId, reason, description, startDate, endDate, documentUrl, leaveType = 'illness' } = body;
 
     if (!studentId || !reason || !startDate) {
       return NextResponse.json(
@@ -141,8 +141,8 @@ export async function POST(request: Request) {
     const reporterType = role === 'STUDENT' ? 'student' : 'parent';
     const isParentReport = reporterType === 'parent';
 
-    // When student reports: needs parent approval, not visible to teacher/admin
-    // When parent reports: auto-approved, visible to teacher/admin
+    // Both student and parent requests require the final administrator approval.
+    // Parent-submitted requests satisfy the parent approval step immediately.
     const report = await db.illnessReport.create({
       data: {
         schoolId: student.schoolId,
@@ -154,12 +154,14 @@ export async function POST(request: Request) {
         startDate: new Date(startDate),
         endDate: endDate ? new Date(endDate) : null,
         documentUrl: documentUrl || null,
+        leaveType,
         parentApprovalStatus: isParentReport ? 'approved' : 'pending',
         parentApprovedBy: isParentReport ? userId : null,
         parentApprovedAt: isParentReport ? new Date() : null,
         isVisibleToTeacher: isParentReport,
-        isVisibleToAdmin: isParentReport,
-        status: isParentReport ? 'approved' : 'pending',
+        isVisibleToAdmin: false,
+        adminApprovalStatus: 'pending',
+        status: 'pending',
       },
       include: {
         student: { select: { id: true, firstName: true, lastName: true } },

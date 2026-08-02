@@ -2,6 +2,8 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { getSession } from '@/lib/auth';
+import { canCreateDirectRoom, canCreateGroupRoom, escalationEligibleAt } from '@/lib/communication-policy';
+import { getTeacherClassIds } from '@/lib/access-policy';
 
 export async function GET(request: Request) {
   try {
@@ -76,13 +78,65 @@ export async function POST(request: Request) {
     const role = session.user?.role;
     const userId = session.userId;
 
-    // Only students can request conversations
-    if (role !== 'STUDENT') {
-      return NextResponse.json({ error: 'Only students can request conversations' }, { status: 403 });
+    const body = await request.json();
+    const { reason, classGroupId, audienceType = 'direct' } = body;
+
+    if (audienceType !== 'direct') {
+      if (!canCreateGroupRoom(role)) {
+        return NextResponse.json({ error: 'Only teachers and administrators can create groups' }, { status: 403 });
+      }
+      if (!classGroupId) {
+        return NextResponse.json({ error: 'classGroupId is required for groups' }, { status: 400 });
+      }
+
+      if (role === 'TEACHER') {
+        const classIds = await getTeacherClassIds(userId);
+        if (!classIds.includes(classGroupId)) {
+          return NextResponse.json({ error: 'Teachers can only create groups for their own classes' }, { status: 403 });
+        }
+      }
+
+      const classGroup = await db.classGroup.findUnique({
+        where: { id: classGroupId },
+        select: { id: true, schoolId: true, responsibleTeacherId: true, enrollments: { where: { endDate: null }, select: { student: { select: { userId: true } } } } },
+      });
+      if (!classGroup || (session.user?.schoolId && classGroup.schoolId !== session.user.schoolId)) {
+        return NextResponse.json({ error: 'Class not found' }, { status: 404 });
+      }
+
+      const participantIds = classGroup.enrollments.flatMap((enrollment) => enrollment.student.userId ? [enrollment.student.userId] : []);
+      const moderatorId = classGroup.responsibleTeacherId ?? userId;
+      const room = await db.communicationRoom.create({
+        data: {
+          schoolId: classGroup.schoolId,
+          studentId: userId,
+          teacherId: moderatorId,
+          roomType: 'chat',
+          audienceType,
+          classGroupId,
+          status: 'active',
+          requestedBy: userId,
+          acceptedAt: new Date(),
+        },
+      });
+      await db.communicationRoomMember.createMany({
+        data: [...new Set([userId, moderatorId, ...participantIds])].map((memberId) => ({
+          roomId: room.id,
+          userId: memberId,
+          role: memberId === moderatorId ? 'moderator' : 'member',
+        })),
+        skipDuplicates: true,
+      });
+      return NextResponse.json(room, { status: 201 });
     }
 
-    const body = await request.json();
-    const { reason } = body;
+    if (!canCreateDirectRoom(role)) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
+    if (role === 'TEACHER') {
+      return NextResponse.json({ error: 'Teachers should use staff communication channels' }, { status: 400 });
+    }
 
     // Find the student's class and the responsible teacher
     const student = await db.student.findFirst({
@@ -147,6 +201,9 @@ export async function POST(request: Request) {
         roomType: 'chat',
         status: 'requested',
         requestedBy: userId,
+        audienceType: 'direct',
+        classGroupId: currentEnrollment.classGroup.id,
+        escalationEligibleAt: escalationEligibleAt(new Date()),
       },
       include: {
         student: { select: { id: true, firstName: true, lastName: true } },

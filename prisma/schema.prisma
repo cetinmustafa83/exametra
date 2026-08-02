@@ -198,6 +198,7 @@ model User {
   chatMessages              ChatMessage[]
   illnessReports            IllnessReport[]
   illnessReportApprovals    IllnessReport[] @relation("IllnessApprover")
+  illnessReportAdminApprovals IllnessReport[] @relation("IllnessAdminApprover")
   communicationRoomMembers  CommunicationRoomMember[]
   communicationMessages     CommunicationMessage[]
   counselingAppointments    CounselingAppointment[] @relation("Counselor")
@@ -298,6 +299,7 @@ model ClassGroup {
   peerAssessmentSessions PeerAssessmentSession[] @relation("PeerAssessmentClassGroup")
   schoolEvents        SchoolEvent[]
   aiTestGenerations   AITestGeneration[]
+  communicationRooms  CommunicationRoom[]
   examPlans           ExamPlan[]
   seatingCharts       SeatingChart[]
   substitutionAssignments SubstitutionAssignment[]
@@ -1154,6 +1156,7 @@ model CalendarEvent {
   parentEvent  CalendarEvent? @relation("EventRecurrence", fields: [parentEventId], references: [id])
   childEvents  CalendarEvent[] @relation("EventRecurrence")
   examPlan     ExamPlan?
+  illnessReport IllnessReport?
 
   @@index([schoolId])
   @@index([teacherId])
@@ -2489,8 +2492,14 @@ model CommunicationRoom {
   studentId     String
   teacherId     String
   roomType      String   @default("chat") // chat, voice, video
+  audienceType  String   @default("direct") // direct, class_group, parent_group, staff
+  classGroupId  String?
   status        String   @default("requested") // requested, active, closed
   requestedBy   String   // student or teacher
+  escalationEligibleAt DateTime?
+  escalatedAt   DateTime?
+  resolvedAt    DateTime?
+  resolutionStatus String @default("open") // open, resolved, unresolved
   acceptedAt    DateTime?
   closedAt      DateTime?
   closeReason   String?
@@ -2500,6 +2509,7 @@ model CommunicationRoom {
   school        School   @relation(fields: [schoolId], references: [id])
   student       User     @relation("RoomStudent", fields: [studentId], references: [id])
   teacher       User     @relation("RoomTeacher", fields: [teacherId], references: [id])
+  classGroup    ClassGroup? @relation(fields: [classGroupId], references: [id])
   members       CommunicationRoomMember[]
   messages      CommunicationMessage[]
   chatMessages  ChatMessage[]
@@ -2508,6 +2518,8 @@ model CommunicationRoom {
   @@index([studentId])
   @@index([teacherId])
   @@index([status])
+  @@index([classGroupId])
+  @@index([escalationEligibleAt])
   @@map("communication_rooms")
 }
 

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { db } from '@/lib/db';
 import { getSession, hashPassword } from '@/lib/auth';
+import { isAdministrator } from '@/lib/role-access';
 
 const createUserSchema = z.object({
   schoolId: z.string().nullable().optional(),
@@ -31,8 +32,7 @@ export async function GET(request: Request) {
 
     if (
       session.user?.role !== 'SUPER_ADMIN' &&
-      session.user?.role !== 'SCHOOL_ADMIN' &&
-      session.user?.role !== 'TEACHER'
+      session.user?.role !== 'SCHOOL_ADMIN'
     ) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
@@ -113,8 +113,7 @@ export async function POST(request: Request) {
     if (body.action === 'bulkCreateStudents') {
       if (
         session.user?.role !== 'SUPER_ADMIN' &&
-        session.user?.role !== 'SCHOOL_ADMIN' &&
-        session.user?.role !== 'TEACHER'
+        session.user?.role !== 'SCHOOL_ADMIN'
       ) {
         return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
       }
@@ -212,8 +211,7 @@ export async function POST(request: Request) {
     // ── Single user creation ──
     if (
       session.user?.role !== 'SUPER_ADMIN' &&
-      session.user?.role !== 'SCHOOL_ADMIN' &&
-      session.user?.role !== 'TEACHER'
+      session.user?.role !== 'SCHOOL_ADMIN'
     ) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
@@ -228,7 +226,7 @@ export async function POST(request: Request) {
 
     const { password, studentId, ...userData } = parsed.data;
 
-    // School admins can only create users in their own school
+    // Administrators can only create users in their own school.
     if (
       session.user?.role === 'SCHOOL_ADMIN' &&
       session.user?.schoolId &&
@@ -242,10 +240,7 @@ export async function POST(request: Request) {
     }
 
     // School admins cannot create super admin accounts
-    if (
-      session.user?.role === 'SCHOOL_ADMIN' &&
-      userData.role === 'SUPER_ADMIN'
-    ) {
+    if (session.user?.role === 'SCHOOL_ADMIN' && userData.role === 'SUPER_ADMIN') {
       return NextResponse.json(
         { error: 'Cannot create super admin accounts' },
         { status: 403 }

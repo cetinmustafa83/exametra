@@ -2,29 +2,26 @@ import type { ViewName } from '@/lib/store';
 
 export type AppRole = 'PARENT' | 'STUDENT' | 'TEACHER' | 'VICE_PRINCIPAL' | 'SCHOOL_ADMIN' | 'SUPER_ADMIN' | 'DPO';
 
+export const ADMIN_ROLES: readonly AppRole[] = ['SCHOOL_ADMIN', 'SUPER_ADMIN'];
+export const USER_MANAGER_ROLES: readonly AppRole[] = ['SCHOOL_ADMIN', 'SUPER_ADMIN'];
+export const STUDENT_MANAGER_ROLES: readonly AppRole[] = ['SCHOOL_ADMIN', 'SUPER_ADMIN', 'TEACHER'];
+
 const parentViews: ViewName[] = [
-  'dashboard', 'parent-portal', 'parents', 'grading', 'attendance', 'calendar',
-  'communication', 'illness', 'report-cards', 'school-events', 'school-newsletter',
-  'notification-center', 'announcements', 'settings',
+  'dashboard', 'parent-portal', 'calendar', 'communication', 'illness',
+  'notification-center', 'announcements',
 ];
 
 const studentViews: ViewName[] = [
-  'dashboard', 'student-portal', 'notebooks', 'flower', 'grading', 'grade-analytics',
-  'homework', 'attendance', 'portfolio', 'calendar', 'competitions', 'subjects',
-  'illness', 'communication', 'counseling', 'ai-tests', 'exam-calendar',
-  'peer-assessment', 'report-cards', 'student-achievements', 'student-study-planner',
-  'student-wellness', 'student-career', 'resources', 'school-library', 'school-events',
-  'school-newsletter', 'school-transport', 'notification-center', 'announcements', 'settings',
+  'dashboard', 'student-portal', 'calendar', 'communication', 'illness',
+  'notification-center',
 ];
 
 const teacherViews: ViewName[] = [
   'dashboard', 'classes', 'competencies', 'progress', 'flower', 'assessments', 'grading',
-  'reports', 'settings', 'student-detail', 'matrix', 'attendance', 'calendar', 'lesson-plans',
-  'parents', 'behavior', 'coverage', 'rubrics', 'comments', 'notebooks', 'drawing', 'homework',
-  'portfolio', 'timetable', 'resources', 'competitions', 'subjects', 'illness', 'communication',
-  'counseling', 'ai-tests', 'notification-center', 'announcements', 'tablet-grading',
-  'exam-calendar', 'peer-assessment', 'seating-chart', 'school-library', 'report-cards',
-  'student-wellness', 'student-career', 'school-events', 'school-newsletter',
+  'reports', 'student-detail', 'matrix', 'attendance', 'calendar', 'lesson-plans',
+  'behavior', 'coverage', 'rubrics', 'comments', 'homework', 'timetable', 'resources',
+  'illness', 'communication', 'notification-center', 'tablet-grading', 'exam-calendar',
+  'seating-chart', 'report-cards',
 ];
 
 const vicePrincipalViews: ViewName[] = [
@@ -34,6 +31,21 @@ const vicePrincipalViews: ViewName[] = [
 
 export function hasRoleAccess(role: string | undefined, allowedRoles: readonly AppRole[]): boolean {
   return role === 'SCHOOL_ADMIN' || role === 'SUPER_ADMIN' || (role !== undefined && allowedRoles.includes(role as AppRole));
+}
+
+export function isAdministrator(role: string | undefined): boolean {
+  return role === 'SCHOOL_ADMIN' || role === 'SUPER_ADMIN';
+}
+
+export function canManageUser(actorRole: string | undefined, targetRole: string, isSelf = false): boolean {
+  if (!isAdministrator(actorRole)) return false;
+  if (isSelf) return false;
+  if (actorRole === 'SCHOOL_ADMIN' && targetRole === 'SUPER_ADMIN') return false;
+  return true;
+}
+
+export function canManageStudent(actorRole: string | undefined): boolean {
+  return STUDENT_MANAGER_ROLES.includes(actorRole as AppRole);
 }
 
 export function canAccessView(role: string | undefined, view: ViewName): boolean {

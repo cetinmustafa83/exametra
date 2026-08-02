@@ -89,8 +89,8 @@ export async function PUT(
     const userId = session.userId;
     const body = await request.json();
 
-    // PARENT can approve/reject pending reports
-    if (body.parentApprovalStatus && (role === 'PARENT' || role === 'SCHOOL_ADMIN' || role === 'VICE_PRINCIPAL')) {
+    // Parent approval remains parent-only. Final approval is handled by /approve.
+    if (body.parentApprovalStatus && role === 'PARENT') {
       const newStatus = body.parentApprovalStatus;
       if (newStatus !== 'approved' && newStatus !== 'rejected') {
         return NextResponse.json({ error: 'Invalid approval status' }, { status: 400 });
@@ -112,8 +112,8 @@ export async function PUT(
           parentApprovedBy: userId,
           parentApprovedAt: new Date(),
           isVisibleToTeacher: newStatus === 'approved',
-          isVisibleToAdmin: newStatus === 'approved',
-          status: newStatus === 'approved' ? 'approved' : 'rejected',
+          isVisibleToAdmin: false,
+          status: newStatus === 'approved' ? 'pending' : 'rejected',
         },
         include: {
           student: { select: { id: true, firstName: true, lastName: true } },

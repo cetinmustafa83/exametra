@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { getSession } from '@/lib/auth';
+import { canAccessRoom } from '@/lib/communication-policy';
 
 export async function GET(
   request: Request,
@@ -22,22 +23,15 @@ export async function GET(
     const role = session.user?.role;
     const userId = session.userId;
 
-    // Access control
-    if (role === 'STUDENT' && room.studentId !== userId) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    } else if (role === 'TEACHER' && room.teacherId !== userId) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    } else if (role === 'PARENT') {
+    if (role === 'PARENT') {
       const parentLink = await db.parentStudentLink.findFirst({
-        where: { parentId: userId, studentId: room.studentId },
+        where: { parentId: userId, student: { userId: room.studentId } },
       });
       if (!parentLink) {
         return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
       }
-    } else if (role === 'SCHOOL_ADMIN' || role === 'VICE_PRINCIPAL') {
-      if (room.schoolId !== session.user?.schoolId) {
-        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-      }
+    } else if (!canAccessRoom(role, room, userId, session.user?.schoolId ?? null)) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
     const { searchParams } = new URL(request.url);
@@ -95,12 +89,12 @@ export async function POST(
     const role = session.user?.role;
     const userId = session.userId;
 
-    // Only student and teacher can send messages (not admin, not parent)
-    if (role !== 'STUDENT' && role !== 'TEACHER') {
-      return NextResponse.json({ error: 'Only participants can send messages' }, { status: 403 });
-    }
-
-    if (room.studentId !== userId && room.teacherId !== userId) {
+    const membership = await db.communicationRoomMember.findUnique({
+      where: { roomId_userId: { roomId: id, userId } },
+      select: { id: true },
+    });
+    const isSchoolAdministrator = (role === 'SCHOOL_ADMIN' || role === 'SUPER_ADMIN') && room.escalatedAt;
+    if (!membership && !isSchoolAdministrator) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 

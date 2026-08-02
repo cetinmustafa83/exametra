@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { db } from '@/lib/db';
 import { getSession } from '@/lib/auth';
+import { canAccessClass } from '@/lib/access-policy';
 
 export async function GET(
   _request: Request,
@@ -14,6 +15,10 @@ export async function GET(
     }
 
     const { id: classGroupId } = await params;
+
+    if (!session.user || !(await canAccessClass(session.user, classGroupId))) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
 
     const enrollments = await db.enrollment.findMany({
       where: {
@@ -56,11 +61,7 @@ export async function POST(
       return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
     }
 
-    if (
-      session.user?.role !== 'SUPER_ADMIN' &&
-      session.user?.role !== 'SCHOOL_ADMIN' &&
-      session.user?.role !== 'TEACHER'
-    ) {
+    if (session.user?.role !== 'SUPER_ADMIN' && session.user?.role !== 'SCHOOL_ADMIN') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 

@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { db } from '@/lib/db';
 import { getSession } from '@/lib/auth';
+import { canAccessStudent, getTeacherClassIds } from '@/lib/access-policy';
+import { canManageStudent, isAdministrator } from '@/lib/role-access';
 
 const createStudentSchema = z.object({
   schoolId: z.string().min(1),
@@ -27,9 +29,25 @@ export async function GET(request: Request) {
     const search = searchParams.get('search');
     const userId = searchParams.get('userId');
 
+    const user = session.user;
+    if (!user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+
     const where: Record<string, unknown> = { deletedAt: null };
 
     if (schoolId) where.schoolId = schoolId;
+
+    if (!isAdministrator(user.role)) {
+      if (user.role === 'TEACHER') {
+        const classIds = await getTeacherClassIds(user.id);
+        where.enrollments = { some: { classGroupId: { in: classIds }, endDate: null } };
+      } else if (user.role === 'STUDENT') {
+        where.userId = user.id;
+      } else if (user.role === 'PARENT') {
+        where.parentStudentLinks = { some: { parentId: user.id } };
+      } else {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      }
+    }
 
     // Filter by userId (direct link to User account)
     let userIdFilter: Record<string, unknown>[] | null = null;
@@ -112,11 +130,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
     }
 
-    if (
-      session.user?.role !== 'SUPER_ADMIN' &&
-      session.user?.role !== 'SCHOOL_ADMIN' &&
-      session.user?.role !== 'TEACHER'
-    ) {
+    if (!canManageStudent(session.user?.role)) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
@@ -127,6 +141,13 @@ export async function POST(request: Request) {
         { error: 'Validation failed', details: parsed.error.issues },
         { status: 400 }
       );
+    }
+
+    if (
+      session.user?.role === 'TEACHER' &&
+      (!session.user.schoolId || parsed.data.schoolId !== session.user.schoolId)
+    ) {
+      return NextResponse.json({ error: 'Teachers can only create students in their own school' }, { status: 403 });
     }
 
     const student = await db.student.create({
@@ -153,11 +174,7 @@ export async function PUT(request: Request) {
       return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
     }
 
-    if (
-      session.user?.role !== 'SUPER_ADMIN' &&
-      session.user?.role !== 'SCHOOL_ADMIN' &&
-      session.user?.role !== 'TEACHER'
-    ) {
+    if (!canManageStudent(session.user?.role)) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
@@ -184,6 +201,10 @@ export async function PUT(request: Request) {
     }
 
     const { id, ...updateData } = parsed.data;
+
+    if (!session.user || !(await canAccessStudent(session.user, id))) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
 
     const student = await db.student.update({
       where: { id },

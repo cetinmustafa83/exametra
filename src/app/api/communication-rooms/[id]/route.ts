@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { getSession } from '@/lib/auth';
+import { canAccessRoom, canEscalateToAdmin } from '@/lib/communication-policy';
 
 export async function GET(
   _request: Request,
@@ -31,22 +32,16 @@ export async function GET(
     const role = session.user?.role;
     const userId = session.userId;
 
-    // Access control
-    if (role === 'STUDENT' && room.studentId !== userId) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    } else if (role === 'TEACHER' && room.teacherId !== userId) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    } else if (role === 'PARENT') {
+    // Direct student rooms remain private until explicitly escalated.
+    if (role === 'PARENT') {
       const parentLink = await db.parentStudentLink.findFirst({
-        where: { parentId: userId, studentId: room.studentId },
+        where: { parentId: userId, student: { userId: room.studentId } },
       });
       if (!parentLink) {
         return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
       }
-    } else if (role === 'SCHOOL_ADMIN' || role === 'VICE_PRINCIPAL') {
-      if (room.schoolId !== session.user?.schoolId) {
-        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-      }
+    } else if (!canAccessRoom(role, room, userId, session.user?.schoolId ?? null)) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
     return NextResponse.json(room);
@@ -76,6 +71,31 @@ export async function PUT(
     const role = session.user?.role;
     const userId = session.userId;
     const body = await request.json();
+
+    if (body.action === 'escalate') {
+      if (role !== 'STUDENT' && role !== 'PARENT') {
+        return NextResponse.json({ error: 'Only students or parents can escalate' }, { status: 403 });
+      }
+      if (role === 'STUDENT' && room.studentId !== userId) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      }
+      if (role === 'PARENT') {
+        const student = await db.student.findFirst({ where: { userId: room.studentId }, select: { id: true } });
+        const link = student && await db.parentStudentLink.findFirst({ where: { parentId: userId, studentId: student.id }, select: { id: true } });
+        if (!link) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      }
+      if (!canEscalateToAdmin(room)) {
+        return NextResponse.json({ error: 'Escalation becomes available after five business days without resolution' }, { status: 400 });
+      }
+      const admin = await db.user.findFirst({ where: { schoolId: room.schoolId, role: 'SCHOOL_ADMIN', deletedAt: null }, select: { id: true } });
+      if (!admin) return NextResponse.json({ error: 'No school administrator is assigned' }, { status: 400 });
+      await db.communicationRoomMember.upsert({
+        where: { roomId_userId: { roomId: id, userId: admin.id } },
+        update: { role: 'moderator' },
+        create: { roomId: id, userId: admin.id, role: 'moderator' },
+      });
+      return NextResponse.json(await db.communicationRoom.update({ where: { id }, data: { escalatedAt: new Date(), resolutionStatus: 'unresolved' } }));
+    }
 
     // Teacher accepts a room
     if (body.status === 'active' && room.status === 'requested') {
@@ -112,6 +132,8 @@ export async function PUT(
           status: 'closed',
           closedAt: new Date(),
           closeReason: body.closeReason || null,
+          resolvedAt: body.resolved ? new Date() : null,
+          resolutionStatus: body.resolved ? 'resolved' : 'unresolved',
         },
         include: {
           student: { select: { id: true, firstName: true, lastName: true } },

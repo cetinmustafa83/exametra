@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { db } from '@/lib/db';
 import { getSession } from '@/lib/auth';
+import { canManageUser } from '@/lib/role-access';
 
 const updateUserSchema = z.object({
   firstName: z.string().min(1).optional(),
@@ -56,6 +57,10 @@ export async function GET(
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
+    if (!canManageUser(session.user?.role, user.role, user.id === session.userId)) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
     // School admins can only access users from their own school
     if (
       session.user?.role === 'SCHOOL_ADMIN' &&
@@ -106,6 +111,10 @@ export async function PUT(
     const existing = await db.user.findUnique({ where: { id } });
     if (!existing) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    }
+
+    if (!canManageUser(session.user?.role, existing.role, id === session.userId)) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
     // School admins can only edit users from their own school
@@ -208,6 +217,10 @@ export async function DELETE(
     const existing = await db.user.findUnique({ where: { id } });
     if (!existing) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    }
+
+    if (!canManageUser(session.user?.role, existing.role, id === session.userId)) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
     // School admins can only delete users from their own school
