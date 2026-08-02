@@ -85,8 +85,16 @@ success message whether or not an account exists. In development only, or when
 
 By default, self-hosted registrations are marked verified immediately. Set
 `AUTH_REQUIRE_EMAIL_VERIFICATION=true` only after integrating a reviewed email
-verification delivery flow. TOTP and recovery-code enrollment remain a planned
-security enhancement.
+verification delivery flow.
+
+## Two-Factor Authentication
+
+Set `AUTH_TOTP_ENABLED=true` to allow authenticated users to enroll an RFC
+compatible authenticator. Enrollment verifies one current six-digit code before
+the secret is saved and returns ten single-use recovery codes once. Store these
+codes offline; raw recovery codes are never stored. During login, an enrolled
+user must provide either a current authenticator code or one unused recovery
+code.
 
 ## Compliance Notice
 

@@ -24,8 +24,8 @@ CREATE TABLE "new_teacher_absences" (
   "calendarEventId" TEXT,
   "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   "updatedAt" DATETIME NOT NULL,
-  CONSTRAINT "teacher_absences_schoolId_fkey" FOREIGN KEY ("schoolId") REFERENCES "School" ("id") ON DELETE CASCADE ON UPDATE CASCADE,
-  CONSTRAINT "teacher_absences_teacherId_fkey" FOREIGN KEY ("teacherId") REFERENCES "User" ("id") ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT "teacher_absences_schoolId_fkey" FOREIGN KEY ("schoolId") REFERENCES "School" ("id") ON DELETE RESTRICT ON UPDATE CASCADE,
+  CONSTRAINT "teacher_absences_teacherId_fkey" FOREIGN KEY ("teacherId") REFERENCES "User" ("id") ON DELETE RESTRICT ON UPDATE CASCADE,
   CONSTRAINT "teacher_absences_approvedBy_fkey" FOREIGN KEY ("approvedBy") REFERENCES "User" ("id") ON DELETE SET NULL ON UPDATE CASCADE,
   CONSTRAINT "teacher_absences_calendarEventId_fkey" FOREIGN KEY ("calendarEventId") REFERENCES "CalendarEvent" ("id") ON DELETE SET NULL ON UPDATE CASCADE
 );
@@ -36,3 +36,6 @@ PRAGMA foreign_keys=ON;
 
 CREATE UNIQUE INDEX "teacher_absences_calendarEventId_key" ON "teacher_absences"("calendarEventId");
 CREATE INDEX "teacher_absences_approvalStatus_idx" ON "teacher_absences"("approvalStatus");
+CREATE INDEX "teacher_absences_schoolId_idx" ON "teacher_absences"("schoolId");
+CREATE INDEX "teacher_absences_teacherId_idx" ON "teacher_absences"("teacherId");
+CREATE INDEX "teacher_absences_startDate_idx" ON "teacher_absences"("startDate");

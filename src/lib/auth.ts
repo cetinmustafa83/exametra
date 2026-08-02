@@ -76,6 +76,7 @@ const sessionUserSelect = Prisma.validator<Prisma.UserSelect>()({
   schoolId: true,
   locale: true,
   isDemo: true,
+  twoFactorSecret: true,
   createdAt: true,
   updatedAt: true,
 });

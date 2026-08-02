@@ -33,9 +33,9 @@ CREATE TABLE "new_illness_reports" (
   "calendarEventId" TEXT,
   "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   "updatedAt" DATETIME NOT NULL,
-  CONSTRAINT "illness_reports_schoolId_fkey" FOREIGN KEY ("schoolId") REFERENCES "School" ("id") ON DELETE CASCADE ON UPDATE CASCADE,
-  CONSTRAINT "illness_reports_studentId_fkey" FOREIGN KEY ("studentId") REFERENCES "Student" ("id") ON DELETE CASCADE ON UPDATE CASCADE,
-  CONSTRAINT "illness_reports_reportedBy_fkey" FOREIGN KEY ("reportedBy") REFERENCES "User" ("id") ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT "illness_reports_schoolId_fkey" FOREIGN KEY ("schoolId") REFERENCES "School" ("id") ON DELETE RESTRICT ON UPDATE CASCADE,
+  CONSTRAINT "illness_reports_studentId_fkey" FOREIGN KEY ("studentId") REFERENCES "Student" ("id") ON DELETE RESTRICT ON UPDATE CASCADE,
+  CONSTRAINT "illness_reports_reportedBy_fkey" FOREIGN KEY ("reportedBy") REFERENCES "User" ("id") ON DELETE RESTRICT ON UPDATE CASCADE,
   CONSTRAINT "illness_reports_parentApprovedBy_fkey" FOREIGN KEY ("parentApprovedBy") REFERENCES "User" ("id") ON DELETE SET NULL ON UPDATE CASCADE,
   CONSTRAINT "illness_reports_adminApprovedBy_fkey" FOREIGN KEY ("adminApprovedBy") REFERENCES "User" ("id") ON DELETE SET NULL ON UPDATE CASCADE,
   CONSTRAINT "illness_reports_calendarEventId_fkey" FOREIGN KEY ("calendarEventId") REFERENCES "CalendarEvent" ("id") ON DELETE SET NULL ON UPDATE CASCADE
@@ -47,3 +47,8 @@ PRAGMA foreign_keys=ON;
 
 CREATE UNIQUE INDEX "illness_reports_calendarEventId_key" ON "illness_reports"("calendarEventId");
 CREATE INDEX "illness_reports_adminApprovalStatus_idx" ON "illness_reports"("adminApprovalStatus");
+CREATE INDEX "illness_reports_schoolId_idx" ON "illness_reports"("schoolId");
+CREATE INDEX "illness_reports_studentId_idx" ON "illness_reports"("studentId");
+CREATE INDEX "illness_reports_reportedBy_idx" ON "illness_reports"("reportedBy");
+CREATE INDEX "illness_reports_parentApprovalStatus_idx" ON "illness_reports"("parentApprovalStatus");
+CREATE INDEX "illness_reports_status_idx" ON "illness_reports"("status");

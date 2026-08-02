@@ -14,6 +14,7 @@ import {
 } from '@/lib/auth';
 import { withRateLimit, checkRateLimit, getRateLimitKey, getRateLimitHeaders, createRateLimitResponse } from '@/lib/rate-limit';
 import { createPasswordResetToken, hashResetToken, passwordResetExpiry } from '@/lib/password-reset';
+import { createRecoveryCodes, createTotpSecret, hashRecoveryCode, totpUri, verifyTotp } from '@/lib/two-factor';
 
 const loginSchema = z.object({
   email: z.string().email(),
@@ -37,10 +38,55 @@ const resetPasswordSchema = z.object({
   password: z.string().min(12),
 });
 
+const twoFactorTokenSchema = z.object({
+  token: z.string().min(6).max(20),
+});
+
 export const POST = withRateLimit(async function POST(request: Request) {
   try {
     const body = await request.json();
     const { action } = body;
+
+    if (action === 'setup-two-factor') {
+      const session = await getSession();
+      if (!session?.user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+      if (process.env.AUTH_TOTP_ENABLED !== 'true') return NextResponse.json({ error: 'Two-factor authentication is disabled' }, { status: 403 });
+      const secret = createTotpSecret();
+      return NextResponse.json({ secret, otpauthUrl: totpUri(session.user.email, secret) });
+    }
+
+    if (action === 'enable-two-factor') {
+      const session = await getSession();
+      const parsed = twoFactorTokenSchema.extend({ secret: z.string().min(10) }).safeParse(body);
+      if (!session?.user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+      if (process.env.AUTH_TOTP_ENABLED !== 'true') return NextResponse.json({ error: 'Two-factor authentication is disabled' }, { status: 403 });
+      if (!parsed.success || !verifyTotp(parsed.data.secret, parsed.data.token)) {
+        return NextResponse.json({ error: 'Invalid authenticator code' }, { status: 400 });
+      }
+      const recoveryCodes = createRecoveryCodes();
+      await db.$transaction([
+        db.user.update({ where: { id: session.userId }, data: { twoFactorSecret: parsed.data.secret } }),
+        db.twoFactorRecoveryCode.deleteMany({ where: { userId: session.userId } }),
+        db.twoFactorRecoveryCode.createMany({
+          data: recoveryCodes.map((code) => ({ userId: session.userId, codeHash: hashRecoveryCode(code) })),
+        }),
+      ]);
+      return NextResponse.json({ recoveryCodes });
+    }
+
+    if (action === 'disable-two-factor') {
+      const session = await getSession();
+      const parsed = twoFactorTokenSchema.safeParse(body);
+      if (!session?.user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+      if (!parsed.success || !session.user.twoFactorSecret || !verifyTotp(session.user.twoFactorSecret, parsed.data.token)) {
+        return NextResponse.json({ error: 'Invalid authenticator code' }, { status: 400 });
+      }
+      await db.$transaction([
+        db.user.update({ where: { id: session.userId }, data: { twoFactorSecret: null } }),
+        db.twoFactorRecoveryCode.deleteMany({ where: { userId: session.userId } }),
+      ]);
+      return NextResponse.json({ message: 'Two-factor authentication disabled' });
+    }
 
     if (action === 'request-password-reset') {
       const parsed = requestPasswordResetSchema.safeParse(body);
@@ -127,6 +173,24 @@ export const POST = withRateLimit(async function POST(request: Request) {
           where: { id: user.id },
           data: { passwordHash: await hashPassword(password) },
         });
+      }
+
+      if (user.twoFactorSecret) {
+        const parsedTwoFactor = twoFactorTokenSchema.safeParse(body);
+        if (!parsedTwoFactor.success) {
+          return NextResponse.json({ error: 'Two-factor code required', twoFactorRequired: true }, { status: 401 });
+        }
+        const providedCode = parsedTwoFactor.data.token;
+        const validTotp = verifyTotp(user.twoFactorSecret, providedCode);
+        const recoveryCode = validTotp ? null : await db.twoFactorRecoveryCode.findFirst({
+          where: { userId: user.id, codeHash: hashRecoveryCode(providedCode), usedAt: null },
+        });
+        if (!validTotp && !recoveryCode) {
+          return NextResponse.json({ error: 'Invalid two-factor code', twoFactorRequired: true }, { status: 401 });
+        }
+        if (recoveryCode) {
+          await db.twoFactorRecoveryCode.update({ where: { id: recoveryCode.id }, data: { usedAt: new Date() } });
+        }
       }
 
       const secure = isSecureRequest(request);

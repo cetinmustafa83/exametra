@@ -73,10 +73,10 @@ Use these sections only. Do not add a new sidebar entry if a workflow belongs in
 - [x] Add `docs/DATA_MODEL.md`, `docs/CONTRIBUTING.md`, and `docs/ROADMAP.md`.
 - [x] Add `docs/ARCHITECTURE.md` and `docs/SELF_HOSTING.md`.
 - [x] Move the root PRD to `docs/PRD.md` and keep one canonical index in `docs/README.md`.
-- [ ] Add GitHub Actions for lint, typecheck, unit tests, Prisma validation, migration drift checks, and Playwright smoke tests. Prisma migration deploy/drift, lint, typecheck, unit, and dependency audit checks are implemented; Playwright smoke tests wait on the test environment.
+- [x] Add GitHub Actions for lint, typecheck, unit tests, Prisma validation, migration drift checks, and Playwright smoke tests.
 - [ ] Add dependency audit and secret scanning in CI.
 - [x] Replace `bcryptjs` password hashing with Argon2id and document a safe rehash-on-login migration path. Legacy bcrypt hashes verify once and rehash on successful login.
-- [ ] Implement password reset tokens, email verification/self-hosted bypass flag, configurable session expiry, optional TOTP setup/recovery codes, and rate-limited auth routes. Reset tokens, self-hosted verification bypass, and session configuration are implemented; TOTP/recovery codes remain.
+- [x] Implement password reset tokens, email verification/self-hosted bypass flag, configurable session expiry, optional TOTP setup/recovery codes, and rate-limited auth routes.
 - [x] Implement central origin-based CSRF protection for cookie-authenticated mutation requests below `/api/`.
 - [x] Add real local file storage abstraction for uploads, exports, and backups with path traversal protection. S3-compatible adapter remains a future implementation behind the same interface.
 - [x] Add SQLite WAL configuration and verified online backup scripts. Restore remains a deliberate maintenance-environment workflow and requires a smoke test before production cutover.
