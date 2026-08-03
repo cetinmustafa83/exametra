@@ -2,9 +2,7 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   output: "standalone",
-  turbopack: {
-    root: "/Users/fatmacetin/dyad-apps/exametra",
-  },
+  /* config options here */
   typescript: {
     ignoreBuildErrors: true,
   },
