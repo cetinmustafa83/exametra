@@ -35,6 +35,9 @@ model School {
   phone           String?   // school phone number
 
   users           User[]
+  schoolPolicies SchoolPolicy[]
+  escalationPolicies EscalationPolicy[]
+  classMessagingLocks ClassMessagingLock[]
   schoolYears     SchoolYear[]
   classGroups     ClassGroup[]
   students        Student[]
@@ -343,6 +346,7 @@ model ClassGroupTeacher {
 
   classGroup ClassGroup @relation(fields: [classGroupId], references: [id])
   user       User       @relation(fields: [userId], references: [id])
+
 
   @@unique([classGroupId, userId])
 }
@@ -3736,7 +3740,7 @@ model EscalationPolicy {
   updatedAt                 DateTime @updatedAt
 
   school School   @relation(fields: [schoolId], references: [id])
-  overridingUser            User?    @relation(fields: [overriddenByUserId], references: [id])
+  overriddenByUser          User?    @relation(fields: [overriddenByUserId], references: [id])
 
   @@index([schoolId])
   @@index([fromRole, toRole])
@@ -3754,7 +3758,7 @@ model ClassMessagingLock {
   updatedAt      DateTime  @updatedAt
 
   classGroup ClassGroup @relation(fields: [classGroupId], references: [id])
-  lockedByUser User       @relation(fields: [lockedByUserId], references: [id])
+  lockedByUser User @relation(fields: [lockedByUserId], references: [id])
 
   @@index([classGroupId])
   @@index([lockedByUserId])

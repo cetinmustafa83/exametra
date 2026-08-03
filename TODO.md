@@ -271,8 +271,11 @@ Exit criteria:
 
 ## Current Blockers
 
-- [ ] Confirm AGPLv3 versus MIT license direction.
+- [ ] Fix AGPLv3 versus MIT license direction.
 - [ ] Confirm whether AI features remain optional and which local/provider integration is permitted.
 - [ ] Confirm school-specific legal retention values with the DPO; do not infer them.
 - [ ] Confirm emergency alert audience and after-hours teacher notification policy with school leadership.
 - [ ] Confirm target browser/device policy for kiosk/fullscreen limitations.
+- [ ] CSRF middleware compiles correctly but does not block cross-origin requests at runtime (returns 200 instead of 403). Likely cause: `turbopack.root` misconfiguration — Next.js inferred workspace root as `/Users/fatmacetin/` instead of `/Users/fatmacetin/dyad-apps/exametra/`.
+- [ ] E2E sign-in page test fails: email input field not visible on sign-in page (JS hydration or label text mismatch).
+- [ ] Report-cards `[id]` route needs `schoolId` field in select for scope check.
